@@ -1,0 +1,48 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
+  <defs>
+    <linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#1a0f35"/>
+      <stop offset="100%" stop-color="#0d1a26"/>
+    </linearGradient>
+    <linearGradient id="grad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#8b5cf6"/>
+      <stop offset="100%" stop-color="#06b6d4"/>
+    </linearGradient>
+    <linearGradient id="glow" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#8b5cf6" stop-opacity="0.3"/>
+      <stop offset="100%" stop-color="#06b6d4" stop-opacity="0.3"/>
+    </linearGradient>
+    <filter id="blur-glow">
+      <feGaussianBlur stdDeviation="18" result="blur"/>
+      <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter>
+  </defs>
+
+  <!-- Background -->
+  <rect width="1024" height="1024" rx="220" ry="220" fill="url(#bg)"/>
+
+  <!-- Outer glow ring -->
+  <circle cx="512" cy="512" r="390" stroke="url(#glow)" stroke-width="80" fill="none" filter="url(#blur-glow)"/>
+
+  <!-- Clock face ring -->
+  <circle cx="512" cy="512" r="370" stroke="url(#grad)" stroke-width="44" fill="none" stroke-linecap="round"/>
+
+  <!-- Tick marks at 12, 3, 6, 9 -->
+  <!-- 12 o'clock -->
+  <line x1="512" y1="126" x2="512" y2="182" stroke="url(#grad)" stroke-width="30" stroke-linecap="round"/>
+  <!-- 3 o'clock -->
+  <line x1="898" y1="512" x2="842" y2="512" stroke="url(#grad)" stroke-width="30" stroke-linecap="round"/>
+  <!-- 6 o'clock -->
+  <line x1="512" y1="898" x2="512" y2="842" stroke="url(#grad)" stroke-width="30" stroke-linecap="round"/>
+  <!-- 9 o'clock -->
+  <line x1="126" y1="512" x2="182" y2="512" stroke="url(#grad)" stroke-width="30" stroke-linecap="round"/>
+
+  <!-- Hour hand — pointing to ~12 (up), from center to near 12 o'clock -->
+  <line x1="512" y1="512" x2="512" y2="248" stroke="url(#grad)" stroke-width="38" stroke-linecap="round"/>
+
+  <!-- Minute hand — pointing to ~4 (right and slightly down), matching M12 6v6l4 2 proportion -->
+  <line x1="512" y1="512" x2="688" y2="598" stroke="url(#grad)" stroke-width="32" stroke-linecap="round"/>
+
+  <!-- Center dot -->
+  <circle cx="512" cy="512" r="36" fill="url(#grad)"/>
+</svg>
