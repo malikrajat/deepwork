@@ -1,29 +1,72 @@
 @import "tailwindcss";
 
-/* ===== DeepWork Glassmorphism Design System ===== */
+/* ===== DeepWork Premium Design System ===== */
 
 :root {
-  /* Purple/Blue gradient palette */
-  --color-bg-primary: #0f0a1e;
-  --color-bg-secondary: #1a1033;
-  --color-accent-primary: #7c3aed;
-  --color-accent-secondary: #3b82f6;
-  --color-accent-gradient: linear-gradient(135deg, #7c3aed 0%, #3b82f6 100%);
-  --color-text-primary: #f1f5f9;
-  --color-text-secondary: #94a3b8;
-  --color-text-muted: #64748b;
-  --color-success: #10b981;
-  --color-warning: #f59e0b;
-  --color-danger: #ef4444;
+  /* Deep space palette */
+  --color-bg-primary: #080613;
+  --color-bg-secondary: #0f0b1f;
+  --color-bg-tertiary: #160f2d;
+  --color-accent-primary: #8b5cf6;
+  --color-accent-secondary: #06b6d4;
+  --color-accent-tertiary: #ec4899;
+  --color-accent-gradient: linear-gradient(135deg, #8b5cf6 0%, #06b6d4 100%);
+  --color-accent-glow: rgba(139, 92, 246, 0.4);
+  --color-text-primary: #f8fafc;
+  --color-text-secondary: #a1a1aa;
+  --color-text-muted: #52525b;
+  --color-success: #34d399;
+  --color-warning: #fbbf24;
+  --color-danger: #f87171;
+
+  /* ─── Status colors ─── */
+  --status-todo-color: #9ca3af;
+  --status-todo-bg: rgba(107,114,128,0.12);
+  --status-in-progress-color: #f59e0b;
+  --status-in-progress-bg: rgba(245,158,11,0.12);
+  --status-done-color: #a78bfa;
+  --status-done-bg: rgba(139,92,246,0.12);
+
+  /* ─── Priority colors (aligned with quadrants) ─── */
+  --priority-p1-color: #f87171;
+  --priority-p1-bg: rgba(248,113,113,0.15);
+  --priority-p2-color: #fbbf24;
+  --priority-p2-bg: rgba(251,191,36,0.15);
+  --priority-p3-color: #a78bfa;
+  --priority-p3-bg: rgba(139,92,246,0.15);
+  --priority-p4-color: #9ca3af;
+  --priority-p4-bg: rgba(107,114,128,0.12);
+
+  /* ─── Quadrant colors (aligned with priorities) ─── */
+  --quadrant-q1-color: #f87171;
+  --quadrant-q1-bg: rgba(248,113,113,0.12);
+  --quadrant-q1-border: rgba(248,113,113,0.25);
+  --quadrant-q2-color: #a78bfa;
+  --quadrant-q2-bg: rgba(139,92,246,0.12);
+  --quadrant-q2-border: rgba(139,92,246,0.25);
+  --quadrant-q3-color: #fbbf24;
+  --quadrant-q3-bg: rgba(251,191,36,0.12);
+  --quadrant-q3-border: rgba(251,191,36,0.25);
+  --quadrant-q4-color: #9ca3af;
+  --quadrant-q4-bg: rgba(107,114,128,0.12);
+  --quadrant-q4-border: rgba(107,114,128,0.25);
+
+  /* ─── Timer mode colors ─── */
+  --timer-work-color: #8b5cf6;
+  --timer-break-color: #06b6d4;
+  --timer-long-break-color: #34d399;
 
   /* Glassmorphism tokens */
-  --glass-bg: rgba(255, 255, 255, 0.05);
-  --glass-bg-hover: rgba(255, 255, 255, 0.08);
-  --glass-border: rgba(255, 255, 255, 0.1);
-  --glass-blur: 12px;
-  --glass-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
-  --glass-radius: 16px;
-  --glass-radius-sm: 8px;
+  --glass-bg: rgba(255, 255, 255, 0.03);
+  --glass-bg-hover: rgba(255, 255, 255, 0.06);
+  --glass-bg-active: rgba(139, 92, 246, 0.08);
+  --glass-border: rgba(255, 255, 255, 0.06);
+  --glass-border-accent: rgba(139, 92, 246, 0.3);
+  --glass-blur: 16px;
+  --glass-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+  --glass-shadow-glow: 0 0 40px rgba(139, 92, 246, 0.15);
+  --glass-radius: 20px;
+  --glass-radius-sm: 12px;
 
   /* Spacing */
   --space-xs: 4px;
@@ -32,6 +75,7 @@
   --space-lg: 24px;
   --space-xl: 32px;
   --space-2xl: 48px;
+  --space-3xl: 64px;
 
   /* Typography */
   --font-sans: 'Inter', system-ui, -apple-system, sans-serif;
@@ -51,21 +95,52 @@ html, body {
   color: var(--color-text-primary);
   overflow: hidden;
   -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* Animated mesh gradient background */
+body::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  z-index: -2;
+  background:
+    radial-gradient(ellipse 80% 50% at 20% 40%, rgba(139, 92, 246, 0.12) 0%, transparent 60%),
+    radial-gradient(ellipse 60% 40% at 80% 20%, rgba(6, 182, 212, 0.08) 0%, transparent 50%),
+    radial-gradient(ellipse 50% 60% at 60% 80%, rgba(236, 72, 153, 0.06) 0%, transparent 50%);
+  animation: mesh-drift 20s ease-in-out infinite alternate;
+}
+
+body::after {
+  content: '';
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  background:
+    radial-gradient(circle 200px at 30% 70%, rgba(139, 92, 246, 0.05) 0%, transparent 100%),
+    radial-gradient(circle 300px at 70% 30%, rgba(6, 182, 212, 0.04) 0%, transparent 100%);
+  animation: mesh-drift 15s ease-in-out infinite alternate-reverse;
+}
+
+@keyframes mesh-drift {
+  0% { transform: translate(0, 0) scale(1); }
+  50% { transform: translate(-2%, 1%) scale(1.02); }
+  100% { transform: translate(1%, -1%) scale(1); }
 }
 
 /* Scrollbar styling */
 ::-webkit-scrollbar {
-  width: 6px;
+  width: 5px;
 }
 ::-webkit-scrollbar-track {
   background: transparent;
 }
 ::-webkit-scrollbar-thumb {
-  background: rgba(255, 255, 255, 0.1);
-  border-radius: 3px;
+  background: rgba(139, 92, 246, 0.2);
+  border-radius: 10px;
 }
 ::-webkit-scrollbar-thumb:hover {
-  background: rgba(255, 255, 255, 0.2);
+  background: rgba(139, 92, 246, 0.4);
 }
 
 /* Glass card utility */
@@ -76,6 +151,12 @@ html, body {
   border: 1px solid var(--glass-border);
   border-radius: var(--glass-radius);
   box-shadow: var(--glass-shadow);
+  transition: border-color 0.3s ease, box-shadow 0.3s ease;
+}
+
+.glass:hover {
+  border-color: var(--glass-border-accent);
+  box-shadow: var(--glass-shadow), var(--glass-shadow-glow);
 }
 
 .glass-sm {
@@ -94,7 +175,191 @@ html, body {
   background-clip: text;
 }
 
+/* Glow effects */
+.glow-sm {
+  box-shadow: 0 0 15px rgba(139, 92, 246, 0.2), inset 0 0 15px rgba(139, 92, 246, 0.05);
+}
+
+.glow-md {
+  box-shadow: 0 0 30px rgba(139, 92, 246, 0.25), inset 0 0 20px rgba(139, 92, 246, 0.05);
+}
+
 /* Transitions */
 .transition-smooth {
-  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* Noise texture overlay for depth */
+.noise-overlay::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  opacity: 0.02;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.65' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)'/%3E%3C/svg%3E");
+  pointer-events: none;
+}
+
+/* Animated dot grid pattern */
+.dot-pattern {
+  background-image: radial-gradient(rgba(139, 92, 246, 0.15) 1px, transparent 1px);
+  background-size: 24px 24px;
+}
+
+/* Utility animations */
+@keyframes fade-in-up {
+  from { opacity: 0; transform: translateY(12px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes glow-pulse {
+  0%, 100% { box-shadow: 0 0 20px rgba(139, 92, 246, 0.2); }
+  50% { box-shadow: 0 0 40px rgba(139, 92, 246, 0.4); }
+}
+
+@keyframes shimmer {
+  0% { background-position: -200% center; }
+  100% { background-position: 200% center; }
+}
+
+.animate-fade-in {
+  animation: fade-in-up 0.4s ease-out both;
+}
+
+.animate-fade-in-delay-1 {
+  animation: fade-in-up 0.4s ease-out 0.1s both;
+}
+
+.animate-fade-in-delay-2 {
+  animation: fade-in-up 0.4s ease-out 0.2s both;
+}
+
+.animate-fade-in-delay-3 {
+  animation: fade-in-up 0.4s ease-out 0.3s both;
+}
+
+/* Global glassmorphism tooltip */
+.app-tooltip {
+  position: fixed;
+  z-index: 9999;
+  padding: 6px 12px;
+  font-size: 0.72rem;
+  font-family: var(--font-sans);
+  color: var(--color-text-primary);
+  background: rgba(22, 15, 45, 0.92);
+  backdrop-filter: blur(12px);
+  border: 1px solid rgba(139, 92, 246, 0.2);
+  border-radius: 8px;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5), 0 0 12px rgba(139, 92, 246, 0.1);
+  pointer-events: none;
+  opacity: 0;
+  transform: translateY(4px);
+  transition: opacity 0.15s, transform 0.15s;
+  max-width: 240px;
+  white-space: pre-line;
+  line-height: 1.4;
+}
+.app-tooltip.visible {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+/* Global select/dropdown styling */
+select {
+  appearance: none;
+  -webkit-appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%23a1a1aa' stroke-width='2'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 10px center;
+  padding-right: 30px !important;
+  padding-left: 12px;
+  min-height: 36px;
+  border-radius: 10px;
+  border: 1px solid rgba(139, 92, 246, 0.2);
+  background-color: rgba(255, 255, 255, 0.03);
+  color: var(--color-text-primary);
+  font-size: 0.82rem;
+  font-family: var(--font-sans);
+  cursor: pointer;
+  transition: border-color 0.2s;
+}
+select:focus {
+  outline: none;
+  border-color: rgba(139, 92, 246, 0.5);
+}
+select:hover {
+  border-color: rgba(139, 92, 246, 0.35);
+}
+select option {
+  background: #160f2d;
+  color: var(--color-text-primary);
+}
+
+/* Global input/textarea styling */
+input[type="text"],
+input[type="email"],
+input[type="password"],
+input[type="number"],
+input[type="search"],
+input[type="url"],
+input[type="tel"],
+input[type="date"],
+input[type="time"],
+input[type="datetime-local"],
+input[type="month"],
+input[type="week"],
+textarea {
+  padding: 10px 14px;
+  min-height: 36px;
+  border-radius: 10px;
+  border: 1px solid rgba(139, 92, 246, 0.2);
+  background-color: rgba(255, 255, 255, 0.03);
+  color: var(--color-text-primary);
+  font-size: 0.82rem;
+  font-family: var(--font-sans);
+  transition: border-color 0.2s;
+}
+input[type="text"]:focus,
+input[type="email"]:focus,
+input[type="password"]:focus,
+input[type="number"]:focus,
+input[type="search"]:focus,
+input[type="url"]:focus,
+input[type="tel"]:focus,
+input[type="date"]:focus,
+input[type="time"]:focus,
+input[type="datetime-local"]:focus,
+input[type="month"]:focus,
+input[type="week"]:focus,
+textarea:focus {
+  outline: none;
+  border-color: rgba(139, 92, 246, 0.5);
+}
+input[type="text"]:hover,
+input[type="email"]:hover,
+input[type="password"]:hover,
+input[type="number"]:hover,
+input[type="search"]:hover,
+input[type="url"]:hover,
+input[type="tel"]:hover,
+input[type="date"]:hover,
+input[type="time"]:hover,
+input[type="datetime-local"]:hover,
+input[type="month"]:hover,
+input[type="week"]:hover,
+textarea:hover {
+  border-color: rgba(139, 92, 246, 0.35);
+}
+input::placeholder,
+textarea::placeholder {
+  color: var(--color-text-muted);
+  opacity: 0.7;
+}
+
+/* Date/calendar input icon styling */
+input[type="date"]::-webkit-calendar-picker-indicator,
+input[type="time"]::-webkit-calendar-picker-indicator,
+input[type="datetime-local"]::-webkit-calendar-picker-indicator {
+  filter: invert(0.7) sepia(1) saturate(3) hue-rotate(220deg);
+  cursor: pointer;
 }

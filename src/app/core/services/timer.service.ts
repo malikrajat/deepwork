@@ -5,7 +5,7 @@ import { DbService } from './db.service';
 
 @Injectable({ providedIn: 'root' })
 export class TimerService implements OnDestroy {
-  private db = inject(DbService);
+  private readonly db = inject(DbService);
 
   // Signals
   readonly isRunning = signal(false);
@@ -14,6 +14,7 @@ export class TimerService implements OnDestroy {
   readonly sessionCount = signal(0);
   readonly currentTaskId = signal<string | null>(null);
   readonly hasInterruptedSession = signal(false);
+  readonly activeStartedAt = signal<string | null>(null);
 
   // Computed
   readonly minutes = computed(() => Math.floor(this.remainingSeconds() / 60));
@@ -36,8 +37,11 @@ export class TimerService implements OnDestroy {
   private lastTickTime: number = 0;
   private persistIntervalId: ReturnType<typeof setInterval> | null = null;
   private onCompleteCallback: (() => void) | null = null;
+  private _initialized = false;
 
   async init(): Promise<void> {
+    if (this._initialized) return;
+    this._initialized = true;
     await this.db.init();
     this.settings = await this.db.getSettings();
 
@@ -50,6 +54,8 @@ export class TimerService implements OnDestroy {
       this.sessionCount.set(saved.sessionCount);
       this.currentTaskId.set(saved.taskId);
       this.remainingSeconds.set(remaining);
+      this.activeStartedAt.set(saved.startedAt);
+      this.startedAt = saved.startedAt;
       this.hasInterruptedSession.set(true);
     } else if (saved) {
       this.timerType.set(saved.type);
@@ -60,15 +66,27 @@ export class TimerService implements OnDestroy {
     }
   }
 
-  onComplete(callback: () => void): void {
+  onComplete(callback: (() => void) | null): void {
     this.onCompleteCallback = callback;
   }
 
   start(): void {
     if (this.isRunning()) return;
+
+    // If remaining is already 0 (e.g. timer expired while app was closed), just advance
+    if (this.remainingSeconds() <= 0) {
+      this.advanceToNext();
+      this.persistState();
+      return;
+    }
+
     this.isRunning.set(true);
+    // Preserve original startedAt if resuming an interrupted session (e.g. after page refresh)
+    if (!this.startedAt) {
+      this.startedAt = new Date().toISOString();
+    }
+    this.activeStartedAt.set(this.startedAt);
     this.hasInterruptedSession.set(false);
-    this.startedAt = new Date().toISOString();
     this.lastTickTime = Date.now();
 
     this.intervalId = setInterval(() => this.tick(), 1000);
@@ -91,11 +109,13 @@ export class TimerService implements OnDestroy {
     const wasRunning = this.isRunning();
     this.stopInterval();
     this.isRunning.set(false);
+    this.activeStartedAt.set(null);
 
     if (wasRunning && this.startedAt) {
       this.recordSession(true);
     }
 
+    this.startedAt = null;
     this.resetToCurrentType();
     this.persistState();
   }
@@ -103,6 +123,8 @@ export class TimerService implements OnDestroy {
   skip(): void {
     this.stopInterval();
     this.isRunning.set(false);
+    this.activeStartedAt.set(null);
+    this.startedAt = null;
     this.advanceToNext();
     this.persistState();
   }
@@ -110,6 +132,8 @@ export class TimerService implements OnDestroy {
   reset(): void {
     this.stopInterval();
     this.isRunning.set(false);
+    this.activeStartedAt.set(null);
+    this.startedAt = null;
     this.timerType.set('work');
     this.sessionCount.set(0);
     this.remainingSeconds.set(this.settings.workDuration);
@@ -144,13 +168,18 @@ export class TimerService implements OnDestroy {
   private onTimerComplete(): void {
     this.stopInterval();
     this.isRunning.set(false);
+    this.activeStartedAt.set(null);
     this.recordSession(false);
+    this.startedAt = null;
+
+    // Advance to the next timer type (e.g., work -> short-break) before
+    // notifying listeners so the UI and notifications reflect the new state.
+    this.advanceToNext();
 
     if (this.onCompleteCallback) {
       this.onCompleteCallback();
     }
 
-    this.advanceToNext();
     this.persistState();
   }
 
@@ -190,7 +219,9 @@ export class TimerService implements OnDestroy {
     if (!this.startedAt) return;
 
     const planned = this.getDurationForType(this.timerType());
-    const actual = planned - this.remainingSeconds();
+    // Use wall-clock elapsed time to avoid inflated durations after pause/resume
+    const wallClockElapsed = Math.floor((Date.now() - new Date(this.startedAt).getTime()) / 1000);
+    const actual = Math.max(1, Math.min(wallClockElapsed, planned));
 
     const session: PomodoroSession = {
       id: crypto.randomUUID(),

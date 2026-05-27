@@ -8,6 +8,11 @@
   "permissions": [
     "core:default",
     "sql:default",
-    "notification:default"
+    "sql:allow-execute",
+    "sql:allow-select",
+    "notification:default",
+    "notification:allow-is-permission-granted",
+    "notification:allow-request-permission",
+    "notification:allow-notify"
   ]
 }

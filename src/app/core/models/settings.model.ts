@@ -4,6 +4,8 @@ export interface AppSettings {
   longBreak: number;
   sessionsBeforeLongBreak: number;
   notificationSound: string;
+  /** Repeat interval for notification sound/toast in seconds */
+  notificationRepeatInterval: number;
   trayBehavior: 'minimize' | 'quit';
   theme: 'dark';
 }
@@ -14,6 +16,7 @@ export const DEFAULT_SETTINGS: AppSettings = {
   longBreak: 900,
   sessionsBeforeLongBreak: 4,
   notificationSound: 'bell',
+  notificationRepeatInterval: 60,
   trayBehavior: 'minimize',
   theme: 'dark',
 };

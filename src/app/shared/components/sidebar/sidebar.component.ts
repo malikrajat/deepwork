@@ -1,5 +1,6 @@
-import { Component, input, output } from '@angular/core';
+import { Component, input, output, ChangeDetectionStrategy } from '@angular/core';
 import { RouterLink, RouterLinkActive } from '@angular/router';
+import { SafeHtmlPipe } from '../../pipes/safe-html.pipe';
 
 interface NavItem {
   path: string;
@@ -9,21 +10,35 @@ interface NavItem {
 
 @Component({
   selector: 'app-sidebar',
-  standalone: true,
-  imports: [RouterLink, RouterLinkActive],
+  imports: [RouterLink, RouterLinkActive, SafeHtmlPipe],
+  changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <nav class="sidebar" [class.collapsed]="collapsed()">
       <div class="sidebar-header">
+        @if (!collapsed()) {
+          <div class="brand">
+            <div class="brand-icon">
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none">
+                <circle cx="12" cy="12" r="10" stroke="url(#brand-grad)" stroke-width="2"/>
+                <path d="M12 6v6l4 2" stroke="url(#brand-grad)" stroke-width="2" stroke-linecap="round"/>
+                <defs>
+                  <linearGradient id="brand-grad" x1="0%" y1="0%" x2="100%" y2="100%">
+                    <stop offset="0%" stop-color="#8b5cf6"/>
+                    <stop offset="100%" stop-color="#06b6d4"/>
+                  </linearGradient>
+                </defs>
+              </svg>
+            </div>
+            <span class="app-title">DeepWork</span>
+          </div>
+        }
         <button class="toggle-btn" (click)="toggleCollapse.emit()">
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
             <line x1="3" y1="6" x2="21" y2="6"/>
-            <line x1="3" y1="12" x2="21" y2="12"/>
-            <line x1="3" y1="18" x2="21" y2="18"/>
+            <line x1="3" y1="12" x2="15" y2="12"/>
+            <line x1="3" y1="18" x2="18" y2="18"/>
           </svg>
         </button>
-        @if (!collapsed()) {
-          <span class="app-title gradient-text">DeepWork</span>
-        }
       </div>
 
       <ul class="nav-list">
@@ -35,101 +50,180 @@ interface NavItem {
               class="nav-item"
               [title]="collapsed() ? item.label : ''"
             >
-              <span class="nav-icon" [innerHTML]="item.icon"></span>
+              <span class="nav-icon" [innerHTML]="item.icon | safeHtml"></span>
               @if (!collapsed()) {
                 <span class="nav-label">{{ item.label }}</span>
               }
+              <span class="active-indicator"></span>
             </a>
           </li>
         }
       </ul>
+
+      @if (!collapsed()) {
+        <div class="sidebar-footer">
+          <div class="version-badge">v0.1.0</div>
+        </div>
+      }
     </nav>
   `,
   styles: [`
     .sidebar {
-      width: 220px;
+      width: 240px;
       height: 100vh;
-      background: var(--color-bg-secondary);
-      border-right: 1px solid var(--glass-border);
+      background: rgba(15, 11, 31, 0.6);
+      backdrop-filter: blur(20px);
+      -webkit-backdrop-filter: blur(20px);
+      border-right: 1px solid rgba(139, 92, 246, 0.08);
       display: flex;
       flex-direction: column;
-      padding: var(--space-md);
-      transition: width 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+      padding: var(--space-lg) var(--space-md);
+      transition: width 0.3s cubic-bezier(0.4, 0, 0.2, 1);
       flex-shrink: 0;
+      position: relative;
+    }
+    .sidebar::after {
+      content: '';
+      position: absolute;
+      top: 0;
+      right: 0;
+      width: 1px;
+      height: 100%;
+      background: linear-gradient(to bottom, rgba(139, 92, 246, 0.3) 0%, transparent 50%, rgba(6, 182, 212, 0.2) 100%);
     }
     .sidebar.collapsed {
-      width: 60px;
-      padding: var(--space-sm);
+      width: 68px;
+      padding: var(--space-md) var(--space-sm);
     }
     .sidebar-header {
       display: flex;
       align-items: center;
+      justify-content: space-between;
+      padding: var(--space-sm) var(--space-sm);
+      margin-bottom: var(--space-xl);
+    }
+    .collapsed .sidebar-header {
+      justify-content: center;
+    }
+    .brand {
+      display: flex;
+      align-items: center;
       gap: var(--space-sm);
-      padding: var(--space-sm);
-      margin-bottom: var(--space-lg);
+    }
+    .brand-icon {
+      width: 32px;
+      height: 32px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: rgba(139, 92, 246, 0.1);
+      border-radius: 10px;
+      border: 1px solid rgba(139, 92, 246, 0.2);
     }
     .toggle-btn {
       background: none;
       border: none;
-      color: var(--color-text-secondary);
+      color: var(--color-text-muted);
       cursor: pointer;
-      padding: var(--space-xs);
-      border-radius: var(--glass-radius-sm);
+      padding: 6px;
+      border-radius: 8px;
       display: flex;
       align-items: center;
       justify-content: center;
-      transition: color 0.2s, background 0.2s;
+      transition: all 0.2s;
     }
     .toggle-btn:hover {
       color: var(--color-text-primary);
-      background: var(--glass-bg-hover);
+      background: rgba(139, 92, 246, 0.1);
     }
     .app-title {
       font-size: 1.1rem;
       font-weight: 700;
       white-space: nowrap;
+      background: var(--color-accent-gradient);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
     }
     .nav-list {
       list-style: none;
       display: flex;
       flex-direction: column;
-      gap: var(--space-xs);
+      gap: 2px;
+      flex: 1;
     }
     .nav-item {
+      position: relative;
       display: flex;
       align-items: center;
-      gap: var(--space-sm);
-      padding: var(--space-sm) var(--space-md);
-      border-radius: var(--glass-radius-sm);
+      gap: 12px;
+      padding: 10px 14px;
+      border-radius: 12px;
       color: var(--color-text-secondary);
       text-decoration: none;
-      transition: all 0.15s ease;
+      transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
       font-size: 0.875rem;
+      font-weight: 500;
       white-space: nowrap;
+      overflow: hidden;
     }
     .collapsed .nav-item {
-      padding: var(--space-sm);
+      padding: 12px;
       justify-content: center;
     }
     .nav-item:hover {
       color: var(--color-text-primary);
-      background: var(--glass-bg-hover);
+      background: rgba(139, 92, 246, 0.06);
     }
     .nav-item.active {
       color: var(--color-text-primary);
-      background: var(--glass-bg);
-      border: 1px solid var(--glass-border);
+      background: rgba(139, 92, 246, 0.1);
+      border: 1px solid rgba(139, 92, 246, 0.2);
+      box-shadow: 0 0 20px rgba(139, 92, 246, 0.1), inset 0 0 20px rgba(139, 92, 246, 0.03);
+    }
+    .nav-item.active .nav-icon {
+      color: #8b5cf6;
+      filter: drop-shadow(0 0 6px rgba(139, 92, 246, 0.5));
+    }
+    .active-indicator {
+      display: none;
+      position: absolute;
+      left: 0;
+      top: 50%;
+      transform: translateY(-50%);
+      width: 3px;
+      height: 16px;
+      background: var(--color-accent-gradient);
+      border-radius: 0 4px 4px 0;
+    }
+    .nav-item.active .active-indicator {
+      display: block;
     }
     .nav-icon {
       display: flex;
       align-items: center;
+      color: inherit;
       justify-content: center;
       width: 20px;
       height: 20px;
       flex-shrink: 0;
+      transition: all 0.2s;
     }
     .nav-label {
       overflow: hidden;
+    }
+    .sidebar-footer {
+      padding: var(--space-md) var(--space-sm);
+      border-top: 1px solid rgba(255, 255, 255, 0.04);
+    }
+    .version-badge {
+      font-size: 0.7rem;
+      color: var(--color-text-muted);
+      padding: 4px 10px;
+      background: rgba(255, 255, 255, 0.03);
+      border-radius: 20px;
+      text-align: center;
+      border: 1px solid rgba(255, 255, 255, 0.04);
     }
   `]
 })

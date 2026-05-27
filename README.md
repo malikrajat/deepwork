@@ -1,59 +1,162 @@
-# DeepworkApp
+# DeepWork
 
-This project was generated using [Angular CLI](https://github.com/angular/angular-cli) version 21.2.12.
+A secure, lightweight, cross-platform Pomodoro & Task Management desktop app built with **Tauri 2 + Angular 21**.
 
-## Development server
+## Features
 
-To start a local development server, run:
+- Pomodoro timer with animated circular clock
+- Eisenhower Matrix for task prioritization
+- Daily planner (Today's View)
+- Habit tracking & journaling
+- Analytics dashboard
+- Glassmorphism dark UI
+- SQLite local database (no cloud, no accounts)
+- OS-native notifications with repeat until dismissed
 
-```bash
-ng serve
-```
+---
 
-Once the server is running, open your browser and navigate to `http://localhost:4200/`. The application will automatically reload whenever you modify any of the source files.
+## Prerequisites
 
-## Code scaffolding
+See [SETUP.md](SETUP.md) for full platform-specific install instructions.
 
-Angular CLI includes powerful code scaffolding tools. To generate a new component, run:
-
-```bash
-ng generate component component-name
-```
-
-For a complete list of available schematics (such as `components`, `directives`, or `pipes`), run:
-
-```bash
-ng generate --help
-```
-
-## Building
-
-To build the project run:
+**Quick check:**
 
 ```bash
-ng build
+node --version   # v20+
+cargo --version  # 1.77+
+git --version    # 2.x+
 ```
 
-This will compile your project and store the build artifacts in the `dist/` directory. By default, the production build optimizes your application for performance and speed.
+Windows also requires **VS Build Tools** with C++ workload.
 
-## Running unit tests
+---
 
-To execute unit tests with the [Vitest](https://vitest.dev/) test runner, use the following command:
+## Development
+
+### Frontend only (Angular dev server)
 
 ```bash
-ng test
+npm run start
+# Opens at http://localhost:4200
 ```
 
-## Running end-to-end tests
-
-For end-to-end (e2e) testing, run:
+### Full desktop app (Tauri + Angular)
 
 ```bash
-ng e2e
+npx tauri dev
+# Opens native window with hot-reload
 ```
 
-Angular CLI does not come with an end-to-end testing framework by default. You can choose one that suits your needs.
+---
 
-## Additional Resources
+## Building Desktop Apps
 
-For more information on using the Angular CLI, including detailed command references, visit the [Angular CLI Overview and Command Reference](https://angular.dev/tools/cli) page.
+### Windows (.exe / .msi installer)
+
+```powershell
+npm run build:windows
+```
+
+Output: `src-tauri/target/release/bundle/msi/DeepWork_0.1.0_x64_en-US.msi`
+
+Also produces a standalone `.exe` at: `src-tauri/target/release/deepwork.exe`
+
+### macOS (.app / .dmg)
+
+**Intel Mac:**
+```bash
+npm run build:mac
+```
+
+**Apple Silicon (M1/M2/M3/M4):**
+```bash
+rustup target add aarch64-apple-darwin
+npm run build:mac-arm
+```
+
+Output:
+- `src-tauri/target/release/bundle/macos/DeepWork.app`
+- `src-tauri/target/release/bundle/dmg/DeepWork_0.1.0_x64.dmg`
+
+> **Note:** Must be run on a Mac.
+
+### Linux (.deb / .AppImage / .rpm)
+
+```bash
+npm run build:linux
+```
+
+Output:
+- `src-tauri/target/release/bundle/deb/deep-work_0.1.0_amd64.deb`
+- `src-tauri/target/release/bundle/appimage/deep-work_0.1.0_amd64.AppImage`
+
+> **Note:** Must be run on Linux with system dependencies installed (see [SETUP.md](SETUP.md)).
+
+---
+
+## Cross-Platform Build Summary
+
+| Platform | Command | Output Format | Run On |
+|----------|---------|---------------|--------|
+| Windows | `npm run build:windows` | `.msi`, `.exe` | Windows |
+| macOS (Intel) | `npm run build:mac` | `.app`, `.dmg` | macOS |
+| macOS (ARM) | `npm run build:mac-arm` | `.app`, `.dmg` | macOS (Apple Silicon) |
+| Linux | `npm run build:linux` | `.deb`, `.AppImage` | Linux |
+
+> Tauri does **not** support cross-compilation. You must build on the target OS (or use CI like GitHub Actions with matrix runners).
+
+---
+
+## CI/CD (GitHub Actions)
+
+To build for all platforms automatically, add a workflow with matrix strategy:
+
+```yaml
+# .github/workflows/build.yml
+strategy:
+  matrix:
+    include:
+      - os: windows-latest
+      - os: macos-latest
+      - os: ubuntu-latest
+runs-on: ${{ matrix.os }}
+steps:
+  - uses: actions/checkout@v4
+  - uses: actions/setup-node@v4
+    with: { node-version: 20 }
+  - uses: dtolnay/rust-toolchain@stable
+  - run: npm install
+  - run: npx tauri build
+```
+
+---
+
+## Project Structure
+
+```
+src/              → Angular frontend
+src-tauri/        → Rust/Tauri backend
+specs/            → Feature specifications (Spec Kit)
+SETUP.md          → Developer setup guide
+```
+
+---
+
+## Guides & Best Practices
+
+- **Documentation index:** [docs/INDEX.md](docs/INDEX.md) — central map of all docs & config files
+- Angular best practices: [docs/angular-best-practices.md](docs/angular-best-practices.md)
+
+
+---
+
+## Tech Stack
+
+| Layer | Technology |
+|-------|-----------|
+| Desktop Runtime | Tauri 2.x |
+| Frontend | Angular 21 (Standalone Components, Signals) |
+| Styling | Tailwind CSS + Glassmorphism custom tokens |
+| Database | SQLite via tauri-plugin-sql |
+| Notifications | tauri-plugin-notification + Web Audio API |
+| State | Angular Signals + RxJS |

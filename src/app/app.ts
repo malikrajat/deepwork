@@ -1,19 +1,26 @@
-import { Component, signal, HostListener, inject } from '@angular/core';
+import { Component, signal, inject, ChangeDetectionStrategy } from '@angular/core';
 import { Router, RouterOutlet } from '@angular/router';
 import { SidebarComponent } from './shared/components/sidebar/sidebar.component';
+import { ToastComponent } from './shared/components/toast/toast.component';
 import { TimerService } from './core/services/timer.service';
+import { UiService } from './core/services/ui.service';
 
 const PAGE_ROUTES = ['dashboard', 'tasks', 'matrix', 'today', 'analytics', 'habits', 'journal', 'settings'];
 
 @Component({
   selector: 'app-root',
-  imports: [RouterOutlet, SidebarComponent],
+  imports: [RouterOutlet, SidebarComponent, ToastComponent],
   templateUrl: './app.html',
-  styleUrl: './app.css'
+  styleUrl: './app.css',
+  changeDetection: ChangeDetectionStrategy.OnPush,
+  host: {
+    '(window:keydown)': 'handleKeyboard($event)'
+  }
 })
 export class App {
-  private router = inject(Router);
-  private timer = inject(TimerService);
+  private readonly router = inject(Router);
+  private readonly timer = inject(TimerService);
+  ui = inject(UiService);
 
   sidebarCollapsed = signal(false);
 
@@ -21,32 +28,62 @@ export class App {
     this.sidebarCollapsed.update(v => !v);
   }
 
-  @HostListener('window:keydown', ['$event'])
   handleKeyboard(event: KeyboardEvent) {
-    // Ctrl+Shift+F = Focus Mode (placeholder)
+    if (this.handleEscape(event)) return;
+    if (this.handleFocusToggle(event)) return;
+    if (this.handleQuickAdd(event)) return;
+    if (this.handlePageNavigation(event)) return;
+    this.handleSpaceTimer(event);
+  }
+
+  private handleEscape(event: KeyboardEvent): boolean {
+    if (event.key === 'Escape' && this.ui.focusMode()) {
+      event.preventDefault();
+      this.ui.exitFocusMode();
+      return true;
+    }
+    return false;
+  }
+
+  private handleFocusToggle(event: KeyboardEvent): boolean {
     if (event.ctrlKey && event.shiftKey && event.key === 'F') {
       event.preventDefault();
-      return;
+      this.ui.toggleFocusMode();
+      return true;
     }
-    // Ctrl+1-8 = Navigate to pages
+    return false;
+  }
+
+  private handleQuickAdd(event: KeyboardEvent): boolean {
+    if (event.ctrlKey && !event.shiftKey && event.key === 'n') {
+      event.preventDefault();
+      this.router.navigate(['/tasks'], { queryParams: { add: 1 } });
+      return true;
+    }
+    return false;
+  }
+
+  private handlePageNavigation(event: KeyboardEvent): boolean {
     if (event.ctrlKey && !event.shiftKey && !event.altKey) {
-      const num = parseInt(event.key);
+      const num = Number.parseInt(event.key);
       if (num >= 1 && num <= 8) {
         event.preventDefault();
         this.router.navigate(['/' + PAGE_ROUTES[num - 1]]);
-        return;
+        return true;
       }
     }
-    // Space = Start/Pause timer (only if not typing in an input)
-    if (event.code === 'Space' && !this.isInputFocused(event)) {
-      const url = this.router.url;
-      if (url === '/dashboard' || url === '/') {
-        event.preventDefault();
-        if (this.timer.isRunning()) {
-          this.timer.pause();
-        } else {
-          this.timer.start();
-        }
+    return false;
+  }
+
+  private handleSpaceTimer(event: KeyboardEvent): void {
+    if (event.code !== 'Space' || this.isInputFocused(event)) return;
+    const url = this.router.url;
+    if (url === '/dashboard' || url === '/') {
+      event.preventDefault();
+      if (this.timer.isRunning()) {
+        this.timer.pause();
+      } else {
+        this.timer.start();
       }
     }
   }

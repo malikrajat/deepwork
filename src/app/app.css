@@ -8,10 +8,47 @@
 .main-content {
   flex: 1;
   overflow-y: auto;
-  padding: var(--space-lg);
-  background: var(--color-bg-primary);
+  padding: var(--space-xl) var(--space-2xl);
+  background: transparent;
+  position: relative;
+  transition: padding 0.3s ease;
 }
 
 .sidebar-collapsed .main-content {
   margin-left: 0;
+}
+
+/* Focus Mode */
+.focus-mode .main-content {
+  padding: var(--space-lg) var(--space-xl);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+}
+
+.exit-focus-btn {
+  position: absolute;
+  top: 16px;
+  right: 16px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 14px;
+  border-radius: 10px;
+  border: 1px solid rgba(139, 92, 246, 0.2);
+  background: rgba(255, 255, 255, 0.03);
+  backdrop-filter: blur(12px);
+  color: var(--color-text-muted);
+  font-size: 0.75rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s;
+  z-index: 100;
+}
+
+.exit-focus-btn:hover {
+  border-color: rgba(139, 92, 246, 0.4);
+  color: var(--color-text-primary);
+  background: rgba(139, 92, 246, 0.08);
 }
