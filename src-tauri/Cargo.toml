@@ -1,6 +1,6 @@
 [package]
 name = "deepwork"
-version = "0.1.0"
+version = "1.0.0"
 description = "DeepWork - Pomodoro & Task Management"
 authors = ["you"]
 license = "MIT"
