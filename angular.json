@@ -52,7 +52,8 @@
             ],
             "styles": [
               "src/styles.css"
-            ]
+            ],
+            "outputPath": "./dist/deepwork/"
           },
           "configurations": {
             "production": {

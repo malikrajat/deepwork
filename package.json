@@ -1,9 +1,10 @@
 {
   "name": "deepwork-app",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "scripts": {
     "ng": "ng",
     "start": "ng serve --port 4202",
+    "build:github": "ng build  --base-href=/deepwork/ --configuration production",
     "build": "ng build",
     "watch": "ng build --watch --configuration development",
     "test": "vitest run",

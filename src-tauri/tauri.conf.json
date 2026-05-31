@@ -1,7 +1,7 @@
 {
   "$schema": "../node_modules/@tauri-apps/cli/config.schema.json",
   "productName": "DeepWork",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "identifier": "com.deepwork.app",
   "build": {
     "frontendDist": "../dist/deepwork-app/browser",
