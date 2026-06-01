@@ -1,5 +1,7 @@
-import { Component, input, output, ChangeDetectionStrategy } from '@angular/core';
-import { RouterLink, RouterLinkActive } from '@angular/router';
+import { Component, input, output, ChangeDetectionStrategy, inject } from '@angular/core';
+import { RouterLink, Router, NavigationEnd } from '@angular/router';
+import { toSignal } from '@angular/core/rxjs-interop';
+import { filter, map, startWith } from 'rxjs';
 import { SafeHtmlPipe } from '../../pipes/safe-html.pipe';
 
 interface NavItem {
@@ -10,7 +12,7 @@ interface NavItem {
 
 @Component({
   selector: 'app-sidebar',
-  imports: [RouterLink, RouterLinkActive, SafeHtmlPipe],
+  imports: [RouterLink, SafeHtmlPipe],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <nav class="sidebar" [class.collapsed]="collapsed()">
@@ -46,7 +48,7 @@ interface NavItem {
           <li>
             <a
               [routerLink]="'/' + item.path"
-              routerLinkActive="active"
+              [class.active]="isActive(item.path)"
               class="nav-item"
               [title]="collapsed() ? item.label : ''"
             >
@@ -71,10 +73,11 @@ interface NavItem {
     .sidebar {
       width: 240px;
       height: 100vh;
-      background: rgba(15, 11, 31, 0.6);
+      background: var(--sidebar-bg);
       backdrop-filter: blur(20px);
       -webkit-backdrop-filter: blur(20px);
-      border-right: 1px solid rgba(139, 92, 246, 0.08);
+      border-right: 1px solid var(--glass-border);
+      box-shadow: 2px 0 16px rgba(0, 0, 0, 0.06);
       display: flex;
       flex-direction: column;
       padding: var(--space-lg) var(--space-md);
@@ -214,25 +217,42 @@ interface NavItem {
     }
     .sidebar-footer {
       padding: var(--space-md) var(--space-sm);
-      border-top: 1px solid rgba(255, 255, 255, 0.04);
+      border-top: 1px solid var(--glass-border);
     }
     .version-badge {
       font-size: 0.7rem;
       color: var(--color-text-muted);
       padding: 4px 10px;
-      background: rgba(255, 255, 255, 0.03);
+      background: var(--glass-bg);
       border-radius: 20px;
       text-align: center;
-      border: 1px solid rgba(255, 255, 255, 0.04);
+      border: 1px solid var(--glass-border);
     }
   `]
 })
 export class SidebarComponent {
+  private readonly router = inject(Router);
+
+  private readonly currentUrl = toSignal(
+    this.router.events.pipe(
+      filter(e => e instanceof NavigationEnd),
+      map(e => e.urlAfterRedirects),
+      startWith(this.router.url)
+    ),
+    { initialValue: this.router.url }
+  );
+
+  isActive(path: string): boolean {
+    const url = this.currentUrl();
+    if (path === '') return true; // Dashboard always active
+    return url === '/' + path || url.startsWith('/' + path + '/');
+  }
+
   collapsed = input<boolean>(false);
   toggleCollapse = output<void>();
 
   navItems: NavItem[] = [
-    { path: 'dashboard', label: 'Dashboard', icon: '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>' },
+    { path: '', label: 'Dashboard', icon: '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>' },
     { path: 'tasks', label: 'Tasks', icon: '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11"/></svg>' },
     { path: 'matrix', label: 'Matrix', icon: '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="2" x2="12" y2="22"/><line x1="2" y1="12" x2="22" y2="12"/></svg>' },
     { path: 'today', label: 'Today', icon: '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12,6 12,12 16,14"/></svg>' },

@@ -88,6 +88,7 @@ export class DbService {
       taskId: r.task_id,
       sessionCount: r.session_count ?? 0,
       startedAt: r.started_at,
+      lastActiveDate: r.last_active_date ?? null,
     };
   }
 
@@ -95,8 +96,8 @@ export class DbService {
     if (this.isBrowser) { this.lsSet('timerState', state); return; }
     await this.execute(
       `UPDATE timer_state SET is_running = $1, type = $2, remaining_seconds = $3,
-       task_id = $4, session_count = $5, started_at = $6 WHERE id = 1`,
-      [state.isRunning ? 1 : 0, state.type, state.remainingSeconds, state.taskId, state.sessionCount, state.startedAt]
+       task_id = $4, session_count = $5, started_at = $6, last_active_date = $7 WHERE id = 1`,
+      [state.isRunning ? 1 : 0, state.type, state.remainingSeconds, state.taskId, state.sessionCount, state.startedAt, state.lastActiveDate]
     );
   }
 

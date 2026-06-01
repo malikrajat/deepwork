@@ -8,6 +8,7 @@ import { NotificationService } from '../../core/services/notification.service';
 import { DbService } from '../../core/services/db.service';
 import { TaskService } from '../../core/services/task.service';
 import { SettingsService } from '../../core/services/settings.service';
+import { UiService } from '../../core/services/ui.service';
 import { PomodoroSession } from '../../core/models/session.model';
 import { TaskQuadrant } from '../../core/models/task.model';
 import { QUADRANT_CONFIG } from '../../core/constants/theme.constants';
@@ -67,8 +68,8 @@ import { TaskSelectFormModel, createTaskSelectFormDefaults } from '../../shared/
       </div>
     }
 
-    <!-- Floating mini-clock -->
-    @if (isMiniMode()) {
+    <!-- Floating mini-clock (browser only) -->
+    @if (ui.isMiniMode() && !ui.isTauriEnv) {
       <div class="mini-clock-float"
         [style.left.px]="miniPos.x"
         [style.top.px]="miniPos.y"
@@ -81,8 +82,18 @@ import { TaskSelectFormModel, createTaskSelectFormDefaults } from '../../shared/
       </div>
     }
 
+    <!-- Tauri mini-clock: fills the entire shrunken always-on-top native window -->
+    @if (ui.isMiniMode() && ui.isTauriEnv) {
+      <div class="tauri-mini-window" (mousedown)="startTauriDrag($event)">
+        <span class="mini-time">{{ timer.displayTime() }}</span>
+        <button class="mini-restore-btn" (click)="toggleMiniMode()" title="Restore" (mousedown)="$event.stopPropagation()">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="15,3 21,3 21,9"/><polyline points="9,21 3,21 3,15"/></svg>
+        </button>
+      </div>
+    }
+
     <!-- Main dashboard -->
-    <div class="dashboard-wrapper" [class.hidden]="isFullscreen()">
+    <div class="dashboard-wrapper" [class.hidden]="isFullscreen() || (ui.isMiniMode() && ui.isTauriEnv)">
       <div class="page-header animate-fade-in">
         <div class="header-content">
           <h1 class="gradient-text page-title">Dashboard</h1>
@@ -486,6 +497,26 @@ import { TaskSelectFormModel, createTaskSelectFormDefaults } from '../../shared/
     }
     .mini-expand:hover { background: rgba(139,92,246,0.3); color: var(--color-text-primary); }
 
+    /* ===== Tauri Floating Mini Window ===== */
+    .tauri-mini-window {
+      position: fixed; inset: 0; z-index: 9999;
+      display: flex; align-items: center; gap: 8px;
+      padding: 0 14px;
+      background: rgba(15,11,31,0.95); backdrop-filter: blur(20px);
+      border: 1px solid rgba(139,92,246,0.3);
+      box-shadow: 0 4px 24px rgba(0,0,0,0.6), 0 0 16px rgba(139,92,246,0.2);
+      cursor: grab; user-select: none;
+    }
+    .tauri-mini-window:active { cursor: grabbing; }
+    .mini-restore-btn {
+      width: 24px; height: 24px; border-radius: 6px;
+      background: rgba(139,92,246,0.15); border: none;
+      color: var(--color-text-secondary); cursor: pointer;
+      display: flex; align-items: center; justify-content: center;
+      transition: all 0.2s; flex-shrink: 0; margin-left: auto;
+    }
+    .mini-restore-btn:hover { background: rgba(139,92,246,0.3); color: var(--color-text-primary); }
+
     /* ===== Responsive ===== */
 
     /* Large monitors (>1600px) - scale up clock area */
@@ -535,7 +566,6 @@ export class DashboardComponent implements OnInit, OnDestroy {
 
   readonly todaySessions = signal<PomodoroSession[]>([]);
   readonly isFullscreen = signal(false);
-  readonly isMiniMode = signal(false);
   readonly selectedTaskId = signal<string>('');
 
   private readonly taskSelectModel = signal<TaskSelectFormModel>(createTaskSelectFormDefaults());
@@ -612,6 +642,7 @@ export class DashboardComponent implements OnInit, OnDestroy {
   });
 
   private readonly settingsService = inject(SettingsService);
+  readonly ui = inject(UiService);
 
   ngOnInit(): void {
     this.initAsync();
@@ -632,11 +663,12 @@ export class DashboardComponent implements OnInit, OnDestroy {
       this.taskSelectModel.update(m => ({ ...m, taskId: focusId }));
     }
 
-    this.timer.onComplete(() => {
-      this.notifications.fireTimerComplete(this.timer.timerType());
+    this.timer.onComplete((completedType) => {
+      const nextType = this.timer.timerType();
+      this.notifications.fireTimerComplete(completedType, nextType);
       this.loadTodaySessions();
-      // Fire confetti on every 4th work session (cycle complete)
-      if (this.timer.timerType() === 'work' && this.timer.sessionCount() % 4 === 0) {
+      // Fire confetti when a full cycle completes (work → long-break)
+      if (completedType === 'work' && nextType === 'long-break') {
         this.confettiTimeout = setTimeout(() => this.confetti?.fire(), 300);
       }
     });
@@ -689,8 +721,12 @@ export class DashboardComponent implements OnInit, OnDestroy {
     this.isFullscreen.update(v => !v);
   }
 
-  toggleMiniMode(): void {
-    this.isMiniMode.update(v => !v);
+  async toggleMiniMode(): Promise<void> {
+    if (this.ui.isMiniMode()) {
+      await this.ui.exitMiniMode();
+    } else {
+      await this.ui.enterMiniMode();
+    }
   }
 
   startDrag(event: MouseEvent): void {
@@ -699,6 +735,17 @@ export class DashboardComponent implements OnInit, OnDestroy {
       x: event.clientX - this.miniPos.x,
       y: event.clientY - this.miniPos.y,
     };
+  }
+
+  async startTauriDrag(event: MouseEvent): Promise<void> {
+    // Only drag on left mouse button
+    if (event.button !== 0) return;
+    try {
+      const { getCurrentWindow } = await import('@tauri-apps/api/window');
+      await getCurrentWindow().startDragging();
+    } catch (e) {
+      console.warn('Tauri startDragging failed', e);
+    }
   }
 
   onDrag(event: MouseEvent): void {
@@ -715,6 +762,7 @@ export class DashboardComponent implements OnInit, OnDestroy {
 
   onEscape(): void {
     if (this.isFullscreen()) this.isFullscreen.set(false);
+    else if (this.ui.isMiniMode()) void this.toggleMiniMode();
   }
 
   ngOnDestroy(): void {

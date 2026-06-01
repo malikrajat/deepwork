@@ -36,7 +36,7 @@ export class TimerService implements OnDestroy {
   private startedAt: string | null = null;
   private lastTickTime: number = 0;
   private persistIntervalId: ReturnType<typeof setInterval> | null = null;
-  private onCompleteCallback: (() => void) | null = null;
+  private onCompleteCallback: ((completedType: TimerType) => void) | null = null;
   private _initialized = false;
 
   async init(): Promise<void> {
@@ -45,13 +45,16 @@ export class TimerService implements OnDestroy {
     await this.db.init();
     this.settings = await this.db.getSettings();
 
+    const today = new Date().toISOString().slice(0, 10);
     const saved = await this.db.getTimerState();
+    const isNewDay = !saved?.lastActiveDate || saved.lastActiveDate !== today;
+
     if (saved && saved.isRunning && saved.startedAt) {
       // Calculate elapsed time since interruption
       const elapsed = Math.floor((Date.now() - new Date(saved.startedAt).getTime()) / 1000);
       const remaining = Math.max(0, saved.remainingSeconds - elapsed);
       this.timerType.set(saved.type);
-      this.sessionCount.set(saved.sessionCount);
+      this.sessionCount.set(isNewDay ? 0 : saved.sessionCount);
       this.currentTaskId.set(saved.taskId);
       this.remainingSeconds.set(remaining);
       this.activeStartedAt.set(saved.startedAt);
@@ -59,14 +62,14 @@ export class TimerService implements OnDestroy {
       this.hasInterruptedSession.set(true);
     } else if (saved) {
       this.timerType.set(saved.type);
-      this.sessionCount.set(saved.sessionCount);
+      this.sessionCount.set(isNewDay ? 0 : saved.sessionCount);
       this.remainingSeconds.set(saved.remainingSeconds || this.getDurationForType(saved.type));
     } else {
       this.remainingSeconds.set(this.settings.workDuration);
     }
   }
 
-  onComplete(callback: (() => void) | null): void {
+  onComplete(callback: ((completedType: TimerType) => void) | null): void {
     this.onCompleteCallback = callback;
   }
 
@@ -170,14 +173,14 @@ export class TimerService implements OnDestroy {
     this.isRunning.set(false);
     this.activeStartedAt.set(null);
     this.recordSession(false);
+    const completedType = this.timerType();
     this.startedAt = null;
 
-    // Advance to the next timer type (e.g., work -> short-break) before
-    // notifying listeners so the UI and notifications reflect the new state.
+    // Advance to the next timer type (e.g., work -> short-break)
     this.advanceToNext();
 
     if (this.onCompleteCallback) {
-      this.onCompleteCallback();
+      this.onCompleteCallback(completedType);
     }
 
     this.persistState();
@@ -246,6 +249,7 @@ export class TimerService implements OnDestroy {
       taskId: this.currentTaskId(),
       sessionCount: this.sessionCount(),
       startedAt: this.startedAt,
+      lastActiveDate: new Date().toISOString().slice(0, 10),
     };
     await this.db.saveTimerState(state);
   }

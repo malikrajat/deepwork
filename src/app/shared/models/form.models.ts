@@ -35,6 +35,7 @@ export interface SettingsFormModel {
   notificationSound: string;
   notificationRepeatInterval: number;
   trayBehavior: string;
+  theme: string;
 }
 
 /** Dashboard task selector form model */
@@ -80,6 +81,7 @@ export function createSettingsFormDefaults(): SettingsFormModel {
     notificationSound: 'bell',
     notificationRepeatInterval: 60,
     trayBehavior: 'minimize',
+    theme: 'dark',
   };
 }
 
