@@ -265,7 +265,7 @@ import { TaskSelectFormModel, createTaskSelectFormDefaults } from '../../shared/
       display: flex; flex-direction: column;
       align-items: center; justify-content: center;
       gap: var(--space-lg); padding: var(--space-xl);
-      background: rgba(255, 255, 255, 0.02);
+      background: var(--glass-bg);
       backdrop-filter: blur(20px);
       border: 1px solid rgba(139, 92, 246, 0.08);
       border-radius: var(--glass-radius);
@@ -290,7 +290,7 @@ import { TaskSelectFormModel, createTaskSelectFormDefaults } from '../../shared/
     }
     .action-btn {
       width: 32px; height: 32px; border-radius: 8px;
-      background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.08);
+      background: var(--glass-bg); border: 1px solid var(--glass-border);
       color: var(--color-text-muted); cursor: pointer;
       display: flex; align-items: center; justify-content: center;
       transition: all 0.2s;
@@ -309,7 +309,7 @@ import { TaskSelectFormModel, createTaskSelectFormDefaults } from '../../shared/
     }
     .dot {
       width: 8px; height: 8px; border-radius: 50%;
-      background: rgba(255, 255, 255, 0.08); border: 1px solid rgba(255,255,255,0.08);
+      background: var(--glass-bg); border: 1px solid var(--glass-border);
       transition: all 0.3s;
     }
     .dot.filled {
@@ -323,7 +323,7 @@ import { TaskSelectFormModel, createTaskSelectFormDefaults } from '../../shared/
       margin-bottom: 8px; z-index: 1;
     }
     .task-selector select {
-      background: rgba(255,255,255,0.03); border: 1px solid rgba(139,92,246,0.15);
+      background: var(--control-bg); border: 1px solid rgba(139,92,246,0.15);
       border-radius: 8px; padding: 6px 12px; color: var(--color-text-primary);
       font-size: 0.75rem; outline: none; cursor: pointer; min-width: 180px;
       transition: border-color 0.2s;
@@ -338,7 +338,7 @@ import { TaskSelectFormModel, createTaskSelectFormDefaults } from '../../shared/
       font-weight: 400; color: var(--color-text-primary); padding-left: 8px;
     }
     .selected-task-name {
-      font-size: 0.65rem; color: #a78bfa; font-weight: 500;
+      font-size: 0.65rem; color: var(--timer-work-color); font-weight: 500;
     }
     .selected-task-quadrant {
       font-size: 0.6rem; font-weight: 600; padding: 2px 8px;
@@ -384,16 +384,16 @@ import { TaskSelectFormModel, createTaskSelectFormDefaults } from '../../shared/
     }
     .btn-secondary:hover:not(:disabled) { background: rgba(139, 92, 246, 0.15); border-color: rgba(139, 92, 246, 0.4); }
     .btn-ghost {
-      background: rgba(255, 255, 255, 0.03); border: 1px solid rgba(255, 255, 255, 0.06);
+      background: var(--glass-bg); border: 1px solid var(--glass-border);
       color: var(--color-text-muted); padding: 10px; border-radius: 10px;
     }
-    .btn-ghost:hover:not(:disabled) { color: var(--color-text-primary); background: rgba(255, 255, 255, 0.06); }
+    .btn-ghost:hover:not(:disabled) { color: var(--color-text-primary); background: var(--glass-bg-hover); }
 
     /* ===== Timeline Panel ===== */
     .timeline-panel { border-radius: var(--glass-radius); overflow: hidden; }
     .timeline-panel-inner {
       height: 100%; padding: var(--space-md);
-      background: rgba(255, 255, 255, 0.02);
+      background: var(--glass-bg);
       backdrop-filter: blur(16px);
       border: 1px solid rgba(139,92,246,0.06);
       border-radius: var(--glass-radius);
@@ -411,7 +411,7 @@ import { TaskSelectFormModel, createTaskSelectFormDefaults } from '../../shared/
       font-size: 0.7rem; text-transform: uppercase;
       letter-spacing: 0.08em; color: var(--color-text-muted);
       margin-bottom: var(--space-sm); padding-bottom: 8px;
-      border-bottom: 1px solid rgba(255,255,255,0.04);
+      border-bottom: 1px solid var(--glass-border);
       flex-shrink: 0;
     }
     .panel-header svg { opacity: 0.5; }
@@ -421,7 +421,7 @@ import { TaskSelectFormModel, createTaskSelectFormDefaults } from '../../shared/
     .progress-card {
       display: flex; align-items: center; justify-content: space-around;
       padding: 16px 24px;
-      background: rgba(255,255,255,0.02);
+      background: var(--glass-bg);
       backdrop-filter: blur(16px);
       border: 1px solid rgba(139,92,246,0.06);
       border-radius: 16px;
@@ -438,7 +438,7 @@ import { TaskSelectFormModel, createTaskSelectFormDefaults } from '../../shared/
     .progress-info { display: flex; flex-direction: column; }
     .progress-value { font-size: 1.1rem; font-weight: 700; font-variant-numeric: tabular-nums; }
     .progress-label { font-size: 0.65rem; color: var(--color-text-muted); text-transform: uppercase; letter-spacing: 0.05em; }
-    .progress-divider { width: 1px; height: 32px; background: rgba(255,255,255,0.06); }
+    .progress-divider { width: 1px; height: 32px; background: var(--glass-border); }
 
     /* ===== Fullscreen Mode ===== */
     .fullscreen-overlay {
@@ -458,11 +458,11 @@ import { TaskSelectFormModel, createTaskSelectFormDefaults } from '../../shared/
       position: absolute; top: 24px; right: 24px;
       display: flex; align-items: center; gap: 6px;
       padding: 8px 16px; border-radius: 10px;
-      background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1);
+      background: var(--glass-bg); border: 1px solid var(--glass-border);
       color: var(--color-text-secondary); cursor: pointer; font-size: 0.8rem;
       font-family: var(--font-sans); transition: all 0.2s; z-index: 1;
     }
-    .exit-fullscreen-btn:hover { background: rgba(255,255,255,0.08); color: var(--color-text-primary); }
+    .exit-fullscreen-btn:hover { background: var(--glass-bg-hover); color: var(--color-text-primary); }
     .fullscreen-clock {
       z-index: 1;
       --clock-size: clamp(220px, 50vmin, 500px);
@@ -477,9 +477,9 @@ import { TaskSelectFormModel, createTaskSelectFormDefaults } from '../../shared/
       position: fixed; z-index: 9999;
       display: flex; align-items: center; gap: 8px;
       padding: 8px 14px; border-radius: 12px;
-      background: rgba(15,11,31,0.9); backdrop-filter: blur(20px);
+      background: var(--surface-float); backdrop-filter: blur(20px);
       border: 1px solid rgba(139,92,246,0.25);
-      box-shadow: 0 8px 32px rgba(0,0,0,0.5), 0 0 20px rgba(139,92,246,0.15);
+      box-shadow: var(--glass-shadow), 0 0 20px rgba(139,92,246,0.15);
       cursor: grab; user-select: none;
     }
     .mini-clock-float:active { cursor: grabbing; }

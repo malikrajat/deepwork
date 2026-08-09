@@ -26,6 +26,9 @@ export class NotificationService implements OnDestroy {
   readonly toast = signal<ToastNotification | null>(null);
   private toastCounter = 0;
 
+  /** Mutes the reminder sound (toggled from the system tray) */
+  readonly muted = signal(false);
+
   async init(): Promise<void> {
     if (this._initialized) return;
     this._initialized = true;
@@ -78,6 +81,11 @@ export class NotificationService implements OnDestroy {
     this.toast.set(null);
   }
 
+  /** Shows a one-off toast (used by tray actions like timer auto-resume) */
+  showToastMessage(title: string, body: string, type: TimerType): void {
+    this.showToast(title, body, type);
+  }
+
   private showToast(title: string, body: string, type: TimerType): void {
     // Set null first to force Angular to destroy and re-create the element (re-triggers animation)
     this.toast.set(null);
@@ -104,6 +112,7 @@ export class NotificationService implements OnDestroy {
   }
 
   private playSound(): void {
+    if (this.muted()) return;
     const sound = this.settingsService.settings().notificationSound;
     if (sound === 'none') return;
 

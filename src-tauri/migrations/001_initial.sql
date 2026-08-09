@@ -56,7 +56,7 @@ CREATE TABLE IF NOT EXISTS settings (
     long_break INTEGER DEFAULT 900,
     sessions_before_long_break INTEGER DEFAULT 4,
     notification_sound TEXT DEFAULT 'bell',
-    tray_behavior TEXT DEFAULT 'minimize' CHECK (tray_behavior IN ('minimize', 'quit')),
+    tray_behavior TEXT DEFAULT 'quit' CHECK (tray_behavior IN ('minimize', 'quit')),
     theme TEXT DEFAULT 'dark'
 );
 

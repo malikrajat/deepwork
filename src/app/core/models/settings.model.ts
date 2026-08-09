@@ -17,6 +17,5 @@ export const DEFAULT_SETTINGS: AppSettings = {
   sessionsBeforeLongBreak: 4,
   notificationSound: 'bell',
   notificationRepeatInterval: 60,
-  trayBehavior: 'minimize',
-  theme: 'dark',
+  theme: 'system',
 };

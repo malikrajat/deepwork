@@ -32,7 +32,7 @@ import { TIMER_TYPE_CONFIG } from '../../../core/constants/theme.constants';
         <circle cx="100" cy="100" r="96" fill="none" stroke="rgba(139,92,246,0.06)" stroke-width="1"/>
 
         <!-- Background track -->
-        <circle cx="100" cy="100" r="88" fill="none" class="track-circle" stroke-width="8"/>
+        <circle cx="100" cy="100" r="88" fill="none" stroke="var(--clock-track)" stroke-width="8"/>
 
         <!-- Filled arc (elapsed time) -->
         <circle
