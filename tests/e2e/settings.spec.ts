@@ -11,7 +11,6 @@ test.describe('Settings', () => {
   test('all setting groups render', async ({ page }) => {
     await expect(page.locator('.group-header', { hasText: 'Timer' })).toBeVisible();
     await expect(page.locator('.group-header', { hasText: 'Notifications' })).toBeVisible();
-    await expect(page.locator('.group-header', { hasText: 'Behavior' })).toBeVisible();
     await expect(page.locator('.group-header', { hasText: 'Data' })).toBeVisible();
     await expect(page.locator('.group-header', { hasText: 'Keyboard Shortcuts' })).toBeVisible();
   });
@@ -55,18 +54,6 @@ test.describe('Settings', () => {
 
     // Restore default
     await select.selectOption('bell');
-  });
-
-  test('close action dropdown switches between minimize and quit', async ({ page }) => {
-    const trayItem = page.locator('.setting-item').filter({ hasText: 'Close Action' });
-    await expect(trayItem).toBeVisible({ timeout: 5000 });
-
-    const select = trayItem.locator('select');
-    await select.selectOption('quit');
-    await expect(select).toHaveValue('quit');
-
-    await select.selectOption('minimize');
-    await expect(select).toHaveValue('minimize');
   });
 
   test('export and import buttons are clickable', async ({ page }) => {

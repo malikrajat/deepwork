@@ -182,7 +182,7 @@ import { noXss, trimmedRequired, futureDate } from '../../shared/validators/form
     .filters-bar { display: flex; align-items: center; gap: 12px; }
     .search-box {
       display: flex; align-items: center; gap: 8px;
-      background: rgba(255,255,255,0.03); border: 1px solid rgba(139,92,246,0.12);
+      background: var(--control-bg); border: 1px solid rgba(139,92,246,0.12);
       border-radius: 10px; padding: 8px 14px; flex: 1; max-width: 320px;
     }
     .search-box svg { color: var(--color-text-muted); flex-shrink: 0; }
@@ -194,14 +194,14 @@ import { noXss, trimmedRequired, futureDate } from '../../shared/validators/form
     .filter-chips { display: flex; gap: 6px; }
     .chip {
       padding: 5px 12px; font-size: 0.7rem; font-weight: 500;
-      background: rgba(255,255,255,0.03); border: 1px solid rgba(139,92,246,0.1);
+      background: var(--glass-bg); border: 1px solid rgba(139,92,246,0.1);
       border-radius: 20px; color: var(--color-text-muted); cursor: pointer;
       transition: all 0.2s;
     }
     .chip:hover { border-color: rgba(139,92,246,0.3); color: var(--color-text-secondary); }
     .chip.active {
       background: rgba(139,92,246,0.12); border-color: rgba(139,92,246,0.4);
-      color: #a78bfa; font-weight: 600;
+      color: var(--timer-work-color); font-weight: 600;
     }
 
     .task-list {
@@ -213,7 +213,7 @@ import { noXss, trimmedRequired, futureDate } from '../../shared/validators/form
 
     .task-row {
       display: flex; align-items: center; gap: 12px; padding: 12px 16px;
-      background: rgba(255,255,255,0.02); border: 1px solid rgba(139,92,246,0.06);
+      background: var(--glass-bg); border: 1px solid rgba(139,92,246,0.06);
       border-radius: 12px; cursor: pointer; transition: all 0.2s;
     }
     .task-row:hover {
@@ -241,7 +241,7 @@ import { noXss, trimmedRequired, futureDate } from '../../shared/validators/form
     .meta-badge {
       display: flex; align-items: center; gap: 4px;
       font-size: 0.65rem; color: var(--color-text-muted); padding: 2px 8px;
-      background: rgba(255,255,255,0.03); border-radius: 6px;
+      background: var(--glass-bg); border-radius: 6px;
     }
     .meta-badge.overdue { color: #f87171; background: rgba(248,113,113,0.08); }
 
@@ -267,7 +267,7 @@ import { noXss, trimmedRequired, futureDate } from '../../shared/validators/form
       display: flex; align-items: center; justify-content: center;
       color: var(--color-text-muted); cursor: pointer; transition: all 0.2s;
     }
-    .icon-btn:hover { background: rgba(139,92,246,0.1); color: #a78bfa; }
+    .icon-btn:hover { background: rgba(139,92,246,0.1); color: var(--timer-work-color); }
     .icon-btn.delete:hover { background: rgba(239,68,68,0.1); color: #f87171; }
 
     .empty-state {
@@ -298,7 +298,7 @@ import { noXss, trimmedRequired, futureDate } from '../../shared/validators/form
     .form-group { display: flex; flex-direction: column; gap: 6px; }
     .form-group label { font-size: 0.72rem; font-weight: 600; color: var(--color-text-muted); text-transform: uppercase; letter-spacing: 0.05em; }
     .form-group input, .form-group textarea, .form-group select {
-      background: rgba(255,255,255,0.03); border: 1px solid rgba(139,92,246,0.12);
+      background: var(--control-bg); border: 1px solid rgba(139,92,246,0.12);
       border-radius: 10px; padding: 10px 14px; color: var(--color-text-primary);
       font-size: 0.85rem; outline: none; transition: border-color 0.2s;
     }

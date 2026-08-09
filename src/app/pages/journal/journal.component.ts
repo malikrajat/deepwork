@@ -72,7 +72,7 @@ interface JournalEntry {
 
     .editor-card {
       padding: 20px; border-radius: 16px;
-      background: rgba(255,255,255,0.02); backdrop-filter: blur(12px);
+      background: var(--glass-bg); backdrop-filter: blur(12px);
       border: 1px solid rgba(236,72,153,0.1); display: flex; flex-direction: column;
     }
     .editor-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; }
@@ -82,7 +82,7 @@ interface JournalEntry {
 
     .journal-textarea {
       flex: 1; min-height: 300px; resize: vertical; padding: 14px; border-radius: 12px;
-      border: 1px solid rgba(236,72,153,0.1); background: rgba(255,255,255,0.01);
+      border: 1px solid rgba(236,72,153,0.1); background: var(--control-bg);
       color: var(--color-text-primary); font-family: 'JetBrains Mono', monospace;
       font-size: 0.85rem; line-height: 1.7;
     }
@@ -91,7 +91,7 @@ interface JournalEntry {
 
     .entries-sidebar {
       padding: 16px; border-radius: 16px;
-      background: rgba(255,255,255,0.02); backdrop-filter: blur(12px);
+      background: var(--glass-bg); backdrop-filter: blur(12px);
       border: 1px solid rgba(236,72,153,0.06);
     }
     .sidebar-title { font-size: 0.8rem; font-weight: 600; margin-bottom: 12px; color: var(--color-text-secondary); text-transform: uppercase; letter-spacing: 0.05em; }

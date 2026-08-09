@@ -107,6 +107,22 @@ Output:
 
 ---
 
+## Releasing a New Version
+
+Before building a release, update the version number in **all three** of these files (they must match):
+
+| File | Key |
+|------|-----|
+| [`package.json`](package.json) | `"version": "x.y.z"` |
+| [`src-tauri/tauri.conf.json`](src-tauri/tauri.conf.json) | `"version": "x.y.z"` |
+| [`src-tauri/Cargo.toml`](src-tauri/Cargo.toml) | `version = "x.y.z"` |
+
+> `tauri.conf.json` controls what appears in the installer and app About dialog.  
+> `Cargo.toml` is used by the Rust build.  
+> `package.json` is used by npm/Angular tooling.
+
+---
+
 ## CI/CD (GitHub Actions)
 
 To build for all platforms automatically, add a workflow with matrix strategy:

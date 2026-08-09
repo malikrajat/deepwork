@@ -30,7 +30,6 @@ describe('SettingsService', () => {
     expect(svc.settings().longBreak).toBe(DEFAULT_SETTINGS.longBreak);
     expect(svc.settings().sessionsBeforeLongBreak).toBe(DEFAULT_SETTINGS.sessionsBeforeLongBreak);
     expect(svc.settings().notificationSound).toBe(DEFAULT_SETTINGS.notificationSound);
-    expect(svc.settings().trayBehavior).toBe(DEFAULT_SETTINGS.trayBehavior);
   });
 
   it('loadSettings() fetches from db and updates signal', async () => {

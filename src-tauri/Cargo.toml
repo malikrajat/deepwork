@@ -1,6 +1,6 @@
 [package]
 name = "deepwork"
-version = "1.0.0"
+version = "1.0.1"
 description = "DeepWork - Pomodoro & Task Management"
 authors = ["you"]
 license = "MIT"
@@ -23,6 +23,7 @@ tauri = { version = "2.11.2", features = ["tray-icon", "devtools"] }
 tauri-plugin-log = "2"
 tauri-plugin-sql = { version = "2", features = ["sqlite"] }
 tauri-plugin-notification = "2"
+tauri-plugin-single-instance = "2"
 
 [profile.release]
 panic = "abort"

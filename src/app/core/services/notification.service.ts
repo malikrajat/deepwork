@@ -26,6 +26,9 @@ export class NotificationService implements OnDestroy {
   readonly toast = signal<ToastNotification | null>(null);
   private toastCounter = 0;
 
+  /** Mutes the reminder sound (toggled from the system tray) */
+  readonly muted = signal(false);
+
   async init(): Promise<void> {
     if (this._initialized) return;
     this._initialized = true;
@@ -47,11 +50,25 @@ export class NotificationService implements OnDestroy {
     }
   }
 
-  async fireTimerComplete(type: TimerType): Promise<void> {
-    const title = type === 'work' ? 'Focus session complete!' : 'Break is over!';
-    const body = type === 'work'
-      ? 'Great work! Time for a break.'
-      : 'Ready to focus again?';
+  async fireTimerComplete(type: TimerType, nextType?: TimerType): Promise<void> {
+    let title: string;
+    let body: string;
+
+    if (type === 'work') {
+      if (nextType === 'long-break') {
+        title = 'Cycle complete!';
+        body = 'Great work! Time for a long break.';
+      } else {
+        title = 'Focus session complete!';
+        body = 'Great work! Time for a short break.';
+      }
+    } else if (type === 'long-break') {
+      title = 'Long break is over!';
+      body = 'Feeling refreshed? Ready for a new cycle!';
+    } else {
+      title = 'Break is over!';
+      body = 'Ready to focus again?';
+    }
 
     await this.sendNotification(title, body);
     this.playSound();
@@ -62,6 +79,11 @@ export class NotificationService implements OnDestroy {
   dismiss(): void {
     this.stopRepeatLoop();
     this.toast.set(null);
+  }
+
+  /** Shows a one-off toast (used by tray actions like timer auto-resume) */
+  showToastMessage(title: string, body: string, type: TimerType): void {
+    this.showToast(title, body, type);
   }
 
   private showToast(title: string, body: string, type: TimerType): void {
@@ -90,6 +112,7 @@ export class NotificationService implements OnDestroy {
   }
 
   private playSound(): void {
+    if (this.muted()) return;
     const sound = this.settingsService.settings().notificationSound;
     if (sound === 'none') return;
 

@@ -10,11 +10,15 @@ export class SettingsService {
 
   async loadSettings(): Promise<void> {
     const s = await this.db.getSettings();
-    if (s) this.settings.set(s);
+    if (s) {
+      this.settings.set(s);
+      // this.applyTheme(s.theme);
+    }
   }
 
   async saveSettings(s: AppSettings): Promise<void> {
     this.settings.set(s);
+    this.applyTheme(s.theme);
     await this.db.saveSettings(s);
   }
 
@@ -22,5 +26,10 @@ export class SettingsService {
     const current = this.settings();
     const updated = { ...current, [key]: value };
     await this.saveSettings(updated);
+  }
+
+  applyTheme(theme: 'dark' | 'light' | 'auto'): void {
+    document.documentElement.dataset['theme'] = theme;
+    try { localStorage.setItem('deepwork_theme', theme); } catch { /* private/storage-full */ }
   }
 }

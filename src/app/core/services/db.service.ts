@@ -49,30 +49,33 @@ export class DbService {
   }
 
   async getSettings(): Promise<AppSettings> {
-    if (this.isBrowser) return this.lsGet<AppSettings>('settings', DEFAULT_SETTINGS);
+    if (this.isBrowser) {
+      const raw = this.lsGet<Partial<AppSettings>>('settings', {});
+      return { ...DEFAULT_SETTINGS, ...raw };
+    }
     const rows = await this.query<any>('SELECT * FROM settings WHERE id = 1');
     if (!rows.length) return DEFAULT_SETTINGS;
     const r = rows[0];
     return {
-      workDuration: r.work_duration,
-      shortBreak: r.short_break,
-      longBreak: r.long_break,
-      sessionsBeforeLongBreak: r.sessions_before_long_break,
-      notificationSound: r.notification_sound,
-      notificationRepeatInterval: r.notification_repeat_interval ?? 60,
-      trayBehavior: r.tray_behavior,
-      theme: r.theme,
+      workDuration: r.work_duration ?? DEFAULT_SETTINGS.workDuration,
+      shortBreak: r.short_break ?? DEFAULT_SETTINGS.shortBreak,
+      longBreak: r.long_break ?? DEFAULT_SETTINGS.longBreak,
+      sessionsBeforeLongBreak: r.sessions_before_long_break ?? DEFAULT_SETTINGS.sessionsBeforeLongBreak,
+      notificationSound: r.notification_sound ?? DEFAULT_SETTINGS.notificationSound,
+      notificationRepeatInterval: r.notification_repeat_interval ?? DEFAULT_SETTINGS.notificationRepeatInterval,
+      theme: r.theme === 'light' || r.theme === 'dark' || r.theme === 'system' ? r.theme : DEFAULT_SETTINGS.theme,
     };
   }
 
   async saveSettings(s: AppSettings): Promise<void> {
-    if (this.isBrowser) { this.lsSet('settings', s); return; }
+    const merged = { ...DEFAULT_SETTINGS, ...s };
+    if (this.isBrowser) { this.lsSet('settings', merged); return; }
     await this.execute(
       `UPDATE settings SET work_duration = $1, short_break = $2, long_break = $3,
-       sessions_before_long_break = $4, notification_sound = $5, tray_behavior = $6, theme = $7,
-       notification_repeat_interval = $8
+       sessions_before_long_break = $4, notification_sound = $5, theme = $6,
+       notification_repeat_interval = $7
        WHERE id = 1`,
-      [s.workDuration, s.shortBreak, s.longBreak, s.sessionsBeforeLongBreak, s.notificationSound, s.trayBehavior, s.theme, s.notificationRepeatInterval]
+      [merged.workDuration, merged.shortBreak, merged.longBreak, merged.sessionsBeforeLongBreak, merged.notificationSound, merged.theme, merged.notificationRepeatInterval]
     );
   }
 
@@ -88,6 +91,7 @@ export class DbService {
       taskId: r.task_id,
       sessionCount: r.session_count ?? 0,
       startedAt: r.started_at,
+      lastActiveDate: r.last_active_date ?? null,
     };
   }
 
@@ -95,8 +99,8 @@ export class DbService {
     if (this.isBrowser) { this.lsSet('timerState', state); return; }
     await this.execute(
       `UPDATE timer_state SET is_running = $1, type = $2, remaining_seconds = $3,
-       task_id = $4, session_count = $5, started_at = $6 WHERE id = 1`,
-      [state.isRunning ? 1 : 0, state.type, state.remainingSeconds, state.taskId, state.sessionCount, state.startedAt]
+       task_id = $4, session_count = $5, started_at = $6, last_active_date = $7 WHERE id = 1`,
+      [state.isRunning ? 1 : 0, state.type, state.remainingSeconds, state.taskId, state.sessionCount, state.startedAt, state.lastActiveDate]
     );
   }
 
@@ -375,6 +379,76 @@ export class DbService {
       [`%${query}%`]
     );
     return rows.map(r => this.mapTask(r));
+  }
+
+  // ==================== BACKUP / RESTORE ====================
+
+  async exportAll(): Promise<any> {
+    const [sessions, tasks, habits, habitEntries, journal, settings, timerState] = await Promise.all([
+      this.getAllSessions(),
+      this.getTasks(),
+      this.getHabits(),
+      this.getAllHabitEntries(),
+      this.getJournalEntries(),
+      this.getSettings(),
+      this.getTimerState(),
+    ]);
+    return {
+      version: 1,
+      exportedAt: new Date().toISOString(),
+      sessions,
+      tasks,
+      habits,
+      habitEntries,
+      journal,
+      settings,
+      timerState,
+    };
+  }
+
+  async clearAllData(): Promise<void> {
+    if (this.isBrowser) {
+      this.lsSet('sessions', []);
+      this.lsSet('tasks', []);
+      this.lsSet('habits', []);
+      this.lsSet('habitEntries', []);
+      this.lsSet('journal', []);
+      this.lsSet('timerState', null);
+      return;
+    }
+    // Delete children before parents to respect foreign keys
+    await this.execute('DELETE FROM habit_entries');
+    await this.execute('DELETE FROM habits');
+    await this.execute('DELETE FROM sessions');
+    await this.execute('DELETE FROM tasks');
+    await this.execute('DELETE FROM journal_entries');
+    await this.execute('UPDATE timer_state SET is_running = 0, type = "work", remaining_seconds = 0, task_id = NULL, session_count = 0, started_at = NULL WHERE id = 1');
+  }
+
+  async importBackup(data: any): Promise<void> {
+    await this.clearAllData();
+    // Tasks first so session foreign keys resolve
+    for (const t of data.tasks ?? []) {
+      await this.createTask(t);
+    }
+    for (const h of data.habits ?? []) {
+      await this.createHabit(h);
+    }
+    for (const e of data.habitEntries ?? []) {
+      await this.addHabitEntry(e);
+    }
+    for (const s of data.sessions ?? []) {
+      await this.saveSession(s);
+    }
+    for (const j of data.journal ?? []) {
+      await this.saveJournalEntry(j);
+    }
+    if (data.settings) {
+      await this.saveSettings(data.settings);
+    }
+    if (data.timerState) {
+      await this.saveTimerState(data.timerState);
+    }
   }
 
   private parseRecurrence(value: unknown): any {

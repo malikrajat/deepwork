@@ -147,7 +147,7 @@ const UPDATE_INTERVAL_MS = 1000;
     .hour-line {
       flex: 1;
       height: 1px;
-      background: rgba(255,255,255,0.04);
+      background: var(--glass-border);
     }
 
     /* Session blocks */
@@ -200,7 +200,7 @@ const UPDATE_INTERVAL_MS = 1000;
     }
     .session-block.is-active.type-work {
       background: linear-gradient(135deg, rgba(139,92,246,0.5), rgba(124,58,237,0.3));
-      border-left: 3px solid #a78bfa;
+      border-left: 3px solid var(--timer-work-color);
       border-right: none;
       border-top: none;
       border-bottom: none;
@@ -208,7 +208,7 @@ const UPDATE_INTERVAL_MS = 1000;
     }
     .session-block.is-active.type-short-break {
       background: linear-gradient(135deg, rgba(6,182,212,0.4), rgba(6,182,212,0.2));
-      border-left: 3px solid #22d3ee;
+      border-left: 3px solid var(--timer-break-color);
       border-right: none;
       border-top: none;
       border-bottom: none;
@@ -216,7 +216,7 @@ const UPDATE_INTERVAL_MS = 1000;
     }
     .session-block.is-active.type-long-break {
       background: linear-gradient(135deg, rgba(52,211,153,0.4), rgba(52,211,153,0.2));
-      border-left: 3px solid #6ee7b7;
+      border-left: 3px solid var(--timer-long-break-color);
       border-right: none;
       border-top: none;
       border-bottom: none;
