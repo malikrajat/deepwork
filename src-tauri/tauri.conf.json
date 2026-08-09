@@ -5,7 +5,7 @@
   "identifier": "com.deepwork.app",
   "build": {
     "frontendDist": "../dist/deepwork/browser",
-    "devUrl": "http://localhost:4202",
+    "devUrl": "http://localhost:4999",
     "beforeDevCommand": "npm run start",
     "beforeBuildCommand": "npm run build"
   },

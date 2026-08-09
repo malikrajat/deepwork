@@ -1,15 +1,18 @@
-import { Component, signal, inject, ChangeDetectionStrategy } from '@angular/core';
+import { Component, signal, inject, ChangeDetectionStrategy, OnInit, AfterViewInit } from '@angular/core';
 import { Router, RouterOutlet } from '@angular/router';
 import { SidebarComponent } from './shared/components/sidebar/sidebar.component';
 import { ToastComponent } from './shared/components/toast/toast.component';
+import { InstallBannerComponent } from './shared/components/install-banner/install-banner.component';
 import { TimerService } from './core/services/timer.service';
 import { UiService } from './core/services/ui.service';
+import { SettingsService } from './core/services/settings.service';
+import { DbService } from './core/services/db.service';
 
-const PAGE_ROUTES = ['dashboard', 'tasks', 'matrix', 'today', 'analytics', 'habits', 'journal', 'settings'];
+const PAGE_ROUTES = ['', 'tasks', 'matrix', 'today', 'analytics', 'habits', 'journal', 'settings'];
 
 @Component({
   selector: 'app-root',
-  imports: [RouterOutlet, SidebarComponent, ToastComponent],
+  imports: [RouterOutlet, SidebarComponent, ToastComponent, InstallBannerComponent],
   templateUrl: './app.html',
   styleUrl: './app.css',
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -17,12 +20,21 @@ const PAGE_ROUTES = ['dashboard', 'tasks', 'matrix', 'today', 'analytics', 'habi
     '(window:keydown)': 'handleKeyboard($event)'
   }
 })
-export class App {
+export class App implements OnInit {
   private readonly router = inject(Router);
   private readonly timer = inject(TimerService);
+  private readonly settingsService = inject(SettingsService);
+  private readonly db = inject(DbService);
   ui = inject(UiService);
 
-  sidebarCollapsed = signal(false);
+  sidebarCollapsed = signal(true);
+
+  ngOnInit(): void {
+    this.db.init().then(async () => {
+      await this.settingsService.loadSettings();
+    });
+  }
+
 
   toggleSidebar() {
     this.sidebarCollapsed.update(v => !v);
@@ -78,7 +90,7 @@ export class App {
   private handleSpaceTimer(event: KeyboardEvent): void {
     if (event.code !== 'Space' || this.isInputFocused(event)) return;
     const url = this.router.url;
-    if (url === '/dashboard' || url === '/') {
+    if (url === '/' || url === '/dashboard' || url === '') {
       event.preventDefault();
       if (this.timer.isRunning()) {
         this.timer.pause();

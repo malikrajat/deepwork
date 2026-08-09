@@ -14,12 +14,13 @@
   --color-accent-tertiary: #ec4899;
   --color-accent-gradient: linear-gradient(135deg, #8b5cf6 0%, #06b6d4 100%);
   --color-accent-glow: rgba(139, 92, 246, 0.4);
-  --color-text-primary: #f8fafc;
-  --color-text-secondary: #a1a1aa;
-  --color-text-muted: #52525b;
+  --color-text-primary: #f0eeff;
+  --color-text-secondary: #a8a4c0;
+  --color-text-muted: #5c5878;
   --color-success: #34d399;
   --color-warning: #fbbf24;
   --color-danger: #f87171;
+  color-scheme: dark;
 
   /* ─── Status colors ─── */
   --status-todo-color: #9ca3af;
@@ -57,6 +58,10 @@
   --timer-work-color: #8b5cf6;
   --timer-break-color: #06b6d4;
   --timer-long-break-color: #34d399;
+
+  /* Sidebar & input surface tokens */
+  --sidebar-bg: rgba(15, 11, 31, 0.65);
+  --input-bg: rgba(255, 255, 255, 0.04);
 
   /* Glassmorphism tokens */
   --glass-bg: rgba(255, 255, 255, 0.03);
@@ -381,6 +386,14 @@ select option {
   background: var(--color-bg-tertiary);
   color: var(--color-text-primary);
 }
+html[data-theme="light"] select option {
+  background: #f2f0fb;
+}
+@media (prefers-color-scheme: light) {
+  html[data-theme="auto"] select option {
+    background: #f2f0fb;
+  }
+}
 
 /* Global input/textarea styling */
 input[type="text"],
@@ -449,4 +462,174 @@ input[type="time"]::-webkit-calendar-picker-indicator,
 input[type="datetime-local"]::-webkit-calendar-picker-indicator {
   filter: invert(0.7) sepia(1) saturate(3) hue-rotate(220deg);
   cursor: pointer;
+}
+html[data-theme="light"] input[type="date"]::-webkit-calendar-picker-indicator,
+html[data-theme="light"] input[type="time"]::-webkit-calendar-picker-indicator,
+html[data-theme="light"] input[type="datetime-local"]::-webkit-calendar-picker-indicator {
+  filter: none;
+  opacity: 0.6;
+}
+
+/* ===== Light theme: component surface overrides =====
+   html[data-theme="light"] .class = specificity (0,2,1)
+   Component .class[_ngcontent] = specificity (0,2,0)
+   Global wins — no !important needed                    */
+
+html[data-theme="light"] .stat-card,
+html[data-theme="light"] .chart-card,
+html[data-theme="light"] .habit-card,
+html[data-theme="light"] .editor-card,
+html[data-theme="light"] .entries-sidebar,
+html[data-theme="light"] .today-card,
+html[data-theme="light"] .quadrant,
+html[data-theme="light"] .timer-card-inner,
+html[data-theme="light"] .timeline-panel-inner,
+html[data-theme="light"] .progress-card,
+html[data-theme="light"] .setting-group {
+  background: rgba(228, 224, 244, 0.85);
+  border-color: rgba(139, 92, 246, 0.15);
+}
+
+html[data-theme="light"] .search-box,
+html[data-theme="light"] .chip,
+html[data-theme="light"] .habit-input,
+html[data-theme="light"] .icon-input,
+html[data-theme="light"] .action-btn,
+html[data-theme="light"] .meta-badge {
+  background: rgba(228, 224, 244, 0.80);
+  border-color: rgba(139, 92, 246, 0.18);
+}
+
+html[data-theme="light"] .task-row {
+  background: rgba(228, 224, 244, 0.80);
+  border-color: rgba(139, 92, 246, 0.12);
+}
+html[data-theme="light"] .task-row:hover {
+  background: rgba(139, 92, 246, 0.06);
+  border-color: rgba(139, 92, 246, 0.25);
+}
+html[data-theme="light"] .panel-header {
+  border-bottom-color: rgba(139, 92, 246, 0.12);
+}
+html[data-theme="light"] .setting-item {
+  border-bottom-color: rgba(139, 92, 246, 0.1);
+}
+html[data-theme="light"] .session-row {
+  border-bottom-color: rgba(139, 92, 246, 0.1);
+}
+html[data-theme="light"] .progress-divider {
+  background: rgba(139, 92, 246, 0.2);
+}
+html[data-theme="light"] .dot {
+  background: rgba(139, 92, 246, 0.12);
+  border-color: rgba(139, 92, 246, 0.25);
+}
+html[data-theme="light"] .exit-fullscreen-btn {
+  background: rgba(236, 233, 248, 0.90);
+  border-color: rgba(139, 92, 246, 0.2);
+}
+html[data-theme="light"] .form-group input,
+html[data-theme="light"] .form-group textarea,
+html[data-theme="light"] .form-group select {
+  background: rgba(236, 233, 248, 0.92);
+  border-color: rgba(139, 92, 246, 0.2);
+}
+
+@media (prefers-color-scheme: light) {
+  html[data-theme="auto"] .stat-card,
+  html[data-theme="auto"] .chart-card,
+  html[data-theme="auto"] .habit-card,
+  html[data-theme="auto"] .editor-card,
+  html[data-theme="auto"] .entries-sidebar,
+  html[data-theme="auto"] .today-card,
+  html[data-theme="auto"] .quadrant,
+  html[data-theme="auto"] .timer-card-inner,
+  html[data-theme="auto"] .timeline-panel-inner,
+  html[data-theme="auto"] .progress-card,
+  html[data-theme="auto"] .setting-group {
+    background: rgba(228, 224, 244, 0.85);
+    border-color: rgba(139, 92, 246, 0.15);
+  }
+  html[data-theme="auto"] .search-box,
+  html[data-theme="auto"] .chip,
+  html[data-theme="auto"] .habit-input,
+  html[data-theme="auto"] .icon-input,
+  html[data-theme="auto"] .action-btn,
+  html[data-theme="auto"] .meta-badge {
+    background: rgba(228, 224, 244, 0.80);
+    border-color: rgba(139, 92, 246, 0.18);
+  }
+  html[data-theme="auto"] .task-row {
+    background: rgba(228, 224, 244, 0.80);
+    border-color: rgba(139, 92, 246, 0.12);
+  }
+  html[data-theme="auto"] .task-row:hover {
+    background: rgba(139, 92, 246, 0.06);
+    border-color: rgba(139, 92, 246, 0.25);
+  }
+  html[data-theme="auto"] .panel-header { border-bottom-color: rgba(139, 92, 246, 0.12); }
+  html[data-theme="auto"] .setting-item { border-bottom-color: rgba(139, 92, 246, 0.1); }
+  html[data-theme="auto"] .session-row { border-bottom-color: rgba(139, 92, 246, 0.1); }
+  html[data-theme="auto"] .progress-divider { background: rgba(139, 92, 246, 0.2); }
+  html[data-theme="auto"] .dot { background: rgba(139, 92, 246, 0.12); border-color: rgba(139, 92, 246, 0.25); }
+  html[data-theme="auto"] .exit-fullscreen-btn { background: rgba(236, 233, 248, 0.90); border-color: rgba(139, 92, 246, 0.2); }
+  html[data-theme="auto"] .form-group input,
+  html[data-theme="auto"] .form-group textarea,
+  html[data-theme="auto"] .form-group select {
+    background: rgba(236, 233, 248, 0.92);
+    border-color: rgba(139, 92, 246, 0.2);
+  }
+}
+
+/* ===== Light theme: clock & timeline overrides ===== */
+html[data-theme="light"] .track-circle {
+  stroke: rgba(139, 92, 246, 0.12);
+}
+html[data-theme="light"] .tick-major {
+  stroke: rgba(27, 23, 48, 0.3);
+}
+html[data-theme="light"] .tick-minor {
+  stroke: rgba(27, 23, 48, 0.12);
+}
+html[data-theme="light"] .hour-line {
+  background: rgba(139, 92, 246, 0.12);
+}
+html[data-theme="light"] .btn-ghost {
+  background: rgba(139, 92, 246, 0.07);
+  border: 1px solid rgba(139, 92, 246, 0.2);
+  color: var(--color-text-secondary);
+}
+html[data-theme="light"] .btn-ghost:hover:not(:disabled) {
+  background: rgba(139, 92, 246, 0.14);
+  color: var(--color-text-primary);
+}
+html[data-theme="light"] .action-btn {
+  background: rgba(139, 92, 246, 0.07);
+  border-color: rgba(139, 92, 246, 0.18);
+  color: var(--color-text-secondary);
+}
+html[data-theme="light"] .mini-clock-float {
+  background: rgba(255, 255, 255, 0.95);
+  border-color: rgba(139, 92, 246, 0.25);
+}
+
+@media (prefers-color-scheme: light) {
+  html[data-theme="auto"] .track-circle { stroke: rgba(139, 92, 246, 0.12); }
+  html[data-theme="auto"] .tick-major { stroke: rgba(27, 23, 48, 0.3); }
+  html[data-theme="auto"] .tick-minor { stroke: rgba(27, 23, 48, 0.12); }
+  html[data-theme="auto"] .hour-line { background: rgba(139, 92, 246, 0.12); }
+  html[data-theme="auto"] .btn-ghost {
+    background: rgba(139, 92, 246, 0.07);
+    border: 1px solid rgba(139, 92, 246, 0.2);
+    color: var(--color-text-secondary);
+  }
+  html[data-theme="auto"] .btn-ghost:hover:not(:disabled) {
+    background: rgba(139, 92, 246, 0.14);
+    color: var(--color-text-primary);
+  }
+  html[data-theme="auto"] .action-btn {
+    background: rgba(139, 92, 246, 0.07);
+    border-color: rgba(139, 92, 246, 0.18);
+    color: var(--color-text-secondary);
+  }
 }

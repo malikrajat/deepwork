@@ -48,6 +48,11 @@
               {
                 "glob": "**/*",
                 "input": "public"
+              },
+              {
+                "glob": "*.png",
+                "input": "src-tauri/icons",
+                "output": "icons"
               }
             ],
             "styles": [
@@ -90,7 +95,7 @@
         "serve": {
           "builder": "@angular/build:dev-server",
           "options": {
-            "port": 4200
+            "port": 4999
           },
           "configurations": {
             "production": {

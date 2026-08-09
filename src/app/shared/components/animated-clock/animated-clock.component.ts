@@ -54,7 +54,7 @@ import { TIMER_TYPE_CONFIG } from '../../../core/constants/theme.constants';
             [attr.y1]="100 + 76 * Math.sin(tick * Math.PI / 30 - Math.PI / 2)"
             [attr.x2]="100 + (tick % 5 === 0 ? 72 : 74) * Math.cos(tick * Math.PI / 30 - Math.PI / 2)"
             [attr.y2]="100 + (tick % 5 === 0 ? 72 : 74) * Math.sin(tick * Math.PI / 30 - Math.PI / 2)"
-            [attr.stroke]="tick % 5 === 0 ? 'var(--clock-tick-major)' : 'var(--clock-tick-minor)'"
+            [class]="tick % 5 === 0 ? 'tick-major' : 'tick-minor'"
             [attr.stroke-width]="tick % 5 === 0 ? '1.5' : '0.8'"
             stroke-linecap="round"
           />
@@ -113,6 +113,15 @@ import { TIMER_TYPE_CONFIG } from '../../../core/constants/theme.constants';
     .clock-face {
       position: absolute;
       inset: 0;
+    }
+    .track-circle {
+      stroke: rgba(255, 255, 255, 0.06);
+    }
+    .tick-major {
+      stroke: rgba(255, 255, 255, 0.25);
+    }
+    .tick-minor {
+      stroke: rgba(255, 255, 255, 0.08);
     }
     .elapsed-arc {
       transform: rotate(-90deg);

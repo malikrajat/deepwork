@@ -34,6 +34,7 @@ export interface SettingsFormModel {
   sessionsBeforeLongBreak: number;
   notificationSound: string;
   notificationRepeatInterval: number;
+  trayBehavior: string;
   theme: string;
 }
 
@@ -79,7 +80,8 @@ export function createSettingsFormDefaults(): SettingsFormModel {
     sessionsBeforeLongBreak: 4,
     notificationSound: 'bell',
     notificationRepeatInterval: 60,
-    theme: 'system',
+    trayBehavior: 'minimize',
+    theme: 'dark',
   };
 }
 

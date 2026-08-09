@@ -18,4 +18,5 @@ export interface TimerState {
   taskId: string | null;
   sessionCount: number;
   startedAt: string | null;
+  lastActiveDate: string | null;
 }

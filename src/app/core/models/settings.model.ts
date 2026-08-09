@@ -6,7 +6,8 @@ export interface AppSettings {
   notificationSound: string;
   /** Repeat interval for notification sound/toast in seconds */
   notificationRepeatInterval: number;
-  theme: 'system' | 'light' | 'dark';
+  trayBehavior: 'minimize' | 'quit';
+  theme: 'dark' | 'light' | 'auto';
 }
 
 export const DEFAULT_SETTINGS: AppSettings = {
