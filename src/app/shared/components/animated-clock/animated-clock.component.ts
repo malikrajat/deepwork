@@ -32,7 +32,7 @@ import { TIMER_TYPE_CONFIG } from '../../../core/constants/theme.constants';
         <circle cx="100" cy="100" r="96" fill="none" stroke="rgba(139,92,246,0.06)" stroke-width="1"/>
 
         <!-- Background track -->
-        <circle cx="100" cy="100" r="88" fill="none" stroke="rgba(255,255,255,0.04)" stroke-width="8"/>
+        <circle cx="100" cy="100" r="88" fill="none" stroke="var(--clock-track)" stroke-width="8"/>
 
         <!-- Filled arc (elapsed time) -->
         <circle
@@ -54,7 +54,7 @@ import { TIMER_TYPE_CONFIG } from '../../../core/constants/theme.constants';
             [attr.y1]="100 + 76 * Math.sin(tick * Math.PI / 30 - Math.PI / 2)"
             [attr.x2]="100 + (tick % 5 === 0 ? 72 : 74) * Math.cos(tick * Math.PI / 30 - Math.PI / 2)"
             [attr.y2]="100 + (tick % 5 === 0 ? 72 : 74) * Math.sin(tick * Math.PI / 30 - Math.PI / 2)"
-            [attr.stroke]="tick % 5 === 0 ? 'rgba(255,255,255,0.25)' : 'rgba(255,255,255,0.08)'"
+            [attr.stroke]="tick % 5 === 0 ? 'var(--clock-tick-major)' : 'var(--clock-tick-minor)'"
             [attr.stroke-width]="tick % 5 === 0 ? '1.5' : '0.8'"
             stroke-linecap="round"
           />

@@ -34,7 +34,7 @@ export interface SettingsFormModel {
   sessionsBeforeLongBreak: number;
   notificationSound: string;
   notificationRepeatInterval: number;
-  trayBehavior: string;
+  theme: string;
 }
 
 /** Dashboard task selector form model */
@@ -79,7 +79,7 @@ export function createSettingsFormDefaults(): SettingsFormModel {
     sessionsBeforeLongBreak: 4,
     notificationSound: 'bell',
     notificationRepeatInterval: 60,
-    trayBehavior: 'minimize',
+    theme: 'system',
   };
 }
 

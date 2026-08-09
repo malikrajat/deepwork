@@ -82,10 +82,10 @@ interface HabitEntry {
     .add-form { display: flex; gap: 8px; margin-bottom: var(--space-xl); }
     .habit-input {
       flex: 1; padding: 10px 14px; border-radius: 10px; border: 1px solid rgba(52,211,153,0.2);
-      background: rgba(255,255,255,0.03); color: var(--color-text-primary); font-size: 0.85rem;
+      background: var(--control-bg); color: var(--color-text-primary); font-size: 0.85rem;
     }
     .habit-input:focus { outline: none; border-color: rgba(52,211,153,0.5); }
-    .icon-input { width: 44px; text-align: center; padding: 10px; border-radius: 10px; border: 1px solid rgba(52,211,153,0.2); background: rgba(255,255,255,0.03); color: var(--color-text-primary); font-size: 1rem; }
+    .icon-input { width: 44px; text-align: center; padding: 10px; border-radius: 10px; border: 1px solid rgba(52,211,153,0.2); background: var(--control-bg); color: var(--color-text-primary); font-size: 1rem; }
     .btn { cursor: pointer; border: none; border-radius: 10px; font-weight: 600; font-size: 0.8rem; transition: all 0.2s; }
     .btn-primary { padding: 10px 18px; background: linear-gradient(135deg, rgba(52,211,153,0.2), rgba(6,182,212,0.2)); border: 1px solid rgba(52,211,153,0.3); color: var(--color-text-primary); }
     .btn-primary:hover { transform: translateY(-1px); box-shadow: 0 4px 12px rgba(52,211,153,0.2); }
@@ -95,7 +95,7 @@ interface HabitEntry {
     .habits-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 14px; }
     .habit-card {
       padding: 16px; border-radius: 16px; text-align: center;
-      background: rgba(255,255,255,0.02); backdrop-filter: blur(12px);
+      background: var(--glass-bg); backdrop-filter: blur(12px);
       border: 1px solid rgba(52,211,153,0.1); transition: all 0.2s;
     }
     .habit-card.done-today { border-color: rgba(52,211,153,0.35); background: rgba(52,211,153,0.03); }

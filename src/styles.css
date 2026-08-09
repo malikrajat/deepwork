@@ -3,6 +3,8 @@
 /* ===== DeepWork Premium Design System ===== */
 
 :root {
+  color-scheme: dark;
+
   /* Deep space palette */
   --color-bg-primary: #080613;
   --color-bg-secondary: #0f0b1f;
@@ -68,6 +70,17 @@
   --glass-radius: 20px;
   --glass-radius-sm: 12px;
 
+  /* Themed surfaces & controls */
+  --control-bg: rgba(255, 255, 255, 0.03);
+  --surface-sidebar: rgba(15, 11, 31, 0.6);
+  --surface-float: rgba(15, 11, 31, 0.9);
+  --toast-bg: rgba(15, 11, 31, 0.95);
+
+  /* Animated clock chart */
+  --clock-track: rgba(255, 255, 255, 0.04);
+  --clock-tick-major: rgba(255, 255, 255, 0.25);
+  --clock-tick-minor: rgba(255, 255, 255, 0.08);
+
   /* Spacing */
   --space-xs: 4px;
   --space-sm: 8px;
@@ -80,6 +93,80 @@
   /* Typography */
   --font-sans: 'Inter', system-ui, -apple-system, sans-serif;
   --font-mono: 'JetBrains Mono', 'Fira Code', monospace;
+}
+
+html.theme-dark {
+  color-scheme: dark;
+}
+
+/* ===== Light Theme ===== */
+html.theme-light {
+  color-scheme: light;
+
+  --color-bg-primary: #f4f6fb;
+  --color-bg-secondary: #eef1f8;
+  --color-bg-tertiary: #e2e7f2;
+  --color-accent-primary: #7c3aed;
+  --color-accent-secondary: #0891b2;
+  --color-accent-tertiary: #db2777;
+  --color-accent-gradient: linear-gradient(135deg, #7c3aed 0%, #0891b2 100%);
+  --color-accent-glow: rgba(124, 58, 237, 0.25);
+  --color-text-primary: #0f172a;
+  --color-text-secondary: #475569;
+  --color-text-muted: #64748b;
+  --color-success: #059669;
+  --color-warning: #d97706;
+  --color-danger: #dc2626;
+
+  --status-todo-color: #64748b;
+  --status-todo-bg: rgba(100, 116, 139, 0.14);
+  --status-in-progress-color: #d97706;
+  --status-in-progress-bg: rgba(217, 119, 6, 0.14);
+  --status-done-color: #7c3aed;
+  --status-done-bg: rgba(124, 58, 237, 0.12);
+
+  --priority-p1-color: #dc2626;
+  --priority-p1-bg: rgba(220, 38, 38, 0.12);
+  --priority-p2-color: #d97706;
+  --priority-p2-bg: rgba(217, 119, 6, 0.12);
+  --priority-p3-color: #7c3aed;
+  --priority-p3-bg: rgba(124, 58, 237, 0.12);
+  --priority-p4-color: #64748b;
+  --priority-p4-bg: rgba(100, 116, 139, 0.12);
+
+  --quadrant-q1-color: #dc2626;
+  --quadrant-q1-bg: rgba(220, 38, 38, 0.1);
+  --quadrant-q1-border: rgba(220, 38, 38, 0.3);
+  --quadrant-q2-color: #7c3aed;
+  --quadrant-q2-bg: rgba(124, 58, 237, 0.1);
+  --quadrant-q2-border: rgba(124, 58, 237, 0.3);
+  --quadrant-q3-color: #d97706;
+  --quadrant-q3-bg: rgba(217, 119, 6, 0.1);
+  --quadrant-q3-border: rgba(217, 119, 6, 0.3);
+  --quadrant-q4-color: #64748b;
+  --quadrant-q4-bg: rgba(100, 116, 139, 0.1);
+  --quadrant-q4-border: rgba(100, 116, 139, 0.3);
+
+  --timer-work-color: #7c3aed;
+  --timer-break-color: #0891b2;
+  --timer-long-break-color: #059669;
+
+  --glass-bg: rgba(255, 255, 255, 0.65);
+  --glass-bg-hover: rgba(255, 255, 255, 0.85);
+  --glass-bg-active: rgba(124, 58, 237, 0.08);
+  --glass-border: rgba(15, 23, 42, 0.08);
+  --glass-border-accent: rgba(124, 58, 237, 0.35);
+  --glass-shadow: 0 8px 32px rgba(15, 23, 42, 0.08);
+  --glass-shadow-glow: 0 0 40px rgba(124, 58, 237, 0.12);
+
+  --control-bg: rgba(15, 23, 42, 0.05);
+  --surface-sidebar: rgba(255, 255, 255, 0.6);
+  --surface-float: rgba(255, 255, 255, 0.92);
+  --toast-bg: rgba(255, 255, 255, 0.95);
+
+  --clock-track: rgba(15, 23, 42, 0.06);
+  --clock-tick-major: rgba(15, 23, 42, 0.28);
+  --clock-tick-minor: rgba(15, 23, 42, 0.12);
 }
 
 * {
@@ -246,7 +333,7 @@ body::after {
   font-size: 0.72rem;
   font-family: var(--font-sans);
   color: var(--color-text-primary);
-  background: rgba(22, 15, 45, 0.92);
+  background: var(--surface-float);
   backdrop-filter: blur(12px);
   border: 1px solid rgba(139, 92, 246, 0.2);
   border-radius: 8px;
@@ -276,7 +363,7 @@ select {
   min-height: 36px;
   border-radius: 10px;
   border: 1px solid rgba(139, 92, 246, 0.2);
-  background-color: rgba(255, 255, 255, 0.03);
+  background-color: var(--control-bg);
   color: var(--color-text-primary);
   font-size: 0.82rem;
   font-family: var(--font-sans);
@@ -291,7 +378,7 @@ select:hover {
   border-color: rgba(139, 92, 246, 0.35);
 }
 select option {
-  background: #160f2d;
+  background: var(--color-bg-tertiary);
   color: var(--color-text-primary);
 }
 
@@ -313,7 +400,7 @@ textarea {
   min-height: 36px;
   border-radius: 10px;
   border: 1px solid rgba(139, 92, 246, 0.2);
-  background-color: rgba(255, 255, 255, 0.03);
+  background-color: var(--control-bg);
   color: var(--color-text-primary);
   font-size: 0.82rem;
   font-family: var(--font-sans);

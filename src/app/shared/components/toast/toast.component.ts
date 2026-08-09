@@ -52,14 +52,14 @@ import { NotificationService } from '../../../core/services/notification.service
       overflow: hidden;
       min-width: 280px;
       max-width: 360px;
-      box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4), 0 0 0 1px rgba(255, 255, 255, 0.05);
+      box-shadow: var(--glass-shadow), 0 0 0 1px var(--glass-border);
     }
     .toast-container.work {
-      background: linear-gradient(135deg, rgba(139, 92, 246, 0.2) 0%, rgba(15, 11, 31, 0.95) 100%);
+      background: linear-gradient(135deg, rgba(139, 92, 246, 0.2) 0%, var(--toast-bg) 100%);
       border: 1px solid rgba(139, 92, 246, 0.3);
     }
     .toast-container.break {
-      background: linear-gradient(135deg, rgba(6, 182, 212, 0.2) 0%, rgba(15, 11, 31, 0.95) 100%);
+      background: linear-gradient(135deg, rgba(6, 182, 212, 0.2) 0%, var(--toast-bg) 100%);
       border: 1px solid rgba(6, 182, 212, 0.3);
     }
 
@@ -75,11 +75,11 @@ import { NotificationService } from '../../../core/services/notification.service
     }
     .work .toast-icon {
       background: rgba(139, 92, 246, 0.2);
-      color: #a78bfa;
+      color: var(--timer-work-color);
     }
     .break .toast-icon {
       background: rgba(6, 182, 212, 0.2);
-      color: #22d3ee;
+      color: var(--timer-break-color);
     }
 
     .toast-content {
@@ -105,8 +105,8 @@ import { NotificationService } from '../../../core/services/notification.service
       width: 28px;
       height: 28px;
       border-radius: 8px;
-      background: rgba(255, 255, 255, 0.05);
-      border: 1px solid rgba(255, 255, 255, 0.1);
+      background: var(--glass-bg);
+      border: 1px solid var(--glass-border);
       color: var(--color-text-muted, #888);
       cursor: pointer;
       display: flex;
@@ -116,7 +116,7 @@ import { NotificationService } from '../../../core/services/notification.service
       transition: all 0.2s;
     }
     .toast-dismiss:hover {
-      background: rgba(255, 255, 255, 0.1);
+      background: var(--glass-bg-hover);
       color: var(--color-text-primary, #fff);
       transform: scale(1.1);
     }

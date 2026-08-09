@@ -79,8 +79,8 @@ import { QUADRANT_CONFIG } from '../../core/constants/theme.constants';
       gap: 12px;
     }
     .quadrant {
-      background: rgba(255,255,255,0.02); backdrop-filter: blur(16px);
-      border: 1px solid rgba(255,255,255,0.05); border-radius: 14px;
+      background: var(--glass-bg); backdrop-filter: blur(16px);
+      border: 1px solid var(--glass-border); border-radius: 14px;
       padding: 14px; display: flex; flex-direction: column;
       transition: border-color 0.3s;
     }
@@ -107,14 +107,14 @@ import { QUADRANT_CONFIG } from '../../core/constants/theme.constants';
 
     .matrix-card {
       display: flex; align-items: center; gap: 8px;
-      padding: 8px 12px; background: rgba(255,255,255,0.03);
+      padding: 8px 12px; background: var(--control-bg);
       border: 1px solid rgba(139,92,246,0.08); border-radius: 8px;
       cursor: grab; transition: all 0.2s;
     }
     .matrix-card:hover { background: rgba(139,92,246,0.06); border-color: rgba(139,92,246,0.2); }
     .matrix-card:active { cursor: grabbing; }
     .cdk-drag-preview {
-      background: rgba(22,15,45,0.95); backdrop-filter: blur(12px);
+      background: var(--surface-float); backdrop-filter: blur(12px);
       border: 1px solid rgba(139,92,246,0.3); border-radius: 8px;
       padding: 8px 12px; box-shadow: 0 12px 40px rgba(0,0,0,0.5);
     }
@@ -135,13 +135,13 @@ import { QUADRANT_CONFIG } from '../../core/constants/theme.constants';
 
     .empty-hint {
       flex: 1; display: flex; align-items: center; justify-content: center;
-      border: 1px dashed rgba(255,255,255,0.06); border-radius: 10px;
+      border: 1px dashed var(--glass-border); border-radius: 10px;
       color: var(--color-text-muted); font-size: 0.7rem; opacity: 0.5; min-height: 50px;
     }
 
     /* Unassigned panel */
     .unassigned-panel {
-      width: 200px; background: rgba(255,255,255,0.02); border: 1px solid rgba(139,92,246,0.06);
+      width: 200px; background: var(--glass-bg); border: 1px solid rgba(139,92,246,0.06);
       border-radius: 14px; padding: 14px; display: flex; flex-direction: column;
     }
     .panel-title {

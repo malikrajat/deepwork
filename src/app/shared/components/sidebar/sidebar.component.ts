@@ -71,7 +71,7 @@ interface NavItem {
     .sidebar {
       width: 240px;
       height: 100vh;
-      background: rgba(15, 11, 31, 0.6);
+      background: var(--surface-sidebar);
       backdrop-filter: blur(20px);
       -webkit-backdrop-filter: blur(20px);
       border-right: 1px solid rgba(139, 92, 246, 0.08);
@@ -214,16 +214,16 @@ interface NavItem {
     }
     .sidebar-footer {
       padding: var(--space-md) var(--space-sm);
-      border-top: 1px solid rgba(255, 255, 255, 0.04);
+      border-top: 1px solid var(--glass-border);
     }
     .version-badge {
       font-size: 0.7rem;
       color: var(--color-text-muted);
       padding: 4px 10px;
-      background: rgba(255, 255, 255, 0.03);
+      background: var(--glass-bg);
       border-radius: 20px;
       text-align: center;
-      border: 1px solid rgba(255, 255, 255, 0.04);
+      border: 1px solid var(--glass-border);
     }
   `]
 })

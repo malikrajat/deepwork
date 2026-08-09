@@ -96,7 +96,7 @@ import { STATUS_CONFIG } from '../../core/constants/theme.constants';
 
     .today-card {
       display: flex; align-items: center; gap: 12px; padding: 14px 16px;
-      background: rgba(255,255,255,0.02); border: 1px solid rgba(139,92,246,0.06);
+      background: var(--glass-bg); border: 1px solid rgba(139,92,246,0.06);
       border-radius: 12px; transition: all 0.2s;
     }
     .today-card:hover { background: rgba(139,92,246,0.03); border-color: rgba(139,92,246,0.12); }
@@ -104,7 +104,7 @@ import { STATUS_CONFIG } from '../../core/constants/theme.constants';
     .today-card.done .card-title { text-decoration: line-through; }
     .today-card.in-progress { border-color: var(--status-in-progress-bg); }
     .cdk-drag-preview {
-      background: rgba(22,15,45,0.95); backdrop-filter: blur(12px);
+      background: var(--surface-float); backdrop-filter: blur(12px);
       border: 1px solid rgba(139,92,246,0.3); border-radius: 12px;
       padding: 14px 16px; box-shadow: 0 12px 40px rgba(0,0,0,0.5);
       display: flex; align-items: center; gap: 12px;
@@ -158,8 +158,8 @@ import { STATUS_CONFIG } from '../../core/constants/theme.constants';
       display: flex; align-items: center; justify-content: center;
       color: var(--color-text-muted); cursor: pointer; transition: all 0.2s;
     }
-    .focus-btn:hover { background: rgba(139,92,246,0.1); color: #a78bfa; }
-    .focus-btn.active { background: rgba(139,92,246,0.15); color: #a78bfa; border: 1px solid rgba(139,92,246,0.3); }
+    .focus-btn:hover { background: rgba(139,92,246,0.1); color: var(--timer-work-color); }
+    .focus-btn.active { background: rgba(139,92,246,0.15); color: var(--timer-work-color); border: 1px solid rgba(139,92,246,0.3); }
     .remove-btn:hover { background: rgba(239,68,68,0.1); color: #f87171; }
   `]
 })

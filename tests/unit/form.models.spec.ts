@@ -87,12 +87,6 @@ describe('form model factories', () => {
       expect(d.notificationRepeatInterval).toBeGreaterThan(0);
     });
 
-    it('trayBehavior default is a non-empty string', () => {
-      const d = createSettingsFormDefaults();
-      expect(typeof d.trayBehavior).toBe('string');
-      expect(d.trayBehavior.length).toBeGreaterThan(0);
-    });
-
     it('returns a new object each call', () => {
       const a = createSettingsFormDefaults();
       const b = createSettingsFormDefaults();

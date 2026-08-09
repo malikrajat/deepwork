@@ -91,7 +91,7 @@ import { TaskService } from '../../core/services/task.service';
     .stats-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-bottom: var(--space-xl); }
     .stat-card {
       padding: 16px; border-radius: 14px; text-align: center;
-      background: rgba(255,255,255,0.02); backdrop-filter: blur(12px);
+      background: var(--glass-bg); backdrop-filter: blur(12px);
       border: 1px solid rgba(139,92,246,0.1);
     }
     .stat-card.streak { border-color: rgba(251,191,36,0.2); }
@@ -101,7 +101,7 @@ import { TaskService } from '../../core/services/task.service';
 
     .chart-card {
       padding: 20px; border-radius: 16px; margin-bottom: var(--space-lg);
-      background: rgba(255,255,255,0.02); backdrop-filter: blur(12px);
+      background: var(--glass-bg); backdrop-filter: blur(12px);
       border: 1px solid rgba(139,92,246,0.08);
     }
     .chart-title { font-size: 0.85rem; font-weight: 600; margin-bottom: 16px; color: var(--color-text-secondary); }
@@ -122,7 +122,7 @@ import { TaskService } from '../../core/services/task.service';
     .session-list { max-height: 300px; overflow-y: auto; }
     .session-row {
       display: flex; align-items: center; gap: 12px; padding: 10px 0;
-      border-bottom: 1px solid rgba(255,255,255,0.03);
+      border-bottom: 1px solid var(--glass-border);
     }
     .session-row:last-child { border-bottom: none; }
     .session-type { font-size: 1.1rem; }

@@ -2,6 +2,7 @@ import { Component, inject, OnInit, ChangeDetectionStrategy, signal } from '@ang
 import { form, FormField, min, max } from '@angular/forms/signals';
 import { DbService } from '../../core/services/db.service';
 import { SettingsService } from '../../core/services/settings.service';
+import { ThemeService } from '../../core/services/theme.service';
 import { SettingsFormModel, createSettingsFormDefaults } from '../../shared/models/form.models';
 
 @Component({
@@ -74,17 +75,18 @@ import { SettingsFormModel, createSettingsFormDefaults } from '../../shared/mode
         </div>
       </div>
 
-      <!-- Behavior -->
+      <!-- Appearance -->
       <div class="setting-group">
         <div class="group-header">
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>
-          <span>Behavior</span>
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg>
+          <span>Appearance</span>
         </div>
         <div class="setting-item">
-          <span>Close Action</span>
-          <select [formField]="settingsForm.trayBehavior" (change)="persist('trayBehavior')">
-            <option value="minimize">Minimize to Tray</option>
-            <option value="quit">Quit</option>
+          <span>Theme</span>
+          <select [formField]="settingsForm.theme" (change)="persist('theme')">
+            <option value="system">System (Auto)</option>
+            <option value="light">Light</option>
+            <option value="dark">Dark</option>
           </select>
         </div>
       </div>
@@ -127,7 +129,7 @@ import { SettingsFormModel, createSettingsFormDefaults } from '../../shared/mode
     .page-subtitle { color: var(--color-text-muted); margin-top: 4px; font-size: 0.85rem; }
     .settings-grid { display: flex; flex-direction: column; gap: var(--space-md); max-width: 560px; }
     .setting-group {
-      background: rgba(255,255,255,0.02); backdrop-filter: blur(16px);
+      background: var(--glass-bg); backdrop-filter: blur(16px);
       border: 1px solid rgba(139,92,246,0.08); border-radius: 16px;
       padding: var(--space-lg); transition: border-color 0.3s;
     }
@@ -137,12 +139,12 @@ import { SettingsFormModel, createSettingsFormDefaults } from '../../shared/mode
       font-size: 0.75rem; font-weight: 600; text-transform: uppercase;
       letter-spacing: 0.08em; color: var(--color-text-muted);
       margin-bottom: var(--space-md); padding-bottom: var(--space-sm);
-      border-bottom: 1px solid rgba(255,255,255,0.04);
+      border-bottom: 1px solid var(--glass-border);
     }
     .group-header svg { opacity: 0.5; }
     .setting-item {
       display: flex; justify-content: space-between; align-items: center;
-      padding: 10px 0; border-bottom: 1px solid rgba(255,255,255,0.03);
+      padding: 10px 0; border-bottom: 1px solid var(--glass-border);
       font-size: 0.85rem; color: var(--color-text-secondary);
     }
     .setting-item:last-child { border-bottom: none; }
@@ -157,7 +159,7 @@ import { SettingsFormModel, createSettingsFormDefaults } from '../../shared/mode
     }
     select {
       padding: 6px 12px; border-radius: 8px; border: 1px solid rgba(139,92,246,0.2);
-      background: rgba(255,255,255,0.03); color: var(--color-text-primary); font-size: 0.8rem;
+      background: var(--control-bg); color: var(--color-text-primary); font-size: 0.8rem;
     }
     select:focus { outline: none; border-color: rgba(139,92,246,0.5); }
     .action-btn {
@@ -168,7 +170,7 @@ import { SettingsFormModel, createSettingsFormDefaults } from '../../shared/mode
     .action-btn:hover { background: rgba(139,92,246,0.12); border-color: rgba(139,92,246,0.4); }
     kbd {
       padding: 3px 8px; border-radius: 5px; font-size: 0.7rem; font-weight: 600;
-      background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.1);
+      background: var(--glass-bg); border: 1px solid var(--glass-border);
       color: var(--color-text-muted); font-family: 'JetBrains Mono', monospace;
     }
   `]
@@ -176,6 +178,7 @@ import { SettingsFormModel, createSettingsFormDefaults } from '../../shared/mode
 export class SettingsComponent implements OnInit {
   settingsService = inject(SettingsService);
   private readonly db = inject(DbService);
+  private readonly theme = inject(ThemeService);
 
   readonly settingsModel = signal<SettingsFormModel>(createSettingsFormDefaults());
   readonly settingsForm = form(this.settingsModel, (s) => {
@@ -208,7 +211,7 @@ export class SettingsComponent implements OnInit {
       sessionsBeforeLongBreak: s.sessionsBeforeLongBreak,
       notificationSound: s.notificationSound,
       notificationRepeatInterval: s.notificationRepeatInterval,
-      trayBehavior: s.trayBehavior,
+      theme: s.theme,
     });
   }
 
@@ -218,15 +221,7 @@ export class SettingsComponent implements OnInit {
   }
 
   async exportData(): Promise<void> {
-    const [sessions, tasks, habits, habitEntries, journal, settings] = await Promise.all([
-      this.db.getAllSessions(),
-      this.db.getTasks(),
-      this.db.getHabits(),
-      this.db.getAllHabitEntries(),
-      this.db.getJournalEntries(),
-      this.db.getSettings(),
-    ]);
-    const data = { version: 1, exportedAt: new Date().toISOString(), sessions, tasks, habits, habitEntries, journal, settings };
+    const data = await this.db.exportAll();
     const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
@@ -247,23 +242,29 @@ export class SettingsComponent implements OnInit {
     const text = await file.text();
     try {
       const data = JSON.parse(text);
-      if (!data.version || !data.sessions) {
+      if (!data.version || (!Array.isArray(data.sessions) && !Array.isArray(data.tasks))) {
         alert('Invalid DeepWork export file.');
         return;
       }
       if (!confirm('This will overwrite your current data. Continue?')) return;
-      // Import sessions
-      for (const s of data.sessions ?? []) {
-        await this.db.saveSession(s);
-      }
-      // Import settings
-      if (data.settings) {
-        await this.db.saveSettings(data.settings);
-        await this.settingsService.loadSettings();
-      }
-      alert('Import complete! Restart app for full effect.');
+      await this.db.importBackup(data);
+      await this.settingsService.loadSettings();
+      this.theme.apply();
+      const s = this.settingsService.settings();
+      this.settingsModel.set({
+        workDuration: s.workDuration,
+        shortBreak: s.shortBreak,
+        longBreak: s.longBreak,
+        sessionsBeforeLongBreak: s.sessionsBeforeLongBreak,
+        notificationSound: s.notificationSound,
+        notificationRepeatInterval: s.notificationRepeatInterval,
+        theme: s.theme,
+      });
+      alert('Import complete! All data has been restored.');
     } catch {
       alert('Failed to parse import file.');
+    } finally {
+      (event.target as HTMLInputElement).value = '';
     }
   }
 }
