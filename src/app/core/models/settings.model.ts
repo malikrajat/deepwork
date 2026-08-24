@@ -1,13 +1,16 @@
+export type ThemePreference = 'system' | 'light' | 'dark';
+export type NotificationSound = 'bell' | 'chime' | 'ding' | 'none';
+
 export interface AppSettings {
   workDuration: number;
   shortBreak: number;
   longBreak: number;
   sessionsBeforeLongBreak: number;
-  notificationSound: string;
+  notificationSound: NotificationSound;
   /** Repeat interval for notification sound/toast in seconds */
   notificationRepeatInterval: number;
   trayBehavior: 'minimize' | 'quit';
-  theme: 'dark' | 'light' | 'auto';
+  theme: ThemePreference;
 }
 
 export const DEFAULT_SETTINGS: AppSettings = {
@@ -17,5 +20,6 @@ export const DEFAULT_SETTINGS: AppSettings = {
   sessionsBeforeLongBreak: 4,
   notificationSound: 'bell',
   notificationRepeatInterval: 60,
+  trayBehavior: 'quit',
   theme: 'system',
 };

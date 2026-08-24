@@ -27,7 +27,7 @@ export class App implements OnInit {
   private readonly db = inject(DbService);
   ui = inject(UiService);
 
-  sidebarCollapsed = signal(true);
+  sidebarCollapsed = signal(false);
 
   ngOnInit(): void {
     this.db.init().then(async () => {
