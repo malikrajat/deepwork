@@ -61,6 +61,9 @@
 
   /* Sidebar & input surface tokens */
   --sidebar-bg: rgba(15, 11, 31, 0.65);
+  --sidebar-hover-bg: rgba(139, 92, 246, 0.1);
+  --sidebar-active-bg: rgba(139, 92, 246, 0.16);
+  --sidebar-active-border: rgba(139, 92, 246, 0.35);
   --input-bg: rgba(255, 255, 255, 0.04);
 
   /* Glassmorphism tokens */
@@ -165,6 +168,10 @@ html.theme-light {
   --glass-shadow-glow: 0 0 40px rgba(124, 58, 237, 0.12);
 
   --control-bg: rgba(15, 23, 42, 0.05);
+  --sidebar-bg: rgba(255, 255, 255, 0.88);
+  --sidebar-hover-bg: rgba(124, 58, 237, 0.1);
+  --sidebar-active-bg: rgba(124, 58, 237, 0.16);
+  --sidebar-active-border: rgba(124, 58, 237, 0.4);
   --surface-sidebar: rgba(255, 255, 255, 0.6);
   --surface-float: rgba(255, 255, 255, 0.92);
   --toast-bg: rgba(255, 255, 255, 0.95);
