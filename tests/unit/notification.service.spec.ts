@@ -72,4 +72,44 @@ describe('NotificationService', () => {
     vi.runAllTimers();
     expect(svc.toast()?.type).toBe('short-break');
   });
+
+  it('uses the selected notification sound', () => {
+    const playBell = vi.spyOn(svc as any, 'playBell');
+    const playChime = vi.spyOn(svc as any, 'playChime');
+    const playDing = vi.spyOn(svc as any, 'playDing');
+    (svc as any).audioContext = { close: vi.fn() };
+
+    mockSettings.settings.set({ ...DEFAULT_SETTINGS, notificationSound: 'chime' });
+    (svc as any).playSound();
+
+    expect(playBell).not.toHaveBeenCalled();
+    expect(playChime).toHaveBeenCalledWith((svc as any).audioContext);
+    expect(playDing).not.toHaveBeenCalled();
+  });
+
+  it('previews the selected sound even while reminders are muted', () => {
+    const playDing = vi.spyOn(svc as any, 'playDing');
+    (svc as any).audioContext = { close: vi.fn() };
+    svc.muted.set(true);
+
+    svc.previewSound('ding');
+
+    expect(playDing).toHaveBeenCalledWith((svc as any).audioContext);
+  });
+
+  it('uses the configured reminder interval when starting repeats', () => {
+    const onRepeatTick = vi.spyOn(svc as any, 'onRepeatTick');
+    const originalWorker = globalThis.Worker;
+    (globalThis as any).Worker = undefined;
+    try {
+      mockSettings.settings.set({ ...DEFAULT_SETTINGS, notificationRepeatInterval: 120 });
+      (svc as any).startRepeatLoop('Done', 'Take a break', 'work');
+      vi.advanceTimersByTime(119_999);
+      expect(onRepeatTick).not.toHaveBeenCalled();
+      vi.advanceTimersByTime(1);
+      expect(onRepeatTick).toHaveBeenCalledTimes(1);
+    } finally {
+      (globalThis as any).Worker = originalWorker;
+    }
+  });
 });

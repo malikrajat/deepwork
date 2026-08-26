@@ -32,10 +32,10 @@ export interface SettingsFormModel {
   shortBreak: number;
   longBreak: number;
   sessionsBeforeLongBreak: number;
-  notificationSound: string;
+  notificationSound: NotificationSound;
   notificationRepeatInterval: number;
-  trayBehavior: string;
-  theme: string;
+  trayBehavior: 'minimize' | 'quit';
+  theme: ThemePreference;
 }
 
 /** Dashboard task selector form model */
@@ -81,7 +81,7 @@ export function createSettingsFormDefaults(): SettingsFormModel {
     notificationSound: 'bell',
     notificationRepeatInterval: 60,
     trayBehavior: 'minimize',
-    theme: 'dark',
+    theme: 'system',
   };
 }
 
@@ -92,3 +92,4 @@ export function createSearchFormDefaults(): SearchFormModel {
 export function createTaskSelectFormDefaults(): TaskSelectFormModel {
   return { taskId: '' };
 }
+import { NotificationSound, ThemePreference } from '../../core/models/settings.model';
