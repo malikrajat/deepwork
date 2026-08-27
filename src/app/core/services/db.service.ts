@@ -61,8 +61,14 @@ export class DbService {
       shortBreak: r.short_break ?? DEFAULT_SETTINGS.shortBreak,
       longBreak: r.long_break ?? DEFAULT_SETTINGS.longBreak,
       sessionsBeforeLongBreak: r.sessions_before_long_break ?? DEFAULT_SETTINGS.sessionsBeforeLongBreak,
-      notificationSound: r.notification_sound ?? DEFAULT_SETTINGS.notificationSound,
+      notificationSound: r.notification_sound === 'bell' || r.notification_sound === 'chime' ||
+        r.notification_sound === 'ding' || r.notification_sound === 'none'
+        ? r.notification_sound
+        : DEFAULT_SETTINGS.notificationSound,
       notificationRepeatInterval: r.notification_repeat_interval ?? DEFAULT_SETTINGS.notificationRepeatInterval,
+      trayBehavior: r.tray_behavior === 'minimize' || r.tray_behavior === 'quit'
+        ? r.tray_behavior
+        : DEFAULT_SETTINGS.trayBehavior,
       theme: r.theme === 'light' || r.theme === 'dark' || r.theme === 'system' ? r.theme : DEFAULT_SETTINGS.theme,
     };
   }
@@ -72,10 +78,10 @@ export class DbService {
     if (this.isBrowser) { this.lsSet('settings', merged); return; }
     await this.execute(
       `UPDATE settings SET work_duration = $1, short_break = $2, long_break = $3,
-       sessions_before_long_break = $4, notification_sound = $5, theme = $6,
-       notification_repeat_interval = $7
+       sessions_before_long_break = $4, notification_sound = $5, tray_behavior = $6, theme = $7,
+       notification_repeat_interval = $8
        WHERE id = 1`,
-      [merged.workDuration, merged.shortBreak, merged.longBreak, merged.sessionsBeforeLongBreak, merged.notificationSound, merged.theme, merged.notificationRepeatInterval]
+      [merged.workDuration, merged.shortBreak, merged.longBreak, merged.sessionsBeforeLongBreak, merged.notificationSound, merged.trayBehavior, merged.theme, merged.notificationRepeatInterval]
     );
   }
 

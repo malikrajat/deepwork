@@ -1,6 +1,6 @@
 import { Injectable, inject, signal } from '@angular/core';
 import { DbService } from './db.service';
-import { AppSettings, DEFAULT_SETTINGS } from '../models/settings.model';
+import { AppSettings, DEFAULT_SETTINGS, ThemePreference } from '../models/settings.model';
 
 @Injectable({ providedIn: 'root' })
 export class SettingsService {
@@ -28,7 +28,7 @@ export class SettingsService {
     await this.saveSettings(updated);
   }
 
-  applyTheme(theme: 'dark' | 'light' | 'auto'): void {
+  applyTheme(theme: ThemePreference): void {
     document.documentElement.dataset['theme'] = theme;
     try { localStorage.setItem('deepwork_theme', theme); } catch { /* private/storage-full */ }
   }

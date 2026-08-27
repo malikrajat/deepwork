@@ -4,6 +4,8 @@ import { DbService } from '../../core/services/db.service';
 import { SettingsService } from '../../core/services/settings.service';
 import { ThemeService } from '../../core/services/theme.service';
 import { InstallService } from '../../core/services/install.service';
+import { NotificationSound, ThemePreference } from '../../core/models/settings.model';
+import { NotificationService } from '../../core/services/notification.service';
 import { SettingsFormModel, createSettingsFormDefaults } from '../../shared/models/form.models';
 
 @Component({
@@ -60,12 +62,15 @@ import { SettingsFormModel, createSettingsFormDefaults } from '../../shared/mode
         </div>
         <div class="setting-item">
           <span>Sound</span>
-          <select [formField]="settingsForm.notificationSound" (change)="persist('notificationSound')">
-            <option value="bell">Bell</option>
-            <option value="chime">Chime</option>
-            <option value="ding">Ding</option>
-            <option value="none">None</option>
-          </select>
+          <div class="sound-control">
+            <select [formField]="settingsForm.notificationSound" (change)="updateNotificationSound()">
+              <option value="bell">Bell</option>
+              <option value="chime">Chime</option>
+              <option value="ding">Ding</option>
+              <option value="none">None</option>
+            </select>
+            <button type="button" class="action-btn preview-btn" (click)="previewNotificationSound()">Preview</button>
+          </div>
         </div>
         <div class="setting-item">
           <span>Repeat Reminder Every</span>
@@ -177,6 +182,7 @@ import { SettingsFormModel, createSettingsFormDefaults } from '../../shared/mode
     .setting-item:last-child { border-bottom: none; }
 
     .range-control { display: flex; align-items: center; gap: 10px; }
+    .sound-control { display: flex; align-items: center; gap: 8px; }
     .range-value {
       font-weight: 600; color: var(--color-text-primary); min-width: 52px; text-align: right;
       padding: 4px 10px; background: rgba(139,92,246,0.08); border-radius: 6px; font-size: 0.8rem;
@@ -243,8 +249,9 @@ export class SettingsComponent implements OnInit {
   protected readonly installService = inject(InstallService);
   private readonly db = inject(DbService);
   private readonly theme = inject(ThemeService);
+  private readonly notifications = inject(NotificationService);
 
-  readonly activeTheme = signal<'dark' | 'light' | 'auto'>('dark');
+  readonly activeTheme = signal<ThemePreference>('system');
   readonly settingsModel = signal<SettingsFormModel>(createSettingsFormDefaults());
   readonly settingsForm = form(this.settingsModel, (s) => {
     // Timer duration ranges (in seconds)
@@ -277,13 +284,12 @@ export class SettingsComponent implements OnInit {
       sessionsBeforeLongBreak: s.sessionsBeforeLongBreak,
       notificationSound: s.notificationSound,
       notificationRepeatInterval: s.notificationRepeatInterval,
-      theme: s.theme,
       trayBehavior: s.trayBehavior,
-      theme: s.theme ?? 'dark',
+      theme: s.theme,
     });
   }
 
-  async setTheme(theme: 'dark' | 'light' | 'auto'): Promise<void> {
+  async setTheme(theme: ThemePreference): Promise<void> {
     this.activeTheme.set(theme);
     await this.settingsService.updateField('theme', theme);
   }
@@ -291,6 +297,16 @@ export class SettingsComponent implements OnInit {
   async persist(key: string): Promise<void> {
     const value = (this.settingsModel() as any)[key];
     await this.settingsService.updateField(key as any, value);
+  }
+
+  async updateNotificationSound(): Promise<void> {
+    const sound = this.settingsModel().notificationSound;
+    this.notifications.previewSound(sound);
+    await this.settingsService.updateField('notificationSound', sound);
+  }
+
+  previewNotificationSound(): void {
+    this.notifications.previewSound(this.settingsModel().notificationSound);
   }
 
   async exportData(): Promise<void> {
@@ -332,6 +348,7 @@ export class SettingsComponent implements OnInit {
         notificationSound: s.notificationSound,
         notificationRepeatInterval: s.notificationRepeatInterval,
         theme: s.theme,
+        trayBehavior: s.trayBehavior,
       });
       alert('Import complete! All data has been restored.');
     } catch {

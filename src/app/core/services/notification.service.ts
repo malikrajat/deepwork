@@ -1,6 +1,7 @@
-import { Injectable, inject, signal, OnDestroy } from '@angular/core';
+import { effect, Injectable, inject, signal, OnDestroy } from '@angular/core';
 import { TimerType } from '../models/session.model';
 import { SettingsService } from './settings.service';
+import { NotificationSound } from '../models/settings.model';
 
 export interface ToastNotification {
   id: number;
@@ -28,6 +29,16 @@ export class NotificationService implements OnDestroy {
 
   /** Mutes the reminder sound (toggled from the system tray) */
   readonly muted = signal(false);
+
+  constructor() {
+    effect(() => {
+      const intervalSeconds = this.settingsService.settings().notificationRepeatInterval;
+      if (this.pendingRepeat) {
+        const { title, body, type } = this.pendingRepeat;
+        this.startRepeatLoop(title, body, type, intervalSeconds);
+      }
+    });
+  }
 
   async init(): Promise<void> {
     if (this._initialized) return;
@@ -86,6 +97,11 @@ export class NotificationService implements OnDestroy {
     this.showToast(title, body, type);
   }
 
+  /** Plays the chosen sound from a user interaction without changing settings. */
+  previewSound(sound: NotificationSound): void {
+    this.playSound(sound, true);
+  }
+
   private showToast(title: string, body: string, type: TimerType): void {
     // Set null first to force Angular to destroy and re-create the element (re-triggers animation)
     this.toast.set(null);
@@ -102,7 +118,9 @@ export class NotificationService implements OnDestroy {
   private async sendNotification(title: string, body: string): Promise<void> {
     try {
       const { sendNotification } = await import('@tauri-apps/plugin-notification');
-      sendNotification({ title, body, sound: 'default' });
+      // Web Audio below is the single source for the user-selected alert tone.
+      // Requesting the platform's default sound here would always add a bell.
+      sendNotification({ title, body });
     } catch {
       // Browser fallback
       if (this.permissionGranted && 'Notification' in globalThis) {
@@ -111,9 +129,11 @@ export class NotificationService implements OnDestroy {
     }
   }
 
-  private playSound(): void {
-    if (this.muted()) return;
-    const sound = this.settingsService.settings().notificationSound;
+  private playSound(
+    sound = this.settingsService.settings().notificationSound,
+    ignoreMute = false
+  ): void {
+    if (this.muted() && !ignoreMute) return;
     if (sound === 'none') return;
 
     try {
@@ -181,10 +201,15 @@ export class NotificationService implements OnDestroy {
     osc.stop(ctx.currentTime + 0.6);
   }
 
-  private startRepeatLoop(title: string, body: string, type: TimerType): void {
+  private startRepeatLoop(
+    title: string,
+    body: string,
+    type: TimerType,
+    intervalSeconds = this.settingsService.settings().notificationRepeatInterval
+  ): void {
     this.stopRepeatLoop();
     this.pendingRepeat = { title, body, type };
-    const intervalMs = this.settingsService.settings().notificationRepeatInterval * 1000;
+    const intervalMs = intervalSeconds * 1000;
 
     // Use Web Worker for repeat timer — workers are NOT throttled when app is
     // minimized/background, so OS notifications fire reliably on Windows/Mac/Linux
