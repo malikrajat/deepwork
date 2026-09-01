@@ -57,7 +57,7 @@ npx tauri dev
 npm run build:windows
 ```
 
-Output: `src-tauri/target/release/bundle/msi/DeepWork_0.1.0_x64_en-US.msi`
+Output: `src-tauri/target/release/bundle/msi/DeepWork_2.0.0_x64_en-US.msi`
 
 Also produces a standalone `.exe` at: `src-tauri/target/release/deepwork.exe`
 
@@ -76,7 +76,7 @@ npm run build:mac-arm
 
 Output:
 - `src-tauri/target/release/bundle/macos/DeepWork.app`
-- `src-tauri/target/release/bundle/dmg/DeepWork_0.1.0_x64.dmg`
+- `src-tauri/target/release/bundle/dmg/DeepWork_2.0.0_x64.dmg`
 
 > **Note:** Must be run on a Mac.
 
@@ -87,8 +87,8 @@ npm run build:linux
 ```
 
 Output:
-- `src-tauri/target/release/bundle/deb/deep-work_0.1.0_amd64.deb`
-- `src-tauri/target/release/bundle/appimage/deep-work_0.1.0_amd64.AppImage`
+- `src-tauri/target/release/bundle/deb/deep-work_2.0.0_amd64.deb`
+- `src-tauri/target/release/bundle/appimage/deep-work_2.0.0_amd64.AppImage`
 
 > **Note:** Must be run on Linux with system dependencies installed (see [SETUP.md](SETUP.md)).
 

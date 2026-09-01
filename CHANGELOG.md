@@ -5,6 +5,14 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ---
 
+## [2.0.0] – 2026-08-29
+
+### Changed
+
+- Session-cycle indicators, long-break scheduling, and the cycle-complete celebration now use the configured **Sessions Until Long Break** value.
+
+---
+
 ## [1.0.1] – 2026-06-01
 
 ### Added
