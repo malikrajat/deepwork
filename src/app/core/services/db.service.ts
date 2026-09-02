@@ -288,6 +288,15 @@ export class DbService {
     );
   }
 
+  async deleteJournalEntry(date: string): Promise<void> {
+    if (this.isBrowser) {
+      const entries = this.lsGet<any[]>('journal', []).filter(e => e.date !== date);
+      this.lsSet('journal', entries);
+      return;
+    }
+    await this.execute('DELETE FROM journal_entries WHERE date = $1', [date]);
+  }
+
   // ==================== TASK METHODS ====================
 
   async getTasks(): Promise<Task[]> {

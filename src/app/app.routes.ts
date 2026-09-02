@@ -35,7 +35,15 @@ export const routes: Routes = [
     loadComponent: () => import('./pages/journal/journal.component').then(m => m.JournalComponent),
   },
   {
+    path: 'journal/:date',
+    loadComponent: () => import('./pages/journal/journal.component').then(m => m.JournalComponent),
+  },
+  {
     path: 'settings',
     loadComponent: () => import('./pages/settings/settings.component').then(m => m.SettingsComponent),
+  },
+  {
+    path: '**',
+    redirectTo: '',
   },
 ];
