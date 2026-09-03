@@ -3,6 +3,7 @@ import { form, FormField } from '@angular/forms/signals';
 import { AnimatedClockComponent } from '../../shared/components/animated-clock/animated-clock.component';
 import { TimelineBarComponent } from '../../shared/components/timeline-bar/timeline-bar.component';
 import { ConfettiComponent } from '../../shared/components/confetti/confetti.component';
+import { TooltipDirective } from '../../shared/directives/tooltip.directive';
 import { TimerService } from '../../core/services/timer.service';
 import { NotificationService } from '../../core/services/notification.service';
 import { DbService } from '../../core/services/db.service';
@@ -10,13 +11,13 @@ import { TaskService } from '../../core/services/task.service';
 import { SettingsService } from '../../core/services/settings.service';
 import { UiService } from '../../core/services/ui.service';
 import { PomodoroSession } from '../../core/models/session.model';
-import { TaskQuadrant } from '../../core/models/task.model';
+import { Task, TaskQuadrant } from '../../core/models/task.model';
 import { QUADRANT_CONFIG } from '../../core/constants/theme.constants';
 import { TaskSelectFormModel, createTaskSelectFormDefaults } from '../../shared/models/form.models';
 
 @Component({
   selector: 'app-dashboard',
-  imports: [AnimatedClockComponent, TimelineBarComponent, ConfettiComponent, FormField],
+  imports: [AnimatedClockComponent, TimelineBarComponent, ConfettiComponent, TooltipDirective, FormField],
   changeDetection: ChangeDetectionStrategy.OnPush,
   host: {
     '(window:mousemove)': 'onDrag($event)',
@@ -161,7 +162,7 @@ import { TaskSelectFormModel, createTaskSelectFormDefaults } from '../../shared/
               </button>
             </div>
             <div class="session-indicator">
-              <span class="session-label">Session {{ cyclePosition() }}/4</span>
+              <span class="session-label">Session {{ cyclePosition() }}/{{ sessionsBeforeLongBreak() }}</span>
               @for (i of sessionDots(); track i) {
                 <span class="dot" [class.filled]="i <= cyclePosition()"></span>
               }
@@ -187,10 +188,90 @@ import { TaskSelectFormModel, createTaskSelectFormDefaults } from '../../shared/
         </div>
       </div>
 
+      <!-- Focus insights and actions -->
+      <section class="insights-grid animate-fade-in-delay-2" aria-label="Focus insights">
+        <article class="insight-card goal-card">
+          <div class="insight-header">
+            <div>
+              <span class="eyebrow">Daily focus goal</span>
+              <h2>{{ completedWorkSessions() }} of {{ dailyGoalTarget }} sessions</h2>
+            </div>
+            <span class="goal-percent">{{ dailyGoalPercentage() }}%</span>
+          </div>
+          <div class="goal-track" role="progressbar" [attr.aria-valuenow]="dailyGoalPercentage()" aria-valuemin="0" aria-valuemax="100">
+            <span [style.width.%]="dailyGoalPercentage()"></span>
+          </div>
+          <p>{{ dailyGoalMessage() }}</p>
+        </article>
+
+        <article class="insight-card cycle-card">
+          <div class="insight-header">
+            <div>
+              <span class="eyebrow">Session cycle</span>
+              <h2>{{ cyclePosition() }}/{{ sessionsBeforeLongBreak() }} focus sessions</h2>
+            </div>
+            <span class="cycle-status" [class.break-ready]="timer.timerType() === 'long-break'">{{ timer.timerType() === 'long-break' ? 'Long break ready' : 'In progress' }}</span>
+          </div>
+          <div class="cycle-dots">
+            @for (session of sessionDots(); track session) {
+              <span [class.complete]="session <= cyclePosition()"></span>
+            }
+          </div>
+          <p>{{ nextBreakMessage() }}</p>
+        </article>
+
+        <article class="insight-card task-card">
+          <div class="insight-header">
+            <div>
+              <span class="eyebrow">Current focus</span>
+              <h2>{{ activeTask()?.title ?? 'Choose a task to give this session context' }}</h2>
+            </div>
+            @if (activeTask()?.quadrant; as quadrant) {
+              <span class="task-priority">{{ quadrantFullLabel(quadrant) }}</span>
+            }
+          </div>
+          <p>{{ openTodayTasks() }} open task{{ openTodayTasks() === 1 ? '' : 's' }} today · {{ completedTodayTasks() }} completed</p>
+          <div class="task-actions">
+            <button class="insight-action" type="button" (click)="focusNextTask()" [disabled]="taskService.todayTasks().length === 0">
+              Focus next task
+            </button>
+            <button class="insight-action secondary" type="button" (click)="clearFocusedTask()" [disabled]="!selectedTaskId()">
+              Clear task
+            </button>
+          </div>
+        </article>
+
+        <article class="insight-card schedule-card">
+          <div class="insight-header">
+            <div>
+              <span class="eyebrow">Today&apos;s schedule</span>
+              <h2>{{ scheduleHeadline() }}</h2>
+            </div>
+          </div>
+          <div class="schedule-stats">
+            <span><strong>{{ completedWorkSessions() }}</strong> focus blocks</span>
+            <span><strong>{{ completedBreakSessions() }}</strong> breaks</span>
+            <span><strong>{{ averageFocusTimeDisplay() }}</strong> average focus</span>
+          </div>
+          <p>{{ nextBreakMessage() }}</p>
+        </article>
+      </section>
+
+      <section class="quick-actions animate-fade-in-delay-2" aria-label="Quick actions">
+        <span class="eyebrow">Quick actions</span>
+        <div class="quick-action-list">
+          <button class="quick-action primary" type="button" (click)="startTimer()" [disabled]="timer.isRunning()">
+            {{ timer.remainingSeconds() < timer.totalDuration() ? 'Resume timer' : (timer.timerType() === 'work' ? 'Start focus' : 'Start break') }}
+          </button>
+          <button class="quick-action" type="button" (click)="skipTimer()">Skip {{ timer.timerType() === 'work' ? 'focus' : 'break' }}</button>
+          <button class="quick-action" type="button" (click)="resetTimer()">Reset cycle</button>
+        </div>
+      </section>
+
       <!-- Bottom row: Today's Progress -->
       <div class="progress-row animate-fade-in-delay-2">
         <div class="progress-card">
-          <div class="progress-item">
+          <div class="progress-item" appTooltip="Completed focus sessions today. Interrupted sessions are not counted.">
             <div class="progress-icon sessions-icon">
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 11.08V12a10 10 0 11-5.93-9.14"/><polyline points="22,4 12,14.01 9,11.01"/></svg>
             </div>
@@ -200,7 +281,7 @@ import { TaskSelectFormModel, createTaskSelectFormDefaults } from '../../shared/
             </div>
           </div>
           <div class="progress-divider"></div>
-          <div class="progress-item">
+          <div class="progress-item" appTooltip="Total time spent in focus sessions today.">
             <div class="progress-icon focus-icon">
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12,6 12,12 16,14"/></svg>
             </div>
@@ -210,7 +291,7 @@ import { TaskSelectFormModel, createTaskSelectFormDefaults } from '../../shared/
             </div>
           </div>
           <div class="progress-divider"></div>
-          <div class="progress-item">
+          <div class="progress-item" appTooltip="Your current focus-session streak for today. It resets at the start of a new day.">
             <div class="progress-icon streak-icon">
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="13,2 3,14 12,14 11,22 21,10 12,10 13,2"/></svg>
             </div>
@@ -220,7 +301,7 @@ import { TaskSelectFormModel, createTaskSelectFormDefaults } from '../../shared/
             </div>
           </div>
           <div class="progress-divider"></div>
-          <div class="progress-item">
+          <div class="progress-item" appTooltip="Today's target is 8 completed focus sessions. This shows your progress toward it.">
             <div class="progress-icon goal-icon">
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/></svg>
             </div>
@@ -234,13 +315,13 @@ import { TaskSelectFormModel, createTaskSelectFormDefaults } from '../../shared/
     </div>
 
     <!-- Confetti celebration -->
-    <app-confetti />
+    <app-confetti [sessionsBeforeLongBreak]="sessionsBeforeLongBreak()" />
   `,
   styles: [`
-    :host { display: block; height: 100%; position: relative; }
+    :host { display: block; min-height: 100%; position: relative; }
 
     /* ===== Main Layout ===== */
-    .dashboard-wrapper { height: 100%; display: flex; flex-direction: column; }
+    .dashboard-wrapper { min-height: 100%; display: flex; flex-direction: column; padding-bottom: var(--space-xl); }
     .dashboard-wrapper.hidden { display: none; }
     .page-header {
       display: flex; align-items: center; justify-content: space-between;
@@ -251,7 +332,7 @@ import { TaskSelectFormModel, createTaskSelectFormDefaults } from '../../shared/
 
     /* ===== Main Row: Clock 70% | Timeline 30% ===== */
     .main-row {
-      flex: 1;
+      flex: 1 0 520px;
       display: grid;
       grid-template-columns: 7fr 3fr;
       gap: var(--space-md);
@@ -440,6 +521,47 @@ import { TaskSelectFormModel, createTaskSelectFormDefaults } from '../../shared/
     .progress-label { font-size: 0.65rem; color: var(--color-text-muted); text-transform: uppercase; letter-spacing: 0.05em; }
     .progress-divider { width: 1px; height: 32px; background: var(--glass-border); }
 
+    /* ===== Focus Insights ===== */
+    .insights-grid {
+      display: grid; grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: var(--space-md); margin-top: var(--space-md);
+    }
+    .insight-card, .quick-actions {
+      padding: var(--space-md); background: var(--glass-bg); backdrop-filter: blur(16px);
+      border: 1px solid rgba(139,92,246,0.10); border-radius: 16px;
+    }
+    .insight-header { display: flex; justify-content: space-between; gap: var(--space-md); align-items: flex-start; }
+    .eyebrow {
+      display: block; font-size: 0.62rem; font-weight: 700; letter-spacing: 0.08em;
+      text-transform: uppercase; color: var(--color-text-muted);
+    }
+    .insight-card h2 { margin: 4px 0 0; font-size: 0.9rem; line-height: 1.35; color: var(--color-text-primary); }
+    .insight-card p { margin: var(--space-sm) 0 0; color: var(--color-text-secondary); font-size: 0.73rem; line-height: 1.45; }
+    .goal-percent, .cycle-status, .task-priority {
+      flex-shrink: 0; padding: 4px 7px; border-radius: 6px; font-size: 0.62rem; font-weight: 700;
+      background: rgba(139,92,246,0.12); color: #a78bfa;
+    }
+    .cycle-status.break-ready { background: rgba(52,211,153,0.12); color: #34d399; }
+    .task-priority { max-width: 120px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .goal-track { height: 6px; overflow: hidden; margin-top: var(--space-md); border-radius: 999px; background: rgba(255,255,255,0.08); }
+    .goal-track span { display: block; height: 100%; border-radius: inherit; background: linear-gradient(90deg, #8b5cf6, #06b6d4); transition: width 0.3s ease; }
+    .cycle-dots { display: flex; gap: 6px; margin-top: var(--space-md); }
+    .cycle-dots span { width: 9px; height: 9px; border-radius: 50%; background: rgba(255,255,255,0.09); border: 1px solid var(--glass-border); }
+    .cycle-dots span.complete { background: #8b5cf6; border-color: #8b5cf6; box-shadow: 0 0 8px rgba(139,92,246,0.5); }
+    .task-actions, .quick-action-list { display: flex; flex-wrap: wrap; gap: 8px; margin-top: var(--space-md); }
+    .insight-action, .quick-action {
+      padding: 7px 10px; border: 1px solid rgba(139,92,246,0.22); border-radius: 8px;
+      background: rgba(139,92,246,0.08); color: var(--color-text-primary); font: 600 0.7rem var(--font-sans); cursor: pointer;
+    }
+    .insight-action.secondary, .quick-action { background: transparent; color: var(--color-text-secondary); }
+    .insight-action:hover:not(:disabled), .quick-action:hover:not(:disabled) { border-color: rgba(139,92,246,0.5); background: rgba(139,92,246,0.14); color: var(--color-text-primary); }
+    .insight-action:disabled, .quick-action:disabled { opacity: 0.45; cursor: not-allowed; }
+    .schedule-stats { display: flex; flex-wrap: wrap; gap: 8px 14px; margin-top: var(--space-md); color: var(--color-text-muted); font-size: 0.68rem; }
+    .schedule-stats strong { color: var(--color-text-primary); font-variant-numeric: tabular-nums; }
+    .quick-actions { display: flex; align-items: center; justify-content: space-between; gap: var(--space-md); margin-top: var(--space-md); }
+    .quick-action-list { margin-top: 0; }
+    .quick-action.primary { background: linear-gradient(135deg, #8b5cf6, #6d28d9); border-color: transparent; color: white; }
+
     /* ===== Fullscreen Mode ===== */
     .fullscreen-overlay {
       position: fixed; inset: 0; z-index: 1000;
@@ -534,6 +656,7 @@ import { TaskSelectFormModel, createTaskSelectFormDefaults } from '../../shared/
       .timeline-panel { max-height: 180px; }
       .progress-card { flex-wrap: wrap; gap: 12px; justify-content: center; }
       .progress-divider { display: none; }
+      .insights-grid { grid-template-columns: 1fr; }
     }
 
     /* Mobile (<=640px) - compact everything */
@@ -553,6 +676,9 @@ import { TaskSelectFormModel, createTaskSelectFormDefaults } from '../../shared/
       .progress-label { font-size: 0.6rem; }
       .fullscreen-clock { --clock-size: clamp(160px, 45vmin, 280px); width: var(--clock-size); height: var(--clock-size); }
       .fullscreen-controls { flex-wrap: wrap; justify-content: center; }
+      .quick-actions { align-items: flex-start; flex-direction: column; }
+      .quick-action-list { width: 100%; }
+      .quick-action { flex: 1; }
     }
   `]
 })
@@ -561,6 +687,8 @@ export class DashboardComponent implements OnInit, OnDestroy {
   private readonly notifications = inject(NotificationService);
   private readonly db = inject(DbService);
   readonly taskService = inject(TaskService);
+  private readonly settingsService = inject(SettingsService);
+  readonly ui = inject(UiService);
 
   @ViewChild(ConfettiComponent) confetti!: ConfettiComponent;
 
@@ -603,14 +731,20 @@ export class DashboardComponent implements OnInit, OnDestroy {
   private dragOffset = { x: 0, y: 0 };
   private confettiTimeout: ReturnType<typeof setTimeout> | null = null;
 
-  readonly sessionDots = computed(() => Array.from({ length: 4 }, (_, i) => i + 1));
+  readonly sessionsBeforeLongBreak = computed(
+    () => this.settingsService.settings().sessionsBeforeLongBreak
+  );
+  readonly sessionDots = computed(() =>
+    Array.from({ length: this.sessionsBeforeLongBreak() }, (_, i) => i + 1)
+  );
 
-  /** Current position within a 4-session cycle (1-4), resets after each cycle */
+  /** Current position within the configured session cycle, resets after each cycle. */
   readonly cyclePosition = computed(() => {
     const count = this.timer.sessionCount();
     if (count === 0) return 0;
-    const pos = count % 4;
-    return pos === 0 ? 4 : pos;
+    const sessionsBeforeLongBreak = this.sessionsBeforeLongBreak();
+    const pos = count % sessionsBeforeLongBreak;
+    return pos === 0 ? sessionsBeforeLongBreak : pos;
   });
 
   /** Elapsed seconds for the active running session (wall-clock since start/resume) */
@@ -626,6 +760,9 @@ export class DashboardComponent implements OnInit, OnDestroy {
   readonly completedWorkSessions = computed(() =>
     this.todaySessions().filter(s => s.type === 'work' && !s.interrupted).length
   );
+  readonly completedBreakSessions = computed(() =>
+    this.todaySessions().filter(s => s.type !== 'work' && !s.interrupted).length
+  );
 
   readonly focusTimeDisplay = computed(() => {
     const totalSec = this.todaySessions()
@@ -636,13 +773,46 @@ export class DashboardComponent implements OnInit, OnDestroy {
     return h > 0 ? `${h}h ${m}m` : `${m}m`;
   });
 
-  readonly dailyGoalProgress = computed(() => {
-    const completed = this.completedWorkSessions();
-    return `${completed}/8`;
+  readonly dailyGoalTarget = 8;
+  readonly dailyGoalProgress = computed(() => `${this.completedWorkSessions()}/${this.dailyGoalTarget}`);
+  readonly dailyGoalPercentage = computed(() =>
+    Math.min(100, Math.round((this.completedWorkSessions() / this.dailyGoalTarget) * 100))
+  );
+  readonly dailyGoalMessage = computed(() => {
+    const remaining = Math.max(0, this.dailyGoalTarget - this.completedWorkSessions());
+    return remaining === 0
+      ? 'Daily focus goal achieved. Great work.'
+      : `${remaining} more focus session${remaining === 1 ? '' : 's'} to reach today's goal.`;
   });
-
-  private readonly settingsService = inject(SettingsService);
-  readonly ui = inject(UiService);
+  readonly activeTask = computed<Task | null>(() => {
+    const selectedTaskId = this.selectedTaskId();
+    return this.taskService.todayTasks().find(task => task.id === selectedTaskId) ?? null;
+  });
+  readonly openTodayTasks = computed(() => this.taskService.todayTasks().length);
+  readonly completedTodayTasks = computed(() => {
+    const today = new Date().toISOString().slice(0, 10);
+    return this.taskService.tasks().filter(task => task.completedAt?.startsWith(today)).length;
+  });
+  readonly averageFocusTimeDisplay = computed(() => {
+    const focusSessions = this.todaySessions().filter(session => session.type === 'work' && !session.interrupted);
+    if (!focusSessions.length) return '0m';
+    const averageSeconds = focusSessions.reduce((total, session) => total + session.durationActual, 0) / focusSessions.length;
+    return this.formatDuration(averageSeconds);
+  });
+  readonly nextBreakMessage = computed(() => {
+    if (this.timer.timerType() === 'long-break') return 'Long break is ready. Recharge before beginning the next cycle.';
+    if (this.timer.timerType() === 'short-break') return 'Short break is ready. Return refreshed for the next focus session.';
+    const position = this.cyclePosition();
+    const remaining = position === this.sessionsBeforeLongBreak()
+      ? this.sessionsBeforeLongBreak()
+      : this.sessionsBeforeLongBreak() - position;
+    return `${remaining} more focus session${remaining === 1 ? '' : 's'} until your next long break.`;
+  });
+  readonly scheduleHeadline = computed(() => {
+    const type = this.timer.timerType();
+    if (this.timer.isRunning()) return `Current ${type === 'work' ? 'focus' : type.replace('-', ' ')} block is in progress`;
+    return type === 'work' ? 'Ready for your next focus block' : `Next up: ${type.replace('-', ' ')}`;
+  });
 
   ngOnInit(): void {
     this.initAsync();
@@ -667,8 +837,11 @@ export class DashboardComponent implements OnInit, OnDestroy {
       const nextType = this.timer.timerType();
       this.notifications.fireTimerComplete(completedType, nextType);
       this.loadTodaySessions();
-      // Fire confetti when a full cycle completes (work → long-break)
-      if (completedType === 'work' && nextType === 'long-break') {
+      // Fire confetti when the configured number of focus sessions completes.
+      if (
+        completedType === 'work' &&
+        this.timer.sessionCount() % this.sessionsBeforeLongBreak() === 0
+      ) {
         this.confettiTimeout = setTimeout(() => this.confetti?.fire(), 300);
       }
     });
@@ -693,6 +866,20 @@ export class DashboardComponent implements OnInit, OnDestroy {
     this.loadTodaySessions();
   }
 
+  resetTimer(): void {
+    this.timer.reset();
+    this.loadTodaySessions();
+  }
+
+  focusNextTask(): void {
+    const nextTask = this.taskService.todayTasks().find(task => task.id !== this.selectedTaskId());
+    if (nextTask) this.selectTask(nextTask.id);
+  }
+
+  clearFocusedTask(): void {
+    this.selectTask('');
+  }
+
   selectTask(taskId: string): void {
     this.selectedTaskId.set(taskId);
     this.taskSelectModel.update(m => ({ ...m, taskId }));
@@ -715,6 +902,12 @@ export class DashboardComponent implements OnInit, OnDestroy {
   quadrantFullLabel(quadrant: string | null): string {
     if (!quadrant) return 'Unassigned';
     return QUADRANT_CONFIG[quadrant as TaskQuadrant]?.fullLabel ?? 'Unassigned';
+  }
+
+  private formatDuration(seconds: number): string {
+    const minutes = Math.round(seconds / 60);
+    const hours = Math.floor(minutes / 60);
+    return hours > 0 ? `${hours}h ${minutes % 60}m` : `${minutes}m`;
   }
 
   toggleFullscreen(): void {

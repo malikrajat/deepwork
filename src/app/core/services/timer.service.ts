@@ -2,10 +2,12 @@ import { Injectable, signal, computed, inject, OnDestroy } from '@angular/core';
 import { TimerType, TimerState, PomodoroSession } from '../models/session.model';
 import { AppSettings, DEFAULT_SETTINGS } from '../models/settings.model';
 import { DbService } from './db.service';
+import { SettingsService } from './settings.service';
 
 @Injectable({ providedIn: 'root' })
 export class TimerService implements OnDestroy {
   private readonly db = inject(DbService);
+  private readonly settingsService = inject(SettingsService);
 
   // Signals
   readonly isRunning = signal(false);
@@ -31,7 +33,6 @@ export class TimerService implements OnDestroy {
     return 1 - this.remainingSeconds() / total;
   });
 
-  private settings: AppSettings = DEFAULT_SETTINGS;
   private intervalId: ReturnType<typeof setInterval> | null = null;
   private startedAt: string | null = null;
   private lastTickTime: number = 0;
@@ -43,7 +44,7 @@ export class TimerService implements OnDestroy {
     if (this._initialized) return;
     this._initialized = true;
     await this.db.init();
-    this.settings = await this.db.getSettings();
+    await this.settingsService.loadSettings();
 
     const today = new Date().toISOString().slice(0, 10);
     const saved = await this.db.getTimerState();
@@ -65,7 +66,7 @@ export class TimerService implements OnDestroy {
       this.sessionCount.set(isNewDay ? 0 : saved.sessionCount);
       this.remainingSeconds.set(saved.remainingSeconds || this.getDurationForType(saved.type));
     } else {
-      this.remainingSeconds.set(this.settings.workDuration);
+      this.remainingSeconds.set(this.getDurationForType('work'));
     }
   }
 
@@ -139,7 +140,7 @@ export class TimerService implements OnDestroy {
     this.startedAt = null;
     this.timerType.set('work');
     this.sessionCount.set(0);
-    this.remainingSeconds.set(this.settings.workDuration);
+    this.remainingSeconds.set(this.getDurationForType('work'));
     this.persistState();
   }
 
@@ -148,11 +149,10 @@ export class TimerService implements OnDestroy {
   }
 
   async updateSettings(newSettings: AppSettings): Promise<void> {
-    this.settings = newSettings;
+    await this.settingsService.saveSettings(newSettings);
     if (!this.isRunning()) {
       this.remainingSeconds.set(this.getDurationForType(this.timerType()));
     }
-    await this.db.saveSettings(newSettings);
   }
 
   private tick(): void {
@@ -193,16 +193,16 @@ export class TimerService implements OnDestroy {
       const count = this.sessionCount() + 1;
       this.sessionCount.set(count);
 
-      if (count % this.settings.sessionsBeforeLongBreak === 0) {
+      if (count % this.settingsService.settings().sessionsBeforeLongBreak === 0) {
         this.timerType.set('long-break');
-        this.remainingSeconds.set(this.settings.longBreak);
+        this.remainingSeconds.set(this.getDurationForType('long-break'));
       } else {
         this.timerType.set('short-break');
-        this.remainingSeconds.set(this.settings.shortBreak);
+        this.remainingSeconds.set(this.getDurationForType('short-break'));
       }
     } else {
       this.timerType.set('work');
-      this.remainingSeconds.set(this.settings.workDuration);
+      this.remainingSeconds.set(this.getDurationForType('work'));
     }
   }
 
@@ -211,10 +211,11 @@ export class TimerService implements OnDestroy {
   }
 
   private getDurationForType(type: TimerType): number {
+    const settings = this.settingsService.settings();
     switch (type) {
-      case 'work': return this.settings.workDuration;
-      case 'short-break': return this.settings.shortBreak;
-      case 'long-break': return this.settings.longBreak;
+      case 'work': return settings.workDuration;
+      case 'short-break': return settings.shortBreak;
+      case 'long-break': return settings.longBreak;
     }
   }
 
