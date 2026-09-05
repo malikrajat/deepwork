@@ -1,4 +1,4 @@
-import { Component, signal, OnDestroy, ChangeDetectionStrategy } from '@angular/core';
+import { Component, input, signal, OnDestroy, ChangeDetectionStrategy } from '@angular/core';
 
 @Component({
   selector: 'app-confetti',
@@ -10,7 +10,7 @@ import { Component, signal, OnDestroy, ChangeDetectionStrategy } from '@angular/
           <div class="congrats-text">
             <span class="emoji">🎉</span>
             <h2>Cycle Complete!</h2>
-            <p>4 sessions done. Take a long break!</p>
+            <p>{{ sessionsBeforeLongBreak() }} sessions done. Take a long break!</p>
           </div>
         </div>
         <!-- Confetti particles -->
@@ -100,6 +100,7 @@ import { Component, signal, OnDestroy, ChangeDetectionStrategy } from '@angular/
   `]
 })
 export class ConfettiComponent implements OnDestroy {
+  readonly sessionsBeforeLongBreak = input(4);
   isVisible = signal(false);
   particles: Array<{
     id: number; x: number; delay: number;

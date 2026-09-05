@@ -1,5 +1,6 @@
 import { Component, inject, signal, computed, OnInit, ChangeDetectionStrategy } from '@angular/core';
 import { form, FormField, required, validate, maxLength, submit } from '@angular/forms/signals';
+import { ActivatedRoute, Router } from '@angular/router';
 import { TaskService } from '../../core/services/task.service';
 import { DbService } from '../../core/services/db.service';
 import { Task, TaskStatus, TaskQuadrant, RecurrenceConfig } from '../../core/models/task.model';
@@ -32,19 +33,37 @@ import { noXss, trimmedRequired, futureDate } from '../../shared/validators/form
         <div class="search-box">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
           <input type="text" placeholder="Search tasks..." [formField]="searchForm.query" />
+          @if (searchQuery()) {
+            <button class="clear-search" type="button" (click)="clearSearch()" appTooltip="Clear search">
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+            </button>
+          }
         </div>
         <div class="filter-chips">
           @for (f of statusFilters; track f.value) {
-            <button class="chip" [class.active]="activeFilter() === f.value" (click)="activeFilter.set(f.value)">{{ f.label }}</button>
+            <button class="chip" type="button" [class.active]="activeFilter() === f.value" (click)="activeFilter.set(f.value)">
+              {{ f.label }} <span>{{ filterCount(f.value) }}</span>
+            </button>
           }
         </div>
+        <label class="sort-control">
+          <span>Sort</span>
+          <select [value]="sortBy()" (change)="onSortChange($event)">
+            <option value="priority">Priority</option>
+            <option value="deadline">Deadline</option>
+            <option value="newest">Newest</option>
+          </select>
+        </label>
       </div>
 
       <!-- Task List -->
       <div class="task-list">
         @if (filteredTasks().length === 0) {
           <div class="empty-state">
-            <p>No tasks found</p>
+            <p>{{ searchQuery() || activeFilter() !== 'all' ? 'No tasks match these filters.' : 'No tasks yet. Add your first task to get started.' }}</p>
+            @if (!searchQuery() && activeFilter() === 'all') {
+              <button class="btn btn-primary btn-sm" type="button" (click)="openAddPanel()">Add your first task</button>
+            }
           </div>
         }
         @for (task of filteredTasks(); track task.id) {
@@ -191,6 +210,11 @@ import { noXss, trimmedRequired, futureDate } from '../../shared/validators/form
       font-size: 0.82rem; width: 100%;
     }
     .search-box input::placeholder { color: var(--color-text-muted); }
+    .clear-search {
+      display: flex; align-items: center; justify-content: center; flex-shrink: 0;
+      border: none; background: transparent; color: var(--color-text-muted); cursor: pointer; padding: 2px;
+    }
+    .clear-search:hover { color: var(--color-text-primary); }
     .filter-chips { display: flex; gap: 6px; }
     .chip {
       padding: 5px 12px; font-size: 0.7rem; font-weight: 500;
@@ -202,6 +226,15 @@ import { noXss, trimmedRequired, futureDate } from '../../shared/validators/form
     .chip.active {
       background: rgba(139,92,246,0.12); border-color: rgba(139,92,246,0.4);
       color: var(--timer-work-color); font-weight: 600;
+    }
+    .chip span { opacity: 0.7; font-variant-numeric: tabular-nums; }
+    .sort-control {
+      display: flex; align-items: center; gap: 6px; margin-left: auto;
+      color: var(--color-text-muted); font-size: 0.7rem;
+    }
+    .sort-control select {
+      padding: 6px 8px; border: 1px solid rgba(139,92,246,0.12); border-radius: 8px;
+      background: var(--control-bg); color: var(--color-text-secondary); font: inherit; cursor: pointer;
     }
 
     .task-list {
@@ -272,7 +305,7 @@ import { noXss, trimmedRequired, futureDate } from '../../shared/validators/form
 
     .empty-state {
       display: flex; align-items: center; justify-content: center;
-      padding: 60px 20px; color: var(--color-text-muted); font-size: 0.85rem;
+      flex-direction: column; gap: 12px; padding: 60px 20px; color: var(--color-text-muted); font-size: 0.85rem;
     }
 
     /* Slide Panel */
@@ -329,8 +362,11 @@ import { noXss, trimmedRequired, futureDate } from '../../shared/validators/form
 export class TasksComponent implements OnInit {
   private taskService = inject(TaskService);
   private db = inject(DbService);
+  private readonly route = inject(ActivatedRoute);
+  private readonly router = inject(Router);
 
   activeFilter = signal<'all' | TaskStatus>('all');
+  sortBy = signal<'priority' | 'deadline' | 'newest'>('priority');
   panelOpen = signal(false);
   editingTask = signal<Task | null>(null);
 
@@ -387,12 +423,21 @@ export class TasksComponent implements OnInit {
     if (filter !== 'all') {
       tasks = tasks.filter(t => t.status === filter);
     }
-    return tasks;
+    return [...tasks].sort((a, b) => this.compareTasks(a, b, this.sortBy()));
   });
 
   async ngOnInit(): Promise<void> {
     await this.db.init();
     await this.taskService.loadTasks();
+    if (this.route.snapshot.queryParamMap.get('add') === '1') {
+      this.openAddPanel();
+      await this.router.navigate([], {
+        relativeTo: this.route,
+        queryParams: { add: null },
+        queryParamsHandling: 'merge',
+        replaceUrl: true,
+      });
+    }
   }
 
   openAddPanel(): void {
@@ -483,6 +528,23 @@ export class TasksComponent implements OnInit {
     await this.taskService.deleteTask(id);
   }
 
+  clearSearch(): void {
+    this.searchModel.set(createSearchFormDefaults());
+  }
+
+  filterCount(filter: 'all' | TaskStatus): number {
+    return filter === 'all'
+      ? this.taskService.tasks().length
+      : this.taskService.tasks().filter(task => task.status === filter).length;
+  }
+
+  onSortChange(event: Event): void {
+    const value = (event.target as HTMLSelectElement).value;
+    if (value === 'priority' || value === 'deadline' || value === 'newest') {
+      this.sortBy.set(value);
+    }
+  }
+
   isOverdue(task: Task): boolean {
     if (!task.deadline) return false;
     return new Date(task.deadline) < new Date(new Date().toISOString().slice(0, 10));
@@ -504,5 +566,17 @@ export class TasksComponent implements OnInit {
     } else {
       this.formRecurDays.push(day);
     }
+  }
+
+  private compareTasks(a: Task, b: Task, sortBy: 'priority' | 'deadline' | 'newest'): number {
+    if (sortBy === 'priority') {
+      return a.priority - b.priority || a.createdAt.localeCompare(b.createdAt);
+    }
+    if (sortBy === 'deadline') {
+      const aDeadline = a.deadline ?? '9999-12-31';
+      const bDeadline = b.deadline ?? '9999-12-31';
+      return aDeadline.localeCompare(bDeadline) || a.priority - b.priority;
+    }
+    return b.createdAt.localeCompare(a.createdAt);
   }
 }

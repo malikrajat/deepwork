@@ -15,7 +15,7 @@ interface NavItem {
   imports: [RouterLink, SafeHtmlPipe],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
-    <nav class="sidebar" [class.collapsed]="collapsed()">
+    <nav class="sidebar" [class.collapsed]="collapsed()" aria-label="Main navigation">
       <div class="sidebar-header">
         @if (!collapsed()) {
           <div class="brand">
@@ -34,7 +34,13 @@ interface NavItem {
             <span class="app-title">DeepWork</span>
           </div>
         }
-        <button class="toggle-btn" (click)="toggleCollapse.emit()">
+        <button
+          class="toggle-btn"
+          type="button"
+          (click)="toggleCollapse.emit()"
+          [attr.aria-label]="collapsed() ? 'Expand navigation' : 'Collapse navigation'"
+          [attr.aria-expanded]="!collapsed()"
+        >
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
             <line x1="3" y1="6" x2="21" y2="6"/>
             <line x1="3" y1="12" x2="15" y2="12"/>
@@ -49,6 +55,7 @@ interface NavItem {
             <a
               [routerLink]="'/' + item.path"
               [class.active]="isActive(item.path)"
+              [attr.aria-current]="isActive(item.path) ? 'page' : null"
               class="nav-item"
               [title]="collapsed() ? item.label : ''"
             >
@@ -64,7 +71,7 @@ interface NavItem {
 
       @if (!collapsed()) {
         <div class="sidebar-footer">
-          <div class="version-badge">v0.1.0</div>
+          <div class="version-badge">v2.0.0</div>
         </div>
       }
     </nav>
@@ -243,9 +250,9 @@ export class SidebarComponent {
   );
 
   isActive(path: string): boolean {
-    const url = this.currentUrl();
-    if (path === '') return true; // Dashboard always active
-    return url === '/' + path || url.startsWith('/' + path + '/');
+    const currentPath = this.currentUrl().split(/[?#]/)[0];
+    if (path === '') return currentPath === '/' || currentPath === '/dashboard';
+    return currentPath === '/' + path || currentPath.startsWith('/' + path + '/');
   }
 
   collapsed = input<boolean>(false);
