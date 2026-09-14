@@ -7,11 +7,81 @@ A secure, lightweight, cross-platform Pomodoro & Task Management desktop app bui
 - Pomodoro timer with animated circular clock
 - Eisenhower Matrix for task prioritization
 - Daily planner (Today's View)
+- Bulk task import from Excel / CSV, with a downloadable template
+- Task list export to CSV with quick date ranges and 24 report columns
 - Habit tracking & journaling
 - Analytics dashboard
 - Glassmorphism dark UI
 - SQLite local database (no cloud, no accounts)
 - OS-native notifications with repeat until dismissed
+
+---
+
+## Exporting tasks
+
+**Tasks → Export** writes the task list to a CSV file (openable directly in Excel) using
+[`rm-ng-export-to-csv`](https://www.npmjs.com/package/rm-ng-export-to-csv).
+
+- **Quick date ranges:** Today, Yesterday, Last 7 days, This week (Mon–Sun), This month,
+  Last month, This year, All time, or a **custom** start/end date.
+- **Date to count by:** Deadline, Created date or Completion date — the same date also drives the
+  `Date`, `Day`, `Week` and `Month` columns, so exports read naturally date by date.
+- **Filters:** status (To Do / In Progress / Done), priority (P1–P4), and an option to include
+  tasks that have no date in the selected field.
+- **24 columns per task:** Date, Day, Week, Month, Task, Status, Priority, Quadrant, Deadline,
+  Deadline Day, Days To Deadline, Overdue, Tags, Repeat, Description, Created Date, Created Time,
+  Completed Date, Completed Time, Age In Days, Focus Sessions, Focus Minutes (from your Pomodoro
+  sessions), On Today List and Task ID.
+- **Optional totals block** below the data: counts per status, overdue, focus sessions/minutes,
+  the date range and the export timestamp.
+- Rows are ordered chronologically (then by priority) and the file is named after the day it was
+  generated — `export-2026-09-13.csv`. Files are written as UTF-8 with a BOM so accents, em dashes
+  and CJK text display correctly in Excel.
+
+---
+
+## Eisenhower Matrix layout
+
+- The task list beside the board is **resizable**: drag the divider between them, use the
+  **arrow keys** while it is focused (`Shift` for larger steps, `Home`/`End` for the limits),
+  or **double-click** to reset to the default width. The width is remembered between sessions.
+- Each quadrant **scrolls on its own** when it holds more tasks than fit — the quadrant header, count
+  and description stay pinned while the cards scroll, and drag-and-drop keeps auto-scrolling the
+  list as you drag near its edges.
+- Each quadrant and the task list can be **collapsed** from the chevron in its header — a collapsed
+  quadrant still accepts dropped tasks, and the task list collapses to a slim rail with its count.
+- Task titles wrap onto two lines and the drag preview shows the **full title**, so long titles stay
+  readable while you are dragging or dropping.
+
+---
+
+## Importing tasks from Excel
+
+**Tasks → Import** accepts `.xlsx`, `.xlsm` or `.csv` files, validates every row, and shows a
+preview before anything is written to the database.
+
+- **Template:** the panel's *Download template* button produces a dated workbook named after the
+  current day (e.g. `2026-09-13.xlsx`) with the app's default values pre-selected on 25
+  ready-to-type rows, a frozen header, and a second *Instructions* sheet documenting each column.
+  - **Priority / Quadrant / Status / Repeat / Add to Today** are dropdowns; their default is already
+    selected (`P3 — Medium`, `Unassigned`, `To Do`, `No repeat`, `Yes`).
+  - **Deadline** and **Repeat End Date** default to **today**, stored as real Excel dates
+    (`yyyy-mm-dd`), so they sort, filter and open the calendar picker.
+  - **Tags** defaults to `task`.
+  - Every column carries a header hint (`Deadline (YYYY-MM-DD)`, `Repeat Days (Mon,Wed)`,
+    `Tags (comma separated)`) plus an in-cell message that appears when you click a cell, so it is
+    always clear what to type and in which format.
+- **Columns:** `Title` (required), `Description`, `Priority`, `Quadrant`, `Deadline`, `Status`,
+  `Repeat`, `Repeat Days`, `Repeat End Date`, `Tags`, `Add to Today`. Column order is irrelevant,
+  unknown columns are ignored, and common header aliases (`Task`, `Due Date`, `Prio`, `Labels`, …)
+  are recognised so existing spreadsheets usually import as-is.
+- **Values:** the template's dropdown labels, plain keywords (`high`, `done`, `weekly`, `Q1`, …),
+  `1-4` priorities, ISO dates, Excel date cells and `Mon,Wed,Fri` repeat days all work.
+- **Dates may be past or future.** Any date is accepted; a past deadline still imports and is
+  reported as a warning ("Deadline 2026-01-05 is in the past") so you can confirm it.
+- **Safety:** nothing is saved until you confirm the preview. Rows with errors are never imported;
+  unusable values, duplicate titles (existing tasks or repeated rows in the file) and ambiguous
+  `dd/mm` dates are flagged. Rows left without a Title are ignored and counted in the preview.
 
 ---
 

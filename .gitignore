@@ -45,3 +45,4 @@ Thumbs.db
 
 # Tauri build artifacts
 src-tauri/target/
+.tmp-verify

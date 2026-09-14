@@ -34,6 +34,7 @@
     "@lucide/angular": "^1.16.0",
     "@tauri-apps/plugin-notification": "^2.3.3",
     "@tauri-apps/plugin-sql": "^2.4.0",
+    "rm-ng-export-to-csv": "^5.0.0",
     "rxjs": "~7.8.0",
     "tslib": "^2.3.0"
   },

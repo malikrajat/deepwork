@@ -21,6 +21,7 @@
         "fullscreen": false,
         "decorations": true,
         "center": true,
+        "dragDropEnabled": false,
         "devtools": true
       }
     ],
