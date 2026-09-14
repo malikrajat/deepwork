@@ -4,15 +4,18 @@ import { ActivatedRoute, Router } from '@angular/router';
 import { TaskService } from '../../core/services/task.service';
 import { DbService } from '../../core/services/db.service';
 import { Task, TaskStatus, TaskQuadrant, RecurrenceConfig } from '../../core/models/task.model';
+import { ImportCommitResult } from '../../core/models/task-import.model';
 import { TooltipDirective } from '../../shared/directives/tooltip.directive';
 import { STATUS_CONFIG, QUADRANT_CONFIG } from '../../core/constants/theme.constants';
 import { FormFieldWrapperComponent } from '../../shared/components/form-field/form-field-wrapper.component';
+import { TaskImportPanelComponent } from '../../shared/components/task-import-panel/task-import-panel.component';
+import { TaskExportPanelComponent } from '../../shared/components/task-export-panel/task-export-panel.component';
 import { TaskFormModel, SearchFormModel, createTaskFormDefaults, createSearchFormDefaults } from '../../shared/models/form.models';
 import { noXss, trimmedRequired, futureDate } from '../../shared/validators/form-validators';
 
 @Component({
   selector: 'app-tasks',
-  imports: [FormField, TooltipDirective, FormFieldWrapperComponent],
+  imports: [FormField, TooltipDirective, FormFieldWrapperComponent, TaskImportPanelComponent, TaskExportPanelComponent],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <div class="tasks-layout">
@@ -22,10 +25,20 @@ import { noXss, trimmedRequired, futureDate } from '../../shared/validators/form
           <h1 class="gradient-text page-title">Tasks</h1>
           <span class="task-count">{{ filteredTasks().length }} tasks</span>
         </div>
-        <button class="btn btn-primary btn-sm" (click)="openAddPanel()">
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
-          Add Task
-        </button>
+        <div class="header-actions">
+          <button class="btn btn-outline btn-sm" type="button" (click)="exportOpen.set(true)" appTooltip="Export the task list to CSV (Excel)">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+            Export
+          </button>
+          <button class="btn btn-outline btn-sm" type="button" (click)="importOpen.set(true)" appTooltip="Import tasks from an Excel or CSV file">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 9 12 4 17 9"/><line x1="12" y1="4" x2="12" y2="16"/></svg>
+            Import
+          </button>
+          <button class="btn btn-primary btn-sm" type="button" (click)="openAddPanel()">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+            Add Task
+          </button>
+        </div>
       </div>
 
       <!-- Search & Filters -->
@@ -62,7 +75,10 @@ import { noXss, trimmedRequired, futureDate } from '../../shared/validators/form
           <div class="empty-state">
             <p>{{ searchQuery() || activeFilter() !== 'all' ? 'No tasks match these filters.' : 'No tasks yet. Add your first task to get started.' }}</p>
             @if (!searchQuery() && activeFilter() === 'all') {
-              <button class="btn btn-primary btn-sm" type="button" (click)="openAddPanel()">Add your first task</button>
+              <div class="empty-actions">
+                <button class="btn btn-primary btn-sm" type="button" (click)="openAddPanel()">Add your first task</button>
+                <button class="btn btn-outline btn-sm" type="button" (click)="importOpen.set(true)">Import from Excel</button>
+              </div>
             }
           </div>
         }
@@ -186,6 +202,18 @@ import { noXss, trimmedRequired, futureDate } from '../../shared/validators/form
           </form>
         </div>
       }
+      <!-- Import from Excel -->
+      @if (importOpen()) {
+        <app-task-import-panel
+          (closed)="closeImportPanel()"
+          (imported)="onTasksImported($event)"
+        />
+      }
+
+      <!-- Export to CSV -->
+      @if (exportOpen()) {
+        <app-task-export-panel (closed)="exportOpen.set(false)" />
+      }
     </div>
   `,
   styles: [`
@@ -195,6 +223,7 @@ import { noXss, trimmedRequired, futureDate } from '../../shared/validators/form
       display: flex; align-items: center; justify-content: space-between;
     }
     .header-left { display: flex; align-items: baseline; gap: 12px; }
+    .header-actions { display: flex; align-items: center; gap: 8px; }
     .page-title { font-size: 1.5rem; font-weight: 800; letter-spacing: -0.5px; }
     .task-count { font-size: 0.75rem; color: var(--color-text-muted); }
 
@@ -307,6 +336,7 @@ import { noXss, trimmedRequired, futureDate } from '../../shared/validators/form
       display: flex; align-items: center; justify-content: center;
       flex-direction: column; gap: 12px; padding: 60px 20px; color: var(--color-text-muted); font-size: 0.85rem;
     }
+    .empty-actions { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; justify-content: center; }
 
     /* Slide Panel */
     .panel-backdrop {
@@ -350,6 +380,11 @@ import { noXss, trimmedRequired, futureDate } from '../../shared/validators/form
     .btn-primary:disabled { opacity: 0.4; cursor: not-allowed; transform: none; }
     .btn-ghost { background: transparent; color: var(--color-text-muted); }
     .btn-ghost:hover { color: var(--color-text-primary); }
+    .btn-outline {
+      background: transparent; color: var(--color-text-secondary);
+      border: 1px solid rgba(139, 92, 246, 0.3);
+    }
+    .btn-outline:hover { border-color: rgba(139, 92, 246, 0.6); color: var(--color-text-primary); }
     .btn-sm { padding: 6px 14px; font-size: 0.75rem; display: flex; align-items: center; gap: 6px; }
     .recurrence-options { padding: 8px 0; display: flex; flex-direction: column; gap: 12px; }
     .day-picker { display: flex; gap: 4px; flex-wrap: wrap; }
@@ -369,6 +404,8 @@ export class TasksComponent implements OnInit {
   sortBy = signal<'priority' | 'deadline' | 'newest'>('priority');
   panelOpen = signal(false);
   editingTask = signal<Task | null>(null);
+  importOpen = signal(false);
+  exportOpen = signal(false);
 
   // Search form
   private readonly searchModel = signal<SearchFormModel>(createSearchFormDefaults());
@@ -465,6 +502,15 @@ export class TasksComponent implements OnInit {
   closePanel(): void {
     this.panelOpen.set(false);
     this.editingTask.set(null);
+  }
+
+  closeImportPanel(): void {
+    this.importOpen.set(false);
+  }
+
+  /** Called after the importer wrote tasks, so the list reflects the database. */
+  async onTasksImported(result: ImportCommitResult): Promise<void> {
+    if (result.created > 0) await this.taskService.loadTasks();
   }
 
   onSubmitTask(event: Event): void {
