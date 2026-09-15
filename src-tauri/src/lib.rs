@@ -28,6 +28,18 @@ pub fn run() {
             sql: include_str!("../migrations/002_add_settings_columns.sql"),
             kind: MigrationKind::Up,
         },
+        Migration {
+            version: 3,
+            description: "add task updated_at",
+            sql: include_str!("../migrations/003_add_task_updated_at.sql"),
+            kind: MigrationKind::Up,
+        },
+        Migration {
+            version: 4,
+            description: "add calendar reminder setting",
+            sql: include_str!("../migrations/004_add_calendar_reminders.sql"),
+            kind: MigrationKind::Up,
+        },
     ];
 
     tauri::Builder::default()

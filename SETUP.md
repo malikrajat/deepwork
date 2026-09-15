@@ -150,6 +150,65 @@ uv tool install specify-cli
 
 ---
 
+## Journal dictation (speech to text)
+
+The Journal page has a **Dictate** button. What happens behind it, and what it
+needs, depends on the runtime:
+
+| Runtime | Engine | Offline? |
+|---------|--------|----------|
+| Chrome / Edge (browser or installed PWA) | Web Speech API — the OS/browser captures audio | Depends on the OS. Chrome/Edge send audio to their speech service, so they need a connection; Windows 11 and macOS can transcribe on-device and then work offline. |
+| Tauri desktop build | The webview (`WebView2`, `WKWebView`, `WebKitGTK`) usually does **not** expose the Web Speech API | The button is disabled and the page explains the alternative below |
+
+The app itself never records audio, never stores it and calls no third-party
+service: it only consumes the recogniser the runtime already provides.
+
+**When the runtime has no engine** the journal still supports dictation offline
+through the operating system, which types into the focused textarea:
+
+- **Windows**: `Win + H`
+- **macOS**: press `Fn` `Fn` (or your configured Dictation shortcut)
+- **GNOME**: `Super + Ctrl + Alt + Space` (with the on-screen keyboard's
+  "Typing Assist" enabled)
+
+### Accuracy levers that are already built in
+
+- **Language variant** — English (US) is the default; pick another English
+  variant (UK, India, Australia, Canada, …) if that is closer to how you speak.
+  This is the single biggest accuracy improvement.
+- **Vocabulary corrections** — Journal → *Vocabulary*: add the phrases your
+  microphone mis-hears and what should be written instead (for example
+  `deep work → DeepWork`). Applied to every dictated phrase, stored locally.
+- **Spoken punctuation** — say “comma”, “period”, “question mark”,
+  “exclamation mark”, “colon”, “semicolon”, “new line”, “new paragraph”.
+- Filler words (`um`, `uh`, `erm`, `hmm`) are dropped and sentences are
+  capitalised automatically.
+
+### Adding a fully bundled offline engine (optional)
+
+For a dictation engine that never leaves the machine and needs no OS support,
+add a WebAssembly recogniser and ship its model with the app:
+
+```bash
+# 1. A WASM engine, e.g. Vosk or Whisper via transformers.js
+npm install vosk-browser
+#    (Whisper alternative: npm install @huggingface/transformers)
+
+# 2. Put the model where Tauri bundles it — anything in public/ is copied into
+#    dist/ and embedded in the desktop app:
+#    public/models/vosk-model-small-en-us-0.15/…   (~40 MB)
+#    Download: https://alphacephei.com/vosk/models
+```
+
+Then register it as an engine in `src/app/core/services/dictation.service.ts`:
+the service already isolates runtime detection, language selection, the
+personal vocabulary and the transcript clean-up (`dictation.util.ts`), so a new
+engine only has to feed raw transcripts into the same pipeline. Keep the model
+in `public/`, not in the repo history, if size matters — it is embedded into the
+installer, which grows by roughly the model size.
+
+---
+
 ## Verify everything works
 
 | Check | Command | Expected |
