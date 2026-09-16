@@ -41,7 +41,11 @@
 <body>
   <app-root></app-root>
   <script>
-    if ('serviceWorker' in navigator) {
+    // The packaged desktop app (Tauri) already ships its assets locally and has no
+    // installable web origin, so a service worker there only risks serving a stale
+    // cached bundle after an update. Register it in browsers only.
+    var isDesktopApp = typeof window !== 'undefined' && '__TAURI_INTERNALS__' in window;
+    if (!isDesktopApp && 'serviceWorker' in navigator) {
       window.addEventListener('load', () => {
         navigator.serviceWorker.register('/sw.js').catch(() => { /* SW unavailable */ });
       });

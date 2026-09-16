@@ -8,7 +8,7 @@ import { UiService } from './core/services/ui.service';
 import { SettingsService } from './core/services/settings.service';
 import { DbService } from './core/services/db.service';
 
-const PAGE_ROUTES = ['', 'tasks', 'matrix', 'today', 'analytics', 'habits', 'journal', 'settings'];
+const PAGE_ROUTES = ['', 'tasks', 'matrix', 'calendar', 'today', 'analytics', 'habits', 'journal', 'settings'];
 
 @Component({
   selector: 'app-root',
@@ -78,7 +78,7 @@ export class App implements OnInit {
   private handlePageNavigation(event: KeyboardEvent): boolean {
     if (event.ctrlKey && !event.shiftKey && !event.altKey) {
       const num = Number.parseInt(event.key);
-      if (num >= 1 && num <= 8) {
+      if (num >= 1 && num <= PAGE_ROUTES.length) {
         event.preventDefault();
         this.router.navigate(['/' + PAGE_ROUTES[num - 1]]);
         return true;

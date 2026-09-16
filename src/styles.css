@@ -354,8 +354,11 @@ body::after {
   opacity: 0;
   transform: translateY(4px);
   transition: opacity 0.15s, transform 0.15s;
-  max-width: 240px;
+  /* Wide enough for a full task title; long unbroken words wrap instead of
+     spilling out of the tooltip. */
+  max-width: 320px;
   white-space: pre-line;
+  overflow-wrap: anywhere;
   line-height: 1.4;
 }
 .app-tooltip.visible {
