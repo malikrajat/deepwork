@@ -12,25 +12,25 @@ export interface StatusConfig {
 export const STATUS_CONFIG: Record<TaskStatus, StatusConfig> = {
   'todo': {
     label: 'To Do',
-    tooltip: 'Status: To Do — Click to start',
+    tooltip: 'To Do — click once to start this task (it becomes In Progress)',
     color: '#9ca3af',
     bgColor: 'rgba(107,114,128,0.12)',
   },
   'in-progress': {
     label: 'In Progress',
-    tooltip: 'Status: In Progress — Click to complete',
+    tooltip: 'In Progress — click again to mark it Done',
     color: '#f59e0b',
     bgColor: 'rgba(245,158,11,0.12)',
   },
   'done': {
     label: 'Done',
-    tooltip: 'Status: Done — Click to reset',
+    tooltip: 'Done — click once more to move it back to To Do',
     color: '#a78bfa',
     bgColor: 'rgba(139,92,246,0.12)',
   },
 };
 
-// Cycle order used by toggleStatus
+/** Click on the status circle walks this cycle, wrapping at the end. */
 export const STATUS_CYCLE: TaskStatus[] = ['todo', 'in-progress', 'done'];
 
 // ─── Priority ───────────────────────────────────────────────────────────────

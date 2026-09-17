@@ -492,6 +492,7 @@ const MAX_PREVIEW_ROWS = 300;
       tbody tr.duplicate { background: rgba(139, 92, 246, 0.05); }
       .cell-title {
         color: var(--color-text-primary); font-weight: 500; max-width: 240px;
+        overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
       }
       .col-row { width: 46px; text-align: right; font-variant-numeric: tabular-nums; color: var(--color-text-muted); }
       .col-status { width: 92px; }

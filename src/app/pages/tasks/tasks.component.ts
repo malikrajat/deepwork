@@ -1,9 +1,27 @@
-import { Component, inject, signal, computed, OnInit, ChangeDetectionStrategy } from '@angular/core';
+import {
+  ChangeDetectionStrategy,
+  Component,
+  ElementRef,
+  OnDestroy,
+  OnInit,
+  computed,
+  effect,
+  inject,
+  signal,
+  untracked,
+  viewChild,
+} from '@angular/core';
 import { form, FormField, required, validate, maxLength, submit } from '@angular/forms/signals';
 import { ActivatedRoute, Router } from '@angular/router';
 import { TaskService } from '../../core/services/task.service';
 import { DbService } from '../../core/services/db.service';
-import { Task, TaskStatus, TaskQuadrant, RecurrenceConfig } from '../../core/models/task.model';
+import {
+  Task,
+  TaskStatus,
+  TaskQuadrant,
+  RecurrenceConfig,
+  taskActivityIso,
+} from '../../core/models/task.model';
 import { ImportCommitResult } from '../../core/models/task-import.model';
 import { TooltipDirective } from '../../shared/directives/tooltip.directive';
 import { STATUS_CONFIG, QUADRANT_CONFIG } from '../../core/constants/theme.constants';
@@ -12,6 +30,26 @@ import { TaskImportPanelComponent } from '../../shared/components/task-import-pa
 import { TaskExportPanelComponent } from '../../shared/components/task-export-panel/task-export-panel.component';
 import { TaskFormModel, SearchFormModel, createTaskFormDefaults, createSearchFormDefaults } from '../../shared/models/form.models';
 import { noXss, trimmedRequired, futureDate } from '../../shared/validators/form-validators';
+import {
+  TASK_DESCRIPTION_MAX_LENGTH,
+  TASK_TITLE_MAX_LENGTH,
+} from '../../core/models/task.model';
+import {
+  DateGroup,
+  HEADER_HEIGHT,
+  ListRow,
+  OVERSCAN_PX,
+  ROW_HEIGHT,
+  buildRows,
+  groupByDay,
+  localDayKey,
+  totalHeight,
+  windowRows,
+} from './task-list.view';
+
+type SortKey = 'updated' | 'priority' | 'deadline' | 'newest';
+
+const FALLBACK_VIEWPORT_HEIGHT = 520;
 
 @Component({
   selector: 'app-tasks',
@@ -45,7 +83,7 @@ import { noXss, trimmedRequired, futureDate } from '../../shared/validators/form
       <div class="filters-bar">
         <div class="search-box">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
-          <input type="text" placeholder="Search tasks..." [formField]="searchForm.query" />
+          <input type="text" placeholder="Search all dates..." [formField]="searchForm.query" />
           @if (searchQuery()) {
             <button class="clear-search" type="button" (click)="clearSearch()" appTooltip="Clear search">
               <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
@@ -54,7 +92,7 @@ import { noXss, trimmedRequired, futureDate } from '../../shared/validators/form
         </div>
         <div class="filter-chips">
           @for (f of statusFilters; track f.value) {
-            <button class="chip" type="button" [class.active]="activeFilter() === f.value" (click)="activeFilter.set(f.value)">
+            <button class="chip" type="button" [class.active]="activeFilter() === f.value" (click)="setFilter(f.value)">
               {{ f.label }} <span>{{ filterCount(f.value) }}</span>
             </button>
           }
@@ -62,16 +100,21 @@ import { noXss, trimmedRequired, futureDate } from '../../shared/validators/form
         <label class="sort-control">
           <span>Sort</span>
           <select [value]="sortBy()" (change)="onSortChange($event)">
+            <option value="updated">Recently updated</option>
             <option value="priority">Priority</option>
             <option value="deadline">Deadline</option>
             <option value="newest">Newest</option>
           </select>
         </label>
+        <button class="btn btn-outline btn-sm collapse-toggle" type="button" (click)="toggleAllGroups()"
+          [appTooltip]="allExpanded() ? 'Collapse every date group' : 'Expand every date group'">
+          {{ allExpanded() ? 'Collapse all' : 'Expand all' }}
+        </button>
       </div>
 
-      <!-- Task List -->
-      <div class="task-list">
-        @if (filteredTasks().length === 0) {
+      <!-- Task list: grouped by date, virtualised (only visible rows exist in the DOM) -->
+      @if (taskGroups().length === 0) {
+        <div class="task-list is-empty">
           <div class="empty-state">
             <p>{{ searchQuery() || activeFilter() !== 'all' ? 'No tasks match these filters.' : 'No tasks yet. Add your first task to get started.' }}</p>
             @if (!searchQuery() && activeFilter() === 'all') {
@@ -81,51 +124,86 @@ import { noXss, trimmedRequired, futureDate } from '../../shared/validators/form
               </div>
             }
           </div>
-        }
-        @for (task of filteredTasks(); track task.id) {
-          <div class="task-row" [class.done]="task.status === 'done'" [class.in-progress]="task.status === 'in-progress'" (click)="openEditPanel(task)">
-            <button class="status-btn" [class]="task.status" (click)="toggleStatus(task); $event.stopPropagation()"
-              [appTooltip]="statusTooltip(task.status)">
-              @if (task.status === 'done') {
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><polyline points="20,6 9,17 4,12"/></svg>
-              } @else if (task.status === 'in-progress') {
-                <div class="progress-dot"></div>
+        </div>
+      } @else {
+        <div class="task-list" #scroller (scroll)="onScroll($event)">
+          <div class="list-canvas" [style.height.px]="totalHeight()">
+            @for (row of visibleRows(); track row.key) {
+              @if (row.kind === 'header') {
+                <button
+                  class="group-header"
+                  type="button"
+                  [style.top.px]="row.top"
+                  [style.height.px]="row.height"
+                  [attr.aria-expanded]="isGroupOpen(row.group.key)"
+                  (click)="toggleGroup(row.group.key)"
+                >
+                  <svg class="chevron" [class.open]="isGroupOpen(row.group.key)" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                    <polyline points="9,6 15,12 9,18" />
+                  </svg>
+                  <span class="group-label">{{ row.group.label }}</span>
+                  <span class="group-count">{{ row.group.tasks.length }}</span>
+                  @if (row.group.doneCount > 0) {
+                    <span class="group-done">{{ row.group.doneCount }} done</span>
+                  }
+                </button>
+              } @else if (row.task; as task) {
+                <div
+                  class="task-row"
+                  [class.done]="task.status === 'done'"
+                  [class.in-progress]="task.status === 'in-progress'"
+                  [style.top.px]="row.top"
+                  [style.height.px]="row.height"
+                  (click)="openEditPanel(task)"
+                >
+                  <button class="status-btn" [class]="task.status" (click)="toggleStatus(task); $event.stopPropagation()"
+                    [appTooltip]="statusTooltip(task.status)">
+                    @if (task.status === 'done') {
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><polyline points="20,6 9,17 4,12"/></svg>
+                    } @else if (task.status === 'in-progress') {
+                      <div class="progress-dot"></div>
+                    }
+                  </button>
+                  <div class="task-info">
+                    <span class="task-title" [appTooltip]="task.title">{{ task.title }}</span>
+                    <div class="task-meta">
+                      @if (task.deadline) {
+                        <span class="meta-badge deadline" [class.overdue]="isOverdue(task)">
+                          <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12,6 12,12 16,14"/></svg>
+                          {{ formatDeadline(task.deadline) }}
+                        </span>
+                      }
+                      @if (task.quadrant) {
+                        <span class="meta-badge quadrant">{{ quadrantLabel(task.quadrant) }}</span>
+                      }
+                      @if (task.recurrence) {
+                        <span class="meta-badge recurring">
+                          <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 2l4 4-4 4"/><path d="M3 11V9a4 4 0 014-4h14"/><path d="M7 22l-4-4 4-4"/><path d="M21 13v2a4 4 0 01-4 4H3"/></svg>
+                          {{ task.recurrence.frequency }}
+                        </span>
+                      }
+                      <span class="meta-badge updated" [appTooltip]="'Last changed ' + formatActivity(task)">
+                        {{ formatActivity(task) }}
+                      </span>
+                    </div>
+                  </div>
+                  <span class="status-tag" [class]="task.status">{{ statusLabel(task.status) }}</span>
+                  <div class="task-actions">
+                    <span class="priority-badge p{{ task.priority }}">P{{ task.priority }}</span>
+                    <button class="icon-btn" [appTooltip]="task.todayOrder !== null ? 'Remove from Today' : 'Add to Today'"
+                      (click)="toggleToday(task); $event.stopPropagation()">
+                      <svg width="14" height="14" viewBox="0 0 24 24" [attr.fill]="task.todayOrder !== null ? '#8b5cf6' : 'none'" stroke="currentColor" stroke-width="2"><path d="M12 2L15.09 8.26L22 9.27L17 14.14L18.18 21.02L12 17.77L5.82 21.02L7 14.14L2 9.27L8.91 8.26L12 2Z"/></svg>
+                    </button>
+                    <button class="icon-btn delete" (click)="deleteTask(task.id); $event.stopPropagation()" appTooltip="Delete">
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3,6 5,6 21,6"/><path d="M19,6v14a2,2,0,0,1-2,2H7a2,2,0,0,1-2-2V6M8,6V4a2,2,0,0,1,2-2h4a2,2,0,0,1,2,2V6"/></svg>
+                    </button>
+                  </div>
+                </div>
               }
-            </button>
-            <div class="task-info">
-              <span class="task-title">{{ task.title }}</span>
-              <div class="task-meta">
-                @if (task.deadline) {
-                  <span class="meta-badge deadline" [class.overdue]="isOverdue(task)">
-                    <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12,6 12,12 16,14"/></svg>
-                    {{ formatDeadline(task.deadline) }}
-                  </span>
-                }
-                @if (task.quadrant) {
-                  <span class="meta-badge quadrant">{{ quadrantLabel(task.quadrant) }}</span>
-                }
-                @if (task.recurrence) {
-                  <span class="meta-badge recurring">
-                    <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 2l4 4-4 4"/><path d="M3 11V9a4 4 0 014-4h14"/><path d="M7 22l-4-4 4-4"/><path d="M21 13v2a4 4 0 01-4 4H3"/></svg>
-                    {{ task.recurrence.frequency }}
-                  </span>
-                }
-              </div>
-            </div>
-            <span class="status-tag" [class]="task.status">{{ statusLabel(task.status) }}</span>
-            <div class="task-actions">
-              <span class="priority-badge p{{ task.priority }}">P{{ task.priority }}</span>
-              <button class="icon-btn" [appTooltip]="task.todayOrder !== null ? 'Remove from Today' : 'Add to Today'"
-                (click)="toggleToday(task); $event.stopPropagation()">
-                <svg width="14" height="14" viewBox="0 0 24 24" [attr.fill]="task.todayOrder !== null ? '#8b5cf6' : 'none'" stroke="currentColor" stroke-width="2"><path d="M12 2L15.09 8.26L22 9.27L17 14.14L18.18 21.02L12 17.77L5.82 21.02L7 14.14L2 9.27L8.91 8.26L12 2Z"/></svg>
-              </button>
-              <button class="icon-btn delete" (click)="deleteTask(task.id); $event.stopPropagation()" appTooltip="Delete">
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3,6 5,6 21,6"/><path d="M19,6v14a2,2,0,0,1-2,2H7a2,2,0,0,1-2-2V6M8,6V4a2,2,0,0,1,2-2h4a2,2,0,0,1,2,2V6"/></svg>
-              </button>
-            </div>
+            }
           </div>
-        }
-      </div>
+        </div>
+      }
 
       <!-- Slide-in Panel -->
       @if (panelOpen()) {
@@ -138,10 +216,10 @@ import { noXss, trimmedRequired, futureDate } from '../../shared/validators/form
             </button>
           </div>
           <form class="panel-form" (submit)="onSubmitTask($event)">
-            <app-form-field label="Title" [fieldState]="taskForm.title()">
+            <app-form-field label="Title" [fieldState]="taskForm.title()" [hint]="titleHint()">
               <input type="text" [formField]="taskForm.title" placeholder="What needs to be done?" autofocus />
             </app-form-field>
-            <app-form-field label="Description" [fieldState]="taskForm.description()">
+            <app-form-field label="Description" [fieldState]="taskForm.description()" [hint]="descriptionHint()">
               <textarea [formField]="taskForm.description" rows="3" placeholder="Optional details..."></textarea>
             </app-form-field>
             <div class="form-row">
@@ -218,7 +296,7 @@ import { noXss, trimmedRequired, futureDate } from '../../shared/validators/form
   `,
   styles: [`
     :host { display: block; height: 100%; overflow: hidden; }
-    .tasks-layout { display: flex; flex-direction: column; height: 100%; gap: 16px; }
+    .tasks-layout { display: flex; flex-direction: column; height: 100%; min-height: 0; gap: 16px; }
     .page-header {
       display: flex; align-items: center; justify-content: space-between;
     }
@@ -267,24 +345,48 @@ import { noXss, trimmedRequired, futureDate } from '../../shared/validators/form
     }
 
     .task-list {
-      flex: 1; overflow-y: auto; display: flex; flex-direction: column; gap: 4px;
+      flex: 1; min-height: 0; overflow-y: auto; position: relative;
       padding-right: 4px;
     }
+    .task-list.is-empty { display: flex; align-items: center; justify-content: center; }
     .task-list::-webkit-scrollbar { width: 4px; }
     .task-list::-webkit-scrollbar-thumb { background: rgba(139,92,246,0.2); border-radius: 4px; }
 
+    /* Virtual list: the canvas provides the scroll extent, rows are placed
+       absolutely and only the visible ones are ever created. */
+    .list-canvas { position: relative; width: 100%; }
+
+    .group-header {
+      position: absolute; left: 0; right: 0; box-sizing: border-box;
+      display: flex; align-items: center; gap: 8px; width: 100%;
+      padding: 0 10px; cursor: pointer; text-align: left;
+      background: transparent; border: none; border-bottom: 1px solid rgba(139,92,246,0.12);
+      color: var(--color-text-secondary); font: inherit;
+    }
+    .group-header:hover { color: var(--color-text-primary); background: rgba(139,92,246,0.05); }
+    .chevron { flex-shrink: 0; color: var(--color-text-muted); transition: transform 0.2s ease; }
+    .chevron.open { transform: rotate(90deg); }
+    .group-label { font-size: 0.74rem; font-weight: 700; letter-spacing: 0.02em; }
+    .group-count {
+      font-size: 0.6rem; padding: 1px 7px; border-radius: 999px;
+      background: rgba(255,255,255,0.06); color: var(--color-text-muted);
+    }
+    .group-done { font-size: 0.6rem; color: #34d399; margin-left: auto; }
+
     .task-row {
-      display: flex; align-items: center; gap: 12px; padding: 12px 16px;
+      position: absolute; left: 0; right: 0; box-sizing: border-box;
+      display: flex; align-items: center; gap: 12px; padding: 10px 16px;
       background: var(--glass-bg); border: 1px solid rgba(139,92,246,0.06);
-      border-radius: 12px; cursor: pointer; transition: all 0.2s;
+      border-radius: 12px; cursor: pointer; transition: background 0.2s, border-color 0.2s;
     }
     .task-row:hover {
       background: rgba(139,92,246,0.04); border-color: rgba(139,92,246,0.15);
-      transform: translateX(2px);
     }
     .task-row.done { opacity: 0.5; }
     .task-row.done .task-title { text-decoration: line-through; }
     .task-row.in-progress { border-color: var(--status-in-progress-bg); }
+    .meta-badge.updated { background: rgba(255,255,255,0.03); }
+    .collapse-toggle { margin-left: 8px; white-space: nowrap; }
 
     .status-btn {
       width: 22px; height: 22px; border-radius: 6px; border: 2px solid rgba(139,92,246,0.3);
@@ -298,7 +400,12 @@ import { noXss, trimmedRequired, futureDate } from '../../shared/validators/form
     .progress-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--status-in-progress-color); }
 
     .task-info { flex: 1; min-width: 0; }
-    .task-title { font-size: 0.85rem; font-weight: 500; color: var(--color-text-primary); }
+    /* Very long titles are clamped, never allowed to push the row out of shape. */
+    .task-title {
+      font-size: 0.85rem; font-weight: 500; color: var(--color-text-primary);
+      display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical;
+      overflow: hidden; overflow-wrap: anywhere;
+    }
     .task-meta { display: flex; gap: 8px; margin-top: 4px; }
     .meta-badge {
       display: flex; align-items: center; gap: 4px;
@@ -400,12 +507,22 @@ export class TasksComponent implements OnInit {
   private readonly route = inject(ActivatedRoute);
   private readonly router = inject(Router);
 
-  activeFilter = signal<'all' | TaskStatus>('all');
-  sortBy = signal<'priority' | 'deadline' | 'newest'>('priority');
+  activeFilter = signal<'all' | TaskStatus>('todo');
+  sortBy = signal<SortKey>('updated');
   panelOpen = signal(false);
   editingTask = signal<Task | null>(null);
   importOpen = signal(false);
   exportOpen = signal(false);
+
+  // ── Grouped, virtualised list ─────────────────────────────────────────────
+  /** Date groups the user has open. Normally at most one (accordion). */
+  readonly openGroups = signal<string[]>([]);
+  readonly scrollTop = signal(0);
+  readonly viewportHeight = signal(520);
+  private readonly scrollerRef = viewChild<ElementRef<HTMLElement>>('scroller');
+  private resizeObserver: ResizeObserver | null = null;
+  private observedScroller: HTMLElement | null = null;
+  private groupsInitialised = false;
 
   // Search form
   private readonly searchModel = signal<SearchFormModel>(createSearchFormDefaults());
@@ -419,11 +536,15 @@ export class TasksComponent implements OnInit {
     required(s.title, { message: 'Task title is required' });
     validate(s.title, trimmedRequired);
     validate(s.title, noXss);
-    maxLength(s.title, 200, { message: 'Title must be 200 characters or fewer' });
+    maxLength(s.title, TASK_TITLE_MAX_LENGTH, {
+      message: `Title must be ${TASK_TITLE_MAX_LENGTH} characters or fewer`,
+    });
 
     // Description security
     validate(s.description, noXss);
-    maxLength(s.description, 2000, { message: 'Description must be 2000 characters or fewer' });
+    maxLength(s.description, TASK_DESCRIPTION_MAX_LENGTH, {
+      message: `Description must be ${TASK_DESCRIPTION_MAX_LENGTH} characters or fewer`,
+    });
 
     // Priority is required
     required(s.priority, { message: 'Priority is required' });
@@ -432,6 +553,19 @@ export class TasksComponent implements OnInit {
     validate(s.deadline, futureDate);
   });
   formRecurDays: number[] = [];
+
+  /**
+   * Shared task limits. `maxLength()` on the form schema also writes the native
+   * `maxlength` attribute, so the input stops at the cap while typing; these
+   * hints just make the cap visible.
+   */
+  readonly titleMax = TASK_TITLE_MAX_LENGTH;
+  readonly titleHint = computed(
+    () => `${this.taskFormModel().title.trim().length}/${TASK_TITLE_MAX_LENGTH} characters`
+  );
+  readonly descriptionHint = computed(
+    () => `${this.taskFormModel().description.trim().length}/${TASK_DESCRIPTION_MAX_LENGTH} characters`
+  );
 
   weekDays = [
     { label: 'Sun', value: 0 },
@@ -463,6 +597,33 @@ export class TasksComponent implements OnInit {
     return [...tasks].sort((a, b) => this.compareTasks(a, b, this.sortBy()));
   });
 
+  /**
+   * Search and filters run over every date; whatever survives is grouped by the
+   * day it was last touched, newest day first.
+   */
+  readonly taskGroups = computed<DateGroup[]>(() => groupByDay(this.filteredTasks()));
+
+  /** Flattened rows with pixel offsets — the only thing the viewport renders. */
+  readonly rows = computed<ListRow[]>(() => buildRows(this.taskGroups(), this.openGroups()));
+
+  readonly totalHeight = computed(() => totalHeight(this.rows()));
+
+  /**
+   * Windowing: only the rows that can actually be seen (plus a small buffer)
+   * are handed to the template, so everything below the fold is created on
+   * demand instead of sitting in the DOM.
+   */
+  readonly visibleRows = computed(() =>
+    windowRows(this.rows(), this.scrollTop(), this.viewportHeight(), OVERSCAN_PX)
+  );
+
+  readonly allExpanded = computed(() => {
+    const keys = this.taskGroups().map(group => group.key);
+    if (!keys.length) return false;
+    const open = new Set(this.openGroups());
+    return keys.every(key => open.has(key));
+  });
+
   async ngOnInit(): Promise<void> {
     await this.db.init();
     await this.taskService.loadTasks();
@@ -475,6 +636,122 @@ export class TasksComponent implements OnInit {
         replaceUrl: true,
       });
     }
+  }
+
+  ngOnDestroy(): void {
+    this.resizeObserver?.disconnect();
+  }
+
+  constructor() {
+    // Date groups drive two things: opening the newest one on first paint, and
+    // keeping the open group valid when search, filters or edits move tasks
+    // between groups.
+    effect(() => {
+      const keys = this.taskGroups().map(group => group.key);
+      const previous = untracked(() => this.openGroups());
+
+      if (!untracked(() => this.groupsInitialised)) {
+        if (!keys.length) return;
+        this.groupsInitialised = true;
+        this.openGroups.set([keys[0]]);
+        return;
+      }
+
+      const surviving = previous.filter(key => keys.includes(key));
+      if (surviving.length === previous.length) return;
+
+      // The open group disappeared (a search, a filter, or the last edit moved
+      // its tasks) — show the newest group that still has results. An empty
+      // selection the user chose on purpose ("Collapse all") is left alone.
+      this.openGroups.set(
+        surviving.length === 0 && previous.length > 0 && keys.length ? [keys[0]] : surviving
+      );
+    });
+
+    // The scroller only exists while there are groups, so it is picked up
+    // whenever it appears rather than once at startup.
+    effect(() => {
+      const element = this.scrollerRef()?.nativeElement;
+      if (!element || element === this.observedScroller) return;
+      this.observeScroller(element);
+    });
+  }
+
+  private observeScroller(element: HTMLElement): void {
+    this.resizeObserver?.disconnect();
+    this.observedScroller = element;
+    this.viewportHeight.set(element.clientHeight || FALLBACK_VIEWPORT_HEIGHT);
+    if (typeof ResizeObserver !== 'undefined') {
+      this.resizeObserver = new ResizeObserver(entries => {
+        const height = entries[0]?.contentRect.height;
+        if (height) this.viewportHeight.set(height);
+      });
+      this.resizeObserver.observe(element);
+    }
+  }
+
+  // ── Grouped list behaviour ────────────────────────────────────────────────
+
+  onScroll(event: Event): void {
+    this.scrollTop.set((event.target as HTMLElement).scrollTop);
+  }
+
+  isGroupOpen(key: string): boolean {
+    return this.openGroups().includes(key);
+  }
+
+  /** Accordion: opening a date closes the previous one, clicking it again closes it. */
+  toggleGroup(key: string): void {
+    const open = this.openGroups();
+    this.openGroups.set(open.includes(key) ? open.filter(k => k !== key) : [key]);
+    this.afterLayoutChange();
+  }
+
+  toggleAllGroups(): void {
+    this.openGroups.set(
+      this.allExpanded() ? [] : this.taskGroups().map(group => group.key)
+    );
+    this.afterLayoutChange();
+  }
+
+  /** A new filter or search reshuffles the groups, so show the newest one. */
+  private resetGroupFocus(): void {
+    const first = this.taskGroups()[0];
+    this.openGroups.set(first ? [first.key] : []);
+    this.groupsInitialised = true;
+    this.afterLayoutChange(true);
+  }
+
+  setFilter(filter: 'all' | TaskStatus): void {
+    this.activeFilter.set(filter);
+    this.resetGroupFocus();
+  }
+
+  private afterLayoutChange(resetScroll = false): void {
+    requestAnimationFrame(() => {
+      const element = this.scrollerRef()?.nativeElement;
+      if (!element) return;
+      if (resetScroll) element.scrollTop = 0;
+      const max = Math.max(0, this.totalHeight() - element.clientHeight);
+      if (element.scrollTop > max) element.scrollTop = max;
+      this.scrollTop.set(element.scrollTop);
+    });
+  }
+
+  /** "12 min ago" / "Yesterday 18:04" — the activity stamp shown on each row. */
+  formatActivity(task: Task): string {
+    const iso = taskActivityIso(task);
+    const date = new Date(iso);
+    if (Number.isNaN(date.getTime())) return '';
+    const minutes = Math.round((Date.now() - date.getTime()) / 60000);
+    if (minutes < 1) return 'just now';
+    if (minutes < 60) return `${minutes} min ago`;
+    const time = date.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' });
+    if (localDayKey(iso) === localDayKey(new Date().toISOString())) return time;
+    const yesterday = new Date();
+    yesterday.setDate(yesterday.getDate() - 1);
+    if (localDayKey(iso) === localDayKey(yesterday.toISOString())) return `Yesterday ${time}`;
+    return `${date.toLocaleDateString(undefined, { day: 'numeric', month: 'short' })} ${time}`;
   }
 
   openAddPanel(): void {
@@ -585,9 +862,10 @@ export class TasksComponent implements OnInit {
   }
 
   onSortChange(event: Event): void {
-    const value = (event.target as HTMLSelectElement).value;
-    if (value === 'priority' || value === 'deadline' || value === 'newest') {
+    const value = (event.target as HTMLSelectElement).value as SortKey;
+    if (value === 'updated' || value === 'priority' || value === 'deadline' || value === 'newest') {
       this.sortBy.set(value);
+      this.resetGroupFocus();
     }
   }
 
@@ -614,9 +892,13 @@ export class TasksComponent implements OnInit {
     }
   }
 
-  private compareTasks(a: Task, b: Task, sortBy: 'priority' | 'deadline' | 'newest'): number {
+  private compareTasks(a: Task, b: Task, sortBy: SortKey): number {
+    if (sortBy === 'updated') {
+      // Newest activity first; ties keep the more important task on top.
+      return taskActivityIso(b).localeCompare(taskActivityIso(a)) || a.priority - b.priority;
+    }
     if (sortBy === 'priority') {
-      return a.priority - b.priority || a.createdAt.localeCompare(b.createdAt);
+      return a.priority - b.priority || taskActivityIso(b).localeCompare(taskActivityIso(a));
     }
     if (sortBy === 'deadline') {
       const aDeadline = a.deadline ?? '9999-12-31';
