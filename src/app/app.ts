@@ -3,16 +3,17 @@ import { Router, RouterOutlet } from '@angular/router';
 import { SidebarComponent } from './shared/components/sidebar/sidebar.component';
 import { ToastComponent } from './shared/components/toast/toast.component';
 import { InstallBannerComponent } from './shared/components/install-banner/install-banner.component';
+import { WelcomePrefsDialogComponent } from './shared/components/welcome-prefs-dialog/welcome-prefs-dialog.component';
 import { TimerService } from './core/services/timer.service';
 import { UiService } from './core/services/ui.service';
 import { SettingsService } from './core/services/settings.service';
 import { DbService } from './core/services/db.service';
 
-const PAGE_ROUTES = ['', 'tasks', 'matrix', 'today', 'analytics', 'habits', 'journal', 'settings'];
+const PAGE_ROUTES = ['', 'tasks', 'matrix', 'calendar', 'today', 'analytics', 'habits', 'journal', 'settings'];
 
 @Component({
   selector: 'app-root',
-  imports: [RouterOutlet, SidebarComponent, ToastComponent, InstallBannerComponent],
+  imports: [RouterOutlet, SidebarComponent, ToastComponent, InstallBannerComponent, WelcomePrefsDialogComponent],
   templateUrl: './app.html',
   styleUrl: './app.css',
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -27,7 +28,7 @@ export class App implements OnInit {
   private readonly db = inject(DbService);
   ui = inject(UiService);
 
-  sidebarCollapsed = signal(true);
+  sidebarCollapsed = signal(false);
 
   ngOnInit(): void {
     this.db.init().then(async () => {
@@ -78,7 +79,7 @@ export class App implements OnInit {
   private handlePageNavigation(event: KeyboardEvent): boolean {
     if (event.ctrlKey && !event.shiftKey && !event.altKey) {
       const num = Number.parseInt(event.key);
-      if (num >= 1 && num <= 8) {
+      if (num >= 1 && num <= PAGE_ROUTES.length) {
         event.preventDefault();
         this.router.navigate(['/' + PAGE_ROUTES[num - 1]]);
         return true;

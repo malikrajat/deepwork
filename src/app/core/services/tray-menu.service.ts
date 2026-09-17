@@ -1,6 +1,7 @@
 import { Injectable, inject, OnDestroy } from '@angular/core';
 import { TimerService } from './timer.service';
 import { NotificationService } from './notification.service';
+import { DesktopPrefsService } from './desktop-prefs.service';
 import type { UnlistenFn } from '@tauri-apps/api/event';
 
 /**
@@ -8,11 +9,18 @@ import type { UnlistenFn } from '@tauri-apps/api/event';
  * - mute:true / mute:false -> toggles the reminder sound
  * - pause -> pauses the pomodoro timer
  * - pause:5/10/15/30 -> pauses the timer and auto-resumes after N minutes
+ * - autostart:on / autostart:off -> the tray changed the OS startup entry
+ * - aot:on / aot:off -> the tray changed always-on-top
+ *
+ * The desktop-preference events arrive *after* Rust has already changed the real
+ * OS/window state, so this only has to store the new preference to keep the
+ * in-app switches in agreement with the tray's tick marks.
  */
 @Injectable({ providedIn: 'root' })
 export class TrayMenuService implements OnDestroy {
   private readonly timer = inject(TimerService);
   private readonly notification = inject(NotificationService);
+  private readonly desktopPrefs = inject(DesktopPrefsService);
 
   private unlisten: UnlistenFn | null = null;
   private resumeTimeoutId: ReturnType<typeof setTimeout> | null = null;
@@ -40,6 +48,18 @@ export class TrayMenuService implements OnDestroy {
       case 'pause':
         this.timer.pause();
         this.clearScheduledResume();
+        break;
+      case 'autostart:on':
+        void this.desktopPrefs.adoptTrayChange('startWithSystem', true);
+        break;
+      case 'autostart:off':
+        void this.desktopPrefs.adoptTrayChange('startWithSystem', false);
+        break;
+      case 'aot:on':
+        void this.desktopPrefs.adoptTrayChange('alwaysOnTop', true);
+        break;
+      case 'aot:off':
+        void this.desktopPrefs.adoptTrayChange('alwaysOnTop', false);
         break;
       default:
         if (payload.startsWith('pause:')) {

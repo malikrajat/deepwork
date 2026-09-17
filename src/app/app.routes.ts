@@ -19,6 +19,10 @@ export const routes: Routes = [
     loadComponent: () => import('./pages/matrix/matrix.component').then(m => m.MatrixComponent),
   },
   {
+    path: 'calendar',
+    loadComponent: () => import('./pages/calendar/calendar.component').then(m => m.CalendarComponent),
+  },
+  {
     path: 'today',
     loadComponent: () => import('./pages/today/today.component').then(m => m.TodayComponent),
   },
@@ -35,7 +39,15 @@ export const routes: Routes = [
     loadComponent: () => import('./pages/journal/journal.component').then(m => m.JournalComponent),
   },
   {
+    path: 'journal/:date',
+    loadComponent: () => import('./pages/journal/journal.component').then(m => m.JournalComponent),
+  },
+  {
     path: 'settings',
     loadComponent: () => import('./pages/settings/settings.component').then(m => m.SettingsComponent),
+  },
+  {
+    path: '**',
+    redirectTo: '',
   },
 ];

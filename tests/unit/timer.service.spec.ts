@@ -1,7 +1,9 @@
+import { signal } from '@angular/core';
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { TestBed } from '@angular/core/testing';
 import { TimerService } from '../../src/app/core/services/timer.service';
 import { DbService } from '../../src/app/core/services/db.service';
+import { SettingsService } from '../../src/app/core/services/settings.service';
 import { DEFAULT_SETTINGS } from '../../src/app/core/models/settings.model';
 
 const makeMockDb = () => ({
@@ -15,12 +17,26 @@ const makeMockDb = () => ({
 describe('TimerService', () => {
   let svc: TimerService;
   let mockDb: ReturnType<typeof makeMockDb>;
+  let mockSettings: {
+    settings: ReturnType<typeof signal<typeof DEFAULT_SETTINGS>>;
+    loadSettings: ReturnType<typeof vi.fn>;
+    saveSettings: ReturnType<typeof vi.fn>;
+  };
 
   beforeEach(() => {
     mockDb = makeMockDb();
+    mockSettings = {
+      settings: signal({ ...DEFAULT_SETTINGS }),
+      loadSettings: vi.fn(async () => mockSettings.settings.set(await mockDb.getSettings())),
+      saveSettings: vi.fn(async (settings) => mockSettings.settings.set(settings)),
+    };
     vi.useFakeTimers();
     TestBed.configureTestingModule({
-      providers: [TimerService, { provide: DbService, useValue: mockDb }],
+      providers: [
+        TimerService,
+        { provide: DbService, useValue: mockDb },
+        { provide: SettingsService, useValue: mockSettings },
+      ],
     });
     svc = TestBed.inject(TimerService);
   });
@@ -136,6 +152,18 @@ describe('TimerService', () => {
     svc.skip(); // 4th work → long-break (4 % 4 === 0)
     expect(svc.timerType()).toBe('long-break');
     expect(svc.sessionCount()).toBe(4);
+  });
+
+  it('uses the updated session cycle setting when advancing to a break', async () => {
+    await svc.init();
+    mockSettings.settings.update(settings => ({ ...settings, sessionsBeforeLongBreak: 2 }));
+
+    svc.skip(); // work → short-break
+    svc.skip(); // short-break → work
+    svc.skip(); // work → long-break
+
+    expect(svc.timerType()).toBe('long-break');
+    expect(svc.sessionCount()).toBe(2);
   });
 
   it('skip() on long-break returns to work', async () => {

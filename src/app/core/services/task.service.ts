@@ -1,6 +1,11 @@
 import { Injectable, inject, signal, computed } from '@angular/core';
 import { DbService } from './db.service';
-import { Task, TaskQuadrant, RecurrenceConfig } from '../models/task.model';
+import {
+  Task,
+  TaskQuadrant,
+  RecurrenceConfig,
+  normalizeTaskTitle,
+} from '../models/task.model';
 import { QUADRANT_CONFIG, STATUS_CYCLE } from '../constants/theme.constants';
 
 @Injectable({ providedIn: 'root' })
@@ -31,9 +36,10 @@ export class TaskService {
   }
 
   async createTask(data: Partial<Task> & { title: string }): Promise<Task> {
+    const now = new Date().toISOString();
     const task: Task = {
       id: crypto.randomUUID(),
-      title: data.title,
+      title: normalizeTaskTitle(data.title),
       description: data.description ?? '',
       priority: data.priority ?? 3,
       status: data.status ?? 'todo',
@@ -42,15 +48,31 @@ export class TaskService {
       tags: data.tags ?? [],
       recurrence: data.recurrence ?? null,
       todayOrder: data.todayOrder ?? null,
-      createdAt: new Date().toISOString(),
+      createdAt: now,
       completedAt: null,
+      updatedAt: now,
     };
     await this.db.createTask(task);
     this.tasks.update(list => [task, ...list]);
     return task;
   }
 
+  /** Every user-visible change stamps the task, which drives the Tasks list order. */
   async updateTask(task: Task): Promise<void> {
+    const normalized: Task = {
+      ...task,
+      title: normalizeTaskTitle(task.title),
+      updatedAt: new Date().toISOString(),
+    };
+    await this.db.updateTask(normalized);
+    this.tasks.update(list => list.map(t => t.id === normalized.id ? normalized : t));
+  }
+
+  /**
+   * Bookkeeping write that must not count as user activity — the automatic
+   * daily reset would otherwise push every old task into today's group.
+   */
+  private async updateTaskQuietly(task: Task): Promise<void> {
     await this.db.updateTask(task);
     this.tasks.update(list => list.map(t => t.id === task.id ? task : t));
   }
@@ -149,7 +171,8 @@ export class TaskService {
     );
 
     for (const task of tasksToReset) {
-      await this.updateTask({ ...task, quadrant: null });
+      // Clearing yesterday's quadrant is housekeeping, not activity.
+      await this.updateTaskQuietly({ ...task, quadrant: null });
     }
   }
 

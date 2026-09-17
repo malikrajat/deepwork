@@ -12,6 +12,7 @@
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;600;700&display=swap" rel="stylesheet">
   <link rel="manifest" href="/manifest.webmanifest">
   <meta name="theme-color" content="#8b5cf6">
+  <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <meta name="apple-mobile-web-app-title" content="DeepWork">
@@ -40,7 +41,11 @@
 <body>
   <app-root></app-root>
   <script>
-    if ('serviceWorker' in navigator) {
+    // The packaged desktop app (Tauri) already ships its assets locally and has no
+    // installable web origin, so a service worker there only risks serving a stale
+    // cached bundle after an update. Register it in browsers only.
+    var isDesktopApp = typeof window !== 'undefined' && '__TAURI_INTERNALS__' in window;
+    if (!isDesktopApp && 'serviceWorker' in navigator) {
       window.addEventListener('load', () => {
         navigator.serviceWorker.register('/sw.js').catch(() => { /* SW unavailable */ });
       });

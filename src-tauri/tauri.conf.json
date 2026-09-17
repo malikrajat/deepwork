@@ -1,7 +1,7 @@
 {
   "$schema": "../node_modules/@tauri-apps/cli/config.schema.json",
   "productName": "DeepWork",
-  "version": "1.0.1",
+  "version": "2.0.0",
   "identifier": "com.deepwork.app",
   "build": {
     "frontendDist": "../dist/deepwork/browser",
@@ -21,6 +21,7 @@
         "fullscreen": false,
         "decorations": true,
         "center": true,
+        "dragDropEnabled": false,
         "devtools": true
       }
     ],
@@ -42,7 +43,8 @@
       "nsis": {
         "installMode": "currentUser",
         "displayLanguageSelector": false,
-        "installerIcon": "icons/icon.ico"
+        "installerIcon": "icons/icon.ico",
+        "installerHooks": "nsis/hooks.nsh"
       },
       "wix": null
     },

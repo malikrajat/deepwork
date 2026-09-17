@@ -1,7 +1,7 @@
 import { Injectable, inject, effect } from '@angular/core';
 import { SettingsService } from './settings.service';
+import { ThemePreference } from '../models/settings.model';
 
-export type ThemePreference = 'system' | 'light' | 'dark';
 export type EffectiveTheme = 'light' | 'dark';
 
 /**

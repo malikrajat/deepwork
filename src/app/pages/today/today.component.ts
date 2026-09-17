@@ -46,7 +46,7 @@ import { STATUS_CONFIG } from '../../core/constants/theme.constants';
                 }
               </button>
               <div class="card-content">
-                <span class="card-title">{{ task.title }}</span>
+                <span class="card-title" [appTooltip]="task.title">{{ task.title }}</span>
                 @if (task.completedAt && task.status === 'done') {
                   <span class="completed-time">Done at {{ formatTime(task.completedAt) }}</span>
                 }
@@ -136,7 +136,12 @@ import { STATUS_CONFIG } from '../../core/constants/theme.constants';
     .progress-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--status-in-progress-color); }
 
     .card-content { flex: 1; min-width: 0; }
-    .card-title { font-size: 0.85rem; font-weight: 500; color: var(--color-text-primary); }
+    /* Very long titles are clamped, never allowed to push the row out of shape. */
+    .card-title {
+      font-size: 0.85rem; font-weight: 500; color: var(--color-text-primary);
+      display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical;
+      overflow: hidden; overflow-wrap: anywhere;
+    }
     .completed-time { display: block; font-size: 0.65rem; color: var(--color-text-muted); margin-top: 2px; }
 
     .status-tag {

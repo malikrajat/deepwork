@@ -61,9 +61,27 @@ export class DbService {
       shortBreak: r.short_break ?? DEFAULT_SETTINGS.shortBreak,
       longBreak: r.long_break ?? DEFAULT_SETTINGS.longBreak,
       sessionsBeforeLongBreak: r.sessions_before_long_break ?? DEFAULT_SETTINGS.sessionsBeforeLongBreak,
-      notificationSound: r.notification_sound ?? DEFAULT_SETTINGS.notificationSound,
+      notificationSound: r.notification_sound === 'bell' || r.notification_sound === 'chime' ||
+        r.notification_sound === 'ding' || r.notification_sound === 'none'
+        ? r.notification_sound
+        : DEFAULT_SETTINGS.notificationSound,
       notificationRepeatInterval: r.notification_repeat_interval ?? DEFAULT_SETTINGS.notificationRepeatInterval,
+      calendarReminders: r.calendar_reminders === undefined || r.calendar_reminders === null
+        ? DEFAULT_SETTINGS.calendarReminders
+        : r.calendar_reminders !== 0,
+      trayBehavior: r.tray_behavior === 'minimize' || r.tray_behavior === 'quit'
+        ? r.tray_behavior
+        : DEFAULT_SETTINGS.trayBehavior,
       theme: r.theme === 'light' || r.theme === 'dark' || r.theme === 'system' ? r.theme : DEFAULT_SETTINGS.theme,
+      startWithSystem: r.start_with_system === undefined || r.start_with_system === null
+        ? DEFAULT_SETTINGS.startWithSystem
+        : r.start_with_system !== 0,
+      alwaysOnTop: r.always_on_top === undefined || r.always_on_top === null
+        ? DEFAULT_SETTINGS.alwaysOnTop
+        : r.always_on_top !== 0,
+      desktopPrefsPrompted: r.desktop_prefs_prompted === undefined || r.desktop_prefs_prompted === null
+        ? DEFAULT_SETTINGS.desktopPrefsPrompted
+        : r.desktop_prefs_prompted !== 0,
     };
   }
 
@@ -72,10 +90,11 @@ export class DbService {
     if (this.isBrowser) { this.lsSet('settings', merged); return; }
     await this.execute(
       `UPDATE settings SET work_duration = $1, short_break = $2, long_break = $3,
-       sessions_before_long_break = $4, notification_sound = $5, theme = $6,
-       notification_repeat_interval = $7
+       sessions_before_long_break = $4, notification_sound = $5, tray_behavior = $6, theme = $7,
+       notification_repeat_interval = $8, calendar_reminders = $9, start_with_system = $10,
+       always_on_top = $11, desktop_prefs_prompted = $12
        WHERE id = 1`,
-      [merged.workDuration, merged.shortBreak, merged.longBreak, merged.sessionsBeforeLongBreak, merged.notificationSound, merged.theme, merged.notificationRepeatInterval]
+      [merged.workDuration, merged.shortBreak, merged.longBreak, merged.sessionsBeforeLongBreak, merged.notificationSound, merged.trayBehavior, merged.theme, merged.notificationRepeatInterval, merged.calendarReminders ? 1 : 0, merged.startWithSystem ? 1 : 0, merged.alwaysOnTop ? 1 : 0, merged.desktopPrefsPrompted ? 1 : 0]
     );
   }
 
@@ -282,6 +301,15 @@ export class DbService {
     );
   }
 
+  async deleteJournalEntry(date: string): Promise<void> {
+    if (this.isBrowser) {
+      const entries = this.lsGet<any[]>('journal', []).filter(e => e.date !== date);
+      this.lsSet('journal', entries);
+      return;
+    }
+    await this.execute('DELETE FROM journal_entries WHERE date = $1', [date]);
+  }
+
   // ==================== TASK METHODS ====================
 
   async getTasks(): Promise<Task[]> {
@@ -333,11 +361,11 @@ export class DbService {
       return;
     }
     await this.execute(
-      `INSERT INTO tasks (id, title, description, priority, status, quadrant, deadline, tags, recurrence, today_order, created_at, completed_at)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)`,
+      `INSERT INTO tasks (id, title, description, priority, status, quadrant, deadline, tags, recurrence, today_order, created_at, completed_at, updated_at)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)`,
       [task.id, task.title, task.description, task.priority, task.status, task.quadrant, task.deadline,
        JSON.stringify(task.tags), task.recurrence ? JSON.stringify(task.recurrence) : null,
-       task.todayOrder, task.createdAt, task.completedAt]
+       task.todayOrder, task.createdAt, task.completedAt, task.updatedAt ?? task.createdAt]
     );
   }
 
@@ -351,10 +379,10 @@ export class DbService {
     }
     await this.execute(
       `UPDATE tasks SET title=$1, description=$2, priority=$3, status=$4, quadrant=$5,
-       deadline=$6, tags=$7, recurrence=$8, today_order=$9, completed_at=$10 WHERE id=$11`,
+       deadline=$6, tags=$7, recurrence=$8, today_order=$9, completed_at=$10, updated_at=$11 WHERE id=$12`,
       [task.title, task.description, task.priority, task.status, task.quadrant, task.deadline,
        JSON.stringify(task.tags), task.recurrence ? JSON.stringify(task.recurrence) : null,
-       task.todayOrder, task.completedAt, task.id]
+       task.todayOrder, task.completedAt, task.updatedAt ?? task.createdAt, task.id]
     );
   }
 
@@ -381,10 +409,27 @@ export class DbService {
     return rows.map(r => this.mapTask(r));
   }
 
+  // ==================== APP STATE (non-relational) ====================
+
+  /**
+   * Small, structured application state (day plans, layout preferences…).
+   *
+   * It is stored through the same storage the app already uses for its browser
+   * fallback so it works identically in the packaged desktop app and in the
+   * browser, without requiring a schema migration.
+   */
+  async getAppState<T>(key: string, fallback: T): Promise<T> {
+    return this.lsGet<T>(`state_${key}`, fallback);
+  }
+
+  async setAppState(key: string, value: unknown): Promise<void> {
+    this.lsSet(`state_${key}`, value);
+  }
+
   // ==================== BACKUP / RESTORE ====================
 
   async exportAll(): Promise<any> {
-    const [sessions, tasks, habits, habitEntries, journal, settings, timerState] = await Promise.all([
+    const [sessions, tasks, habits, habitEntries, journal, settings, timerState, scheduleDays, schedulePrefs] = await Promise.all([
       this.getAllSessions(),
       this.getTasks(),
       this.getHabits(),
@@ -392,6 +437,8 @@ export class DbService {
       this.getJournalEntries(),
       this.getSettings(),
       this.getTimerState(),
+      this.getAppState('schedule_days', {}),
+      this.getAppState('schedule_prefs', null),
     ]);
     return {
       version: 1,
@@ -403,6 +450,8 @@ export class DbService {
       journal,
       settings,
       timerState,
+      scheduleDays,
+      schedulePrefs,
     };
   }
 
@@ -449,6 +498,12 @@ export class DbService {
     if (data.timerState) {
       await this.saveTimerState(data.timerState);
     }
+    if (data.scheduleDays) {
+      await this.setAppState('schedule_days', data.scheduleDays);
+    }
+    if (data.schedulePrefs) {
+      await this.setAppState('schedule_prefs', data.schedulePrefs);
+    }
   }
 
   private parseRecurrence(value: unknown): any {
@@ -471,6 +526,7 @@ export class DbService {
       todayOrder: r.today_order ?? r.todayOrder ?? null,
       createdAt: r.created_at ?? r.createdAt,
       completedAt: r.completed_at ?? r.completedAt ?? null,
+      updatedAt: r.updated_at ?? r.updatedAt ?? r.completed_at ?? r.created_at ?? r.createdAt ?? null,
     };
   }
 }

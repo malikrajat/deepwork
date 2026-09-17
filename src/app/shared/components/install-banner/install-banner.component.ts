@@ -5,7 +5,7 @@ import { InstallService } from '../../../core/services/install.service';
   selector: 'app-install-banner',
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
-    @if (!install.isInstalled() && !install.isDismissed()) {
+    @if (!install.isDesktopApp && !install.isInstalled() && !install.isDismissed()) {
       <div class="install-banner" role="banner" aria-label="Install DeepWork as an app">
         <div class="banner-content">
           <svg class="banner-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
