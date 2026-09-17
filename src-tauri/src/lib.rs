@@ -1,9 +1,20 @@
+mod autostart;
+
 use tauri_plugin_sql::{Migration, MigrationKind};
 use tauri::{
     menu::{CheckMenuItem, Menu, MenuItem, PredefinedMenuItem, Submenu},
     tray::TrayIconBuilder,
-    Emitter, Manager, WebviewWindow, WindowEvent,
+    AppHandle, Emitter, Manager, WebviewWindow, WindowEvent, Wry,
 };
+
+/// Checkable tray items that must mirror the app's desktop preferences.
+///
+/// Both are managed as Tauri state so the `*_set_*` commands can keep the tray
+/// menu tick marks in sync when the user flips a switch inside the app.
+struct TrayPrefs {
+    start_with_system: CheckMenuItem<Wry>,
+    always_on_top: CheckMenuItem<Wry>,
+}
 
 /// Restores the main window: un-minimizes, shows, and focuses it.
 /// `window.show()` alone does NOT un-minimize on Windows.
@@ -11,6 +22,55 @@ fn restore(window: &WebviewWindow) {
     let _ = window.unminimize();
     let _ = window.show();
     let _ = window.set_focus();
+}
+
+/// Tick the tray checkboxes to match the real OS/window state.
+fn sync_tray_prefs(app: &AppHandle, window: Option<&WebviewWindow>) {
+    if let Some(prefs) = app.try_state::<TrayPrefs>() {
+        let _ = prefs.start_with_system.set_checked(autostart::is_enabled());
+        if let Some(w) = window {
+            let on_top = w.is_always_on_top().unwrap_or(false);
+            let _ = prefs.always_on_top.set_checked(on_top);
+        }
+    }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Commands exposed to the Angular layer
+// ─────────────────────────────────────────────────────────────────────────────
+
+/// Reads the real "start with the system" state from the OS.
+///
+/// The OS is the source of truth: the Windows installer can enable startup
+/// before the app ever runs, and a user can remove the entry by hand.
+#[tauri::command]
+fn autostart_is_enabled() -> bool {
+    autostart::is_enabled()
+}
+
+#[tauri::command]
+fn autostart_set_enabled(app: AppHandle, enabled: bool) -> Result<(), String> {
+    autostart::set_enabled(enabled)?;
+    sync_tray_prefs(&app, app.get_webview_window("main").as_ref());
+    Ok(())
+}
+
+#[tauri::command]
+fn window_set_always_on_top(
+    app: AppHandle,
+    window: WebviewWindow,
+    enabled: bool,
+) -> Result<(), String> {
+    window
+        .set_always_on_top(enabled)
+        .map_err(|err| format!("Cannot change always-on-top: {err}"))?;
+    sync_tray_prefs(&app, Some(&window));
+    Ok(())
+}
+
+#[tauri::command]
+fn window_is_always_on_top(window: WebviewWindow) -> bool {
+    window.is_always_on_top().unwrap_or(false)
 }
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
@@ -40,6 +100,12 @@ pub fn run() {
             sql: include_str!("../migrations/004_add_calendar_reminders.sql"),
             kind: MigrationKind::Up,
         },
+        Migration {
+            version: 5,
+            description: "add desktop preference settings",
+            sql: include_str!("../migrations/005_add_desktop_prefs.sql"),
+            kind: MigrationKind::Up,
+        },
     ];
 
     tauri::Builder::default()
@@ -54,15 +120,47 @@ pub fn run() {
                 restore(&window);
             }
         }))
+        .invoke_handler(tauri::generate_handler![
+            autostart_is_enabled,
+            autostart_set_enabled,
+            window_set_always_on_top,
+            window_is_always_on_top,
+        ])
         .setup(|app| {
-            // Make sure the main window is visible and focused on launch.
+            // A login-launched copy waits in the system tray instead of covering
+            // whatever the user is doing. Everything else opens normally.
             if let Some(window) = app.get_webview_window("main") {
-                restore(&window);
+                if autostart::launched_at_login() {
+                    let _ = window.hide();
+                } else {
+                    restore(&window);
+                }
             }
+
+            // Keep the stored startup path valid across reinstalls/moves.
+            autostart::refresh_if_enabled();
 
             // System tray
             let show_i = MenuItem::with_id(app, "show", "Show", true, None::<&str>)?;
             let mute_i = CheckMenuItem::with_id(app, "mute", "Mute Reminder Sound", true, false, None::<&str>)?;
+            let start_with_system_i = CheckMenuItem::with_id(
+                app,
+                "start_with_system",
+                "Start with system",
+                true,
+                autostart::is_enabled(),
+                None::<&str>,
+            )?;
+            let always_on_top_i = CheckMenuItem::with_id(
+                app,
+                "always_on_top",
+                "Always on top",
+                true,
+                app.get_webview_window("main")
+                    .and_then(|w| w.is_always_on_top().ok())
+                    .unwrap_or(false),
+                None::<&str>,
+            )?;
             let pause_i = MenuItem::with_id(app, "pause", "Pause", true, None::<&str>)?;
             let pause5_i = MenuItem::with_id(app, "pause5", "Pause for 5 min", true, None::<&str>)?;
             let pause10_i = MenuItem::with_id(app, "pause10", "Pause for 10 min", true, None::<&str>)?;
@@ -80,6 +178,7 @@ pub fn run() {
 
             let separator1 = PredefinedMenuItem::separator(app)?;
             let separator2 = PredefinedMenuItem::separator(app)?;
+            let separator3 = PredefinedMenuItem::separator(app)?;
 
             let menu = Menu::new(app)?;
             menu.append(&show_i)?;
@@ -87,7 +186,17 @@ pub fn run() {
             menu.append(&mute_i)?;
             menu.append(&pause_menu)?;
             menu.append(&separator2)?;
+            menu.append(&start_with_system_i)?;
+            menu.append(&always_on_top_i)?;
+            menu.append(&separator3)?;
             menu.append(&exit_i)?;
+
+            // Hand the checkable items to the commands so in-app switches and the
+            // tray menu can never disagree.
+            app.manage(TrayPrefs {
+                start_with_system: start_with_system_i.clone(),
+                always_on_top: always_on_top_i.clone(),
+            });
 
             let _tray = {
                 let mut builder = TrayIconBuilder::new()
@@ -114,6 +223,33 @@ pub fn run() {
                             "mute" => {
                                 let muted = mute_i.is_checked().unwrap_or(false);
                                 emit(if muted { "mute:true" } else { "mute:false" });
+                            }
+                            "start_with_system" => {
+                                // Flip the real OS state, then tell the app so it
+                                // can persist the preference.
+                                let next = !autostart::is_enabled();
+                                match autostart::set_enabled(next) {
+                                    Ok(()) => {
+                                        start_with_system_i.set_checked(next).ok();
+                                        emit(if next { "autostart:on" } else { "autostart:off" });
+                                    }
+                                    Err(err) => {
+                                        log::warn!("autostart toggle failed: {err}");
+                                        // Put the tick back where reality is.
+                                        start_with_system_i
+                                            .set_checked(autostart::is_enabled())
+                                            .ok();
+                                    }
+                                }
+                            }
+                            "always_on_top" => {
+                                if let Some(w) = &window {
+                                    let next = !w.is_always_on_top().unwrap_or(false);
+                                    if w.set_always_on_top(next).is_ok() {
+                                        always_on_top_i.set_checked(next).ok();
+                                        emit(if next { "aot:on" } else { "aot:off" });
+                                    }
+                                }
                             }
                             "pause" => emit("pause"),
                             "pause5" => emit("pause:5"),

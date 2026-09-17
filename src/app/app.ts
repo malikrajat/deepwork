@@ -3,6 +3,7 @@ import { Router, RouterOutlet } from '@angular/router';
 import { SidebarComponent } from './shared/components/sidebar/sidebar.component';
 import { ToastComponent } from './shared/components/toast/toast.component';
 import { InstallBannerComponent } from './shared/components/install-banner/install-banner.component';
+import { WelcomePrefsDialogComponent } from './shared/components/welcome-prefs-dialog/welcome-prefs-dialog.component';
 import { TimerService } from './core/services/timer.service';
 import { UiService } from './core/services/ui.service';
 import { SettingsService } from './core/services/settings.service';
@@ -12,7 +13,7 @@ const PAGE_ROUTES = ['', 'tasks', 'matrix', 'calendar', 'today', 'analytics', 'h
 
 @Component({
   selector: 'app-root',
-  imports: [RouterOutlet, SidebarComponent, ToastComponent, InstallBannerComponent],
+  imports: [RouterOutlet, SidebarComponent, ToastComponent, InstallBannerComponent, WelcomePrefsDialogComponent],
   templateUrl: './app.html',
   styleUrl: './app.css',
   changeDetection: ChangeDetectionStrategy.OnPush,

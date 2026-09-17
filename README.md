@@ -14,6 +14,70 @@ A secure, lightweight, cross-platform Pomodoro & Task Management desktop app bui
 - Glassmorphism dark UI
 - SQLite local database (no cloud, no accounts)
 - OS-native notifications with repeat until dismissed
+- Desktop options: start with the system, always on top, and a draggable always-on-top mini widget
+
+---
+
+## Desktop behaviour: startup, always on top, and the mini widget
+
+Two optional settings control how DeepWork sits on your desktop. Both are **off by
+default** — nothing changes until you ask for it.
+
+| Option | What it does |
+|--------|--------------|
+| **Start with system** | DeepWork launches when you sign in and waits quietly in the system tray, instead of opening a window over your desktop. |
+| **Always on top** | Keeps the main window above every other window, so the timer stays visible while you work in other apps. |
+
+### Where to change them
+
+Every surface stays in sync, so you can flip either option from wherever you
+happen to be:
+
+1. **System tray menu** — *Start with system* / *Always on top* (tick marks mirror the real state)
+2. **Settings → Desktop Behaviour**
+3. **Dashboard → Desktop Behaviour** card at the bottom of the page
+
+Both toggles carry an **ⓘ info button** that explains the option in plain language —
+what "always on top" means, and what a startup entry will actually do.
+
+### The mini widget
+
+Minimising from the **clock card** shrinks DeepWork into a small floating widget.
+It always stays above your other windows, you can drag it anywhere on your desktop
+with the mouse, and clicking the expand arrow (or pressing `Esc`) restores the full
+window to its original size and position.
+
+> This is different from **system minimise**, which sends the app to the system tray
+> as before. The tooltip on the clock card's minimise button, the footer of the
+> Desktop Behaviour card and the first-run dialog all explain the difference.
+
+### Asking at install time
+
+The **Windows installer** asks whether DeepWork should start with Windows, right
+after the files are copied (see `src-tauri/nsis/hooks.nsh`). If you accept, it
+writes the same per-user entry the app manages itself:
+
+```
+HKCU\Software\Microsoft\Windows\CurrentVersion\Run\DeepWork
+  = "<install dir>\deepwork.exe" --autostart
+```
+
+Tauri's uninstaller already deletes that value, so uninstalling never leaves a
+startup entry behind. Silent (`/S`) and passive installs skip the prompt and leave
+startup off.
+
+macOS `.dmg`/`.app` and Linux `.deb`/`.AppImage` installers have no standard place
+to show a checkbox, so on those platforms the same choice is offered by a
+**one-time dialog on first launch** — and afterwards in Settings, the dashboard and
+the tray. Where the entry lives per platform:
+
+| Platform | Mechanism |
+|----------|-----------|
+| Windows | `HKCU\Software\Microsoft\Windows\CurrentVersion\Run` |
+| Linux | `~/.config/autostart/com.deepwork.app.desktop` (XDG autostart) |
+| macOS | `~/Library/LaunchAgents/com.deepwork.app.plist` (LaunchAgent) |
+
+A login-launched copy starts hidden in the system tray rather than opening a window.
 
 ---
 

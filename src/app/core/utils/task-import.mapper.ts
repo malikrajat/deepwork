@@ -8,7 +8,12 @@
  */
 
 import { PRIORITY_CONFIG, STATUS_CONFIG } from '../constants/theme.constants';
-import { TaskQuadrant, TaskStatus } from '../models/task.model';
+import {
+  TASK_DESCRIPTION_MAX_LENGTH,
+  TASK_TITLE_MAX_LENGTH,
+  TaskQuadrant,
+  TaskStatus,
+} from '../models/task.model';
 import {
   ImportCell,
   ImportColumnMapping,
@@ -658,7 +663,7 @@ export function parseImportRows(
     const repeatDays = parseRepeatDays(cellText(row, columns.get('repeatDays')));
     const repeatDayValues = repeatDays.value ?? [];
     const addToToday = parseAddToToday(cellText(row, columns.get('addToToday')));
-    const description = cellText(row, columns.get('description')).slice(0, 2000);
+    const description = cellText(row, columns.get('description')).slice(0, TASK_DESCRIPTION_MAX_LENGTH);
     const tags = parseTags(cellText(row, columns.get('tags')));
     const title = cellText(row, columns.get('title'));
 
@@ -673,8 +678,8 @@ export function parseImportRows(
 
     rowsExamined++;
 
-    if (title.length > 200) {
-      errors.push('Title is longer than 200 characters');
+    if (title.length > TASK_TITLE_MAX_LENGTH) {
+      errors.push(`Title is longer than ${TASK_TITLE_MAX_LENGTH} characters`);
     }
 
     if (priority.error) errors.push(priority.error);

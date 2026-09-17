@@ -22,6 +22,7 @@ Central reference for all guidance files in this repository.
 | Folder | Purpose |
 |--------|---------|
 | `specs/001-create-deepwork/` | Feature spec, plan, and tasks for initial build |
+| `specs/002-desktop-preferences/` | Start with system, always on top, and the mini widget |
 
 ---
 

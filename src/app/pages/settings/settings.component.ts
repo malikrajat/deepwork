@@ -4,13 +4,15 @@ import { DbService } from '../../core/services/db.service';
 import { SettingsService } from '../../core/services/settings.service';
 import { ThemeService } from '../../core/services/theme.service';
 import { InstallService } from '../../core/services/install.service';
+import { CalendarReminderService } from '../../core/services/calendar-reminder.service';
 import { NotificationSound, ThemePreference } from '../../core/models/settings.model';
 import { NotificationService } from '../../core/services/notification.service';
+import { DesktopPrefsPanelComponent } from '../../shared/components/desktop-prefs-panel/desktop-prefs-panel.component';
 import { SettingsFormModel, createSettingsFormDefaults } from '../../shared/models/form.models';
 
 @Component({
   selector: 'app-settings',
-  imports: [FormField],
+  imports: [FormField, DesktopPrefsPanelComponent],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <div class="page-header animate-fade-in">
@@ -79,6 +81,25 @@ import { SettingsFormModel, createSettingsFormDefaults } from '../../shared/mode
             <span class="range-value">{{ settingsModel().notificationRepeatInterval }} sec</span>
           </div>
         </div>
+        <div class="setting-item">
+          <span>
+            Calendar reminders
+            <small class="setting-note">Nudge 5 minutes before a scheduled task starts and before it ends</small>
+          </span>
+          <div class="toggle-control">
+            <button
+              type="button"
+              class="switch"
+              role="switch"
+              [attr.aria-checked]="settingsModel().calendarReminders"
+              [class.on]="settingsModel().calendarReminders"
+              (click)="toggleCalendarReminders()"
+            >
+              <span class="knob"></span>
+            </button>
+            <button type="button" class="action-btn preview-btn" (click)="previewCalendarReminder()">Test</button>
+          </div>
+        </div>
       </div>
 
       <!-- Appearance -->
@@ -104,7 +125,7 @@ import { SettingsFormModel, createSettingsFormDefaults } from '../../shared/mode
             </button>
           </div>
         }
-        @if (!installService.canInstall() && !installService.isInstalled()) {
+        @if (!installService.isDesktopApp && !installService.canInstall() && !installService.isInstalled()) {
           <div class="setting-item install-hint-item">
             <span>Install as desktop app</span>
             <span class="install-hint">
@@ -124,6 +145,11 @@ import { SettingsFormModel, createSettingsFormDefaults } from '../../shared/mode
           </div>
         }
       </div>
+      <!-- Desktop behaviour: start with system + always on top -->
+      <div class="setting-group">
+        <app-desktop-prefs-panel title="Desktop Behaviour" />
+      </div>
+
       <div class="setting-group">
         <div class="group-header">
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7,10 12,15 17,10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
@@ -183,6 +209,19 @@ import { SettingsFormModel, createSettingsFormDefaults } from '../../shared/mode
 
     .range-control { display: flex; align-items: center; gap: 10px; }
     .sound-control { display: flex; align-items: center; gap: 8px; }
+    .toggle-control { display: flex; align-items: center; gap: 8px; }
+    .setting-note { display: block; font-size: 0.65rem; color: var(--color-text-muted); margin-top: 2px; }
+    .switch {
+      width: 42px; height: 22px; border-radius: 999px; cursor: pointer; padding: 0;
+      background: rgba(255, 255, 255, 0.1); border: 1px solid var(--glass-border);
+      position: relative; transition: background 0.2s, border-color 0.2s;
+    }
+    .switch .knob {
+      position: absolute; top: 2px; left: 2px; width: 16px; height: 16px; border-radius: 50%;
+      background: var(--color-text-muted); transition: transform 0.2s, background 0.2s;
+    }
+    .switch.on { background: rgba(139, 92, 246, 0.35); border-color: rgba(139, 92, 246, 0.6); }
+    .switch.on .knob { transform: translateX(20px); background: #ede9fe; }
     .range-value {
       font-weight: 600; color: var(--color-text-primary); min-width: 52px; text-align: right;
       padding: 4px 10px; background: rgba(139,92,246,0.08); border-radius: 6px; font-size: 0.8rem;
@@ -250,6 +289,7 @@ export class SettingsComponent implements OnInit {
   private readonly db = inject(DbService);
   private readonly theme = inject(ThemeService);
   private readonly notifications = inject(NotificationService);
+  private readonly reminders = inject(CalendarReminderService);
 
   readonly activeTheme = signal<ThemePreference>('system');
   readonly settingsModel = signal<SettingsFormModel>(createSettingsFormDefaults());
@@ -284,9 +324,20 @@ export class SettingsComponent implements OnInit {
       sessionsBeforeLongBreak: s.sessionsBeforeLongBreak,
       notificationSound: s.notificationSound,
       notificationRepeatInterval: s.notificationRepeatInterval,
+      calendarReminders: s.calendarReminders,
       trayBehavior: s.trayBehavior,
       theme: s.theme,
     });
+  }
+
+  async toggleCalendarReminders(): Promise<void> {
+    const next = !this.settingsModel().calendarReminders;
+    this.settingsModel.update(model => ({ ...model, calendarReminders: next }));
+    await this.settingsService.updateField('calendarReminders', next);
+  }
+
+  async previewCalendarReminder(): Promise<void> {
+    await this.reminders.preview();
   }
 
   async setTheme(theme: ThemePreference): Promise<void> {
@@ -347,6 +398,7 @@ export class SettingsComponent implements OnInit {
         sessionsBeforeLongBreak: s.sessionsBeforeLongBreak,
         notificationSound: s.notificationSound,
         notificationRepeatInterval: s.notificationRepeatInterval,
+        calendarReminders: s.calendarReminders,
         theme: s.theme,
         trayBehavior: s.trayBehavior,
       });

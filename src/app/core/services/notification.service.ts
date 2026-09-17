@@ -97,6 +97,16 @@ export class NotificationService implements OnDestroy {
     this.showToast(title, body, type);
   }
 
+  /**
+   * One-off reminder — OS notification plus toast, no repeat loop.
+   * Used by the calendar for "starts in 5 minutes" / "ends in 5 minutes".
+   */
+  async fireReminder(title: string, body: string, type: TimerType = 'work'): Promise<void> {
+    await this.sendNotification(title, body);
+    this.playSound();
+    this.showToast(title, body, type);
+  }
+
   /** Plays the chosen sound from a user interaction without changing settings. */
   previewSound(sound: NotificationSound): void {
     this.playSound(sound, true);

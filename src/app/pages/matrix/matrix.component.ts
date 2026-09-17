@@ -13,6 +13,7 @@ import { CdkDragDrop, DragDropModule } from '@angular/cdk/drag-drop';
 import { RouterLink } from '@angular/router';
 import { TaskService } from '../../core/services/task.service';
 import { DbService } from '../../core/services/db.service';
+import { ScheduleService, dayKey } from '../../core/services/schedule.service';
 import { Task, TaskQuadrant } from '../../core/models/task.model';
 import { QUADRANT_CONFIG } from '../../core/constants/theme.constants';
 import { TooltipDirective } from '../../shared/directives/tooltip.directive';
@@ -54,6 +55,9 @@ const QUADRANT_IDS: readonly TaskQuadrant[] = ['urgent-important', 'important', 
         <button class="guide-toggle" type="button" (click)="guideOpen.set(!guideOpen())" [attr.aria-expanded]="guideOpen()">
           {{ guideOpen() ? 'Hide guide' : 'How does this work?' }}
         </button>
+        <a class="guide-toggle" routerLink="/calendar" appTooltip="See these tasks mapped onto a pomodoro timeline">
+          Open calendar
+        </a>
       </div>
     </div>
 
@@ -76,7 +80,11 @@ const QUADRANT_IDS: readonly TaskQuadrant[] = ['urgent-important', 'important', 
           <div><strong>Eliminate</strong> — neither urgent nor important. Question whether these need doing at all.</div>
         </div>
         <p class="guide-hint">
-          Drag a card between columns, or use the <strong>Move</strong> menu on a card if you'd rather not drag.
+          Drag a card between columns — or focus a card and press <strong>1</strong> (Do First),
+          <strong>2</strong> (Schedule), <strong>3</strong> (Delegate), <strong>4</strong> (Eliminate) or
+          <strong>0</strong> (Unassigned); <strong>Enter</strong> marks it complete.
+          The order of the cards is the order the <strong>Calendar</strong> schedules them in — put a task at the
+          top of a quadrant and it runs first, with pomodoro breaks reserved between blocks.
           Drag the <strong>divider</strong> beside the task list to widen it (double-click resets, arrow keys work
           too), and use the <strong>chevrons</strong> to collapse a quadrant or the task list.
         </p>
@@ -131,23 +139,25 @@ const QUADRANT_IDS: readonly TaskQuadrant[] = ['urgent-important', 'important', 
                   <div class="empty-text">Collapsed · drop a task here</div>
                 } @else {
                   @for (task of getQuadrantTasks(q.id); track task.id) {
-                    <div class="matrix-card" cdkDrag [cdkDragData]="task">
-                      <button class="card-check" type="button" (click)="toggleDone(task)" appTooltip="Mark complete">
+                    <div
+                      class="matrix-card"
+                      cdkDrag
+                      [cdkDragData]="task"
+                      tabindex="0"
+                      [attr.aria-label]="task.title + ' — press 1 to 4 to move it, Enter to complete'"
+                      [appTooltip]="task.title + '\n\nDrag to another quadrant · or press 1–4 / 0 · Enter completes'"
+                      (keydown)="onCardKeydown(task, $event)"
+                    >
+                      <button class="card-check" type="button" (click)="toggleDone(task)" aria-label="Mark complete">
                         <span class="check-circle"></span>
                       </button>
                       <div class="card-body">
-                        <span class="card-title" [title]="task.title">{{ task.title }}</span>
+                        <span class="card-title">{{ task.title }}</span>
                         @if (task.deadline) {
                           <span class="card-deadline">Due {{ formatDeadline(task.deadline) }}</span>
                         }
                       </div>
                       <span class="card-priority" [style.background]="'var(--priority-p' + task.priority + '-color)'" appTooltip="Priority {{ task.priority }}"></span>
-                      <select class="card-move" [value]="task.quadrant ?? ''" (click)="$event.stopPropagation()" (change)="onMoveSelect(task, $event)" aria-label="Move task to quadrant">
-                        <option value="">Unassigned</option>
-                        @for (opt of quadrants; track opt.id) {
-                          <option [value]="opt.id">{{ opt.label }}</option>
-                        }
-                      </select>
                     </div>
                   }
                   @if (getQuadrantTasks(q.id).length === 0) {
@@ -216,23 +226,25 @@ const QUADRANT_IDS: readonly TaskQuadrant[] = ['urgent-important', 'important', 
               <span class="rail-label">Drop here</span>
             } @else {
               @for (task of taskService.getUnassignedTasks(); track task.id) {
-                <div class="matrix-card" cdkDrag [cdkDragData]="task">
-                  <button class="card-check" type="button" (click)="toggleDone(task)" appTooltip="Mark complete">
+                <div
+                  class="matrix-card"
+                  cdkDrag
+                  [cdkDragData]="task"
+                  tabindex="0"
+                  [attr.aria-label]="task.title + ' — press 1 to 4 to prioritise it'"
+                  [appTooltip]="task.title + '\n\nDrag into a quadrant · or press 1–4 with the card focused'"
+                  (keydown)="onCardKeydown(task, $event)"
+                >
+                  <button class="card-check" type="button" (click)="toggleDone(task)" aria-label="Mark complete">
                     <span class="check-circle"></span>
                   </button>
                   <div class="card-body">
-                    <span class="card-title" [title]="task.title">{{ task.title }}</span>
+                    <span class="card-title">{{ task.title }}</span>
                     @if (task.deadline) {
                       <span class="card-deadline">Due {{ formatDeadline(task.deadline) }}</span>
                     }
                   </div>
                   <span class="card-priority" [style.background]="'var(--priority-p' + task.priority + '-color)'" appTooltip="Priority {{ task.priority }}"></span>
-                  <select class="card-move" [value]="''" (click)="$event.stopPropagation()" (change)="onMoveSelect(task, $event)" aria-label="Move task to quadrant">
-                    <option value="">Unassigned</option>
-                    @for (opt of quadrants; track opt.id) {
-                      <option [value]="opt.id">{{ opt.label }}</option>
-                    }
-                  </select>
                 </div>
               }
               @if (taskService.getUnassignedTasks().length === 0) {
@@ -339,7 +351,10 @@ const QUADRANT_IDS: readonly TaskQuadrant[] = ['urgent-important', 'important', 
       cursor: grab;
     }
     .matrix-card:hover { background: rgba(139,92,246,0.06); border-color: rgba(139,92,246,0.2); }
-    .matrix-card:hover .card-move { opacity: 1; }
+    .matrix-card:focus-visible {
+      outline: 2px solid rgba(139, 92, 246, 0.7);
+      outline-offset: 1px;
+    }
     .matrix-card:active { cursor: grabbing; }
     .cdk-drag-preview {
       background: var(--surface-float); backdrop-filter: blur(12px);
@@ -370,10 +385,6 @@ const QUADRANT_IDS: readonly TaskQuadrant[] = ['urgent-important', 'important', 
       overflow: hidden; overflow-wrap: anywhere;
     }
     .card-deadline { font-size: 0.62rem; color: var(--color-text-muted); }
-    .card-move {
-      opacity: 0; font-size: 0.62rem; padding: 2px 4px; flex-shrink: 0;
-      border-radius: 6px; border: 1px solid rgba(139,92,246,0.15); background: var(--control-bg); color: var(--color-text-muted); cursor: pointer;
-    }
 
     .empty-hint {
       flex: 1; display: flex; align-items: center; justify-content: center;
@@ -444,6 +455,7 @@ const QUADRANT_IDS: readonly TaskQuadrant[] = ['urgent-important', 'important', 
 })
 export class MatrixComponent implements OnInit {
   taskService = inject(TaskService);
+  private readonly schedule = inject(ScheduleService);
   private readonly db = inject(DbService);
 
   private readonly wrapperRef = viewChild<ElementRef<HTMLElement>>('wrapper');
@@ -477,7 +489,7 @@ export class MatrixComponent implements OnInit {
   totalTodayTasks = computed(() => this.assignedCount() + this.taskService.getUnassignedTasks().length);
 
   assignedCount = computed(() =>
-    QUADRANT_IDS.reduce((sum, q) => sum + this.taskService.getTasksByQuadrant(q).length, 0)
+    QUADRANT_IDS.reduce((sum, q) => sum + this.getQuadrantTasks(q).length, 0)
   );
 
   totalOverallTasks = computed(() => this.totalTodayTasks());
@@ -505,31 +517,58 @@ export class MatrixComponent implements OnInit {
 
   private async initAsync(): Promise<void> {
     await this.db.init();
+    await this.schedule.load();
     await this.taskService.loadTasks();
     await this.taskService.dailyReset();
     await this.taskService.generateRecurringInstances();
   }
 
   getQuadrantTasks(quadrant: TaskQuadrant): Task[] {
-    return this.taskService.getTasksByQuadrant(quadrant);
+    return this.schedule.tasksInQuadrant(quadrant);
   }
 
+  /** Drop, or the 1–4 / 0 shortcuts, are the only ways to re-prioritise. */
+  async onCardKeydown(task: Task, event: KeyboardEvent): Promise<void> {
+    const targets: Record<string, TaskQuadrant | null> = {
+      '1': 'urgent-important',
+      '2': 'important',
+      '3': 'urgent',
+      '4': 'neither',
+      '0': null,
+    };
+
+    if (event.key in targets) {
+      event.preventDefault();
+      await this.moveTask(task, targets[event.key]);
+      return;
+    }
+
+    if (event.key === 'Enter' || event.key === ' ') {
+      event.preventDefault();
+      await this.taskService.toggleStatus(task);
+    }
+  }
+
+  private async moveTask(task: Task, quadrant: TaskQuadrant | null): Promise<void> {
+    if (quadrant === null) {
+      await this.schedule.moveTaskToQuadrant(task.id, null, 0, dayKey());
+      return;
+    }
+    const index = this.getQuadrantTasks(quadrant).filter(item => item.id !== task.id).length;
+    await this.schedule.moveTaskToQuadrant(task.id, quadrant, index, dayKey());
+  }
+
+  /**
+   * Dropping a card re-sequences the quadrant, and because the calendar reads
+   * the same queue the timeline updates with it.
+   */
   async onDrop(event: CdkDragDrop<any>): Promise<void> {
     const task: Task = event.item.data;
     const targetQuadrant = event.container.data as string;
-    const newQuadrant: TaskQuadrant | null = targetQuadrant === 'unassigned' ? null : targetQuadrant as TaskQuadrant;
+    const newQuadrant: TaskQuadrant | null =
+      targetQuadrant === 'unassigned' ? null : (targetQuadrant as TaskQuadrant);
 
-    if (task.quadrant !== newQuadrant) {
-      await this.taskService.setQuadrant(task.id, newQuadrant);
-    }
-  }
-
-  async onMoveSelect(task: Task, event: Event): Promise<void> {
-    const value = (event.target as HTMLSelectElement).value;
-    const newQuadrant: TaskQuadrant | null = value === '' ? null : value as TaskQuadrant;
-    if (task.quadrant !== newQuadrant) {
-      await this.taskService.setQuadrant(task.id, newQuadrant);
-    }
+    await this.schedule.moveTaskToQuadrant(task.id, newQuadrant, event.currentIndex, dayKey());
   }
 
   async toggleDone(task: Task): Promise<void> {

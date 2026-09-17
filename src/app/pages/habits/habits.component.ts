@@ -1,9 +1,10 @@
-import { Component, inject, signal, computed, OnInit, ChangeDetectionStrategy } from '@angular/core';
-import { form, FormField, required, validate, maxLength, submit } from '@angular/forms/signals';
+import { ChangeDetectionStrategy, Component, OnInit, computed, inject, signal } from '@angular/core';
+import { form, FormField, submit } from '@angular/forms/signals';
 import { DbService } from '../../core/services/db.service';
 import { FormFieldWrapperComponent } from '../../shared/components/form-field/form-field-wrapper.component';
+import { TooltipDirective } from '../../shared/directives/tooltip.directive';
 import { HabitFormModel, createHabitFormDefaults } from '../../shared/models/form.models';
-import { noXss, trimmedRequired } from '../../shared/validators/form-validators';
+import { buildHabitStats, dayOfIso, localDay } from '../../core/utils/insights.util';
 
 interface Habit {
   id: string;
@@ -19,14 +20,39 @@ interface HabitEntry {
   completedAt: string;
 }
 
+const WINDOW_DAYS = 30;
+
+/**
+ * Habits with the numbers that actually move behaviour: a 30-day consistency
+ * rate, the current streak, the personal best, and the check-in strip that
+ * shows exactly which days were missed.
+ */
 @Component({
   selector: 'app-habits',
-  imports: [FormField, FormFieldWrapperComponent],
+  imports: [FormField, FormFieldWrapperComponent, TooltipDirective],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <div class="page-header animate-fade-in">
-      <h1 class="gradient-text page-title">Habits</h1>
-      <p class="page-subtitle">Build consistency, one day at a time</p>
+      <div>
+        <h1 class="gradient-text page-title">Habits</h1>
+        <p class="page-subtitle">Build consistency, one day at a time</p>
+      </div>
+      @if (summary().tracked) {
+        <div class="header-stats">
+          <div class="stat-pill" appTooltip="Average of every habit's completion rate over the last 30 days">
+            <span class="stat-value">{{ summary().average }}%</span>
+            <span class="stat-label">30-day consistency</span>
+          </div>
+          <div class="stat-pill" appTooltip="Your longest running check-in streak right now">
+            <span class="stat-value">{{ summary().bestStreak }}d</span>
+            <span class="stat-label">best active streak</span>
+          </div>
+          <div class="stat-pill" appTooltip="Check-ins recorded in the last 30 days across all habits">
+            <span class="stat-value">{{ summary().checkIns }}</span>
+            <span class="stat-label">check-ins · 30d</span>
+          </div>
+        </div>
+      }
     </div>
 
     <!-- Add Habit Form -->
@@ -40,29 +66,42 @@ interface HabitEntry {
       <button class="btn btn-primary btn-sm" (click)="addHabit()" [disabled]="habitForm().invalid()">Add</button>
     </div>
 
+    @if (summary().tracked) {
+      <p class="reading animate-fade-in-delay-1">{{ summary().reading }}</p>
+    }
+
     <!-- Habits Grid -->
-    @if (habits().length > 0) {
+    @if (cards().length > 0) {
       <div class="habits-grid animate-fade-in-delay-1">
-        @for (habit of habitsWithStats(); track habit.id) {
-          <div class="habit-card" [class.done-today]="habit.doneToday">
+        @for (habit of cards(); track habit.id) {
+          <div class="habit-card" [class.done-today]="habit.doneToday" [class.slipping]="habit.stat.completionPercent < 40">
             <div class="habit-header">
               <span class="habit-icon">{{ habit.icon }}</span>
-              <button class="delete-btn" (click)="deleteHabit(habit.id)">×</button>
+              <span class="consistency-badge" [class.good]="habit.stat.completionPercent >= 70" [class.mid]="habit.stat.completionPercent >= 40 && habit.stat.completionPercent < 70">
+                {{ habit.stat.completionPercent }}%
+              </span>
+              <button class="delete-btn" (click)="deleteHabit(habit.id)" aria-label="Delete habit">×</button>
             </div>
-            <div class="habit-name">{{ habit.name }}</div>
-            <div class="habit-streak">
+            <div class="habit-name" [appTooltip]="habit.name">{{ habit.name }}</div>
+
+            <div class="streak-row">
               <span class="streak-fire">🔥</span>
-              <span class="streak-count">{{ habit.streak }}</span>
+              <span class="streak-count">{{ habit.stat.currentStreak }}</span>
+              <span class="streak-label">day streak</span>
+              <span class="best-streak" appTooltip="Your longest run for this habit">best {{ habit.stat.bestStreak }}d</span>
             </div>
+
             <button class="check-btn" [class.checked]="habit.doneToday" (click)="toggleToday(habit)">
-              {{ habit.doneToday ? '✓' : 'Check in' }}
+              {{ habit.doneToday ? '✓ Done today' : 'Check in' }}
             </button>
-            <!-- Mini calendar (last 7 days) -->
-            <div class="mini-cal">
-              @for (d of habit.lastWeek; track d.date) {
-                <span class="cal-dot" [class.filled]="d.done"></span>
+
+            <div class="strip" [appTooltip]="'Last ' + windowDays + ' days · ' + habit.stat.days.filter(truthy).length + ' completed'">
+              @for (done of habit.stat.days; track $index) {
+                <span class="strip-dot" [class.done]="done" [class.today]="$index === habit.stat.days.length - 1"></span>
               }
             </div>
+            <div class="strip-labels"><span>30 days ago</span><span>today</span></div>
+            <div class="habit-total">{{ habit.stat.totalCompletions }} check-ins all-time</div>
           </div>
         }
       </div>
@@ -75,80 +114,168 @@ interface HabitEntry {
   `,
   styles: [`
     :host { display: block; }
-    .page-header { margin-bottom: var(--space-xl); }
+    .page-header {
+      margin-bottom: var(--space-lg); display: flex; align-items: flex-start;
+      justify-content: space-between; gap: 16px; flex-wrap: wrap;
+    }
     .page-title { font-size: 1.75rem; font-weight: 800; letter-spacing: -0.5px; }
     .page-subtitle { color: var(--color-text-muted); margin-top: 4px; font-size: 0.85rem; }
-
-    .add-form { display: flex; gap: 8px; margin-bottom: var(--space-xl); }
-    .habit-input {
-      flex: 1; padding: 10px 14px; border-radius: 10px; border: 1px solid rgba(52,211,153,0.2);
-      background: var(--control-bg); color: var(--color-text-primary); font-size: 0.85rem;
+    .header-stats { display: flex; gap: 8px; flex-wrap: wrap; }
+    .stat-pill {
+      display: flex; flex-direction: column; align-items: center; padding: 6px 14px;
+      border-radius: 12px; background: var(--glass-bg); border: 1px solid var(--glass-border);
     }
-    .habit-input:focus { outline: none; border-color: rgba(52,211,153,0.5); }
-    .icon-input { width: 44px; text-align: center; padding: 10px; border-radius: 10px; border: 1px solid rgba(52,211,153,0.2); background: var(--control-bg); color: var(--color-text-primary); font-size: 1rem; }
-    .btn { cursor: pointer; border: none; border-radius: 10px; font-weight: 600; font-size: 0.8rem; transition: all 0.2s; }
-    .btn-primary { padding: 10px 18px; background: linear-gradient(135deg, rgba(52,211,153,0.2), rgba(6,182,212,0.2)); border: 1px solid rgba(52,211,153,0.3); color: var(--color-text-primary); }
-    .btn-primary:hover { transform: translateY(-1px); box-shadow: 0 4px 12px rgba(52,211,153,0.2); }
-    .btn-primary:disabled { opacity: 0.4; cursor: not-allowed; transform: none; }
-    .btn-sm { padding: 10px 16px; }
+    .stat-value { font-size: 0.95rem; font-weight: 800; color: var(--color-text-primary); }
+    .stat-label { font-size: 0.56rem; color: var(--color-text-muted); text-transform: uppercase; letter-spacing: 0.05em; }
 
-    .habits-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 14px; }
+    .add-form {
+      display: flex; align-items: flex-start; gap: 10px; margin-bottom: var(--space-md);
+      padding: var(--space-md); border-radius: 14px;
+      background: var(--glass-bg); border: 1px solid rgba(139,92,246,0.08);
+    }
+    .habit-input { flex: 1; min-width: 180px; }
+    .icon-input { width: 64px; text-align: center; }
+    input {
+      background: var(--control-bg); border: 1px solid rgba(139,92,246,0.12);
+      border-radius: 10px; padding: 9px 12px; color: var(--color-text-primary); font-size: 0.85rem; outline: none;
+    }
+    input:focus { border-color: rgba(139,92,246,0.4); }
+    .btn { padding: 9px 18px; border-radius: 10px; font-size: 0.8rem; font-weight: 600; cursor: pointer; border: none; }
+    .btn-primary { background: linear-gradient(135deg, #8b5cf6, #7c3aed); color: white; }
+    .btn-primary:disabled { opacity: 0.4; cursor: not-allowed; }
+
+    .reading {
+      font-size: 0.74rem; line-height: 1.55; color: var(--color-text-secondary);
+      padding: 10px 14px; border-radius: 12px; margin-bottom: var(--space-md);
+      background: rgba(139,92,246,0.06); border: 1px solid rgba(139,92,246,0.15);
+    }
+
+    .habits-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(268px, 1fr)); gap: var(--space-md); }
     .habit-card {
-      padding: 16px; border-radius: 16px; text-align: center;
-      background: var(--glass-bg); backdrop-filter: blur(12px);
-      border: 1px solid rgba(52,211,153,0.1); transition: all 0.2s;
+      display: flex; flex-direction: column; gap: 8px; padding: var(--space-md);
+      border-radius: 16px; background: var(--glass-bg);
+      border: 1px solid rgba(139,92,246,0.1); transition: border-color 0.2s;
     }
-    .habit-card.done-today { border-color: rgba(52,211,153,0.35); background: rgba(52,211,153,0.03); }
-    .habit-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }
-    .habit-icon { font-size: 1.5rem; }
-    .delete-btn { background: none; border: none; color: var(--color-text-muted); cursor: pointer; font-size: 1.2rem; opacity: 0.4; transition: opacity 0.2s; }
-    .delete-btn:hover { opacity: 1; color: rgb(248,113,113); }
-    .habit-name { font-size: 0.85rem; font-weight: 600; margin-bottom: 8px; }
-    .habit-streak { display: flex; align-items: center; justify-content: center; gap: 4px; margin-bottom: 12px; }
-    .streak-fire { font-size: 0.9rem; }
-    .streak-count { font-size: 1.1rem; font-weight: 800; background: linear-gradient(135deg, #fbbf24, #f59e0b); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+    .habit-card.done-today { border-color: rgba(52,211,153,0.35); }
+    .habit-card.slipping { border-color: rgba(251,191,36,0.25); }
+    .habit-header { display: flex; align-items: center; gap: 8px; }
+    .habit-icon { font-size: 1.25rem; }
+    .consistency-badge {
+      font-size: 0.6rem; font-weight: 700; padding: 2px 8px; border-radius: 999px;
+      background: rgba(248,113,113,0.14); color: #fca5a5;
+    }
+    .consistency-badge.mid { background: rgba(251,191,36,0.14); color: #fbbf24; }
+    .consistency-badge.good { background: rgba(52,211,153,0.14); color: #34d399; }
+    .delete-btn {
+      margin-left: auto; background: none; border: none; color: var(--color-text-muted);
+      font-size: 1.1rem; line-height: 1; cursor: pointer; padding: 0 4px;
+    }
+    .delete-btn:hover { color: #fca5a5; }
+    .habit-name {
+      font-size: 0.9rem; font-weight: 700; color: var(--color-text-primary);
+      overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+    }
+    .streak-row { display: flex; align-items: baseline; gap: 5px; }
+    .streak-fire { font-size: 0.85rem; }
+    .streak-count { font-size: 1.15rem; font-weight: 800; color: var(--color-text-primary); }
+    .streak-label { font-size: 0.6rem; color: var(--color-text-muted); }
+    .best-streak { margin-left: auto; font-size: 0.6rem; color: var(--color-text-muted); }
     .check-btn {
-      width: 100%; padding: 8px; border-radius: 10px; border: 1px solid rgba(52,211,153,0.2);
-      background: rgba(52,211,153,0.05); color: var(--color-text-muted); cursor: pointer;
-      font-size: 0.75rem; font-weight: 500; transition: all 0.2s;
+      padding: 7px; border-radius: 10px; cursor: pointer; font-size: 0.75rem; font-weight: 600;
+      background: rgba(139,92,246,0.14); border: 1px solid rgba(139,92,246,0.3); color: var(--color-text-primary);
+      transition: all 0.2s;
     }
-    .check-btn:hover { border-color: rgba(52,211,153,0.4); background: rgba(52,211,153,0.1); }
-    .check-btn.checked { background: rgba(52,211,153,0.2); border-color: rgba(52,211,153,0.5); color: rgb(52,211,153); font-weight: 700; }
-    .mini-cal { display: flex; gap: 4px; justify-content: center; margin-top: 10px; }
-    .cal-dot { width: 10px; height: 10px; border-radius: 3px; background: rgba(52,211,153,0.08); border: 1px solid rgba(52,211,153,0.1); }
-    .cal-dot.filled { background: rgba(52,211,153,0.5); border-color: rgba(52,211,153,0.6); }
+    .check-btn:hover { background: rgba(139,92,246,0.24); }
+    .check-btn.checked { background: rgba(52,211,153,0.16); border-color: rgba(52,211,153,0.4); color: #6ee7b7; }
+    .strip { display: flex; gap: 2px; flex-wrap: wrap; margin-top: 2px; }
+    .strip-dot { width: 7px; height: 7px; border-radius: 2px; background: rgba(255,255,255,0.07); }
+    .strip-dot.done { background: rgba(139,92,246,0.85); }
+    .strip-dot.today { box-shadow: 0 0 0 1px rgba(255,255,255,0.35); }
+    .strip-labels { display: flex; justify-content: space-between; font-size: 0.54rem; color: var(--color-text-muted); }
+    .habit-total { font-size: 0.6rem; color: var(--color-text-muted); }
 
-    .empty-state { text-align: center; padding: var(--space-3xl); color: var(--color-text-muted); }
-    .empty-title { font-size: 1.1rem; font-weight: 700; margin-bottom: 8px; color: var(--color-text-secondary); }
-    .empty-desc { font-size: 0.85rem; }
-  `]
+    .empty-state {
+      display: flex; flex-direction: column; align-items: center; justify-content: center;
+      gap: 8px; padding: 60px 0; text-align: center;
+    }
+    .empty-title { font-size: 1.1rem; font-weight: 700; color: var(--color-text-secondary); }
+    .empty-desc { font-size: 0.85rem; color: var(--color-text-muted); }
+  `],
 })
 export class HabitsComponent implements OnInit {
-  private db = inject(DbService);
+  private readonly db = inject(DbService);
 
-  habits = signal<Habit[]>([]);
-  entries = signal<HabitEntry[]>([]);
+  readonly habits = signal<Habit[]>([]);
+  readonly entries = signal<HabitEntry[]>([]);
+  protected readonly windowDays = WINDOW_DAYS;
 
   readonly habitFormModel = signal<HabitFormModel>(createHabitFormDefaults());
-  readonly habitForm = form(this.habitFormModel, (s) => {
-    required(s.name, { message: 'Habit name is required' });
-    validate(s.name, trimmedRequired);
-    validate(s.name, noXss);
-    maxLength(s.name, 100, { message: 'Name must be 100 characters or fewer' });
-    maxLength(s.icon, 2, { message: 'Icon must be 1-2 characters' });
+  readonly habitForm = form(this.habitFormModel);
+
+  /** Shared engine, so these numbers match the Analytics page exactly. */
+  private readonly stats = computed(() =>
+    buildHabitStats(this.habits(), this.entries(), new Date(), WINDOW_DAYS)
+  );
+
+  readonly cards = computed(() => {
+    const byId = new Map(this.stats().map(stat => [stat.id, stat]));
+    const todayKey = localDay(new Date());
+    const doneToday = new Set(
+      this.entries()
+        .filter(entry => dayOfIso(entry.completedAt) === todayKey)
+        .map(entry => entry.habitId)
+    );
+    return this.habits().map(habit => ({
+      ...habit,
+      doneToday: doneToday.has(habit.id),
+      stat: byId.get(habit.id) ?? {
+        id: habit.id,
+        name: habit.name,
+        icon: habit.icon,
+        completionPercent: 0,
+        currentStreak: 0,
+        bestStreak: 0,
+        totalCompletions: 0,
+        days: new Array(WINDOW_DAYS).fill(false) as boolean[],
+      },
+    }));
   });
 
-  habitsWithStats = computed(() => {
-    const today = new Date().toISOString().slice(0, 10);
-    const allEntries = this.entries();
-    return this.habits().map(h => {
-      const hEntries = allEntries.filter(e => e.habitId === h.id);
-      const doneToday = hEntries.some(e => e.completedAt.startsWith(today));
-      const streak = this.calcStreak(hEntries);
-      const lastWeek = this.getLastWeek(hEntries);
-      return { ...h, doneToday, streak, lastWeek, todayEntryId: hEntries.find(e => e.completedAt.startsWith(today))?.id ?? null };
-    });
+  readonly summary = computed(() => {
+    const stats = this.stats();
+    if (!stats.length) {
+      return { tracked: 0, average: 0, bestStreak: 0, checkIns: 0, reading: '' };
+    }
+    const average = Math.round(
+      stats.reduce((sum, stat) => sum + stat.completionPercent, 0) / stats.length
+    );
+    const checkIns = stats.reduce(
+      (sum, stat) => sum + stat.days.filter(Boolean).length,
+      0
+    );
+    const bestStreak = Math.max(...stats.map(stat => stat.currentStreak));
+    const strongest = stats[0];
+    const weakest = stats[stats.length - 1];
+
+    const parts = [
+      `You are keeping ${stats.length} habit${stats.length === 1 ? '' : 's'} at ${average}% over the last ${WINDOW_DAYS} days (${checkIns} check-ins).`,
+    ];
+    if (strongest.completionPercent > 0) {
+      parts.push(`${strongest.name} is your anchor habit at ${strongest.completionPercent}%.`);
+    }
+    if (weakest !== strongest && weakest.completionPercent < 50) {
+      parts.push(
+        `${weakest.name} sits at ${weakest.completionPercent}% — shrink the target before you lose the streak.`
+      );
+    }
+    if (bestStreak >= 3) {
+      parts.push(`Longest active streak: ${bestStreak} days.`);
+    }
+    return { tracked: stats.length, average, bestStreak, checkIns, reading: parts.join(' ') };
   });
+
+  /** Used by the template to count completed days in the strip tooltip. */
+  protected readonly truthy = (value: boolean): boolean => value;
 
   async ngOnInit(): Promise<void> {
     await this.db.init();
@@ -185,10 +312,15 @@ export class HabitsComponent implements OnInit {
     await this.loadData();
   }
 
-  async toggleToday(habit: any): Promise<void> {
-    const today = new Date().toISOString().slice(0, 10);
-    if (habit.doneToday && habit.todayEntryId) {
-      await this.db.removeHabitEntry(habit.todayEntryId);
+  /** Check-in is keyed on the local day, matching the 30-day strip. */
+  async toggleToday(habit: { id: string; doneToday: boolean }): Promise<void> {
+    const todayKey = localDay(new Date());
+    const existing = this.entries().find(
+      entry => entry.habitId === habit.id && dayOfIso(entry.completedAt) === todayKey
+    );
+
+    if (existing) {
+      await this.db.removeHabitEntry(existing.id);
     } else {
       await this.db.addHabitEntry({
         id: crypto.randomUUID(),
@@ -197,31 +329,5 @@ export class HabitsComponent implements OnInit {
       });
     }
     await this.loadData();
-  }
-
-  private calcStreak(entries: HabitEntry[]): number {
-    const days = new Set(entries.map(e => e.completedAt.slice(0, 10)));
-    let streak = 0;
-    const today = new Date();
-    for (let i = 0; i < 365; i++) {
-      const d = new Date(today);
-      d.setDate(d.getDate() - i);
-      const key = d.toISOString().slice(0, 10);
-      if (days.has(key)) { streak++; } else if (i > 0) { break; }
-    }
-    return streak;
-  }
-
-  private getLastWeek(entries: HabitEntry[]): { date: string; done: boolean }[] {
-    const days = new Set(entries.map(e => e.completedAt.slice(0, 10)));
-    const result: { date: string; done: boolean }[] = [];
-    const today = new Date();
-    for (let i = 6; i >= 0; i--) {
-      const d = new Date(today);
-      d.setDate(d.getDate() - i);
-      const key = d.toISOString().slice(0, 10);
-      result.push({ date: key, done: days.has(key) });
-    }
-    return result;
   }
 }

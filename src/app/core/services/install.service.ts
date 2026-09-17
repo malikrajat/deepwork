@@ -1,7 +1,29 @@
 import { Injectable, signal } from '@angular/core';
 
+const DISMISS_KEY = 'deepwork_install_dismissed';
+
+/** localStorage can be unavailable (private mode, locked-down webview) — never throw. */
+function readDismissed(): boolean {
+  try {
+    return localStorage.getItem(DISMISS_KEY) === '1';
+  } catch {
+    return false;
+  }
+}
+
 @Injectable({ providedIn: 'root' })
 export class InstallService {
+  /**
+   * True when running inside the packaged desktop app (Tauri).
+   *
+   * The desktop bundle is already an installed application: `beforeinstallprompt`
+   * never fires there and `(display-mode: standalone)` never matches, so the
+   * browser-only install UI would otherwise show up on every page of the
+   * installed app as an extra full-width bar above the app header.
+   */
+  readonly isDesktopApp =
+    typeof globalThis !== 'undefined' && '__TAURI_INTERNALS__' in globalThis;
+
   /** True when the browser's native install prompt is ready to trigger */
   readonly canInstall = signal(false);
 
@@ -11,9 +33,7 @@ export class InstallService {
   );
 
   /** True when user dismissed the install banner — stored in localStorage */
-  readonly isDismissed = signal(
-    localStorage.getItem('deepwork_install_dismissed') === '1'
-  );
+  readonly isDismissed = signal(readDismissed());
 
   private deferredPrompt: any = null;
 
@@ -37,7 +57,11 @@ export class InstallService {
       this.deferredPrompt = null;
       this.canInstall.set(false);
       this.isInstalled.set(true);
-      localStorage.removeItem('deepwork_install_dismissed');
+      try {
+        localStorage.removeItem(DISMISS_KEY);
+      } catch {
+        /* storage unavailable */
+      }
     });
   }
 
@@ -53,7 +77,11 @@ export class InstallService {
 
   /** Hide the banner without preventing future installs */
   dismiss(): void {
-    localStorage.setItem('deepwork_install_dismissed', '1');
+    try {
+      localStorage.setItem(DISMISS_KEY, '1');
+    } catch {
+      /* storage unavailable — hide for this session only */
+    }
     this.isDismissed.set(true);
   }
 }

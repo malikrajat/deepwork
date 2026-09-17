@@ -4,6 +4,7 @@ import { AnimatedClockComponent } from '../../shared/components/animated-clock/a
 import { TimelineBarComponent } from '../../shared/components/timeline-bar/timeline-bar.component';
 import { ConfettiComponent } from '../../shared/components/confetti/confetti.component';
 import { TooltipDirective } from '../../shared/directives/tooltip.directive';
+import { DesktopPrefsPanelComponent } from '../../shared/components/desktop-prefs-panel/desktop-prefs-panel.component';
 import { TimerService } from '../../core/services/timer.service';
 import { NotificationService } from '../../core/services/notification.service';
 import { DbService } from '../../core/services/db.service';
@@ -17,7 +18,7 @@ import { TaskSelectFormModel, createTaskSelectFormDefaults } from '../../shared/
 
 @Component({
   selector: 'app-dashboard',
-  imports: [AnimatedClockComponent, TimelineBarComponent, ConfettiComponent, TooltipDirective, FormField],
+  imports: [AnimatedClockComponent, TimelineBarComponent, ConfettiComponent, TooltipDirective, FormField, DesktopPrefsPanelComponent],
   changeDetection: ChangeDetectionStrategy.OnPush,
   host: {
     '(window:mousemove)': 'onDrag($event)',
@@ -60,11 +61,6 @@ import { TaskSelectFormModel, createTaskSelectFormDefaults } from '../../shared/
           <button class="btn btn-ghost" (click)="skipTimer()">
             <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><polygon points="5,4 15,12 5,20"/><line x1="19" y1="5" x2="19" y2="19" stroke="currentColor" stroke-width="2.5"/></svg>
           </button>
-        </div>
-        <div class="fullscreen-session-dots">
-          @for (i of sessionDots(); track i) {
-            <span class="dot" [class.filled]="i <= cyclePosition()"></span>
-          }
         </div>
       </div>
     }
@@ -109,7 +105,7 @@ import { TaskSelectFormModel, createTaskSelectFormDefaults } from '../../shared/
             <div class="timer-ambient"></div>
             <!-- Action buttons top-right -->
             <div class="card-actions">
-              <button class="action-btn" title="Minimize to floating clock" (click)="toggleMiniMode()">
+              <button class="action-btn" title="Minimize to floating clock" (click)="toggleMiniMode()" appTooltip="Mini widget — shrinks DeepWork into a small floating clock that always stays above your other windows. Drag it anywhere on your desktop; click the expand arrow (or press Esc) to bring the full window back.">
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="5" y1="12" x2="19" y2="12"/></svg>
               </button>
               <button class="action-btn" title="Fullscreen" (click)="toggleFullscreen()">
@@ -125,12 +121,12 @@ import { TaskSelectFormModel, createTaskSelectFormDefaults } from '../../shared/
             <!-- Task selector -->
             @if (taskService.todayTasks().length > 0) {
               <div class="task-selector">
-                <select [formField]="taskSelectForm.taskId" (change)="onTaskSelect()">
+                <select [formField]="taskSelectForm.taskId" (change)="onTaskSelect()" [appTooltip]="selectedTaskFullTitle()">
                   <option value="">No task linked</option>
                   @for (group of taskGroups(); track group.quadrant) {
                     <optgroup [label]="group.label">
                       @for (task of group.tasks; track task.id) {
-                        <option [value]="task.id">{{ task.title }}</option>
+                        <option [value]="task.id">{{ taskOptionLabel(task.title) }}</option>
                       }
                     </optgroup>
                   }
@@ -160,12 +156,6 @@ import { TaskSelectFormModel, createTaskSelectFormDefaults } from '../../shared/
               <button class="btn btn-ghost" (click)="skipTimer()">
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><polygon points="5,4 15,12 5,20"/><line x1="19" y1="5" x2="19" y2="19" stroke="currentColor" stroke-width="2.5"/></svg>
               </button>
-            </div>
-            <div class="session-indicator">
-              <span class="session-label">Session {{ cyclePosition() }}/{{ sessionsBeforeLongBreak() }}</span>
-              @for (i of sessionDots(); track i) {
-                <span class="dot" [class.filled]="i <= cyclePosition()"></span>
-              }
             </div>
           </div>
         </div>
@@ -208,14 +198,9 @@ import { TaskSelectFormModel, createTaskSelectFormDefaults } from '../../shared/
           <div class="insight-header">
             <div>
               <span class="eyebrow">Session cycle</span>
-              <h2>{{ cyclePosition() }}/{{ sessionsBeforeLongBreak() }} focus sessions</h2>
+              <h2>Next long break</h2>
             </div>
             <span class="cycle-status" [class.break-ready]="timer.timerType() === 'long-break'">{{ timer.timerType() === 'long-break' ? 'Long break ready' : 'In progress' }}</span>
-          </div>
-          <div class="cycle-dots">
-            @for (session of sessionDots(); track session) {
-              <span [class.complete]="session <= cyclePosition()"></span>
-            }
           </div>
           <p>{{ nextBreakMessage() }}</p>
         </article>
@@ -224,7 +209,7 @@ import { TaskSelectFormModel, createTaskSelectFormDefaults } from '../../shared/
           <div class="insight-header">
             <div>
               <span class="eyebrow">Current focus</span>
-              <h2>{{ activeTask()?.title ?? 'Choose a task to give this session context' }}</h2>
+              <h2 [appTooltip]="activeTask()?.title ?? ''">{{ activeTask()?.title ?? 'Choose a task to give this session context' }}</h2>
             </div>
             @if (activeTask()?.quadrant; as quadrant) {
               <span class="task-priority">{{ quadrantFullLabel(quadrant) }}</span>
@@ -312,6 +297,11 @@ import { TaskSelectFormModel, createTaskSelectFormDefaults } from '../../shared/
           </div>
         </div>
       </div>
+
+      <!-- Desktop behaviour: same two switches as Settings, one click away -->
+      <div class="dashboard-prefs animate-fade-in-delay-2">
+        <app-desktop-prefs-panel title="Desktop Behaviour" />
+      </div>
     </div>
 
     <!-- Confetti celebration -->
@@ -323,6 +313,15 @@ import { TaskSelectFormModel, createTaskSelectFormDefaults } from '../../shared/
     /* ===== Main Layout ===== */
     .dashboard-wrapper { min-height: 100%; display: flex; flex-direction: column; padding-bottom: var(--space-xl); }
     .dashboard-wrapper.hidden { display: none; }
+    /* Desktop switches: same glass card as the other dashboard panels. */
+    .dashboard-prefs {
+      margin-top: var(--space-md);
+      max-width: 560px;
+      background: var(--glass-bg); backdrop-filter: blur(16px);
+      border: 1px solid rgba(139, 92, 246, 0.08); border-radius: 16px;
+      padding: var(--space-lg); transition: border-color 0.3s;
+    }
+    .dashboard-prefs:hover { border-color: rgba(139, 92, 246, 0.15); }
     .page-header {
       display: flex; align-items: center; justify-content: space-between;
       margin-bottom: var(--space-lg);
@@ -383,30 +382,19 @@ import { TaskSelectFormModel, createTaskSelectFormDefaults } from '../../shared/
 
     /* Timer controls */
     .timer-controls { display: flex; align-items: center; gap: var(--space-md); z-index: 1; }
-    .session-indicator { display: flex; align-items: center; gap: 6px; z-index: 1; }
-    .session-label {
-      font-size: 0.65rem; color: var(--color-text-muted);
-      font-family: var(--font-mono); margin-right: 4px;
-    }
-    .dot {
-      width: 8px; height: 8px; border-radius: 50%;
-      background: var(--glass-bg); border: 1px solid var(--glass-border);
-      transition: all 0.3s;
-    }
-    .dot.filled {
-      background: var(--color-accent-primary); border-color: var(--color-accent-primary);
-      box-shadow: 0 0 8px rgba(139, 92, 246, 0.5);
-    }
 
     /* Task Selector */
     .task-selector {
       display: flex; flex-direction: column; align-items: center; gap: 6px;
-      margin-bottom: 8px; z-index: 1;
+      margin-bottom: 8px; z-index: 1; width: 100%; max-width: 320px;
     }
     .task-selector select {
       background: var(--control-bg); border: 1px solid rgba(139,92,246,0.15);
       border-radius: 8px; padding: 6px 12px; color: var(--color-text-primary);
-      font-size: 0.75rem; outline: none; cursor: pointer; min-width: 180px;
+      font-size: 0.75rem; outline: none; cursor: pointer;
+      width: 100%; max-width: 260px; min-width: 0;
+      /* A native select widens to its longest option — keep it bounded. */
+      text-overflow: ellipsis; white-space: nowrap; overflow: hidden;
       transition: border-color 0.2s;
     }
     .task-selector select:focus { border-color: rgba(139,92,246,0.4); }
@@ -536,6 +524,11 @@ import { TaskSelectFormModel, createTaskSelectFormDefaults } from '../../shared/
       text-transform: uppercase; color: var(--color-text-muted);
     }
     .insight-card h2 { margin: 4px 0 0; font-size: 0.9rem; line-height: 1.35; color: var(--color-text-primary); }
+    /* Long task titles clamp to two lines instead of stretching the card. */
+    .task-card h2 {
+      display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical;
+      overflow: hidden; overflow-wrap: anywhere;
+    }
     .insight-card p { margin: var(--space-sm) 0 0; color: var(--color-text-secondary); font-size: 0.73rem; line-height: 1.45; }
     .goal-percent, .cycle-status, .task-priority {
       flex-shrink: 0; padding: 4px 7px; border-radius: 6px; font-size: 0.62rem; font-weight: 700;
@@ -545,9 +538,6 @@ import { TaskSelectFormModel, createTaskSelectFormDefaults } from '../../shared/
     .task-priority { max-width: 120px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
     .goal-track { height: 6px; overflow: hidden; margin-top: var(--space-md); border-radius: 999px; background: rgba(255,255,255,0.08); }
     .goal-track span { display: block; height: 100%; border-radius: inherit; background: linear-gradient(90deg, #8b5cf6, #06b6d4); transition: width 0.3s ease; }
-    .cycle-dots { display: flex; gap: 6px; margin-top: var(--space-md); }
-    .cycle-dots span { width: 9px; height: 9px; border-radius: 50%; background: rgba(255,255,255,0.09); border: 1px solid var(--glass-border); }
-    .cycle-dots span.complete { background: #8b5cf6; border-color: #8b5cf6; box-shadow: 0 0 8px rgba(139,92,246,0.5); }
     .task-actions, .quick-action-list { display: flex; flex-wrap: wrap; gap: 8px; margin-top: var(--space-md); }
     .insight-action, .quick-action {
       padding: 7px 10px; border: 1px solid rgba(139,92,246,0.22); border-radius: 8px;
@@ -592,7 +582,6 @@ import { TaskSelectFormModel, createTaskSelectFormDefaults } from '../../shared/
       height: var(--clock-size);
     }
     .fullscreen-controls { display: flex; align-items: center; gap: var(--space-md); z-index: 1; }
-    .fullscreen-session-dots { display: flex; gap: 8px; z-index: 1; }
 
     /* ===== Floating Mini Clock ===== */
     .mini-clock-float {
@@ -734,9 +723,23 @@ export class DashboardComponent implements OnInit, OnDestroy {
   readonly sessionsBeforeLongBreak = computed(
     () => this.settingsService.settings().sessionsBeforeLongBreak
   );
-  readonly sessionDots = computed(() =>
-    Array.from({ length: this.sessionsBeforeLongBreak() }, (_, i) => i + 1)
-  );
+
+  /**
+   * Task titles are shown inside a native <select>, which sizes itself to the
+   * longest option — trim long titles so the picker stays compact. The full
+   * title is still available from the picker's tooltip.
+   */
+  taskOptionLabel(title: string, max = 42): string {
+    const trimmed = title.trim();
+    return trimmed.length > max ? `${trimmed.slice(0, max - 1)}…` : trimmed;
+  }
+
+  /** Full title of the linked task, for the picker's tooltip. */
+  selectedTaskFullTitle(): string {
+    const id = this.selectedTaskId();
+    if (!id) return '';
+    return this.taskService.tasks().find(task => task.id === id)?.title ?? '';
+  }
 
   /** Current position within the configured session cycle, resets after each cycle. */
   readonly cyclePosition = computed(() => {
