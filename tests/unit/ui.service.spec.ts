@@ -40,6 +40,19 @@ describe('UiService (behavior)', () => {
     expect(svc.isMiniMode()).toBe(false);
   });
 
+  it('only calls itself the native widget inside the desktop shell', () => {
+    // In the browser the mini mode is a floating panel over the running app, so
+    // the app shell must keep rendering.
+    expect(svc.isNativeWidget()).toBe(false);
+    svc.isMiniMode.set(true);
+    expect(svc.isNativeWidget()).toBe(false);
+  });
+
+  it('init() is inert outside the desktop shell', async () => {
+    await svc.init();
+    expect(svc.isMiniMode()).toBe(false);
+  });
+
   it('enterMiniMode flips the mini flag even without a desktop shell', async () => {
     // jsdom has no __TAURI_INTERNALS__, so this exercises the browser path:
     // the UI still switches to the floating-clock rendering.

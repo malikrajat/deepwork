@@ -141,6 +141,37 @@ describe('TaskService', () => {
     expect(updated.completedAt).toBeNull();
   });
 
+  // ── setStatus (what the board's drag & drop writes) ───────────────────
+
+  it('setStatus() moves a task straight to the dropped status', async () => {
+    const t = makeTask({ status: 'todo' });
+    mockDb.getTasks.mockResolvedValueOnce([t]);
+    await svc.loadTasks();
+    await svc.setStatus(t, 'done');
+    const updated = svc.tasks().find(x => x.id === t.id)!;
+    expect(updated.status).toBe('done');
+    expect(updated.completedAt).not.toBeNull();
+    expect(mockDb.updateTask).toHaveBeenCalledTimes(1);
+  });
+
+  it('setStatus() clears completedAt when a done task leaves the Done column', async () => {
+    const t = makeTask({ status: 'done', completedAt: new Date().toISOString() });
+    mockDb.getTasks.mockResolvedValueOnce([t]);
+    await svc.loadTasks();
+    await svc.setStatus(t, 'in-progress');
+    const updated = svc.tasks().find(x => x.id === t.id)!;
+    expect(updated.status).toBe('in-progress');
+    expect(updated.completedAt).toBeNull();
+  });
+
+  it('setStatus() ignores a drop in the column the task is already in', async () => {
+    const t = makeTask({ status: 'in-progress' });
+    mockDb.getTasks.mockResolvedValueOnce([t]);
+    await svc.loadTasks();
+    await svc.setStatus(t, 'in-progress');
+    expect(mockDb.updateTask).not.toHaveBeenCalled();
+  });
+
   // ── todayTasks computed ───────────────────────────────────────────────
 
   it('todayTasks() includes tasks with today deadline', async () => {
@@ -171,6 +202,38 @@ describe('TaskService', () => {
     mockDb.getTasks.mockResolvedValueOnce([t]);
     await svc.loadTasks();
     expect(svc.todayTasks().find(x => x.id === t.id)).toBeUndefined();
+  });
+
+  // ── todayBoardTasks (the Today board keeps its Done column) ────────────
+
+  it('todayBoardTasks() keeps done tasks so nothing vanishes out of a column', async () => {
+    const t = makeTask({ deadline: today, status: 'done', completedAt: new Date().toISOString() });
+    mockDb.getTasks.mockResolvedValueOnce([t]);
+    await svc.loadTasks();
+    expect(svc.todayBoardTasks().find(x => x.id === t.id)).toBeDefined();
+    expect(svc.todayTasks().find(x => x.id === t.id)).toBeUndefined();
+  });
+
+  it('todayBoardTasks() follows the day sequence: quadrant, then todayOrder', async () => {
+    const later = makeTask({ deadline: today, todayOrder: 2, title: 'Second' });
+    const first = makeTask({ deadline: today, todayOrder: 1, title: 'First' });
+    mockDb.getTasks.mockResolvedValueOnce([later, first]);
+    await svc.loadTasks();
+    expect(svc.todayBoardTasks().map(t => t.title)).toEqual(['First', 'Second']);
+  });
+
+  it('todayBoardTasks() leaves out tasks that are not on today', async () => {
+    const future = new Date();
+    future.setDate(future.getDate() + 5);
+    const yesterday = new Date();
+    yesterday.setDate(yesterday.getDate() - 1);
+    const t = makeTask({
+      deadline: future.toISOString().slice(0, 10),
+      createdAt: yesterday.toISOString(),
+    });
+    mockDb.getTasks.mockResolvedValueOnce([t]);
+    await svc.loadTasks();
+    expect(svc.todayBoardTasks()).toHaveLength(0);
   });
 
   // ── addToToday / removeFromToday ──────────────────────────────────────
