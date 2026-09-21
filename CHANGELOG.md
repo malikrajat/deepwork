@@ -9,6 +9,96 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Added
 
+- **The Tasks board is now filed by date, and the dates fold away.** The Jira-style
+  board is unchanged — the same To Do / In Progress / Done columns, the same drag &
+  drop, keyboard moves and card details — but it now sits inside Outlook-style
+  collapsible sections: `Today`, `Tomorrow`, `Later this week`, `Next week`, `Later
+  this month` and the months ahead, then `Yesterday`, `Earlier this week`, `Last week`,
+  `Earlier this month` and the months behind, with `Expand all` / `Collapse all` in the
+  toolbar. A task is filed under **its own date** (its deadline, else the day it was
+  written) rather than the day it was last touched, so dragging a card to Done leaves it
+  in its section instead of firing it into Today. Each header carries the section's task
+  count and a "done" count; Today opens first, the rest unfold on click, and a search
+  opens every section it matched. A task you add or import opens its own section too, so
+  a deadline in another month never looks like a task the app lost. The rules live in
+  `src/app/pages/tasks/task-date-groups.view.ts`.
+
+- **Add a task for today from anywhere — typed, or spoken in English.**
+  - A floating **Add task** button lives in the app shell, so it is on every page
+    (Dashboard included), and `Ctrl+N` opens it from anywhere. A new
+    `QuickAddComponent` holds the button and its dialog.
+  - The dialog asks for the one thing that matters — a **title** — and states plainly
+    what it will save (P3 Medium · deadline today · no quadrant · no repeat · on the
+    Today list) and the limits (title 120 / description 2000 characters).
+  - **Speak** mode uses the browser/OS speech engine (English, en-US) — no AI model,
+    no new dependency, and no audio stored by the app. Say the title, say “break”,
+    then the description; a pause or a full stop does the same job.
+  - The split into title and description is offline text handling in
+    `core/utils/spoken-task.util.ts`: spoken **break** words first, then the pause you
+    took, then sentence punctuation, then a length rule — and a title is never left
+    hanging on “and”. Anything too long for a title spills into the description
+    instead of being cut off.
+  - **You see it before it is saved**: “You said …” plus an editable *What we
+    understood* title and description, with a note explaining how the split was
+    decided. Edits win — later speech stops overwriting them.
+  - Speech problems are explained in plain words (microphone blocked, nothing heard,
+    no microphone, offline, English-only), and the dialog always offers typing.
+
+- **Mini widget: the window's own minimise button now shrinks into it, with a
+  countdown ring and no title bar**
+  - Pressing the **system minimise button** on the window (or `Win`+`↓`, or the
+    taskbar's *Minimise*) now produces the mini widget instead of burying the app in
+    the tray. Windows reports a minimise as a 0x0 resize; the Rust layer forwards it
+    as `deepwork:minimize` and `UiService` un-minimises and reshapes the window, so
+    the timer stays visible from any page — not just the dashboard.
+  - The widget has **no title bar**: `setDecorations(false)` on the way in and back
+    on the way out, so there are no minimise/maximise/close buttons on a 120×76
+    frame. The expand arrow inside it (or `Esc`) is the way back to the full window,
+    and the widget body is draggable wherever the user wants it.
+  - The running time now sits inside a **colourful countdown ring**: complete when a
+    session starts, draining second by second, gone when the time is up, and refilled
+    for the next focus block or break. Each session type gets its own gradient
+    (focus violet→cyan, short break cyan→emerald, long break emerald→violet).
+  - A **play/pause button** in the widget starts or pauses the session without
+    expanding back to the full window.
+  - The widget moved from the dashboard template to the app shell
+    (`app-mini-widget`), because the OS minimise button can fire from any route.
+
+- **Starting with the system opens the normal DeepWork window**
+  - "Start with system" no longer hides the app in the tray (and no longer opens the
+    mini widget either): it opens the usual DeepWork window at its usual size, so the
+    app is not forgotten at the start of the day.
+  - A login launch only differs in *how* it opens — no focus stealing, since the user
+    is usually mid-something right after signing in (`restore_in_background` in
+    `src-tauri/src/lib.rs`). The system-tray icon is unchanged.
+  - System minimise still turns the window into the mini widget, with the tray as the
+    fallback if the frontend ever fails to answer (2.5 s grace, then hide to tray).
+
+- **Downloads now tell you where the file went**
+  - The Excel import template and the CSV task export are written by the app itself
+    into the real Downloads folder — respecting a Downloads folder moved off the
+    system drive, and never overwriting an existing file (`export-2026-09-18 (2).csv`).
+  - New Rust module `downloads.rs` plus the `save_download` command; a new
+    `DownloadService` returns `{ fileName, folder, location }` and renders one shared
+    sentence describing it.
+  - After a template download or an export, the panel shows that sentence inline and
+    the app-wide toast repeats it — including the full path in the desktop app. The
+    browser build keeps doing a normal blob download and says "browser's download
+    folder" instead of inventing a path it cannot know.
+  - The CSV text is now built in `task-export.util.ts` (`buildCsvContent`), byte-for-byte
+    what `rm-ng-export-to-csv` produced (verbatim header with the UTF-8 BOM, every cell
+    quoted, CRLF rows), which is what allows the app to write the file and name the
+    location. The dependency is no longer used.
+
+- **The Add Task form pre-fills today's deadline**
+  - Opening the add-task panel now shows today's date in **Deadline**, so the same date
+    does not have to be picked for every task. It stays editable — move it to a later
+    day, or clear it for a task with no deadline.
+  - The date validator now accepts **today or later** (`futureDate`), and compares
+    `YYYY-MM-DD` strings instead of `Date` objects — a UTC-computed "today" used to be
+    yesterday for anyone east of Greenwich, which would have rejected the pre-filled
+    value. Field hint updated to match.
+
 - **Calendar reminders: 5 minutes before a scheduled task starts and before it ends**
   - The app now watches today's timeline and fires an OS notification plus an in-app toast at
     `start − 5 min` and `end − 5 min` for every placed task, so a block neither starts late nor
@@ -161,6 +251,70 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Changed
 
+- **Speaking a task now actually starts listening, and says why when it cannot.**
+  - **A microphone now sits inside the Title field of the Tasks add/edit form** (and
+    the floating dialog keeps its Speak tab). It dictates the title: red and pulsing
+    while it listens, the words land in the field live, whatever was typed first is
+    kept in front of them, and the result stays editable by hand. The button is a
+    small reusable `MicButtonComponent`.
+  - All dictation moved into one `SpeechService`, so the dialog and the field button
+    share the same permission handling, on-device check, silence notice and errors —
+    and two microphones can never talk over each other (each session has an owner).
+  - The floating dialog opens on the **Speak** tab (listed first), because speaking is
+    what the button is for; **Type** stays one tap away.
+  - The microphone is requested through `getUserMedia` *before* recognition starts, so
+    the permission prompt appears and a refusal is reported in plain words (blocked,
+    no microphone, device busy) instead of silence.
+  - On-device recognition is now used **only when the device confirms it has the
+    English pack** (`SpeechRecognition.available()`); asking for it blindly made the
+    engine refuse to start — which looked exactly like a dead microphone.
+  - The speech callbacks run back inside Angular's zone, so the transcript, the
+    *What we understood* preview and the button state update live (they previously
+    ran outside it and never reached the screen).
+  - The **Start speaking** button turns red and pulses the moment it is pressed, a
+    pulsing "Listening…" line is shown, and if nothing at all is heard within a few
+    seconds the dialog says so and points at the input device.
+  - The floating button is now a **plain round microphone icon** — no label and no
+    plus badge — with the tooltip and the dialog carrying the explanation.
+  - macOS builds ship `src-tauri/Info.plist` with `NSMicrophoneUsageDescription`, so
+    the system microphone prompt can appear at all; the README documents how the
+    permission is granted in the browser, and in the Windows/macOS/Linux desktop apps.
+
+- **Adding a task now asks for a title only.** The Tasks → Add Task panel shows the
+  title, a line stating what will be saved (P3 Medium · due today · no quadrant · no
+  repeat) and the field limits, and folds the description, priority, quadrant,
+  deadline and repeat behind **Advanced options** — which opens automatically when
+  editing an existing task, because then the values are the point.
+- The Tasks page search box is more compact, and its placeholder now reads
+  “Search all tasks…”, because the board shows every status rather than a date-grouped
+  list.
+
+- **Tasks and Today are now a Jira-style status board instead of a flat list.**
+  - Both pages render the same `TaskBoardComponent`: **one column per status**
+    (To Do → In Progress → Done) with the tasks inside them, and a card is **dragged
+    into another column** to change its status — the drop *is* the status write
+    (`TaskService.setStatus`).
+  - **The status checkbox is gone from both pages**, and so are the Tasks page's
+    status filter pills: the columns are the filter. Search, sort, Add, Edit, Delete,
+    Export, Import, the Today star and every task property (priority, deadline,
+    quadrant, repeat) still sit on the board.
+  - **A card's colour is its status** — grey, amber, violet — decided in one place
+    (`STATUS_CONFIG.cardClass` plus `--status-*-card-*` tokens in `src/styles.css`), so
+    the same status looks the same on Tasks, on Today, in both themes and in the drag
+    preview. Each card has a status-coloured accent bar, tinted surface and a struck
+    through title when done.
+  - **Keyboard parity with dragging:** with a card focused, `1` `2` `3` move it to a
+    status and the arrow keys walk it along the board; `Enter` opens the task on the
+    Tasks page.
+  - **Today keeps a Done column.** Today's board lists the day's tasks in every
+    status (new `todayBoardTasks`), so a card dropped in Done stays visible and can be
+    dragged back, while the dashboard's `todayTasks()` keeps counting open work only.
+    The drop position is still written to `todayOrder`, so the day's sequence survives
+    a reload; quadrant priority still lifts the day's most important work to the top.
+  - The Tasks page's date grouping, its virtualised list and `task-list.view.ts` are
+    gone with the flat list — the board's columns scroll instead. The relative
+    "last changed" stamp moved to `core/utils/task-activity.util.ts`.
+
 - The task status circle's tooltips now spell the click flow out: To Do → click = In Progress →
   click again = Done → click again = back to To Do.
 
@@ -170,6 +324,13 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Fixed
 
+- **An Excel/CSV import no longer swallows rows whose title already exists.** A task that came back
+  the next day — or a file uploaded twice — was marked *Duplicate* and then skipped, so the day's
+  list looked like the upload had lost it. Duplicates are now written as their own tasks by default,
+  exactly as the sheet supplies them, and the preview still labels the row *Duplicate* with a
+  **Skip these N row(s) instead of importing them** tick-box for when you do want them left out
+  (`TaskImportService.importRows` defaults to `skipDuplicates: false`; `importableCount` counts
+  duplicates too). Existing tasks are never touched or removed by an import — the sheet only adds.
 - **Task titles now have a real input limit (120 characters)** instead of the old 200, enforced at
   every entry point so long titles never reach a listing: the Tasks form (Angular's `maxLength`
   schema caps typing and shows a live `n/120` counter), the calendar's new-task field, and the
@@ -210,6 +371,37 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   longer be masked by a stale cached app shell.
 - `InstallService` no longer throws when `localStorage` is unavailable (private mode or a
   locked-down webview) — reading and writing the dismissed flag is now guarded.
+- **Dictation says what is missing instead of "Nothing heard yet".** In the installed app,
+  speaking a task reported *"Nothing heard yet. Speak a little closer to the microphone,
+  check the input device, or type the task."* — on a machine whose microphone was fine
+  (Settings ▸ Check level moved) and whose only problem was on Windows' side: **no speech
+  language was installed**, so `SpeechRecognizer` could not be created at all. The app
+  opened the microphone first, asked the engine afterwards, and then threw the engine's own
+  answer away: Rust emitted the error and immediately emitted `stopped`, which released the
+  microphone button that was the only place able to show it.
+  - `native_speech_status` now answers **"can this machine dictate?"** before anything opens
+    the microphone. It builds a real recognizer and compiles the dictation grammar on a
+    worker thread (so the UI never blocks), and returns the engine, the machine's speech
+    languages, a plain-language reason, and the settings page that fixes it.
+  - `native_speech_start` returns that reason as its own error *and* as an event, so a failed
+    start explains itself at once; a `stopped` event no longer erases a reason that is on
+    screen. A failed start re-checks the engine, so adding a speech language and pressing
+    again works without restarting.
+  - Settings now has **Dictation & microphone**: the engine's state and its speech languages,
+    the fix button (`Open Speech settings`, or the privacy/microphone page when that is the
+    blocker), the existing input level check, and **Test dictation** — the real dictation, so
+    the whole path can be tried without adding a task.
+  - The microphone buttons and the task dialog's **Speak** tab carry the engine's own words
+    and no longer pretend to listen when there is nothing to listen with.
+  - The Windows bridge is now shared by the task dialog and the journal
+    (`core/services/speech-engine.ts`); macOS and Linux desktop builds answer with their own
+    honest reason (no engine to call, and where to dictate instead) rather than the Windows
+    wording. See `specs/006-dictation-engines/spec.md` for what each platform needs and the
+    two open decisions.
+  - New `cargo run --example speech_probe`: prints the machine's speech languages, the
+    grammar compilation status, every recognizer state change, every phrase heard, and the
+    session's completion status — the answer to "is the recognizer hearing me?" without the
+    app in the way.
 
 ---
 

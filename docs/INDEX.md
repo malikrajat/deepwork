@@ -23,6 +23,10 @@ Central reference for all guidance files in this repository.
 |--------|---------|
 | `specs/001-create-deepwork/` | Feature spec, plan, and tasks for initial build |
 | `specs/002-desktop-preferences/` | Start with system, always on top, and the mini widget |
+| `specs/003-mini-widget-window/` | Minimising the window into the mini widget, the countdown ring, and the login launch |
+| `specs/004-downloads-and-task-defaults/` | Downloads that report their file location, and today's date in the add-task form |
+| `specs/005-task-status-board/` | The Jira-style status board shared by the Tasks and Today pages |
+| `specs/006-dictation-engines/` | Why dictation says "nothing heard" when the engine is missing, and what each platform needs |
 
 ---
 
