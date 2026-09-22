@@ -46,3 +46,8 @@ Thumbs.db
 # Tauri build artifacts
 src-tauri/target/
 .tmp-verify
+
+# Test output (Vitest coverage, Playwright report and traces)
+/coverage
+/playwright-report
+/test-results

@@ -1,0 +1,15 @@
+# Build output and caches — nothing here is written by hand.
+/dist
+/.angular
+/coverage
+/test-results
+/playwright-report
+
+# The desktop side is formatted by `cargo fmt`, Tauri config included.
+/src-tauri
+
+# npm maintains the lockfile's formatting itself.
+package-lock.json
+
+# Separate checkouts kept inside the project folder by the Kilo Code tool.
+/.kilo
