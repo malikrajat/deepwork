@@ -9,6 +9,44 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Added
 
+- **About the developer, and a check for the latest release.** The app now says
+  who builds it. A new **About** page — at the foot of the sidebar, with the
+  version badge as a second way in — has two tabs. **About the developer**
+  introduces Rajat Malik (senior lead software architect, 16+ years of building
+  software across energy, mobility, parcel and other domains) and sets out the
+  ways to work together: a full-time senior or lead role, contract or freelance,
+  part-time and fractional, hourly consulting, speaking and workshops, or
+  end-to-end delivery. It closes with every way to get in touch: email,
+  portfolio, LinkedIn, GitHub, WhatsApp and Medium. All of that copy lives in
+  `src/app/core/constants/about.constants.ts`, so the wording can change without
+  touching the layout.
+
+- **Check for updates, straight from GitHub releases.** The second tab answers
+  whether a newer DeepWork exists and answers honestly: _a newer version is
+  available_ (with its version, date, release notes and the installer for this
+  machine — Windows `.exe`, macOS `.dmg`, Linux `.deb`/`.AppImage`), _you are on
+  the latest release_, _you are running ahead of the releases_ (a development
+  build) or _could not check_ with the reason (offline, rate-limited, no releases,
+  unreadable tag). It reads the release list rather than `/releases/latest` and
+  takes the highest version it can parse, so a pre-release or a release published
+  out of order cannot hide a newer build. The answer is cached for six hours to
+  stay inside GitHub's 60-requests-an-hour budget, the startup check is never
+  awaited so a slow network cannot delay the window, and nothing about the machine
+  is sent. When something newer exists, the sidebar shows an **Update** pill.
+  (`src/app/core/services/update.service.ts`, `src/app/core/utils/version.util.ts`,
+  `src/app/core/utils/release.util.ts`, `src/app/pages/about/about.component.ts`)
+
+- **Outward links now open in the real browser.** Inside the desktop webview a
+  `target="_blank"` link is swallowed — the new-window request is denied — so an
+  "email me" or "visit my website" button would have done nothing at all. The
+  Angular layer hands the URL to a new Rust command, `open_external_url`, which
+  opens it with `explorer`, `open` or `xdg-open`; only `http`, `https` and
+  `mailto` are accepted, and control characters are refused. In a browser build
+  the anchor is left alone, so `target="_blank"`, middle-click and "copy link
+  address" keep working exactly as the browser intends.
+  (`src-tauri/src/opener.rs`, `src/app/core/services/external-link.service.ts`,
+  `src/app/shared/directives/external-link.directive.ts`)
+
 - **Diagnostics: five small log files, and one button that opens them.** DeepWork
   now writes down what it was doing — every warning, error, crash and failed
   request, from the window, the network, the app and Angular alike — so a problem

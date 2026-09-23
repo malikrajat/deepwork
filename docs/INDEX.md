@@ -27,6 +27,7 @@ Central reference for all guidance files in this repository.
 | `specs/004-downloads-and-task-defaults/` | Downloads that report their file location, and today's date in the add-task form     |
 | `specs/005-task-status-board/`           | The Jira-style status board shared by the Tasks and Today pages                      |
 | `specs/006-diagnostics-and-ci/`          | The five log files, the "Open log folder" button, and the CI pipeline                |
+| `specs/007-about-and-updates/`           | The About page (developer, contact) and the GitHub release update check              |
 
 ---
 
