@@ -69,7 +69,7 @@ people can be expected to already understand.
 | FR-2 | Rust `autostart` module writes/removes the per-user startup entry. Value name `DeepWork` matches the NSIS `${PRODUCTNAME}` the uninstaller deletes. |
 | FR-3 | Rust commands: `autostart_is_enabled`, `autostart_set_enabled`, `window_set_always_on_top`, `window_is_always_on_top`. |
 | FR-4 | The tray menu gains checkable *Start with system* and *Always on top*; Rust flips the real state, then emits `autostart:on/off` / `aot:on/off` so the app can persist it. |
-| FR-5 | A login-launched copy (`--autostart`) starts hidden in the system tray. |
+| FR-5 | A login-launched copy (`--autostart`) opens the normal main window — at its usual size and without stealing focus (see `specs/003-mini-widget-window`). |
 | FR-6 | `DesktopPrefsService` is the single source of truth for both signals; every UI surface reads and writes through it. |
 | FR-7 | The mini widget is always on top while open and hands the window back with the user's preference re-applied. |
 | FR-8 | The widget relaxes and then restores the window minimum size (the configured 800×600 would otherwise clamp it). |
@@ -92,8 +92,9 @@ people can be expected to already understand.
 ## Assumptions
 
 - Both preferences are opt-in and reversible at any time.
-- The app keeps its existing "system minimise goes to the tray" behaviour; the mini
-  widget remains an explicit action from the clock card.
+- System minimise was updated by `specs/003-mini-widget-window`: pressing the
+  window's minimise button now produces the mini widget, from any page. The tray
+  icon and its *Show* item are unchanged.
 - Per-user (not machine-wide) startup is the correct scope, matching
   `installMode: currentUser`.
 

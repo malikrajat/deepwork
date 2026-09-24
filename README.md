@@ -18,6 +18,8 @@ A secure, lightweight, cross-platform Pomodoro & Task Management desktop app bui
 - SQLite local database (no cloud, no accounts)
 - OS-native notifications with repeat until dismissed
 - Desktop options: start with the system, always on top, and a draggable always-on-top mini widget
+- Five small log files — system, flow, crash, network — that roll over on their own, with a button in Settings that opens the folder
+- About the developer, and a check for the latest release on GitHub
 
 ---
 
@@ -26,17 +28,17 @@ A secure, lightweight, cross-platform Pomodoro & Task Management desktop app bui
 Two optional settings control how DeepWork sits on your desktop. Both are **off by
 default** — nothing changes until you ask for it.
 
-| Option | What it does |
-|--------|--------------|
+| Option                | What it does                                                                                                                                             |
+| --------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | **Start with system** | DeepWork launches when you sign in and opens its normal window — without stealing focus from whatever you are doing — and is in the system tray as well. |
-| **Always on top** | Keeps the main window above every other window, so the timer stays visible while you work in other apps. |
+| **Always on top**     | Keeps the main window above every other window, so the timer stays visible while you work in other apps.                                                 |
 
 ### Where to change them
 
 Every surface stays in sync, so you can flip either option from wherever you
 happen to be:
 
-1. **System tray menu** — *Start with system* / *Always on top* (tick marks mirror the real state)
+1. **System tray menu** — _Start with system_ / _Always on top_ (tick marks mirror the real state)
 2. **Settings → Desktop Behaviour**
 3. **Dashboard → Desktop Behaviour** card at the bottom of the page
 
@@ -76,11 +78,11 @@ to show a checkbox, so on those platforms the same choice is offered by a
 **one-time dialog on first launch** — and afterwards in Settings, the dashboard and
 the tray. Where the entry lives per platform:
 
-| Platform | Mechanism |
-|----------|-----------|
-| Windows | `HKCU\Software\Microsoft\Windows\CurrentVersion\Run` |
-| Linux | `~/.config/autostart/com.deepwork.app.desktop` (XDG autostart) |
-| macOS | `~/Library/LaunchAgents/com.deepwork.app.plist` (LaunchAgent) |
+| Platform | Mechanism                                                      |
+| -------- | -------------------------------------------------------------- |
+| Windows  | `HKCU\Software\Microsoft\Windows\CurrentVersion\Run`           |
+| Linux    | `~/.config/autostart/com.deepwork.app.desktop` (XDG autostart) |
+| macOS    | `~/Library/LaunchAgents/com.deepwork.app.plist` (LaunchAgent)  |
 
 A login-launched copy opens the normal DeepWork window, at its usual size. The
 only difference from a manual launch is that it does not pull focus away from the
@@ -115,79 +117,24 @@ window you are working in.
 
 ---
 
-## Adding a task for today (type it, or say it)
+## Adding a task for today
 
-The round **microphone button** floats in the bottom-right corner of every page
+The round **add button** floats in the bottom-right corner of every page
 (Dashboard, Tasks, Today, Matrix, Calendar…), and `Ctrl+N` opens the same dialog. It
 asks for one thing and says plainly what it will save:
 
-| | |
-|---|---|
-| **You give** | a **title**, plus a description if you want one |
-| **Limits** | title 120 characters · description 2000 characters |
+|              |                                                                                    |
+| ------------ | ---------------------------------------------------------------------------------- |
+| **You give** | a **title**, plus a description if you want one                                    |
+| **Limits**   | title 120 characters · description 2000 characters                                 |
 | **Saved as** | priority P3 Medium · deadline today · no quadrant · no repeat · on your Today list |
 
-- **Type** a title and press *Add to Today*. Everything else is already decided —
+- **Type** a title and press _Add to Today_. Everything else is already decided —
   **Advanced options** reveals the description, priority, deadline and quadrant only
   if you want to change them.
-- **Or press the microphone inside the Title field** — in the floating dialog's
-  Speak tab, and in **Tasks → Add Task**. Only the title is dictated there (say the
-  “break” word in the dialog to add a description), the words appear in the field as
-  you speak, and you can still correct them by typing.
-- **Speak** it instead — the dialog opens on the **Speak** tab, with the microphone
-  ready: say the title, say **“break”**, then the description. A pause between the two
-  works just as well, and so does a normal full stop. Whatever is heard is shown back
-  to you — “You said …”, then *What we understood* — as an **editable title and
-  description**, so a mis-heard word is one click to fix. Typing is one tap away on
-  the **Type** tab.
-- **English only**, and the speech runs on your device's own speech engine: DeepWork
-  adds no AI model, downloads nothing, and never stores your audio. Splitting the
-  dictation into a title and a description is plain offline text handling, so it keeps
-  working with no connection; if a browser needs the network for speech, the dialog
-  says so and typing still works.
 - The **Tasks → Add Task** form works the same way: only **Title** is asked for, with
-  the defaults spelled out underneath, and everything else behind *Advanced options*
+  the defaults spelled out underneath, and everything else behind _Advanced options_
   (editing an existing task opens them automatically).
-
-### Microphone permission
-
-The first time you press **Start speaking**, DeepWork asks for the microphone — the
-button turns red and pulses straight away, so the app is never silently waiting. If
-permission is refused (or there is no microphone) the dialog says exactly what
-happened instead of just "hearing nothing".
-
-| Where DeepWork runs | How the microphone is allowed | Dictation |
-|---------------------|-------------------------------|-----------|
-| Browser / PWA (Edge, Chrome) | The browser's own prompt, once. Re-allow it from the microphone icon in the address bar if it was blocked. | Works (device speech engine, English) |
-| Windows desktop app (WebView2) | The WebView asks the same way; Windows keeps the answer under *Settings → Privacy → Microphone*, and desktop apps have their own switch there. | Works through Windows' own recognizer (the Rust bridge in `src-tauri/src/speech.rs`) — it needs a **speech language** installed, see below |
-| macOS desktop app (WKWebView) | macOS prompt, unlocked by `NSMicrophoneUsageDescription` in `src-tauri/Info.plist` (shipped). Notarised builds also need the `com.apple.security.device.audio-input` entitlement. | No speech bridge in this build — the app says so, and `Fn` `Fn` types into the focused field |
-| Linux desktop app (WebKitGTK) | The system/webview decides; nothing to install on DeepWork's side. | No speech engine in the system for an app to call — the app says so, and points at your desktop's own dictation shortcut |
-
-The dialog always states which of these applies to the window you are in, and typing a
-task is available in every case.
-
-### If dictation says nothing
-
-The app answers the engine question **before** it opens the microphone, so a machine that
-cannot dictate says why instead of blaming your voice. Settings ▸ **Dictation & microphone**
-shows the same answer, with the button that fixes it, and **Test dictation** runs the real
-thing without adding a task.
-
-| What the app says | What to do |
-|-------------------|------------|
-| Windows has no speech language installed | *Settings ▸ Time & language ▸ Speech* → add **English (United States)** — or open **PowerShell as administrator** and run `Install-Language en-US`. Windows cannot dictate in any app until this is set; the microphone is not involved. |
-| Windows has not accepted its speech privacy policy | Turn on **Online speech recognition** (the button opens *Privacy & security ▸ Speech*). |
-| Windows cannot reach the microphone | Turn on *Privacy & security ▸ Microphone* → **Let desktop apps access your microphone**. |
-| Nothing heard yet | The engine is running but the words did not arrive — check the level meter in *Settings ▸ Dictation & microphone*, and that the default input device is the one you speak into. |
-| No engine / no speech bridge (macOS, Linux) | Dictate with the desktop's own shortcut (`Win + H`, `Fn` `Fn`, GNOME's `Super+Ctrl+Alt+Space`) with the cursor in the field, or open DeepWork in Chrome or Edge. |
-
-For the Windows recognizer's own view of things — installed speech languages, grammar
-compilation, every state change and every phrase heard — run the probe:
-
-```bash
-cd src-tauri
-cargo run --example speech_probe          # en-US, 20 seconds
-```
 
 ---
 
@@ -196,11 +143,11 @@ cargo run --example speech_probe          # en-US, 20 seconds
 Tasks and Today both show the same board: **one column per status**, and cards that
 are dragged between them to change their status.
 
-| Column | Card colour |
-|--------|-------------|
-| **To Do** | grey |
-| **In Progress** | amber |
-| **Done** | violet (title struck through) |
+| Column          | Card colour                   |
+| --------------- | ----------------------------- |
+| **To Do**       | grey                          |
+| **In Progress** | amber                         |
+| **Done**        | violet (title struck through) |
 
 - **Drag a card into another column** to set its status. Dropping a card inside the
   column it already sits in changes nothing on Tasks (that list is sorted) and
@@ -251,9 +198,9 @@ are dragged between them to change their status.
 **Tasks → Import** accepts `.xlsx`, `.xlsm` or `.csv` files, validates every row, and shows a
 preview before anything is written to the database.
 
-- **Template:** the panel's *Download template* button produces a dated workbook named after the
+- **Template:** the panel's _Download template_ button produces a dated workbook named after the
   current day (e.g. `2026-09-13.xlsx`) with the app's default values pre-selected on 25
-  ready-to-type rows, a frozen header, and a second *Instructions* sheet documenting each column.
+  ready-to-type rows, a frozen header, and a second _Instructions_ sheet documenting each column.
   - The panel confirms the download and **names the folder and path it was saved to**, so the
     template is easy to find again.
   - **Priority / Quadrant / Status / Repeat / Add to Today** are dropdowns; their default is already
@@ -279,6 +226,122 @@ preview before anything is written to the database.
   imported yesterday, or the file uploaded twice — is labelled **Duplicate** in the preview and
   still imported as its own task, so today's list gets everything the sheet carries. Tick **Skip
   these N row(s) instead of importing them** in the preview when you do want them left out.
+
+---
+
+## Logs & diagnostics
+
+DeepWork writes down what it was doing — every warning, error and crash, from the
+window, the network, the app and Angular alike — so a problem on a machine nobody
+can sit in front of is still something you can read afterwards. **Settings → Logs
+& Diagnostics** has one button that opens the folder, and another that copies the
+last 300 lines plus the environment they happened in.
+
+### The five files
+
+| File           | Holds                                                                    | Start here when…                           |
+| -------------- | ------------------------------------------------------------------------ | ------------------------------------------ |
+| `deepwork.log` | Everything, in order                                                     | you do not know where to look yet          |
+| `system.log`   | App, window, tray and OS events, plus stray warnings                     | the window or the desktop shell misbehaved |
+| `flow.log`     | What the user did: pages, timer, imports, exports                        | you need to know what they were doing      |
+| `crash.log`    | Panics, unhandled errors and rejections, Angular errors, `console.error` | the app died, froze or came up blank       |
+| `network.log`  | Failed requests, going offline and back online                           | something could not be reached             |
+
+A file rolls over once it reaches **512 KB**: it is archived with the date in its
+name (`deepwork_2026-09-21_14-30-05.log`) and the oldest copies are deleted once a
+file has more than five, so the folder can never grow past roughly 15 MB.
+
+### Where the folder is
+
+| Platform | Path                                   |
+| -------- | -------------------------------------- |
+| Windows  | `%LOCALAPPDATA%\com.deepwork.app\logs` |
+| macOS    | `~/Library/Logs/com.deepwork.app`      |
+| Linux    | `~/.local/share/com.deepwork.app/logs` |
+
+The same path is shown in Settings, next to the button that opens it. The browser
+build has no folder to open: it keeps the same log in memory (and in
+`localStorage`) and says so in the panel.
+
+### What gets recorded
+
+- **Window level** — uncaught script errors, unhandled promise rejections, and the
+  page each one happened on.
+- **Angular level** — everything `ErrorHandler` catches, tagged `Angular error`.
+- **Application level** — startup, database and settings failures, downloads that
+  could not be written, tray actions, and every `console.error` / `console.warn`.
+- **Network level** — requests that failed or came back with an error status, and
+  going offline and online again.
+- **Flow level** — the page the user is on, timer starts/pauses/finishes, imports
+  and exports, and the moment the log folder is opened.
+- **Crash level** — Rust panics, written straight to `crash.log` even when the
+  logger itself never started.
+
+One repeating line cannot flood the file: identical lines inside a two-second
+window are folded into the one already recorded, with a `(×N)` count in **Copy
+diagnostics**.
+
+---
+
+## About, and checking for updates
+
+DeepWork is built by **Rajat Malik**, and the app says so. **About** sits at the
+foot of the sidebar (the version badge opens it too) and holds two tabs.
+
+### About the developer
+
+Who builds this, what they do, what kind of work they are open to — full-time,
+contract or freelance, part-time and fractional, hourly consulting, speaking,
+and end-to-end delivery — and every way to get in touch: email, portfolio,
+LinkedIn, GitHub, WhatsApp and Medium.
+
+All of that text lives in one file, `src/app/core/constants/about.constants.ts`,
+so the wording can be changed without touching the layout.
+
+### Check for updates
+
+The second tab answers one question: **is there a newer DeepWork than the one
+running?** New builds are published as GitHub releases, and the check reads that
+release list (`malikrajat/deepwork`) and compares versions.
+
+It answers honestly, in one of four ways:
+
+| Answer                        | What it means                                                          |
+| ----------------------------- | ---------------------------------------------------------------------- |
+| A newer version is available  | It names the version, the date, the release notes and your installer   |
+| You are on the latest release | The running version is the newest published one                        |
+| You are ahead of the releases | This build is newer than anything published (a development build)      |
+| Could not check               | Offline, rate-limited by GitHub, no releases yet, or an unreadable tag |
+
+When a newer release exists the page offers the installer for the machine — a
+Windows `.exe`, a macOS `.dmg` or a Linux `.deb`/`.AppImage` — by name and size,
+with the rest of the release's files one click away.
+
+A few details that matter in practice:
+
+- **It does not spend requests.** The unauthenticated GitHub API allows 60
+  requests an hour per machine, so an answer is kept for six hours
+  (`localStorage`) and reused. _Check for updates_ always asks again.
+- **It never blocks the app.** The check runs on startup in the background and
+  is not awaited; a slow network cannot delay the window.
+- **It never breaks anything.** No connection, a rate limit or a nonsense
+  response is a sentence on the page, not an error the user has to interpret.
+- **Nothing about you is sent.** The check reads a public release list and
+  reports nothing back.
+
+When a newer release exists, the sidebar shows an **Update** pill next to the
+version until you look.
+
+### Opening links in the real browser
+
+A `target="_blank"` link inside the Tauri webview is swallowed — the new-window
+request is denied — so "visit my website" would have been a button that does
+nothing. Instead the Angular layer hands the URL to Rust (`open_external_url` in
+`src-tauri/src/opener.rs`), which opens it with `explorer`, `open` or `xdg-open`.
+Only `http`, `https` and `mailto` are accepted, and control characters are
+refused. The browser build needs none of this: `ExternalLinkDirective` leaves the
+anchor alone there, so `target="_blank"`, middle-click and "copy link address"
+all behave the way a browser should.
 
 ---
 
@@ -331,17 +394,20 @@ Also produces a standalone `.exe` at: `src-tauri/target/release/deepwork.exe`
 ### macOS (.app / .dmg)
 
 **Intel Mac:**
+
 ```bash
 npm run build:mac
 ```
 
 **Apple Silicon (M1/M2/M3/M4):**
+
 ```bash
 rustup target add aarch64-apple-darwin
 npm run build:mac-arm
 ```
 
 Output:
+
 - `src-tauri/target/release/bundle/macos/DeepWork.app`
 - `src-tauri/target/release/bundle/dmg/DeepWork_2.0.0_x64.dmg`
 
@@ -354,6 +420,7 @@ npm run build:linux
 ```
 
 Output:
+
 - `src-tauri/target/release/bundle/deb/deep-work_2.0.0_amd64.deb`
 - `src-tauri/target/release/bundle/appimage/deep-work_2.0.0_amd64.AppImage`
 
@@ -363,12 +430,12 @@ Output:
 
 ## Cross-Platform Build Summary
 
-| Platform | Command | Output Format | Run On |
-|----------|---------|---------------|--------|
-| Windows | `npm run build:windows` | `.msi`, `.exe` | Windows |
-| macOS (Intel) | `npm run build:mac` | `.app`, `.dmg` | macOS |
-| macOS (ARM) | `npm run build:mac-arm` | `.app`, `.dmg` | macOS (Apple Silicon) |
-| Linux | `npm run build:linux` | `.deb`, `.AppImage` | Linux |
+| Platform      | Command                 | Output Format       | Run On                |
+| ------------- | ----------------------- | ------------------- | --------------------- |
+| Windows       | `npm run build:windows` | `.msi`, `.exe`      | Windows               |
+| macOS (Intel) | `npm run build:mac`     | `.app`, `.dmg`      | macOS                 |
+| macOS (ARM)   | `npm run build:mac-arm` | `.app`, `.dmg`      | macOS (Apple Silicon) |
+| Linux         | `npm run build:linux`   | `.deb`, `.AppImage` | Linux                 |
 
 > Tauri does **not** support cross-compilation. You must build on the target OS (or use CI like GitHub Actions with matrix runners).
 
@@ -378,11 +445,11 @@ Output:
 
 Before building a release, update the version number in **all three** of these files (they must match):
 
-| File | Key |
-|------|-----|
-| [`package.json`](package.json) | `"version": "x.y.z"` |
+| File                                                     | Key                  |
+| -------------------------------------------------------- | -------------------- |
+| [`package.json`](package.json)                           | `"version": "x.y.z"` |
 | [`src-tauri/tauri.conf.json`](src-tauri/tauri.conf.json) | `"version": "x.y.z"` |
-| [`src-tauri/Cargo.toml`](src-tauri/Cargo.toml) | `version = "x.y.z"` |
+| [`src-tauri/Cargo.toml`](src-tauri/Cargo.toml)           | `version = "x.y.z"`  |
 
 > `tauri.conf.json` controls what appears in the installer and app About dialog.  
 > `Cargo.toml` is used by the Rust build.  
@@ -392,24 +459,65 @@ Before building a release, update the version number in **all three** of these f
 
 ## CI/CD (GitHub Actions)
 
-To build for all platforms automatically, add a workflow with matrix strategy:
+Two workflows live in `.github/workflows/`:
 
-```yaml
-# .github/workflows/build.yml
-strategy:
-  matrix:
-    include:
-      - os: windows-latest
-      - os: macos-latest
-      - os: ubuntu-latest
-runs-on: ${{ matrix.os }}
-steps:
-  - uses: actions/checkout@v4
-  - uses: actions/setup-node@v4
-    with: { node-version: 20 }
-  - uses: dtolnay/rust-toolchain@stable
-  - run: npm install
-  - run: npx tauri build
+| Workflow                                     | Runs on                                                 | What it does                                                                                                                               |
+| -------------------------------------------- | ------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------ |
+| [`ci.yml`](.github/workflows/ci.yml)         | every pull request, every push to `main`, and on demand | lint, format-check, unit tests with a coverage gate, `ng build`, the Playwright suite, `cargo fmt`, and the Windows/Linux/macOS installers |
+| [`deploy.yml`](.github/workflows/deploy.yml) | every push to `main`                                    | builds the web app and publishes it to GitHub Pages                                                                                        |
+
+### The stages in `ci.yml`
+
+| Job                                 | Runs                                                              | Fails the run when                                                                                                                                                                                                                                             |
+| ----------------------------------- | ----------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Lint (ESLint)**                   | `npm run lint`                                                    | there is a lint _error_ (warnings are reported, not fatal)                                                                                                                                                                                                     |
+| **Format (Prettier)**               | `npx prettier --check` over the files the change touches          | a file that changed is not formatted                                                                                                                                                                                                                           |
+| **Unit tests (Vitest)**             | `npm run test:coverage` + `npm run coverage:summary`              | any test fails, or coverage drops below the gate in `vitest.config.ts`; the report is uploaded either way                                                                                                                                                      |
+| **Build (ng build)**                | `npm run build`                                                   | the app does not compile; the built site is uploaded as `deepwork-web-build`                                                                                                                                                                                   |
+| **E2E (Playwright)** — _advisory_   | `npm run e2e`, which starts its own dev server on port 4202       | — it reports rather than blocks for now: 19 expectations still describe the pre-refactor pages (the removed dictation panel, the old analytics cards, the matrix panels, the habits calendar, the sidebar labels). Report and traces are uploaded on every run |
+| **Installer (Windows/Linux/macOS)** | `npm run tauri:build`, one job per OS, after lint, test and build | that platform's bundle fails to build. Runs on pushes to `main`, tags and manually — not on pull requests, where each OS would add 15–25 minutes                                                                                                               |
+| **Desktop format**                  | `cargo fmt --check`                                               | the Rust code is not `rustfmt`-formatted                                                                                                                                                                                                                       |
+
+Formatting is checked only on the files a change touches, because the app predates
+Prettier: a repo-wide gate would fail on code nobody edited. Run `npm run format`
+when you want to format everything at once, and `npm run format:check` to see what
+is left.
+
+### Coverage
+
+Unit coverage is measured over **every** file in `src/app` — whether or not a test
+happens to load it — so the percentage cannot be raised by leaving files out. Two
+rules are enforced in `vitest.config.ts`, and either one fails the run:
+
+1. **Nothing goes backwards.** The plain thresholds are the floor the suite
+   reaches today; raise them as tests are added.
+2. **The logic layer stays at 90%.** `src/app/core/utils/**` — the analytics
+   engine, the CSV/xlsx/zip helpers, the date and windowing maths — has to hold
+   90% statements, 90% lines and 90% functions.
+
+The app as a whole is at **50.12% statements** (51.13% lines, 624 tests today).
+Every run prints the distance to the 90% goal in its summary: what remains is the
+pages and the browser shell, which the Playwright suite exercises.
+
+The same stages run locally:
+
+```bash
+npm run lint     # ESLint
+npm run format   # Prettier, writes the files
+npm test         # Vitest unit tests
+npm run test:coverage && npm run coverage:summary   # coverage + the distance to 90%
+npm run e2e      # Playwright (starts the app itself); e2e:headed to watch it
+npm run build    # Angular production build
+npm run verify   # lint + tests + build, in one go
+```
+
+CI builds the installers for all three platforms; by hand it still has to happen
+on that target OS:
+
+```bash
+npm run build:windows   # on Windows
+npm run build:mac       # on a Mac
+npm run build:linux     # on Linux
 ```
 
 ---
@@ -430,16 +538,15 @@ SETUP.md          → Developer setup guide
 - **Documentation index:** [docs/INDEX.md](docs/INDEX.md) — central map of all docs & config files
 - Angular best practices: [docs/angular-best-practices.md](docs/angular-best-practices.md)
 
-
 ---
 
 ## Tech Stack
 
-| Layer | Technology |
-|-------|-----------|
-| Desktop Runtime | Tauri 2.x |
-| Frontend | Angular 21 (Standalone Components, Signals) |
-| Styling | Tailwind CSS + Glassmorphism custom tokens |
-| Database | SQLite via tauri-plugin-sql |
-| Notifications | tauri-plugin-notification + Web Audio API |
-| State | Angular Signals + RxJS |
+| Layer           | Technology                                  |
+| --------------- | ------------------------------------------- |
+| Desktop Runtime | Tauri 2.x                                   |
+| Frontend        | Angular 21 (Standalone Components, Signals) |
+| Styling         | Tailwind CSS + Glassmorphism custom tokens  |
+| Database        | SQLite via tauri-plugin-sql                 |
+| Notifications   | tauri-plugin-notification + Web Audio API   |
+| State           | Angular Signals + RxJS                      |
