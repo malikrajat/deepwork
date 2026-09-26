@@ -30,7 +30,11 @@ inside the webview actually open a browser.
 4. **Get the right download.** When a newer release exists, the page offers the
    installer for the machine the app is running on (Windows, macOS or Linux) and
    links to the release page for everything else.
-5. **Know without asking.** DeepWork checks GitHub once in the background as it
+5. **Find the app on another device.** The app tab also lists the other places
+   DeepWork runs — the browser build and the installers for Windows, macOS and
+   Linux — so a user can see it is available elsewhere, and download it for the
+   machine they are not sitting at, without leaving the page.
+6. **Know without asking.** DeepWork checks GitHub once in the background as it
    starts, and shows an **Update** pill next to the version at the foot of the
    sidebar when something newer is published. The version badge itself opens the
    About page.
@@ -75,6 +79,13 @@ inside the webview actually open a browser.
 - **AC-13** Assets a release does not carry are not invented: with no installer
   for this platform, the page offers the release page instead.
 - **AC-14** The page does not name the developer's employer anywhere.
+- **AC-15** The app tab lists every way to get DeepWork — the browser build and
+  the Windows, macOS and Linux installers — with the platform list and its
+  wording in `src/app/core/constants/downloads.constants.ts`. Each installer row
+  links to the file for that platform in the newest release already fetched, or
+  to the releases page when that release carries nothing for the platform (or
+  nothing has been read yet); the browser row links to `APP_WEB_APP_URL`; and the
+  row for the platform the app is running on is marked **This device**.
 
 ### Out of scope
 
@@ -95,6 +106,7 @@ inside the webview actually open a browser.
 | App name, version, repository, releases API  | `src/app/core/constants/app-info.constants.ts`                                                                                      |
 | About page and its two tabs                  | `src/app/pages/about/about.component.ts`                                                                                            |
 | Update check, cache, release mapping         | `src/app/core/services/update.service.ts`                                                                                           |
+| Where else DeepWork runs, and how to get it  | `src/app/core/constants/downloads.constants.ts`, `APP_WEB_APP_URL` in `src/app/core/constants/app-info.constants.ts`                |
 | Version comparison and release formatting    | `src/app/core/utils/version.util.ts`, `src/app/core/utils/release.util.ts`                                                          |
 | Opening outward links in the real browser    | `src-tauri/src/opener.rs`, `src/app/core/services/external-link.service.ts`, `src/app/shared/directives/external-link.directive.ts` |
 | Sidebar entry, version badge and update pill | `src/app/shared/components/sidebar/sidebar.component.ts`                                                                            |

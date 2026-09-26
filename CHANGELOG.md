@@ -7,6 +7,34 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+### Changed
+
+- **Everything is sharp now: whole-pixel type, blur-free shapes, and a widget
+  that is a rounded card instead of a box.** The minimised widget's countdown
+  circle had three separate problems, and all three were in the code. Its SVG
+  carried the class name `ring`, which Tailwind — whose content detection scans
+  the project for anything that looks like a utility class — answered by
+  generating its own `ring` utility: one 1px `currentColor` box-shadow, drawn as
+  a pale square exactly the size of the SVG box. That is the box that appeared
+  around the circle. The ring and the Dashboard clock were also drawn through
+  `feGaussianBlur` filters, which fuzzed the stroke, the gradients and the
+  filter's rectangular region, and the countdown was set in fractional rem
+  (0.72rem = 11.52px), which lands glyph stems on half pixels. The widget is now
+  a transparent, round-cornered window (`tauri.conf.json` plus a
+  `widget-transparent` class claimed only while the widget is open), the ring is
+  drawn at its own size with a 6px stroke and a wide faint halo instead of a
+  blur, and Tailwind is imported with `source(none)` so hand-written class names
+  can never pick up a utility rule again. Across the rest of the app: every
+  `font-size` is a whole pixel on one 10–32px ladder (no label under 10px),
+  radii snap to a single ladder, card and panel borders carry enough alpha to
+  read as edges, the muted text colours clear 4.5:1 against the background,
+  `:focus-visible` draws one app-wide ring, glows on icons and text are gone
+  (duplicate strokes and surface glows remain), and sliders and checkboxes take
+  their colour from the theme. `tests/unit/visual-crispness.spec.ts` holds each
+  rule down as a source invariant, so a new fractional font size, a new blur
+  filter, a new bare utility class name or a non-transparent window fails the
+  suite.
+
 ### Added
 
 - **About the developer, and a check for the latest release.** The app now says
@@ -35,6 +63,20 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   is sent. When something newer exists, the sidebar shows an **Update** pill.
   (`src/app/core/services/update.service.ts`, `src/app/core/utils/version.util.ts`,
   `src/app/core/utils/release.util.ts`, `src/app/pages/about/about.component.ts`)
+
+- **Where else to get it: the web app, and the installers for the other two
+  platforms.** The same tab now lists every way to run DeepWork — the browser
+  build at `malikrajat.github.io/deepwork`, and the Windows, macOS and Linux
+  installers — so a user on one machine can see the app is available on the
+  others and download it without leaving the page. Each installer row is
+  resolved against the newest release the page has already fetched (no second
+  request, no link that can go stale), the row for the machine you are on is
+  marked **This device**, and a platform a release carries nothing for links to
+  the releases page instead of to a file that does not exist. The platform list
+  lives in `src/app/core/constants/downloads.constants.ts`, and the web app's
+  address is derived from the repository in `app-info.constants.ts`.
+  (`src/app/core/constants/downloads.constants.ts`,
+  `src/app/core/services/update.service.ts`, `src/app/pages/about/about.component.ts`)
 
 - **Outward links now open in the real browser.** Inside the desktop webview a
   `target="_blank"` link is swallowed — the new-window request is denied — so an

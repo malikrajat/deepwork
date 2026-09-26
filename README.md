@@ -332,6 +332,28 @@ A few details that matter in practice:
 When a newer release exists, the sidebar shows an **Update** pill next to the
 version until you look.
 
+### Get it on another device
+
+The same tab also says where else DeepWork runs, because the copy already open is
+not the only way to get it:
+
+| Where   | What the row offers                                                                                                              |
+| ------- | -------------------------------------------------------------------------------------------------------------------------------- |
+| Web app | [malikrajat.github.io/deepwork](https://malikrajat.github.io/deepwork/) — the same app in any modern browser, nothing to install |
+| Windows | the `.exe` installer for 64-bit Windows 10 and later                                                                             |
+| macOS   | the `.dmg` for recent versions of macOS                                                                                          |
+| Linux   | an AppImage, `.deb` or `.rpm` for most distributions                                                                             |
+
+Each installer row links straight to the file in the newest release the page has
+already fetched — no second lookup, and no link that can go stale. The row for
+the machine you are reading this on is marked **This device**. A release that
+carries nothing for a platform sends that row to the releases page rather than
+to a file that is not there; before the first check has answered, every
+installer row does the same. The wording and the platform list live in
+`src/app/core/constants/downloads.constants.ts`; only the web app has an address
+in a constants file (`APP_WEB_APP_URL`), and it is derived from the repository
+that GitHub Pages serves.
+
 ### Opening links in the real browser
 
 A `target="_blank"` link inside the Tauri webview is swallowed — the new-window
@@ -495,7 +517,7 @@ rules are enforced in `vitest.config.ts`, and either one fails the run:
    engine, the CSV/xlsx/zip helpers, the date and windowing maths — has to hold
    90% statements, 90% lines and 90% functions.
 
-The app as a whole is at **50.12% statements** (51.13% lines, 624 tests today).
+The app as a whole is at **50.10% statements** (51.11% lines, 632 tests today).
 Every run prints the distance to the 90% goal in its summary: what remains is the
 pages and the browser shell, which the Playwright suite exercises.
 

@@ -28,6 +28,7 @@ Central reference for all guidance files in this repository.
 | `specs/005-task-status-board/`           | The Jira-style status board shared by the Tasks and Today pages                      |
 | `specs/006-diagnostics-and-ci/`          | The five log files, the "Open log folder" button, and the CI pipeline                |
 | `specs/007-about-and-updates/`           | The About page (developer, contact) and the GitHub release update check              |
+| `specs/008-visual-crispness/`            | Whole-pixel type, blur-free shapes, and the mini widget's rounded card                |
 
 ---
 
