@@ -34,9 +34,14 @@ export interface SettingsFormModel {
   sessionsBeforeLongBreak: number;
   notificationSound: NotificationSound;
   notificationRepeatInterval: number;
-  calendarReminders: boolean;
   trayBehavior: 'minimize' | 'quit';
   theme: ThemePreference;
+  waterReminders: boolean;
+  waterStart: string;
+  waterEnd: string;
+  waterIntervalMinutes: number;
+  waterAmountMl: number;
+  waterGoalMl: number;
 }
 
 /** Dashboard task selector form model */
@@ -53,13 +58,31 @@ export interface SearchFormModel {
 // Default form values (factory functions to avoid shared references)
 // ─────────────────────────────────────────────────────────────────────────────
 
+/**
+ * Today as `YYYY-MM-DD` in the user's own timezone.
+ *
+ * Deliberately not `toISOString()`: that is UTC, so anyone east of Greenwich
+ * would see yesterday's date in the form every morning.
+ */
+function todayIsoDate(now = new Date()): string {
+  const pad = (value: number) => String(value).padStart(2, '0');
+  return `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`;
+}
+
+/**
+ * Defaults for the Add/Edit task form.
+ *
+ * The deadline starts on today's date: most tasks are for today, and making the
+ * user pick the same day on every new task was pure friction. It stays an ordinary
+ * field — clear it for no deadline, or move it to any later day.
+ */
 export function createTaskFormDefaults(): TaskFormModel {
   return {
     title: '',
     description: '',
     priority: '3',
     quadrant: '',
-    deadline: '',
+    deadline: todayIsoDate(),
     recurFrequency: '',
     recurEndDate: '',
   };
@@ -81,9 +104,14 @@ export function createSettingsFormDefaults(): SettingsFormModel {
     sessionsBeforeLongBreak: 4,
     notificationSound: 'bell',
     notificationRepeatInterval: 60,
-    calendarReminders: true,
     trayBehavior: 'minimize',
     theme: 'system',
+    waterReminders: DEFAULT_SETTINGS.waterReminders,
+    waterStart: DEFAULT_SETTINGS.waterStart,
+    waterEnd: DEFAULT_SETTINGS.waterEnd,
+    waterIntervalMinutes: DEFAULT_SETTINGS.waterIntervalMinutes,
+    waterAmountMl: DEFAULT_SETTINGS.waterAmountMl,
+    waterGoalMl: DEFAULT_SETTINGS.waterGoalMl,
   };
 }
 
@@ -94,4 +122,8 @@ export function createSearchFormDefaults(): SearchFormModel {
 export function createTaskSelectFormDefaults(): TaskSelectFormModel {
   return { taskId: '' };
 }
-import { NotificationSound, ThemePreference } from '../../core/models/settings.model';
+import {
+  DEFAULT_SETTINGS,
+  NotificationSound,
+  ThemePreference,
+} from '../../core/models/settings.model';

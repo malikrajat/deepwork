@@ -82,9 +82,9 @@ import { MINI_WIDGET_HELP } from '../../../core/constants/desktop-prefs.constant
       box-shadow: 0 26px 60px rgba(0, 0, 0, 0.5);
       animation: dialog-rise 0.24s ease-out;
     }
-    .dialog-title { font-size: 1.2rem; font-weight: 800; letter-spacing: -0.3px; margin: 0; }
+    .dialog-title { font-size: 20px; font-weight: 800; letter-spacing: -0.3px; margin: 0; }
     .dialog-subtitle {
-      margin: 6px 0 0; font-size: 0.8rem; line-height: 1.5;
+      margin: 6px 0 0; font-size: 13px; line-height: 1.5;
       color: var(--color-text-muted, #a1a1aa);
     }
     .dialog-body { margin-top: 18px; }
@@ -94,12 +94,12 @@ import { MINI_WIDGET_HELP } from '../../../core/constants/desktop-prefs.constant
       border-radius: 12px;
       background: rgba(139, 92, 246, 0.08);
       border: 1px solid rgba(139, 92, 246, 0.2);
-      font-size: 0.75rem; line-height: 1.5;
+      font-size: 12px; line-height: 1.5;
       color: var(--color-text-secondary, #d4d4d8);
     }
     .widget-tip-icon {
       flex: 0 0 auto; display: inline-flex; align-items: center; justify-content: center;
-      width: 24px; height: 24px; border-radius: 7px;
+      width: 24px; height: 24px; border-radius: 6px;
       background: rgba(139, 92, 246, 0.16);
       color: var(--color-accent-primary, #a78bfa);
     }
@@ -111,7 +111,7 @@ import { MINI_WIDGET_HELP } from '../../../core/constants/desktop-prefs.constant
       display: flex; justify-content: flex-end; gap: 8px; margin-top: 22px;
     }
     .btn-ghost, .btn-primary {
-      padding: 8px 18px; border-radius: 9px; font-size: 0.8rem; font-weight: 600;
+      padding: 8px 18px; border-radius: 8px; font-size: 13px; font-weight: 600;
       cursor: pointer; transition: background 0.2s, border-color 0.2s;
     }
     .btn-ghost {

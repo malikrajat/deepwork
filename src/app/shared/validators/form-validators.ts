@@ -98,18 +98,28 @@ export function alphanumeric(allowedExtra = ''): (ctx: { value: () => string }) 
 // Date validators
 // ─────────────────────────────────────────────────────────────────────────────
 
-/** Date must be in the future */
+/**
+ * Date must not be in the past.
+ *
+ * Today counts as valid — the Add Task form pre-fills today's deadline, and a
+ * task you are about to work on today must not be rejected as "past" simply
+ * because of the time of day. Comparison is done on `YYYY-MM-DD` strings, which
+ * keeps it timezone-proof.
+ */
 export function futureDate(ctx: { value: () => string }): FormValidationError | undefined {
   const val = ctx.value();
   if (!val) return undefined;
-  const date = new Date(val);
-  if (Number.isNaN(date.getTime())) {
+
+  const iso = val.slice(0, 10);
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(iso) || Number.isNaN(new Date(val).getTime())) {
     return { kind: 'invalidDate', message: 'Enter a valid date' };
   }
+
   const today = new Date();
-  today.setHours(0, 0, 0, 0);
-  if (date < today) {
-    return { kind: 'futureDate', message: 'Date must be in the future' };
+  const pad = (value: number) => String(value).padStart(2, '0');
+  const todayIso = `${today.getFullYear()}-${pad(today.getMonth() + 1)}-${pad(today.getDate())}`;
+  if (iso < todayIso) {
+    return { kind: 'futureDate', message: 'Date cannot be in the past' };
   }
   return undefined;
 }
