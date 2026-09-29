@@ -204,6 +204,37 @@ describe('TaskService', () => {
     expect(svc.todayTasks().find(x => x.id === t.id)).toBeUndefined();
   });
 
+  it('todayTasks() leaves a task dated for another day out, even when it was written today', async () => {
+    // The import case: a sheet dated for tomorrow is tomorrow's work. Landing in
+    // the app today is not the same as being today's task.
+    const future = new Date();
+    future.setDate(future.getDate() + 1);
+    const t = makeTask({ deadline: future.toISOString().slice(0, 10), status: 'todo' });
+    mockDb.getTasks.mockResolvedValueOnce([t]);
+    await svc.loadTasks();
+    expect(svc.todayBoardTasks().find(x => x.id === t.id)).toBeUndefined();
+  });
+
+  it('todayTasks() keeps an overdue task on today, where the slip is visible', async () => {
+    const t = makeTask({ deadline: '2001-02-03', status: 'todo' });
+    mockDb.getTasks.mockResolvedValueOnce([t]);
+    await svc.loadTasks();
+    expect(svc.todayTasks().find(x => x.id === t.id)).toBeDefined();
+  });
+
+  it('todayTasks() honours "Add to Today" over the date, because the user said so', async () => {
+    const future = new Date();
+    future.setDate(future.getDate() + 5);
+    const t = makeTask({
+      deadline: future.toISOString().slice(0, 10),
+      todayOrder: 1,
+      status: 'todo',
+    });
+    mockDb.getTasks.mockResolvedValueOnce([t]);
+    await svc.loadTasks();
+    expect(svc.todayTasks().find(x => x.id === t.id)).toBeDefined();
+  });
+
   // ── todayBoardTasks (the Today board keeps its Done column) ────────────
 
   it('todayBoardTasks() keeps done tasks so nothing vanishes out of a column', async () => {

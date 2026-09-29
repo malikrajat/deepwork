@@ -74,4 +74,23 @@ describe('UiService (behavior)', () => {
     await svc.exitMiniMode();
     expect(mockPrefs.reapplyAlwaysOnTop).not.toHaveBeenCalled();
   });
+
+  it('brings the full window back before a water nudge is asked', async () => {
+    // The nudge is a question, and the widget has no room for one: the widget is
+    // left first, whether or not there is a native window to raise.
+    svc.isMiniMode.set(true);
+
+    await svc.surfaceForNudge();
+
+    expect(svc.isMiniMode()).toBe(false);
+    expect(mockPrefs.reapplyAlwaysOnTop).not.toHaveBeenCalled();
+  });
+
+  it('leaves the window alone when there is no desktop shell to raise', async () => {
+    await svc.surfaceForNudge();
+    await svc.releaseNudgeSurface();
+
+    expect(svc.isMiniMode()).toBe(false);
+    expect(mockPrefs.reapplyAlwaysOnTop).not.toHaveBeenCalled();
+  });
 });

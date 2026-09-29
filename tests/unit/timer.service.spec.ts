@@ -4,6 +4,7 @@ import { TestBed } from '@angular/core/testing';
 import { TimerService } from '../../src/app/core/services/timer.service';
 import { DbService } from '../../src/app/core/services/db.service';
 import { SettingsService } from '../../src/app/core/services/settings.service';
+import { NotificationService } from '../../src/app/core/services/notification.service';
 import { DEFAULT_SETTINGS } from '../../src/app/core/models/settings.model';
 
 const makeMockDb = () => ({
@@ -17,6 +18,10 @@ const makeMockDb = () => ({
 describe('TimerService', () => {
   let svc: TimerService;
   let mockDb: ReturnType<typeof makeMockDb>;
+  let mockNotifications: {
+    init: ReturnType<typeof vi.fn>;
+    fireTimerComplete: ReturnType<typeof vi.fn>;
+  };
   let mockSettings: {
     settings: ReturnType<typeof signal<typeof DEFAULT_SETTINGS>>;
     loadSettings: ReturnType<typeof vi.fn>;
@@ -31,11 +36,16 @@ describe('TimerService', () => {
       saveSettings: vi.fn(async (settings) => mockSettings.settings.set(settings)),
     };
     vi.useFakeTimers();
+    mockNotifications = {
+      init: vi.fn().mockResolvedValue(undefined),
+      fireTimerComplete: vi.fn().mockResolvedValue(undefined),
+    };
     TestBed.configureTestingModule({
       providers: [
         TimerService,
         { provide: DbService, useValue: mockDb },
         { provide: SettingsService, useValue: mockSettings },
+        { provide: NotificationService, useValue: mockNotifications },
       ],
     });
     svc = TestBed.inject(TimerService);
@@ -172,6 +182,55 @@ describe('TimerService', () => {
     svc.skip(); // work → long-break
     svc.skip(); // long-break → work
     expect(svc.timerType()).toBe('work');
+  });
+
+  // ── reset / linkTask ─────────────────────────────────────────────────
+
+  // ── announcing a finished session ─────────────────────────────────────
+
+  it('announces a finished focus session, and says what comes next', async () => {
+    await svc.init();
+    svc.start();
+    vi.advanceTimersByTime(DEFAULT_SETTINGS.workDuration * 1000);
+
+    expect(mockNotifications.fireTimerComplete).toHaveBeenCalledTimes(1);
+    expect(mockNotifications.fireTimerComplete).toHaveBeenCalledWith('work', 'short-break');
+  });
+
+  it('announces a finished short break', async () => {
+    // The report this exists for: a 5:00 break ran out and nothing at all
+    // happened — no tone, no card, no system notification.
+    await svc.init();
+    svc.skip(); // work → short-break
+    svc.start();
+    vi.advanceTimersByTime(DEFAULT_SETTINGS.shortBreak * 1000);
+
+    expect(mockNotifications.fireTimerComplete).toHaveBeenCalledTimes(1);
+    expect(mockNotifications.fireTimerComplete).toHaveBeenCalledWith('short-break', 'work');
+  });
+
+  it('announces a finished long break', async () => {
+    await svc.init();
+    for (let i = 0; i < 7; i++) svc.skip(); // three breaks and a fourth focus → long-break
+    expect(svc.timerType()).toBe('long-break');
+
+    svc.start();
+    vi.advanceTimersByTime(DEFAULT_SETTINGS.longBreak * 1000);
+
+    expect(mockNotifications.fireTimerComplete).toHaveBeenCalledTimes(1);
+    expect(mockNotifications.fireTimerComplete).toHaveBeenCalledWith('long-break', 'work');
+  });
+
+  it('says nothing when the user skips or stops a session early', async () => {
+    // The alert means "your time is up". A session the user ended themselves is
+    // not news, and ringing for it would train them to ignore the tone.
+    await svc.init();
+    svc.start();
+    svc.skip();
+    svc.start();
+    svc.stop();
+
+    expect(mockNotifications.fireTimerComplete).not.toHaveBeenCalled();
   });
 
   // ── reset / linkTask ─────────────────────────────────────────────────

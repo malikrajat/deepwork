@@ -193,6 +193,54 @@ describe('DesktopPrefsService (desktop shell)', () => {
     expect(settings.current().alwaysOnTop).toBe(false);
   });
 
+  it('keeps the window in the tray by default', () => {
+    setup();
+
+    expect(svc.closeToTray()).toBe(true);
+  });
+
+  it('init() hands the stored close behaviour to the window', async () => {
+    // Rust decides the moment the X is pressed, so the preference has to be
+    // handed over as soon as it is read rather than waiting for the switch.
+    setup({ trayBehavior: 'quit' });
+
+    await svc.init();
+
+    expect(hoisted.invoke).toHaveBeenCalledWith('window_set_close_behavior', {
+      keepInTray: false,
+    });
+    expect(svc.closeToTray()).toBe(false);
+  });
+
+  it('setCloseToTray() tells the window and persists the preference', async () => {
+    setup();
+    await svc.init();
+    hoisted.invoke.mockClear();
+
+    await svc.setCloseToTray(false);
+
+    expect(hoisted.invoke).toHaveBeenCalledWith('window_set_close_behavior', {
+      keepInTray: false,
+    });
+    expect(svc.closeToTray()).toBe(false);
+    expect(settings.current().trayBehavior).toBe('quit');
+    expect(svc.error()).toBeNull();
+  });
+
+  it('setCloseToTray() rolls back when the window call fails', async () => {
+    // The dangerous direction is the other one: a switch that claims the window
+    // will quit, while the window keeps hiding, is a user who cannot close it.
+    setup();
+    await svc.init();
+    hoisted.invoke.mockRejectedValueOnce(new Error('window gone'));
+
+    await svc.setCloseToTray(false);
+
+    expect(svc.closeToTray()).toBe(true);
+    expect(svc.error()).toBe('window gone');
+    expect(settings.current().trayBehavior).toBe('minimize');
+  });
+
   it('adoptTrayChange() stores a change the tray already made', async () => {
     setup();
     await svc.init();

@@ -153,6 +153,13 @@ describe('form-validators', () => {
       expect(futureDate(ctx('2000-01-01'))).toMatchObject({ kind: 'futureDate' });
     });
 
+    it("passes today — the deadline the add-task form pre-fills", () => {
+      const today = new Date();
+      const pad = (value: number) => String(value).padStart(2, '0');
+      const iso = `${today.getFullYear()}-${pad(today.getMonth() + 1)}-${pad(today.getDate())}`;
+      expect(futureDate(ctx(iso))).toBeUndefined();
+    });
+
     it('passes a date that is tomorrow', () => {
       const tomorrow = new Date();
       tomorrow.setDate(tomorrow.getDate() + 1);

@@ -7,11 +7,17 @@ import {
   minuteOfDay,
   nextWindowOpen,
   parseTimeOfDay,
+  quoteFor,
   sanitiseAmount,
   waterPrefsOf,
   windowClose,
 } from '../../src/app/core/utils/water.util';
 import { DEFAULT_SETTINGS } from '../../src/app/core/models/settings.model';
+import {
+  WATER_AMOUNT_OPTIONS,
+  WATER_INTERVAL_OPTIONS,
+  WATER_QUOTES,
+} from '../../src/app/core/constants/water.constants';
 
 /**
  * The water feature's arithmetic, pinned down. The reminder's timer is only as
@@ -161,6 +167,7 @@ describe('waterPrefsOf', () => {
       waterIntervalMinutes: 45,
       waterAmountMl: 750,
       waterGoalMl: 3000,
+      waterAutoLogWhenMinimized: false,
     });
 
     expect(prefs).toEqual({
@@ -170,6 +177,7 @@ describe('waterPrefsOf', () => {
       intervalMinutes: 45,
       amountMl: 750,
       goalMl: 3000,
+      autoLogWhenMinimized: false,
     });
   });
 
@@ -179,5 +187,56 @@ describe('waterPrefsOf', () => {
     expect(prefs.intervalMinutes).toBe(60);
     expect(prefs.amountMl).toBe(500);
     expect(prefs.goalMl).toBe(2000);
+    // A minimised window is left alone unless the user says otherwise.
+    expect(prefs.autoLogWhenMinimized).toBe(true);
+  });
+});
+
+describe('quoteFor', () => {
+  it('walks the list in order, and wraps round at the end', () => {
+    expect(quoteFor(0)).toBe(WATER_QUOTES[0]);
+    expect(quoteFor(1)).toBe(WATER_QUOTES[1]);
+    expect(quoteFor(WATER_QUOTES.length)).toBe(WATER_QUOTES[0]);
+    expect(quoteFor(WATER_QUOTES.length + 3)).toBe(WATER_QUOTES[3]);
+  });
+
+  it('never lands outside the list, whatever it is handed', () => {
+    expect(quoteFor(-1)).toBe(WATER_QUOTES[WATER_QUOTES.length - 1]);
+    expect(quoteFor(2.7)).toBe(WATER_QUOTES[2]);
+    expect(quoteFor(Number.NaN)).toBe(WATER_QUOTES[0]);
+  });
+
+  it('has lines worth reading, and none of them repeated', () => {
+    expect(WATER_QUOTES.length).toBeGreaterThan(4);
+    for (const quote of WATER_QUOTES) expect(quote.trim().length).toBeGreaterThan(10);
+    expect(new Set(WATER_QUOTES).size).toBe(WATER_QUOTES.length);
+  });
+});
+
+describe('the choices the reminder offers', () => {
+  it('offers cadences below half an hour as well as above an hour', () => {
+    expect(WATER_INTERVAL_OPTIONS).toContain(15);
+    expect(WATER_INTERVAL_OPTIONS).toContain(180);
+  });
+
+  it('offers a sip as small as 30 ml and a bottle as large as 1 L', () => {
+    expect(WATER_AMOUNT_OPTIONS[0]).toBe(30);
+    expect(WATER_AMOUNT_OPTIONS.at(-1)).toBe(1000);
+    // The small end is a run of steps a glass actually holds, not one sip and a
+    // jump: 30, 50, 70, 90 ml are each a real mouthful from a small glass.
+    expect(WATER_AMOUNT_OPTIONS).toEqual(expect.arrayContaining([50, 70, 90]));
+    expect(WATER_AMOUNT_OPTIONS).toContain(150);
+  });
+
+  it('keeps every list ascending, with nothing offered twice', () => {
+    for (const list of [WATER_INTERVAL_OPTIONS, WATER_AMOUNT_OPTIONS]) {
+      expect([...list].sort((a, b) => a - b)).toEqual([...list]);
+      expect(new Set(list).size).toBe(list.length);
+    }
+  });
+
+  it('still offers the reminders it starts on', () => {
+    expect(WATER_INTERVAL_OPTIONS).toContain(DEFAULT_SETTINGS.waterIntervalMinutes);
+    expect(WATER_AMOUNT_OPTIONS).toContain(DEFAULT_SETTINGS.waterAmountMl);
   });
 });

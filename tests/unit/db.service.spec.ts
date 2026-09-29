@@ -78,6 +78,95 @@ describe('DbService (browser/localStorage mode)', () => {
     expect(loaded.notificationSound).toBe('chime');
   });
 
+  it('keeps the water reminder preferences, and ignores values it did not offer', async () => {
+    await db.init();
+    const chosen = {
+      ...DEFAULT_SETTINGS,
+      waterReminders: true,
+      waterStart: '07:30',
+      waterEnd: '16:45',
+      waterIntervalMinutes: 45,
+      waterAmountMl: 750,
+      waterGoalMl: 3000,
+      waterAutoLogWhenMinimized: false,
+    };
+    await db.saveSettings(chosen);
+
+    const loaded = await db.getSettings();
+    expect(loaded.waterReminders).toBe(true);
+    expect(loaded.waterStart).toBe('07:30');
+    expect(loaded.waterEnd).toBe('16:45');
+    expect(loaded.waterIntervalMinutes).toBe(45);
+    expect(loaded.waterAmountMl).toBe(750);
+    expect(loaded.waterGoalMl).toBe(3000);
+    expect(loaded.waterAutoLogWhenMinimized).toBe(false);
+
+    // A window that cannot be read, and a cadence that is not on the menu,
+    // fall back to the defaults rather than to a reminder at 03:00.
+    await db.saveSettings({
+      ...chosen,
+      waterStart: 'soon',
+      waterIntervalMinutes: 7,
+      waterAutoLogWhenMinimized: 'yes' as unknown as boolean,
+    });
+    const repaired = await db.getSettings();
+    expect(repaired.waterStart).toBe(DEFAULT_SETTINGS.waterStart);
+    expect(repaired.waterIntervalMinutes).toBe(DEFAULT_SETTINGS.waterIntervalMinutes);
+    // A hand-edited store cannot decide for the user either.
+    expect(repaired.waterAutoLogWhenMinimized).toBe(
+      DEFAULT_SETTINGS.waterAutoLogWhenMinimized,
+    );
+  });
+
+  it('starts with the water reminder off', async () => {
+    await db.init();
+    const s = await db.getSettings();
+
+    expect(s.waterReminders).toBe(false);
+    expect(s.waterAmountMl).toBe(500);
+    expect(s.waterGoalMl).toBe(2000);
+    // A minimised window is left alone until the user asks otherwise.
+    expect(s.waterAutoLogWhenMinimized).toBe(true);
+  });
+
+  // ── Water ─────────────────────────────────────────────────────────────
+
+  it('adds drinks and reads the day back', async () => {
+    await db.init();
+    const today = new Date();
+    await db.addWaterEntry({ id: 'w1', amountMl: 500, loggedAt: today.toISOString() });
+    await db.addWaterEntry({ id: 'w2', amountMl: 250, loggedAt: today.toISOString() });
+
+    const rows = await db.getWaterIntakeSince(new Date(today.setHours(0, 0, 0, 0)).toISOString());
+
+    expect(rows.map((row) => row.amountMl)).toEqual([500, 250]);
+  });
+
+  it('leaves yesterday out of the current day', async () => {
+    await db.init();
+    const yesterday = new Date();
+    yesterday.setDate(yesterday.getDate() - 1);
+    await db.addWaterEntry({ id: 'old', amountMl: 500, loggedAt: yesterday.toISOString() });
+    await db.addWaterEntry({ id: 'new', amountMl: 250, loggedAt: new Date().toISOString() });
+
+    const midnight = new Date();
+    midnight.setHours(0, 0, 0, 0);
+    const rows = await db.getWaterIntakeSince(midnight.toISOString());
+
+    expect(rows.map((row) => row.id)).toEqual(['new']);
+  });
+
+  it('removes a drink that was logged by mistake', async () => {
+    await db.init();
+    await db.addWaterEntry({ id: 'w1', amountMl: 500, loggedAt: new Date().toISOString() });
+
+    await db.deleteWaterEntry('w1');
+
+    const midnight = new Date();
+    midnight.setHours(0, 0, 0, 0);
+    expect(await db.getWaterIntakeSince(midnight.toISOString())).toHaveLength(0);
+  });
+
   // ── Tasks ─────────────────────────────────────────────────────────────
 
   it('getTasks() returns empty array when nothing stored', async () => {

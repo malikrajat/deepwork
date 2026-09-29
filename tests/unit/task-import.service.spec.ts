@@ -10,7 +10,7 @@ import {
   isoDateToExcelSerial,
 } from '../../src/app/core/utils/xlsx.util';
 import { unzip, utf8Decode } from '../../src/app/core/utils/zip.util';
-import { todayIsoDate } from '../../src/app/core/utils/task-import.mapper';
+import { IMPORT_DEFAULTS, todayIsoDate } from '../../src/app/core/utils/task-import.mapper';
 
 /** Minimal stand-in for a browser File backed by bytes or text. */
 function fakeFile(name: string, contents: Uint8Array | string): File {
@@ -126,7 +126,10 @@ describe('TaskImportService', () => {
       expect(firstDefaultRow[5]).toBe('To Do');
       expect(firstDefaultRow[6]).toBe('No repeat');
       expect(firstDefaultRow[9]).toBe('task');
-      expect(firstDefaultRow[10]).toBe('Yes');
+      // "Add to Today" starts at No: the deadline decides the day, and a row
+      // dated for another day must not be pulled onto today by a default.
+      expect(firstDefaultRow[10]).toBe('No');
+      expect(IMPORT_DEFAULTS.addToToday).toBe('No');
       // Template ships 25 blank rows ready to type into.
       expect(sheet.rows.length).toBe(26);
     });
@@ -442,6 +445,26 @@ describe('TaskImportService', () => {
       expect(created[0].todayOrder).toBe(5);
       expect(created[1].todayOrder).toBeNull();
       expect(created[2].todayOrder).toBe(6);
+    });
+
+    it('keeps a row dated for another day off today unless it asks to be there', async () => {
+      // The complaint this answers: a sheet dated tomorrow arrived on today's
+      // list, because being imported today was enough to count as today's work.
+      // The date is what decides now — "Add to Today" is the only thing that can
+      // overrule it, and the template no longer answers Yes on the user's behalf.
+      const tomorrow = new Date();
+      tomorrow.setDate(tomorrow.getDate() + 1);
+      const tomorrowIso = todayIsoDate(tomorrow);
+
+      const preview = await previewFrom(
+        `Title,Deadline,Add to Today\nTomorrow's work,${tomorrowIso},\nTomorrow but pinned,${tomorrowIso},Yes\n`,
+      );
+      await service.importRows(preview);
+
+      expect(created[0].deadline).toBe(tomorrowIso);
+      expect(created[0].todayOrder).toBeNull();
+      expect(created[1].deadline).toBe(tomorrowIso);
+      expect(created[1].todayOrder).not.toBeNull();
     });
 
     it('carries recurrence across', async () => {

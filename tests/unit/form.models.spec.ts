@@ -9,6 +9,18 @@ import {
   JournalFormModel,
   SettingsFormModel,
 } from '../../src/app/shared/models/form.models';
+import {
+  WATER_AMOUNT_OPTIONS,
+  WATER_GOAL_OPTIONS,
+  WATER_INTERVAL_OPTIONS,
+} from '../../src/app/core/constants/water.constants';
+
+/** Today in the user's own timezone, the way the form factory computes it. */
+function localToday(): string {
+  const now = new Date();
+  const pad = (value: number) => String(value).padStart(2, '0');
+  return `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`;
+}
 
 describe('form model factories', () => {
 
@@ -20,9 +32,15 @@ describe('form model factories', () => {
       expect(d.description).toBe('');
       expect(d.priority).toBe('3');
       expect(d.quadrant).toBe('');
-      expect(d.deadline).toBe('');
+      expect(d.deadline).toBe(localToday());
       expect(d.recurFrequency).toBe('');
       expect(d.recurEndDate).toBe('');
+    });
+
+    it('pre-fills the deadline with today so it never has to be typed twice', () => {
+      // Local date, not UTC: east of Greenwich `toISOString()` is still yesterday
+      // in the early morning, which is exactly when people plan their day.
+      expect(createTaskFormDefaults().deadline).toBe(localToday());
     });
 
     it('returns a new independent object each call', () => {
@@ -91,6 +109,19 @@ describe('form model factories', () => {
       const a = createSettingsFormDefaults();
       const b = createSettingsFormDefaults();
       expect(a).not.toBe(b);
+    });
+
+    it('starts the water reminder off, on a glass and cadence it offers', () => {
+      const d = createSettingsFormDefaults();
+
+      expect(d.waterReminders).toBe(false);
+      expect(d.waterStart).toBe('09:00');
+      expect(d.waterEnd).toBe('18:00');
+      expect(WATER_INTERVAL_OPTIONS).toContain(d.waterIntervalMinutes);
+      expect(WATER_AMOUNT_OPTIONS).toContain(d.waterAmountMl);
+      expect(WATER_GOAL_OPTIONS).toContain(d.waterGoalMl);
+      expect(d.waterAmountMl).toBe(500);
+      expect(d.waterGoalMl).toBe(2000);
     });
   });
 });

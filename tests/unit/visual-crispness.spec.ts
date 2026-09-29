@@ -61,6 +61,20 @@ describe('Shapes are drawn, not blurred', () => {
     expect(widget).toContain('font-size: 12px');
     expect(widget).toContain('font-variant-numeric: tabular-nums');
   });
+
+  it('gives the floating panel the same size as the widget window', () => {
+    // The window is sized in `UiService` and the browser build's floating panel
+    // in CSS, and nothing else ties the two together: a widget that grew a
+    // control in one and not the other is a clipped button on screen.
+    const windowSize = /const WIDGET_SIZE = \{ width: (\d+), height: (\d+) \}/.exec(uiService);
+    const panelSize = /\.mini-widget\.floating \{[^}]*width: (\d+)px;[^}]*height: (\d+)px;/s.exec(
+      widget,
+    );
+
+    expect(windowSize, 'WIDGET_SIZE not found in ui.service.ts').not.toBeNull();
+    expect(panelSize, '.mini-widget.floating size not found in the widget').not.toBeNull();
+    expect([panelSize![1], panelSize![2]]).toEqual([windowSize![1], windowSize![2]]);
+  });
 });
 
 describe('No square box around the widget', () => {
@@ -131,9 +145,15 @@ describe('No square box around the widget', () => {
     expect(styles).toContain('@import "tailwindcss" source(none);');
   });
 
-  it('fills the widget window with one rounded surface and no border box', () => {
-    expect(widget).toContain('border-radius: 18px');
+  it('fills the widget window edge to edge, and rounds only the floating panel', () => {
+    // The native widget *is* its window, and that window is a rectangle the OS
+    // frames. Rounding the card inside it leaves the desktop at the four
+    // corners — a white border around the widget whenever what is behind is
+    // light — so the surface fills the window and only the browser build's
+    // floating panel, which really does float over the app, gets a radius.
     expect(widget).toMatch(/\.mini-widget\s*{[^}]*box-shadow: inset/);
+    expect(widget).not.toMatch(/\.mini-widget\s*{[^}]*border-radius/);
+    expect(widget).toMatch(/\.mini-widget\.floating \{[^}]*border-radius: 18px;/s);
     expect(widget).not.toMatch(/\.mini-widget\s*{[^}]*\n\s*border:\s/);
   });
 
