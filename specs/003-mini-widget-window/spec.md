@@ -20,8 +20,9 @@ is not forgotten at the start of the day.
    of disappearing into the tray, DeepWork shrinks into the widget where it was.
 2. **Minimise from any page.** The same happens on Tasks, Calendar, Analytics — the
    widget is app chrome, not a dashboard feature.
-3. **See the session draining.** The widget shows the time inside a complete ring
-   that empties as the session runs out and is gone when the session ends.
+3. **See the session filling.** The widget shows the time inside a ring that
+   starts empty, fills as the session runs, and closes when the session ends —
+   the same way, in the same direction, as the clock on the Dashboard.
 4. **Start or pause without expanding.** A play/pause button in the widget runs the
    timer.
 5. **A chrome-free widget.** No title bar, and therefore no minimise, maximise or
@@ -36,15 +37,41 @@ is not forgotten at the start of the day.
 - **AC-1** Pressing the window minimise button, in any route, produces the mini
   widget and not the tray.
 - **AC-2** The widget has no native title bar and no minimise/maximise/close
-  controls of its own.
-- **AC-3** The countdown ring is complete the moment a session (focus, short break
-  or long break) starts, drains as time passes, and is invisible when the time is
-  up.
+  controls of its own. Its own controls are start/pause, skip, stop and expand,
+  plus the silence button the completion alert puts inside the ring.
+- **AC-3** The countdown ring is empty the moment a session (focus, short break or
+  long break) starts, fills as time passes, and closes into a whole circle when
+  the time is up — reading exactly the same value (`TimerService.progress`) as the
+  Dashboard clock, so the two can never look like they are running opposite ways.
 - **AC-4** The ring's colour identifies the session type and stays legible at the
-  widget's 120×76 size.
+  widget's 136×76 size — except while a completion alert is unanswered, when the
+  whole widget takes the alert colour instead (see
+  `specs/011-completion-alert`).
+- **AC-10** A finished session is answerable **from the widget**: while the alert
+  rings, the ring pulses and the silence button sits inside it, and start/pause,
+  skip and stop each answer the alert as well. Expanding does not answer it — the
+  card is waiting in the full window, with its own close button.
+- **AC-11** The widget window draws **no frame of its own**, on any of its four
+  sides. Windows reserves a hairline of non-client area around every top-level
+  window, borderless and transparent ones included, and colours it from the
+  system — which around a 136×76 widget reads as a white line the app never drew.
+  Entering the widget takes that band away
+  (`DwmExtendFrameIntoClientArea` with -1 margins) and tells Windows 11 to draw no
+  border at all (`DWMWA_BORDER_COLOR` = `DWMWA_COLOR_NONE`); leaving it hands back
+  the ordinary frame. Neither call is fatal if it fails, and both write their
+  result to the system log.
+- **AC-12** A finished session is announced — tone, card and system notification —
+  **whenever and wherever it finishes**: every session type (focus, short break,
+  long break) goes through `TimerService`, so the alert does not depend on the
+  Dashboard being the page on screen. Skipping or stopping a session early says
+  nothing, because the tone means "your time is up".
 - **AC-5** The widget can start and pause the timer without expanding.
 - **AC-6** Leaving the widget restores the title bar, the window's own size and
-  position, its minimum size, and the user's always-on-top preference.
+  position, its minimum size, and the user's always-on-top preference. The
+  restored geometry is fitted inside the work area of the monitor it lands on, so
+  no part of the window — title bar included — is left off the edge of the screen
+  however far the widget was dragged while it was open, and a window that was
+  maximised when it shrank comes back maximised.
 - **AC-7** The widget fills the whole window while it is open; no app chrome,
   banners, toasts or dialogs are clipped into it.
 - **AC-8** A login launch (`--autostart`) opens the full window at its normal size
@@ -67,15 +94,18 @@ is not forgotten at the start of the day.
 | FR-3 | `UiService.init()` subscribes to `deepwork:minimize`; startup is not its business. |
 | FR-4 | `UiService.enterMiniMode()` un-minimises, relaxes the minimum size, disables resizing, removes decorations, shrinks the window, pins it if asked, and forces always-on-top. |
 | FR-5 | `UiService.exitMiniMode()` restores decorations, resizability, size, position, minimum size, the user's always-on-top preference and focus. |
-| FR-6 | `TimerService.remainingProgress` exposes "how much of the session is left" (1 → 0) for the ring. |
-| FR-7 | A new `MiniWidgetComponent` renders the ring, the time, play/pause and expand, and drags the window; it lives in the app shell so every route has it. |
+| FR-9 | `fitInsideWorkArea()` (`src/app/core/utils/window.util.ts`) caps a restored geometry to its monitor's work area and slides it in from whichever edge it overhangs, and `UiService.exitMiniMode()` fits the wanted geometry through it before moving the window. |
+| FR-10 | `UiService.captureGeometry()` records whether the window was maximised when it shrank, so leaving the widget can maximise it again. |
+| FR-6 | `TimerService.progress` exposes "how far through the session the clock is" (0 → 1), and it is the one value the ring and the Dashboard clock both read. |
+| FR-7 | A new `MiniWidgetComponent` renders the ring, the time, play/pause, skip, stop and expand, and drags the window; it lives in the app shell so every route has it. |
+| FR-11 | `MiniWidgetComponent` reads `NotificationService.ringing` to show the alert state, and start/pause, skip, stop and silence all call `NotificationService.dismiss()` — so an alert raised while the window is the widget is answered there instead of ringing until the window is expanded. |
 | FR-8 | The app shell is hidden while the native widget is open, and Esc leaves mini mode from any page. |
 
 ## Key entities
 
 - **Mini widget** — the shrunken always-on-top window; a first-class state of the
   window rather than a route.
-- **Countdown ring** — `remainingProgress` rendered as an SVG dash offset with a
+- **Countdown ring** — `progress` rendered as an SVG dash offset with a
   per-session-type gradient.
 
 ## Success criteria

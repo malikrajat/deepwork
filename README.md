@@ -16,7 +16,9 @@ A secure, lightweight, cross-platform Pomodoro & Task Management desktop app bui
 - Analytics dashboard
 - Glassmorphism dark UI
 - SQLite local database (no cloud, no accounts)
-- OS-native notifications with repeat until dismissed
+- OS-native notifications that repeat until you answer them — from the app, or
+  from the mini widget itself
+- Water reminders that ask a question you answer, and today's intake on the dashboard
 - Desktop options: start with the system, always on top, and a draggable always-on-top mini widget
 - Five small log files — system, flow, crash, network — that roll over on their own, with a button in Settings that opens the folder
 - About the developer, and a check for the latest release on GitHub
@@ -25,38 +27,80 @@ A secure, lightweight, cross-platform Pomodoro & Task Management desktop app bui
 
 ## Desktop behaviour: startup, always on top, and the mini widget
 
-Two optional settings control how DeepWork sits on your desktop. Both are **off by
-default** — nothing changes until you ask for it.
+Three settings control how DeepWork sits on your desktop. The first two are **off by
+default** — nothing changes until you ask for it. The third is **on**, because it is
+what stops a stray click on the window's X from ending a focus session.
 
-| Option                | What it does                                                                                                                                             |
-| --------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **Start with system** | DeepWork launches when you sign in and opens its normal window — without stealing focus from whatever you are doing — and is in the system tray as well. |
-| **Always on top**     | Keeps the main window above every other window, so the timer stays visible while you work in other apps.                                                 |
+| Option                          | What it does                                                                                                                                             |
+| ------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Start with system**           | DeepWork launches when you sign in and opens its normal window — without stealing focus from whatever you are doing — and is in the system tray as well. |
+| **Always on top**               | Keeps the main window above every other window, so the timer stays visible while you work in other apps.                                                 |
+| **Keep running in the tray**    | Closing the window puts DeepWork next to the clock instead of ending it. Right-click the tray icon and choose **Exit** to quit completely.                |
 
 ### Where to change them
 
 Every surface stays in sync, so you can flip either option from wherever you
 happen to be:
 
-1. **System tray menu** — _Start with system_ / _Always on top_ (tick marks mirror the real state)
+1. **System tray menu** — _Start with system_ / _Always on top_ (tick marks mirror the real state), plus **Exit**, which is how a window that hides is closed for good
 2. **Settings → Desktop Behaviour**
 3. **Dashboard → Desktop Behaviour** card at the bottom of the page
 
-Both toggles carry an **ⓘ info button** that explains the option in plain language —
-what "always on top" means, and what a startup entry will actually do.
+Each switch carries an **ⓘ info button** that explains the option in plain language —
+what "always on top" means, what a startup entry will actually do, and where a
+window that was closed to the tray went.
+
+### Closing the window
+
+The X in the window's corner does not end DeepWork: it hides the window next to the
+clock, and everything keeps running while it is hidden — a focus session can finish
+and ring, and the water reminder keeps to its cadence. One click on the tray icon
+brings the window back; **Exit** in the tray menu (or turning **Keep running in the
+tray** off) is what quits for good.
 
 ### The mini widget
 
 Minimising the window — with the window's own **minimise button** or from the
 **clock card** — shrinks DeepWork into a small floating widget. It has no title bar
-of its own (nothing to minimise, maximise or close), always stays above your other
-windows, and can be dragged anywhere on your desktop with the mouse. The play
-button runs the timer without expanding; the expand arrow (or `Esc`) restores the
-full window at its original size and position.
+of its own (nothing to minimise, maximise or close), no frame around its edges —
+the hairline Windows keeps around every window is taken away while the widget is up,
+so nothing white is drawn along its top, bottom, left or right — and **rounded
+corners**, the same 18px the browser build's floating panel has, with the desktop
+showing through the four of them. The browser and the installed app are meant to be
+the same object seen in two places, so they are drawn the same way. It always stays
+above your other windows, and can be dragged anywhere on your desktop with the
+mouse. The play button runs the timer without expanding, the two buttons beside it
+skip to the next session and stop the cycle, and the expand arrow (or `Esc`)
+restores the full window at its original size and position — fitted to the screen it
+lands on, so a window that was dragged elsewhere as a widget never comes back with
+its title bar off the top of the display or its buttons behind an edge.
 
-The timer sits inside a colourful countdown ring: it is complete when a session —
-focus, short break or long break — starts, drains second by second, and is gone
-when the time is up.
+The timer sits inside a colourful countdown ring: it starts empty when a session —
+focus, short break or long break — begins, fills second by second, and closes into
+a whole circle when the time is up. It fills the same way, in the same direction
+and at the same speed as the big clock on the Dashboard, so the widget and the
+full window always agree about how far through a session you are.
+
+When a session **finishes**, the alert rings on your chosen tone and keeps ringing
+until you answer it — and the widget can answer it, which is the difference between
+a reminder and a nuisance: the countdown gives way to a **bell**, and one press on it
+silences the tone and leaves the timer exactly where it was. Start, skip and stop
+answer it too — starting the next session is the answer most of the time.
+
+Every repeat arrives three ways at once, because a tone on its own is easy to hear
+and then stop hearing. The **system notification** goes back to the desktop under the
+alert's own tag, so Windows re-raises the notification already in the notification
+centre instead of stacking a copy per interval. The **whole widget shakes** on the
+beat of the tone — surface, ring and all four buttons moving together, which is what
+makes the nudge visible to someone working in another window. And both surfaces the
+alert owns — the widget and the full window's card — move to the **next colour of a
+twelve-entry palette**: a pastel accent over a very dark surface of the same hue,
+easy to look at for however long the alert waits and still unmistakable when it
+happens *again*. The card is raised again on every repeat too, so the same three
+things happen whether you are looking at the app or at the widget. A finished focus
+session, short break or long break is announced from the timer itself, so it reaches
+you wherever you are — any page, the widget, or the tray — rather than only while the
+Dashboard happens to be open.
 
 ### Asking at install time
 
@@ -175,6 +219,12 @@ are dragged between them to change their status.
 - **Today keeps its Done column**, so a card moved into it stays visible (greyed out
   and struck through) and can be dragged back — while the dashboard's "today" list
   still counts only open work.
+- **Today holds the day's own work**: a task dated today, an overdue task that is
+  still open, or one written today with no deadline. A task dated for *tomorrow* is
+  tomorrow's — it waits in that section until its day comes, which is how a task list
+  imported for the rest of the week stays out of the way. Starring a card (**Add to
+  Today**, or `Yes` in the importer's column) is the one thing that pulls it onto
+  today anyway.
 
 ---
 
@@ -204,7 +254,7 @@ preview before anything is written to the database.
   - The panel confirms the download and **names the folder and path it was saved to**, so the
     template is easy to find again.
   - **Priority / Quadrant / Status / Repeat / Add to Today** are dropdowns; their default is already
-    selected (`P3 — Medium`, `Unassigned`, `To Do`, `No repeat`, `Yes`).
+    selected (`P3 — Medium`, `Unassigned`, `To Do`, `No repeat`, `No`).
   - **Deadline** and **Repeat End Date** default to **today**, stored as real Excel dates
     (`yyyy-mm-dd`), so they sort, filter and open the calendar picker.
   - **Tags** defaults to `task`.
@@ -217,14 +267,18 @@ preview before anything is written to the database.
   are recognised so existing spreadsheets usually import as-is.
 - **Values:** the template's dropdown labels, plain keywords (`high`, `done`, `weekly`, `Q1`, …),
   `1-4` priorities, ISO dates, Excel date cells and `Mon,Wed,Fri` repeat days all work.
-- **Dates may be past or future.** Any date is accepted; a past deadline still imports and is
-  reported as a warning ("Deadline 2026-01-05 is in the past") so you can confirm it.
+- **The deadline decides the day.** Any date is accepted, past or future: a row dated for
+  tomorrow arrives as tomorrow's task (the Tasks page opens the section it landed in, and
+  today's board stays today's), and a past deadline still imports with a warning
+  ("Deadline 2026-01-05 is in the past") so you can confirm it. Set **Add to Today** to
+  `Yes` on a row when you want it on today's list *as well* — that is the only answer that
+  overrules the date.
 - **Safety:** nothing is saved until you confirm the preview. Rows with errors are never imported;
   unusable values, duplicate titles (existing tasks or repeated rows in the file) and ambiguous
   `dd/mm` dates are flagged. Rows left without a Title are ignored and counted in the preview.
 - **Repeated titles are kept, not dropped.** A row whose title already exists — the same task you
   imported yesterday, or the file uploaded twice — is labelled **Duplicate** in the preview and
-  still imported as its own task, so today's list gets everything the sheet carries. Tick **Skip
+  still imported as its own task, so nothing the sheet carries is quietly dropped. Tick **Skip
   these N row(s) instead of importing them** in the preview when you do want them left out.
 
 ---
@@ -283,6 +337,74 @@ diagnostics**.
 
 ---
 
+## Water reminder, and today's intake
+
+DeepWork can nudge you to drink water through your working day, and keeps count
+of the day as it goes.
+
+### Setting it up
+
+**Settings → Water Reminder** asks a few questions, and every answer is a fixed
+choice rather than something to type:
+
+| Question            | What it offers                                                     |
+| ------------------- | ------------------------------------------------------------------ |
+| Working hours       | a **from** and a **to** time — reminders only fire between them    |
+| Remind me every     | 15, 20, 25, 30, 45, 60, 90, 120 or 180 minutes (60 by default)     |
+| One drink counts as | 30, 50, 70, 90, 100, 150, 200, 250, 300, 400, 500, 750 or 1000 ml (500 by default) |
+| Daily target        | 1.5 L, 2 L, 2.5 L or 3 L (2 L by default)                          |
+| While minimised     | ring and count the drink instead of asking (on by default)          |
+
+**Test** sends the reminder straight away so you can see what it looks like. The
+reminder is **off until you turn it on** — it is a habit you ask for.
+
+### How the reminder behaves
+
+- It **asks** rather than announces. A card appears with the glass, the day so
+  far and a short line about the next glass, and two answers: **Yes, I drank …**
+  logs the glass at the size you chose, and **Not now** closes the card without
+  logging anything. Nothing else closes it — no timer, no click anywhere else —
+  so a reminder cannot be missed by being away from the desk for a minute.
+- It **rings**, using the same **Notification sound** choice and the same tray
+  mute switch as everything else (pick `none` for a silent reminder). It never
+  borrows the Pomodoro's in-app toast — that one is someone else's message.
+- With the full window up, it **comes forward while the card is up** — raised
+  above other windows, because a question behind a maximized browser is a
+  question nobody answers — and your own always-on-top preference is restored the
+  moment you answer.
+- **A minimised window is left alone.** Shrinking DeepWork into the mini widget
+  is you saying "I am working elsewhere", so a reminder that lands then never
+  pulls the full window back over your work: it rings, counts the glass — at the
+  size you chose above — and says so in the notification. Turn **While minimised**
+  off if you would rather be asked there too.
+- It waits a full interval after you switch it on, so the first nudge comes when
+  you asked for it rather than the moment you pressed the switch.
+- Its clock counts only the time DeepWork is **running**. Closing the app — or
+  shutting the computer down — pauses the cadence rather than the wall clock
+  charging you for it, so opening DeepWork again waits a full interval instead of
+  asking for water the moment the window appears. A machine that only slept, with
+  DeepWork still open, still gets a single reminder when it wakes — never a queue
+  of the ones it slept through.
+- It never stacks a second question on top of an unanswered one: the cadence is
+  held until you answer, and it starts again from the answer — so "Yes" at 14:00
+  means the next one is a full interval later, not one that was already due.
+- Outside your hours it stays quiet, and the Dashboard says when it resumes.
+- A **system notification** goes with the card, carrying the same line, so the
+  reminder is also in the operating system's notification centre.
+
+### On the Dashboard
+
+The water card reads out today's total against the target ("1.5 L of 2 L today"),
+how many drinks that is, when the last one was, and what the reminder is doing
+next. **+ 500 ml** logs a glass at the size you chose; **Undo** takes the last one
+back if you pressed it twice.
+
+Each drink is a row of its own in the database, so the day's total is a sum
+rather than a counter that can only go up — and the tally starts again at local
+midnight, not at UTC midnight.
+
+---
+
 ## About, and checking for updates
 
 DeepWork is built by **Rajat Malik**, and the app says so. **About** sits at the
@@ -329,8 +451,29 @@ A few details that matter in practice:
 - **Nothing about you is sent.** The check reads a public release list and
   reports nothing back.
 
-When a newer release exists, the sidebar shows an **Update** pill next to the
-version until you look.
+### Updating
+
+When a newer release exists, three things say so: an **Update** pill next to the
+version in the sidebar, one **system notification** ("DeepWork v2.1.0 is
+available"), and a card in the corner of the window with an **Update** button.
+The notification is sent once per version — a version you have waved away with
+**Later** is not announced again, and the next release is announced as normal.
+
+Pressing **Update** downloads and installs it, without sending you to GitHub:
+
+| Platform | What happens                                                                                                                |
+| -------- | --------------------------------------------------------------------------------------------------------------------------- |
+| Windows  | The setup is downloaded with a progress bar, then started; DeepWork closes behind it so the installer can replace its files |
+| macOS    | The `.dmg` is downloaded and opened — drag DeepWork into Applications, then open it again                                   |
+| Linux    | A `.deb`/`.rpm` is handed to the desktop's own installer, or an AppImage is made runnable and started                       |
+| Browser  | There is nothing to install, so the button downloads the file instead                                                       |
+
+The download belongs to the desktop app rather than the webview (a release asset
+refuses a browser request), so it is done by Rust
+([`src-tauri/src/updates.rs`](src-tauri/src/updates.rs)) with the `curl` every
+desktop already has. Only `https` links to `github.com` are accepted, the file is
+written into a folder of its own under the system temp directory, and only a file
+this app wrote there can be started.
 
 ### Get it on another device
 
@@ -409,7 +552,7 @@ npx tauri dev
 npm run build:windows
 ```
 
-Output: `src-tauri/target/release/bundle/msi/DeepWork_2.0.0_x64_en-US.msi`
+Output: `src-tauri/target/release/bundle/msi/DeepWork_2.0.12_x64_en-US.msi`
 
 Also produces a standalone `.exe` at: `src-tauri/target/release/deepwork.exe`
 
@@ -431,7 +574,7 @@ npm run build:mac-arm
 Output:
 
 - `src-tauri/target/release/bundle/macos/DeepWork.app`
-- `src-tauri/target/release/bundle/dmg/DeepWork_2.0.0_x64.dmg`
+- `src-tauri/target/release/bundle/dmg/DeepWork_2.0.12_x64.dmg`
 
 > **Note:** Must be run on a Mac.
 
@@ -443,8 +586,8 @@ npm run build:linux
 
 Output:
 
-- `src-tauri/target/release/bundle/deb/deep-work_2.0.0_amd64.deb`
-- `src-tauri/target/release/bundle/appimage/deep-work_2.0.0_amd64.AppImage`
+- `src-tauri/target/release/bundle/deb/deep-work_2.0.12_amd64.deb`
+- `src-tauri/target/release/bundle/appimage/deep-work_2.0.12_amd64.AppImage`
 
 > **Note:** Must be run on Linux with system dependencies installed (see [SETUP.md](SETUP.md)).
 
@@ -476,6 +619,24 @@ Before building a release, update the version number in **all three** of these f
 > `tauri.conf.json` controls what appears in the installer and app About dialog.  
 > `Cargo.toml` is used by the Rust build.  
 > `package.json` is used by npm/Angular tooling.
+
+### Signing the installers
+
+The installers are **not signed yet**, so Windows says *Unknown publisher* in the
+UAC prompt and SmartScreen can interrupt with "Windows protected your PC". That
+line is the Authenticode signature and nothing else — no setting in the app can
+change it, and the certificate has to be issued in the name you want shown.
+Everything that reads metadata instead of a signature is already right: the
+publisher, copyright, category and descriptions are set in `tauri.conf.json`, so
+Add/Remove Programs and the installer's file properties name the developer.
+
+[`docs/code-signing.md`](docs/code-signing.md) has the whole picture: what each kind
+of certificate shows the user (self-signed, OV, EV, Azure Trusted Signing), the
+exact `tauri.conf.json` for a certificate store or a cloud signer, how to verify a
+build (`signtool verify /pa /v`, `Get-AuthenticodeSignature`) before publishing it,
+and the two things worth doing for an unsigned download in the meantime — a
+SHA-256 checksum beside each asset, and a release note that points at the tag and
+the CI run that produced it.
 
 ---
 
@@ -570,5 +731,5 @@ SETUP.md          → Developer setup guide
 | Frontend        | Angular 21 (Standalone Components, Signals) |
 | Styling         | Tailwind CSS + Glassmorphism custom tokens  |
 | Database        | SQLite via tauri-plugin-sql                 |
-| Notifications   | tauri-plugin-notification + Web Audio API   |
+| Notifications   | Tagged WinRT toasts + tauri-plugin-notification, Web Audio API tones |
 | State           | Angular Signals + RxJS                      |

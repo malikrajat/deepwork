@@ -1,6 +1,6 @@
 {
   "name": "deepwork-app",
-  "version": "2.0.0",
+  "version": "2.0.12",
   "scripts": {
     "ng": "ng",
     "start": "ng serve --port 4999",

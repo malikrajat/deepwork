@@ -1,6 +1,6 @@
 [package]
 name = "deepwork"
-version = "2.0.0"
+version = "2.0.12"
 description = "DeepWork - Pomodoro & Task Management"
 authors = ["you"]
 license = "MIT"
@@ -23,9 +23,20 @@ tauri-plugin-sql = { version = "2", features = ["sqlite"] }
 tauri-plugin-notification = "2"
 tauri-plugin-single-instance = "2"
 
-# Windows-only piece: the per-user "start with Windows" entry.
+# Windows-only pieces: the per-user "start with Windows" entry, and taking the
+# window's own frame away while it is the mini widget.
 [target.'cfg(windows)'.dependencies]
 winreg = "0.55"
+windows-sys = { version = "0.61", features = [
+    "Win32_Foundation",
+    "Win32_Graphics_Dwm",
+    # `MARGINS`, which `DwmExtendFrameIntoClientArea` takes.
+    "Win32_UI_Controls",
+] }
+# WinRT toasts, for the one thing the notification plugin cannot do on Windows:
+# post under a tag, so the alert's repeat re-raises its own notification instead
+# of stacking one copy per interval. See `alert_notify` in `src/lib.rs`.
+windows = { version = "0.61", features = ["UI_Notifications", "Data_Xml_Dom"] }
 
 [profile.release]
 panic = "abort"

@@ -38,6 +38,13 @@ inside the webview actually open a browser.
    starts, and shows an **Update** pill next to the version at the foot of the
    sidebar when something newer is published. The version badge itself opens the
    About page.
+7. **Be told, and be updated.** When that startup check finds a newer release the
+   app sends one system notification and shows a card with an **Update** button.
+   Pressing it downloads this machine's installer — reporting how far it has got —
+   and starts it: the Windows setup runs (the app closing behind it), the macOS
+   disk image is opened, a Linux package goes to the desktop's installer, or an
+   AppImage is made runnable and started. Pressing **Later** remembers the version
+   so the next launch is quiet, while the sidebar pill still shows the update.
 
 ### Acceptance criteria
 
@@ -86,14 +93,44 @@ inside the webview actually open a browser.
   to the releases page when that release carries nothing for the platform (or
   nothing has been read yet); the browser row links to `APP_WEB_APP_URL`; and the
   row for the platform the app is running on is marked **This device**.
+- **AC-16** A newer release is announced once per version: one system
+  notification, sent on the launch that reads the release, and a card
+  (`app-update-prompt`) offering **Update** and **Later**. The version is
+  remembered in `localStorage` under `deepwork.update.prompt.v1`, so a second
+  launch of the same version says nothing, a dismissal is not repeated, and a
+  _newer_ release is announced again.
+- **AC-17** The card is honest about what it will do: it names the version, shows
+  how far the download has got as a percentage and a bar, says what the OS did
+  with the installer, and reports a failure in a sentence while the app keeps
+  working. A release with no file for this machine says so and offers the release
+  page.
+- **AC-18** **Update** downloads the asset `pickInstallAssetFor` chooses for this
+  machine — the package the system's own installer can replace, ahead of a
+  portable file — and starts it. Nothing is downloaded until the button is
+  pressed, and pressing it twice does not start two downloads.
+- **AC-19** The download is done by the desktop app, never by the webview: a
+  release asset refuses a browser request, so `update_download`
+  (`src-tauri/src/updates.rs`) fetches it into a folder of its own under the
+  system temp directory, reports `[bytesWritten, totalBytes]` on
+  `deepwork:update-progress`, and `update_install` hands the finished file to the
+  OS. Only `https` links to `github.com` are accepted, the file name is
+  sanitised like an export's, and only a file that folder contains can be started.
+- **AC-20** What "installing" means is the platform's own: Windows runs the setup
+  and quits so its files can be replaced, macOS opens the disk image, Linux gives
+  a package to the desktop's installer or makes an AppImage runnable and starts
+  it. In the browser build there is no installer, so the same button hands the
+  download to the browser.
 
 ### Out of scope
 
-- Downloading and installing an update from inside the app (the Tauri updater
-  plugin would need signing keys and a release manifest; a link to the release is
-  what this version ships).
-- Automatic notifications, tray balloons or dialogs for a new release — the
-  sidebar pill and the About page are the whole surface.
+- The Tauri updater plugin, its signing keys and its release manifest: updates
+  are installed by downloading the published installer and running it, which is
+  what the project already ships and needs no key infrastructure.
+- A silent, unattended install. The installer is started for the user; what it
+  asks (a licence page, an install location, replacing the app) stays theirs to
+  answer.
+- Update channels, staged rollouts or downgrades: the check reads the newest
+  published release, and installing it is a forward step only.
 - Telemetry of any kind: the check reads a public release list and nothing about
   the machine is sent.
 - A form that posts a message: contact is by email and the listed channels.
@@ -106,6 +143,7 @@ inside the webview actually open a browser.
 | App name, version, repository, releases API  | `src/app/core/constants/app-info.constants.ts`                                                                                      |
 | About page and its two tabs                  | `src/app/pages/about/about.component.ts`                                                                                            |
 | Update check, cache, release mapping         | `src/app/core/services/update.service.ts`                                                                                           |
+| Notification, prompt and the install itself  | `src/app/core/services/update-prompt.service.ts`, `src/app/shared/components/update-prompt/`, `src-tauri/src/updates.rs`            |
 | Where else DeepWork runs, and how to get it  | `src/app/core/constants/downloads.constants.ts`, `APP_WEB_APP_URL` in `src/app/core/constants/app-info.constants.ts`                |
 | Version comparison and release formatting    | `src/app/core/utils/version.util.ts`, `src/app/core/utils/release.util.ts`                                                          |
 | Opening outward links in the real browser    | `src-tauri/src/opener.rs`, `src/app/core/services/external-link.service.ts`, `src/app/shared/directives/external-link.directive.ts` |
@@ -118,6 +156,6 @@ npm run lint                                          # ESLint, 0 errors
 npm test                                              # Vitest, includes the six new specs
 npm run test:coverage && npm run coverage:summary     # the coverage gate + the 90% goal
 npm run build                                         # Angular production build
-cargo test --manifest-path src-tauri/Cargo.toml --lib # opener.rs unit tests
+cargo test --manifest-path src-tauri/Cargo.toml --lib # opener.rs and updates.rs unit tests
 cargo fmt --manifest-path src-tauri/Cargo.toml --check
 ```

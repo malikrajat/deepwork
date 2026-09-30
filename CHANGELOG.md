@@ -7,7 +7,309 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+---
+
+## [2.0.12] – 2026-09-29
+
 ### Changed
+
+- **The version the installers report is 2.0.12, in every place it is written
+  down.** `package.json`, `package-lock.json`, `src-tauri/Cargo.toml` and its lock,
+  `src-tauri/tauri.conf.json` and `APP_VERSION` (what the About page shows and what
+  the update check compares against GitHub) now all read **2.0.12**, so the number
+  on the installer, in Apps & Features, in the window title's product metadata, on
+  the About page and in the release comparison are the same number. They are five
+  separate build systems and they do not read each other; that is why the version
+  is written down five times and why the list is spelled out here.
+
+- **The native widget's frame is rounded now, like the browser build's — the
+  rectangle was the last thing that made the desktop build look like the odd one
+  out.** The shrunken window was designed to fill its own window edge to edge with
+  no rounding, because rounding it left the desktop showing at the four corners
+  *behind a hairline the OS was drawing around the window* — a rounded card inside
+  a square outline, which is worse than either. That hairline is gone
+  (`window_paint_widget_frame` repaints and extends the frame away while the widget
+  is up), and the window has been created transparent since, so the corners really
+  are empty now: the widget surface takes the same 18px radius in every build, the
+  desktop shows through the four corners exactly as it does in the browser, and the
+  browser build's floating panel no longer needs a radius of its own. `overflow:
+  hidden` is what keeps this the *frame's* rounding: the ring, the bell and the
+  buttons are clipped by the rounded surface rather than being rounded one by one.
+  Windows 11 is also asked for rounded window corners directly
+  (`DWMWA_WINDOW_CORNER_PREFERENCE`), which is the belt to the CSS's braces on a
+  platform that can round a window itself. Held down by
+  `tests/unit/visual-crispness.spec.ts`, which now asserts the radius is on the
+  widget itself and not only on the browser panel.
+
+- **The installer no longer fetches the WebView2 bootstrapper while it runs.**
+  Tauri's default (`downloadBootstrapper`) has the NSIS installer reach out to
+  Microsoft, download an executable and run it — which is the shape of a dropper,
+  and it is one of the things a heuristic scanner scores a small unsigned
+  installer on. The bundle now carries Microsoft's signed bootstrapper inside it
+  (`bundle.windows.webviewInstallMode` = `embedBootstrapper`), so the install also
+  works offline. `docs/code-signing.md` grew the section this belongs to — what
+  SmartScreen's "unrecognised app" dialog is versus a real Defender detection, how
+  to tell them apart on the machine that blocked the install, the
+  [submission portal](https://www.microsoft.com/en-us/wdsi/filesubmission) that
+  gets a wrong detection removed from the definitions for everyone, and the local
+  "Run anyway"/`Unblock-File` steps that get one machine moving in the meantime.
+  None of it replaces a certificate: SmartScreen has no per-file appeal, and a
+  signature is the only thing that removes the warning for the next person.
+
+- **A completion alert now repeats in three ways at once, and the desktop is one
+  of them.** The alert used to repeat the tone and the in-app card and leave the
+  system notification where it was, on the reasoning that the OS keeps its copy
+  until the user clears it. That reasoning holds for a message and fails for an
+  alert: a notification sitting in the Action Center is one nobody is looking at,
+  which is exactly the state a repeating reminder exists to interrupt. So every
+  repeat posts the notification again — **under the alert's own tag**, so Windows
+  replaces the notification it is already holding instead of stacking one copy per
+  interval, and the body carries a count (`Reminder 3 · Great work! Time for a
+  short break.`) so the replacement is something new to read. The plugin's desktop
+  path cannot do this at all: it posts through `notify-rust`, which has no tag to
+  post under, so the shell grew a small `alert_notify` command that builds the
+  toast directly (`tauri-winrt-notification`'s WinRT layer, `src-tauri/src/lib.rs`)
+  — silent, because the alert's tone is the app's own Web Audio. Non-Windows
+  desktops still go through the plugin, and the browser build uses the
+  Notification API's own `tag`.
+
+- **The alert stopped being one colour, and started moving the whole widget.** One
+  fixed blue was the right answer to "make it comfortable to look at while it
+  waits" and the wrong one to "make it say *again*": a colour already on screen
+  cannot re-announce anything, and neither can a motion happening inside a 136x76
+  panel that is otherwise still. The alert now walks a **twelve-entry palette**
+  (`ALERT_COLOURS`), one entry per repeat — sky, aqua, mint, lime, butter, amber,
+  apricot, coral, rose, orchid, violet, indigo — each a pastel accent over a very
+  dark surface of its own hue, so nothing is a saturated primary and no surface is
+  a neutral black. Every hairline, button fill and focus ring is that accent at a
+  lower alpha, derived rather than hand-copied. Both surfaces the alert owns read
+  the same entry off the same pulse: the **mini widget** (surface, ring, bell and
+  all four buttons) and the **full window's card**, so the same repeat is the same
+  colour in both places. The motion moved from the ring to the **whole widget** —
+  translate plus a rotation under 1.5°, never a scale, because the ring is drawn at
+  its own size so nothing resamples it — and the card shakes with it, on the entry
+  animation it already replays every time the service raises it again. The first
+  entry is the blue the alert has always worn, so nothing changes until the second
+  tone; under `prefers-reduced-motion: reduce` the shake is still switched off and
+  the colour, which is the part that carries the meaning, is kept. Held down by
+  `tests/unit/alert.constants.spec.ts` (the palette's length, its legibility and
+  the one-entry-per-tone mapping), `tests/unit/notification.service.spec.ts` (the
+  repeats, the tagged desktop post and the plugin fallback),
+  `tests/unit/mini-widget.component.spec.ts`, `tests/unit/toast.component.spec.ts`
+  and the alert test in `tests/e2e/mini-widget.spec.ts`, which drives a session to
+  completion in a real browser and checks the panel itself is the thing animating.
+
+- **The installers now name their publisher, and the way to sign them is written
+  down.** Windows shows *Unknown publisher* on the installer because it is
+  unsigned — checked directly: `Get-AuthenticodeSignature` reports `NotSigned` for
+  both the NSIS and MSI bundles. That line comes from the Authenticode signature
+  and nothing else, so it cannot be fixed from inside the app; what could be fixed
+  is everything that reads *metadata* instead. `bundle.publisher` was unset, and
+  Tauri was falling back to the second part of the identifier — `deepwork` — so the
+  installer, Add/Remove Programs and the file properties now carry **Rajat Malik**,
+  along with a copyright, a homepage, the Productivity category and short and long
+  descriptions. `docs/code-signing.md` is the runbook for the part that needs a
+  certificate: what a self-signed, OV, EV or Azure Trusted Signing certificate
+  shows the user, the exact `tauri.conf.json` for a local certificate store or a
+  cloud signer (including the `TAURI_CONFIG` merge for CI runners), how to verify a
+  build before publishing it, and the two things worth doing while unsigned — a
+  SHA-256 checksum next to each asset and a release note pointing at the tag and
+  the CI run behind it.
+
+- **The mini widget now changes colour when a session ends, rocks while it
+  waits, and settles back once you deal with it.** An alert that has to be
+  answered is worth noticing from across the desk, not only by someone already
+  looking at a 136x76 rectangle, so a finished session turns the whole widget
+  blue — the surface goes to a deep `#0d1b2a`, and the ring, the bell and the
+  four buttons all take the same cool `#7dd3fc`. It is one colour rather than the
+  session's gradient over it, because a teal circle on a blue box is a clash; and
+  a cool, low-saturation blue rather than the amber this started as, because the
+  alert may sit on screen unanswered for a long time and a hot colour is the one
+  that stops being easy on the eyes. A colour that is already on screen cannot
+  say *again*, though, so the widget also **moves on every tone**: the ring leans
+  3px off centre and back over 0.7s, on the exact beat of the sound the user is
+  hearing (`NotificationService` publishes a pulse per raise, and the widget
+  alternates two identical rock animations because alternating names are what
+  restart a CSS animation) — and nothing at all for anyone whose system asks for
+  reduced motion, who keeps the colour, which is the part that carries the
+  meaning. The change is a transition and not a cut — 450ms on the surface and
+  the buttons, the ring's own 0.4s stroke crossfade — and answering it (the bell,
+  play, skip, stop, or the card in the full window) puts the widget's own colours
+  back. Held down by `tests/unit/mini-widget.component.spec.ts`,
+  `tests/unit/notification.service.spec.ts` and the alert test in
+  `tests/e2e/mini-widget.spec.ts`, which drives a session to completion and checks
+  the surface really does change colour, that the ring is really rocking, and that
+  both go back.
+
+- **The white line around the mini widget is gone.** The widget had no border of
+  its own — but Windows draws a hairline border around *every* top-level window,
+  decoration-less and transparent ones included, and colours it from the system:
+  on a light setup that is a white line, which around a 136x76 widget reads as a
+  frame the app never drew. Entering the widget now repaints that border in the
+  widget's own surface colour (`DWMWA_BORDER_COLOR`, via the new
+  `window_paint_widget_frame` command and `windows-sys`), so it disappears into
+  the surface, and leaving the widget hands Windows its default back. Windows 10
+  does not know the attribute and keeps the frame it always had; everywhere but
+  Windows the call is a no-op.
+
+- **The mini widget's ring now fills the way the Dashboard clock does.** The two
+  progress surfaces read the same session from opposite ends — the Dashboard
+  clock's arc grew as the session ran, while the widget's ring started complete
+  and drained — so side by side they looked like they were running in different
+  directions. Both read the one value now (`TimerService.progress`, 0 at the
+  start and 1 when the time is up; the second computed, `remainingProgress`, is
+  gone), so the widget's ring starts empty, fills clockwise at the same speed as
+  the full window, and closes into a whole circle when the session ends.
+
+- **The water reminder only counts the time DeepWork is running.** The cadence
+  followed the wall clock, so the interval kept "elapsing" while the app was
+  closed: the moment you opened DeepWork again — or started the PC — the first
+  pass saw an overdue cadence and asked for water immediately, which reads as the
+  app having run without you. It now keeps a heartbeat (`deepwork.water.lastAlive.v1`,
+  refreshed by every pass of the loop and once more when the loop stops) and, on
+  the first pass of a run, folds the time it was away into the last reminder's
+  instant: the cadence resumes exactly where it stopped, so a reminder that was
+  due 20 minutes into the time you were away arrives 20 minutes after you come
+  back rather than on the doorstep. A store with no heartbeat to go by (written
+  before this rule) counts the whole gap as time away, which costs one interval
+  and never a reminder on the doorstep. What is *not* changed is a machine that
+  merely slept with the app still open: that still gets one reminder when it
+  wakes, as it always did. Held down by `tests/unit/water-reminder.service.spec.ts`.
+
+- **The mini widget is now a solid rectangle instead of a rounded card.** The
+  widget was drawn as a rounded card inside its (rectangular) window: the window
+  is transparent, so the four corners of the card were the desktop showing
+  through — which on a light desktop reads as a dark box wearing a white border,
+  with the OS still drawing its own rectangle around it. Rounding the card can
+  only ever produce that mismatch, because the shape outside it belongs to the
+  window, not to the app. The surface now fills its window edge to edge and is
+  fully opaque, so the widget's colour reaches its own edge and nothing behind it
+  can tint a corner; the hairline inset edge is unchanged. The browser build's
+  floating panel keeps its 18px radius, because that one really does float over
+  the app rather than being a window. A genuinely rounded widget would mean
+  asking Windows to round the *window* (`DWMWA_WINDOW_CORNER_PREFERENCE`) and
+  matching the card's radius to the system's — a Windows-only change, noted in
+  `specs/008-visual-crispness` and not done here.
+
+- **Closing the window now parks DeepWork next to the clock instead of quitting.**
+  A click on the X used to end the whole app — mid-session, mid-cadence — which is
+  the one thing that cannot be taken back: the window is easy to reopen, a focus
+  session that was quit by accident is not. The close button now hides the window
+  and leaves everything running — the timer keeps counting, the water reminder
+  keeps reminding, and the Pomodoro alert rings as usual — with the tray icon (one
+  click, or **Show** in its menu) bringing the window back. **Exit** in the tray
+  menu is what quits completely, and it always does, whatever the setting says, so
+  a window that hides is never a window that cannot be closed. Anyone who prefers
+  the old behaviour gets it back with the new **Desktop Behaviour → Keep running in
+  the tray** switch (on by default, stored as `tray_behavior` — a column that has
+  been in the schema since the first build without anything ever reading it —
+  flipped to its new default by migration `008_close_to_tray.sql`). The switch is
+  in all three places the other desktop preferences live, carries its own ⓘ
+  explainer, and is inert in the browser build, where there is no tray to hide
+  into. Held down by `tests/unit/desktop-prefs.service.spec.ts`,
+  `tests/unit/desktop-prefs-panel.component.spec.ts`, and `cargo check` for the
+  window event handler.
+
+- **A finished session can now be answered from the mini widget — and its system
+  notification is posted once instead of every minute.** The alert that rings until
+  it is answered is the behaviour the app is built on, and it stays; what was wrong
+  was *where* it could be answered. The only control that ever stopped it was the
+  close button on the card, and the card is not on screen while the window **is**
+  the widget — so the case that actually happens went wrong: the session ended
+  while DeepWork was shrunk, the tone rang every interval, and the whole window had
+  to be brought back and the card closed by hand before it stopped. Shrinking the
+  window is how the user got to the widget in the first place; it cannot be the
+  thing that makes the alert unstoppable. The widget grew a control cluster to
+  answer it — **play/pause, skip, stop and expand** on a 2×2 grid, 136×76 instead
+  of 120×76 so the buttons stay a comfortable 24px — and while an alert is ringing
+  the ring's halo breathes, the countdown gives way to a **bell**, and one press on
+  it silences the tone and leaves the timer exactly as it was. Play, skip and stop
+  each answer the alert too, because starting the next session *is* the answer most
+  of the time; expanding deliberately does not, so the card is there to be read
+  when the window comes back. The alert's OS half is now posted **once** per
+  completion rather than once per interval: Windows and macOS keep it in the
+  notification centre until the user clears it, so a second copy every 60 seconds
+  was stacking duplicates of a message that was already on the desktop. What
+  repeats is what insists — the tone and the card — and it repeats exactly as far
+  as the user's configured interval. Held down by
+  `tests/unit/notification.service.spec.ts`, `tests/unit/mini-widget.component.spec.ts`
+  and `tests/e2e/mini-widget.spec.ts`, which drives the real panel in a browser and
+  runs a session to completion with Playwright's clock to prove the alert is
+  answered without the window ever expanding.
+
+- **Restoring the full window from the mini widget can no longer leave it hanging
+  off the screen.** The widget is dragged anywhere — across monitors, onto a
+  second display of a different size or DPI scale, anywhere — and the geometry the
+  window grew back to was measured in a different place and time: a maximised
+  window's frame is wider and taller than the screen it was maximised on, and a
+  display the window was last on may not even be plugged in. Growing back to those
+  numbers unexamined is how the restored window ended up with its title bar above
+  the top of the desktop, where it cannot be dragged or closed, and the maximise
+  button had to be pressed to rescue it. The wanted geometry is now fitted inside
+  the work area of the monitor that owns it first — capped to that desktop and
+  slid in from whichever edge it overhangs — which is a no-op to the pixel for a
+  window that already fits, and a window that was maximised when it shrank comes
+  back maximised instead of merely screen-sized. The rule lives in
+  `src/app/core/utils/window.util.ts` (`fitInsideWorkArea`) and is pinned down by
+  `tests/unit/window.util.spec.ts`.
+
+- **A drink can now be counted at 30, 50, 70 or 90 ml.** **Settings → Water
+  Reminder → One drink counts as** started its list at 100 ml, which is a rounding
+  error that grows: a mouthful from a small or stemmed glass counted as 100 ml
+  makes the day read several times fuller than it was, and the reminder then
+  nags about a day that never happened. The list now runs 30, 50, 70, 90, 100,
+  150, 200, 250, 300, 400, 500, 750 or 1000 ml, so the small end is offered
+  rather than rounded. Stored values, the repair of out-of-list values and the
+  default (500 ml) are unchanged.
+
+- **A water reminder that lands while DeepWork is minimised no longer drags the
+  window back.** Shrinking DeepWork into the mini widget is the user saying "I am
+  working elsewhere", and the full window jumping over what they are doing an
+  hour later is not a reminder, it is an interruption. So the reminder reads the
+  window before it speaks: **minimised**, it rings, counts the glass at the
+  configured size and says so in the notification — "500 ml is in today — the
+  window stayed out of the way" — leaving the widget exactly where it is;
+  **a full window**, even one sitting behind another app, behaves as it did, with
+  the card, the quote and the two answers. The new **Settings → Water Reminder →
+  While minimised** switch (on by default, stored as `water_auto_log_when_minimized`
+  by migration `007_add_water_autolog.sql`) turns the shortcut off for anyone who
+  would rather be asked in both cases. A *Test* never counts anything, whichever
+  window is in front.
+
+- **The clock card no longer grows a scrollbar.** Everything inside it was sized
+  from the window while the card itself is a fixed shape, so three everyday
+  things pushed the dial and the buttons past its height and the card scrolled to
+  compensate, right down the middle of the timer face: linking a task to the
+  timer (which adds the dropdown row), a window narrower than 1024px (where the
+  timeline stacks underneath and takes a slice of the row), and a screen 1600px
+  or wider (where the card's padding grows). The card clips instead of
+  scrolling, and the dial now takes whatever height is left over by the task row
+  and the controls — capped at its usual 340px, so it is the same size it always
+  was; only a card that genuinely cannot hold it shrinks it. The row itself grew
+  by the 120px the roomier large-screen padding needs, so the dial does not pay
+  for that either. Verified in a browser at 800×600, 1024×768, 1200×800,
+  1440×900, 1920×1080 and 600×800: no scrollbar in the card at any of them.
+  `tests/unit/dashboard.component.spec.ts` holds the rule down.
+
+- **The water reminder now asks, and waits for an answer — and offers glass sizes
+  and cadences that fit a real day.** A silent system notification is easy to
+  miss on a busy desktop, so the reminder is now a card that carries a
+  motivational line, the glass and the day so far, and two answers: **Yes, I
+  drank …** logs a drink at the configured size and **Not now** closes it. It
+  rings with the alert tone the user chose — the same **Notification sound**
+  setting and the same tray mute switch as the Pomodoro — never borrows the
+  Pomodoro's toast, and nothing else closes it: no timeout, no stray click. That
+  also means the cadence is honest — while a question is unanswered the loop
+  arms nothing new, and the next reminder is a
+  full interval after the answer rather than one that was already due. The window
+  is brought forward while the card is up (out of the mini widget, and above
+  other windows) and handed back to the user's own always-on-top preference
+  afterwards; the system notification carries the same line, so the quote is not
+  lost on someone who only sees the OS popup. The lists grew at both ends too:
+  **every 15, 20, 25, 30, 45, 60, 90, 120 or 180 minutes** instead of a
+  half-hour floor, and **100, 150, 200, 250, 300, 400, 500, 750 or 1000 ml** per
+  drink instead of starting at 250 — a sip and a full bottle are both "a glass",
+  and the app no longer rounds the user's to something else.
 
 - **Everything is sharp now: whole-pixel type, blur-free shapes, and a widget
   that is a rounded card instead of a box.** The minimised widget's countdown
@@ -35,7 +337,106 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   filter, a new bare utility class name or a non-transparent window fails the
   suite.
 
+### Fixed
+
+- **A finished session is announced wherever the user is, whatever kind of session
+  it was.** The alert — tone, card and system notification — was raised by the
+  *Dashboard component*, so it only ever happened while that page was the one on
+  screen: a focus session that ran out while the user was on Tasks, Calendar or
+  Settings, or in the mini widget (which can be opened from any page), finished in
+  complete silence. Nor was it specific to one session type — focus, short break
+  and long break all went through the same page-bound call, which is why a 5:00
+  break "did not play any sound" while nothing about breaks looked wrong. The
+  alert is now raised by `TimerService` where the session actually finishes, so
+  it cannot depend on which page is open again, and the permission ask moved with
+  it (to `App`, once at startup, instead of on the Dashboard's own init). Held down
+  by `tests/unit/timer.service.spec.ts` (all three types, and silence for a
+  session the user skipped or stopped) and by the new e2e case in
+  `tests/e2e/full-cycle.spec.ts` that walks a whole cycle with the Tasks page
+  open, checking the card for each of focus, short break and long break.
+
+- **The white line around the mini widget is really gone.** The frame Windows
+  keeps around every top-level window was previously only *recoloured* — the
+  widget's own surface colour, through `DWMWA_BORDER_COLOR` — which left the
+  hairline visible wherever that attribute is not what the border is drawn from
+  (reported on Windows 11 25H2, build 26200). The band itself is now taken away:
+  `DwmExtendFrameIntoClientArea` with -1 margins pushes the client area over the
+  whole window, and `DWMWA_BORDER_COLOR` = `DWMWA_COLOR_NONE` tells Windows 11 to
+  draw no border at all. Nothing white is left along the top, bottom, left or
+  right of the 136x76 rectangle, and leaving the widget hands the ordinary frame
+  back. Both calls log their result (`widget frame: widget=true border=… frame=…`),
+  because "the line is still there" and "the call never took" are otherwise
+  impossible to tell apart.
+
+- **A task imported for a future date stays on that date instead of arriving on
+  today.** A sheet row dated tomorrow came in as a task for today: *any* task
+  written today counted as today's work, so the date the user typed was thrown
+  away the moment the file was read. A task's date now decides the day it belongs
+  to — today, tomorrow, or the month after — and the Tasks page opens the section
+  the row landed in, so an import for the rest of the week fills the week instead
+  of piling onto today (`TaskService.isOnToday`, read by `todayTasks`,
+  `todayBoardTasks`, the dashboard and the matrix lists). Two rules go with it: an
+  **overdue** task still shows on today, because it is still on the user's plate,
+  and **Add to Today** always wins, because that is the user asking by hand. The
+  template's `Add to Today` column now defaults to **No** for the same reason —
+  the pre-filled deadline already puts a row typed today on today's list, so the
+  old `Yes` default only ever dragged the later-dated rows back onto today. Held
+  down by `tests/unit/task.service.spec.ts`, `tests/unit/task-import.service.spec.ts`,
+  `tests/unit/task-import.mapper.spec.ts` and the template's own assertions.
+
 ### Added
+
+- **A water reminder, and the day's tally on the Dashboard.** DeepWork can now
+  nudge the user to drink water through their working hours, and count what they
+  drink. **Settings → Water Reminder** asks three questions, and every answer is
+  a fixed choice rather than a field to type: the **working hours** it may fire
+  in (from/to, 09:00–18:00 by default), **how often** (30, 45, 60, 90 or 120
+  minutes), **what one drink counts as** (250, 500, 750 or 1000 ml, 500 by
+  default) and the **daily target** (1.5–3 L, 2 L by default) — a typo ("6
+  minutes", "12 ml") is a reminder nobody wants, so there is nothing to type.
+  The nudge is a **system notification** (`NotificationService.announce`), not
+  the Pomodoro's in-app toast, and it respects the window: quiet outside the
+  hours, one full interval to the first reminder rather than an immediate one,
+  the last one remembered across restarts so it is never repeated, and exactly
+  one nudge after a laptop has been asleep through half the day. The Dashboard
+  gains a water card — today's total against the target, the number of drinks,
+  when the last one was, what the reminder is doing next, a **+ 500 ml** button
+  at the configured glass size and an **Undo** for the one logged by mistake —
+  reading the same `WaterService` the reminder quotes, so the number on screen
+  and the number in the notification cannot disagree. Each drink is a row in a
+  new `water_intake` table (migration
+  `006_add_water_intake.sql`), so the total is a sum and a mistake can be taken
+  back, the browser build's `localStorage` log is pruned to today on every read
+  so it cannot grow without bound, and the reminder loop is a **single
+  self-re-arming timeout** — `start()` is idempotent, a manual tick cannot double
+  it, and `stop()`/`ngOnDestroy` clear it — with no lists, listeners or DOM held
+  between ticks. (`src/app/core/services/water.service.ts`,
+  `src/app/core/services/water-reminder.service.ts`,
+  `src/app/shared/components/water-card/`, `src/app/core/utils/water.util.ts`,
+  `src/app/core/constants/water.constants.ts`)
+
+- **Updates install themselves: the app checks on startup, tells you, and does it
+  when you say yes.** The startup check used to end at a pill next to the version
+  in the sidebar. Now, when a newer release exists, DeepWork sends one **system
+  notification** ("DeepWork v2.1.0 is available") and shows a card in the corner
+  with an **Update** button. Pressing it downloads this machine's installer —
+  Windows `.exe`, macOS `.dmg`, Linux `.deb`/`.rpm`/`.AppImage`, preferring the
+  package the system's own installer can replace — with a live progress bar, and
+  then starts it: the Windows setup runs and DeepWork closes behind it so its
+  files can be replaced, the macOS disk image is opened so DeepWork can be
+  dragged into Applications, and on Linux the package manager or the AppImage
+  itself is launched. The download is done by the Rust side
+  (`src-tauri/src/updates.rs`) because a webview request to a release asset is
+  blocked by CORS, and it is started with `curl`, which every desktop already
+  has. Only `https` links to `github.com` are accepted, the file name is
+  sanitised so it cannot leave the update folder, and only a file this app wrote
+  there can be started. The notification is sent once per version and the card
+  can be waved away with **Later** — remembering that version, not the feature —
+  so the next launch is quiet until something newer is published. In the browser
+  build there is nothing to install, so the same button hands the download to the
+  browser. (`src-tauri/src/updates.rs`,
+  `src/app/core/services/update-prompt.service.ts`,
+  `src/app/shared/components/update-prompt/`)
 
 - **About the developer, and a check for the latest release.** The app now says
   who builds it. A new **About** page — at the foot of the sidebar, with the
@@ -392,6 +793,15 @@ this month` and the months ahead, then `Yesterday`, `Earlier this week`, `Last w
   in the packaged desktop app.
 
 ### Removed
+
+- **The calendar's "starts in 5 minutes" / "ends in 5 minutes" reminders.** DeepWork
+  no longer nudges before a scheduled block begins or ends: `CalendarReminderService`,
+  the `Calendar reminders` switch and its **Test** button in Settings, and
+  `NotificationService.fireReminder()` are gone, along with the `calendarReminders`
+  setting in the settings model. Everything else about the calendar is untouched —
+  the day plan, the timer's own notifications and the tray are exactly as they were.
+  The `calendar_reminders` column stays in the database (an upgraded database keeps
+  it; nothing reads or writes it any more) so no migration is needed.
 
 - **All voice input, everywhere.** Dictation — speaking a task, the microphones in the task
   form and the journal, the settings panel, the engine picker, the system dictation shortcut
