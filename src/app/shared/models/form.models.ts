@@ -34,6 +34,7 @@ export interface SettingsFormModel {
   sessionsBeforeLongBreak: number;
   notificationSound: NotificationSound;
   notificationRepeatInterval: number;
+  alertShakeMs: number;
   trayBehavior: 'minimize' | 'quit';
   theme: ThemePreference;
   waterReminders: boolean;
@@ -42,6 +43,7 @@ export interface SettingsFormModel {
   waterIntervalMinutes: number;
   waterAmountMl: number;
   waterGoalMl: number;
+  waterAutoLogWhenMinimized: boolean;
 }
 
 /** Dashboard task selector form model */
@@ -104,6 +106,7 @@ export function createSettingsFormDefaults(): SettingsFormModel {
     sessionsBeforeLongBreak: 4,
     notificationSound: 'bell',
     notificationRepeatInterval: 60,
+    alertShakeMs: DEFAULT_SETTINGS.alertShakeMs,
     trayBehavior: 'minimize',
     theme: 'system',
     waterReminders: DEFAULT_SETTINGS.waterReminders,
@@ -112,6 +115,7 @@ export function createSettingsFormDefaults(): SettingsFormModel {
     waterIntervalMinutes: DEFAULT_SETTINGS.waterIntervalMinutes,
     waterAmountMl: DEFAULT_SETTINGS.waterAmountMl,
     waterGoalMl: DEFAULT_SETTINGS.waterGoalMl,
+    waterAutoLogWhenMinimized: DEFAULT_SETTINGS.waterAutoLogWhenMinimized,
   };
 }
 

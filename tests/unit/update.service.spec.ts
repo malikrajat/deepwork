@@ -15,28 +15,44 @@ import type { ReleaseInfo } from '../../src/app/core/models/update.model';
 
 const CACHE_KEY = 'deepwork.update.v1';
 
+/**
+ * The release these tests put in front of the app: the next patch after the
+ * version this build carries.
+ *
+ * Derived rather than written out, because the one thing that makes an update an
+ * update is that it is *newer than the app*. A fixture pinned to a number turns
+ * into "already up to date" the moment the app is released as that number — a
+ * test failing over a version bump rather than over a change.
+ */
+const NEXT_VERSION = nextPatch(APP_VERSION);
+const NEXT_TAG = `v${NEXT_VERSION}`;
+
+/** `2.1.0` → `2.1.1`. */
+function nextPatch(version: string): string {
+  const [major, minor, patch] = version.split('.').map(Number);
+  return `${major}.${minor}.${patch + 1}`;
+}
+
 /** A release payload shaped like GitHub's, with sensible defaults. */
 function release(overrides: Record<string, unknown> = {}): Record<string, unknown> {
   return {
-    tag_name: 'v2.1.0',
-    name: 'Deep Work v2.1.0',
-    body: '# Deep Work v2.1.0\n\n- Something new',
+    tag_name: NEXT_TAG,
+    name: `Deep Work ${NEXT_TAG}`,
+    body: `# Deep Work ${NEXT_TAG}\n\n- Something new`,
     published_at: '2026-06-01T10:00:00Z',
-    html_url: 'https://github.com/malikrajat/deepwork/releases/tag/v2.1.0',
+    html_url: `https://github.com/malikrajat/deepwork/releases/tag/${NEXT_TAG}`,
     prerelease: false,
     draft: false,
     assets: [
       {
-        name: 'DeepWork_2.1.0_x64-setup.exe',
+        name: `DeepWork_${NEXT_VERSION}_x64-setup.exe`,
         size: 2_072_863,
-        browser_download_url:
-          'https://github.com/malikrajat/deepwork/releases/download/v2.1.0/setup.exe',
+        browser_download_url: `https://github.com/malikrajat/deepwork/releases/download/${NEXT_TAG}/setup.exe`,
       },
       {
-        name: 'DeepWork_2.1.0_x64.dmg',
+        name: `DeepWork_${NEXT_VERSION}_x64.dmg`,
         size: 3_221_236,
-        browser_download_url:
-          'https://github.com/malikrajat/deepwork/releases/download/v2.1.0/x64.dmg',
+        browser_download_url: `https://github.com/malikrajat/deepwork/releases/download/${NEXT_TAG}/x64.dmg`,
       },
     ],
     ...overrides,
@@ -111,10 +127,10 @@ describe('UpdateService', () => {
     expect(fetchMock.mock.calls[0][0]).toContain(APP_RELEASES_API);
     expect(service.status()).toBe('update-available');
     expect(service.hasUpdate()).toBe(true);
-    expect(service.latestVersion()).toBe('v2.1.0');
+    expect(service.latestVersion()).toBe(NEXT_TAG);
     expect(service.error()).toBeNull();
     expect(service.checkedAt()).toBeTruthy();
-    expect(service.platformAsset()?.name).toBe('DeepWork_2.1.0_x64-setup.exe');
+    expect(service.platformAsset()?.name).toBe(`DeepWork_${NEXT_VERSION}_x64-setup.exe`);
     expect(service.platformAsset()?.size).toBe(2_072_863);
     expect(service.releaseNotes()).toContain('Something new');
   });
@@ -191,8 +207,8 @@ describe('UpdateService', () => {
     await service.check();
 
     expect(service.platform).toBe('windows');
-    expect(service.platformAsset()?.name).toBe('DeepWork_2.1.0_x64-setup.exe');
-    expect(service.assetFor('macos')?.name).toBe('DeepWork_2.1.0_x64.dmg');
+    expect(service.platformAsset()?.name).toBe(`DeepWork_${NEXT_VERSION}_x64-setup.exe`);
+    expect(service.assetFor('macos')?.name).toBe(`DeepWork_${NEXT_VERSION}_x64.dmg`);
     // Nothing for Linux in this release — the page shows the releases instead.
     expect(service.assetFor('linux')).toBeNull();
   });
@@ -266,7 +282,7 @@ describe('UpdateService', () => {
   it('stores the answer and reuses it on the next start', async () => {
     fetchMock.mockResolvedValue(response([release()]));
     await service.check();
-    expect(localStorage.getItem(CACHE_KEY)).toContain('2.1.0');
+    expect(localStorage.getItem(CACHE_KEY)).toContain(NEXT_VERSION);
 
     // A fresh service — the app restarting.
     fetchMock.mockClear();
@@ -274,7 +290,7 @@ describe('UpdateService', () => {
     restarted.start();
 
     expect(restarted.status()).toBe('update-available');
-    expect(restarted.latestVersion()).toBe('v2.1.0');
+    expect(restarted.latestVersion()).toBe(NEXT_TAG);
     expect(fetchMock).not.toHaveBeenCalled();
   });
 

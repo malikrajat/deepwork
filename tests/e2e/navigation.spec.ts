@@ -32,6 +32,15 @@ test.describe('Sidebar Navigation', () => {
     await expect(tasksLink).toHaveClass(/active/, { timeout: 3000 });
   });
 
+  test('Today and Tasks sit in each other’s old nav positions', async ({ page }) => {
+    await page.goto('/dashboard');
+    await expect(page.locator('.page-title').first()).toHaveText('Dashboard', { timeout: 8000 });
+
+    const labels = await page.locator('.nav-label').allTextContents();
+    expect(labels[1]).toBe('Today');
+    expect(labels[4]).toBe('Tasks');
+  });
+
   test('sidebar collapse toggle hides nav labels', async ({ page }) => {
     await page.goto('/dashboard');
     await expect(page.locator('.page-title').first()).toHaveText('Dashboard', { timeout: 8000 });

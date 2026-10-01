@@ -266,8 +266,16 @@ describe('WaterReminderService', () => {
       expect(nudge!.amountMl).toBe(500);
       expect(nudge!.quote.length).toBeGreaterThan(0);
       // The notification carries the same line, so the quote is not lost on
-      // someone who only ever sees the OS popup.
-      expect(notifications.announce.mock.calls[0][1]).toContain(nudge!.quote);
+      // someone who only ever sees the OS popup — and it carries it as a quote,
+      // not as the message's last sentence: the toast puts it on a line of its
+      // own, and the question is the one post asked to wait on screen.
+      const [, body, options] = notifications.announce.mock.calls[0];
+      expect(body).not.toContain(nudge!.quote);
+      expect(options).toEqual({
+        quote: nudge!.quote,
+        tag: 'deepwork-water',
+        sticky: true,
+      });
       expect(service.status()).toBe('Waiting for your answer');
     });
 

@@ -267,6 +267,71 @@ describe('TaskService', () => {
     expect(svc.todayBoardTasks()).toHaveLength(0);
   });
 
+  it('shows a task once, not twice, when yesterday’s copy is still on the list', async () => {
+    // The report this comes from: the same task added yesterday and added again
+    // today, and two identical cards on the Today board. Yesterday's copy is
+    // still in the day's list because a star is the user's own instruction ("Add
+    // to Today") and the importer's too — so both rows qualified, and nothing on
+    // the cards said which was which.
+    const yesterday = new Date();
+    yesterday.setDate(yesterday.getDate() - 1);
+    const carriedOver = makeTask({
+      title: 'Pay the electricity bill',
+      deadline: yesterday.toISOString().slice(0, 10),
+      createdAt: yesterday.toISOString(),
+      todayOrder: 1,
+    });
+    const addedToday = makeTask({
+      title: 'Pay the electricity bill',
+      deadline: today,
+      todayOrder: 2,
+    });
+
+    mockDb.getTasks.mockResolvedValueOnce([carriedOver, addedToday]);
+    await svc.loadTasks();
+
+    // One card on the board, and the dashboard and the timer count the same one.
+    expect(svc.todayBoardTasks()).toHaveLength(1);
+    expect(svc.todayTasks()).toHaveLength(1);
+    // Today's own copy is the survivor: it is the one just written down, and the
+    // one whose status is current.
+    expect(svc.todayBoardTasks()[0].id).toBe(addedToday.id);
+    // Nothing was deleted — the older row is still a task, and the Tasks page
+    // files it under its own day.
+    expect(svc.tasks()).toHaveLength(2);
+  });
+
+  it('treats a title that differs only in spacing or case as the same task', async () => {
+    const yesterday = new Date();
+    yesterday.setDate(yesterday.getDate() - 1);
+    const carriedOver = makeTask({
+      title: '  pay the electricity bill  ',
+      deadline: yesterday.toISOString().slice(0, 10),
+      createdAt: yesterday.toISOString(),
+      todayOrder: 1,
+    });
+    const addedToday = makeTask({ title: 'Pay The Electricity Bill', deadline: today });
+
+    mockDb.getTasks.mockResolvedValueOnce([carriedOver, addedToday]);
+    await svc.loadTasks();
+
+    expect(svc.todayBoardTasks()).toHaveLength(1);
+    expect(svc.todayBoardTasks()[0].id).toBe(addedToday.id);
+  });
+
+  it('still shows two tasks that only share a day, not a title', async () => {
+    const first = makeTask({ title: 'Pay the electricity bill', deadline: today });
+    const second = makeTask({ title: 'Call the plumber', deadline: today });
+
+    mockDb.getTasks.mockResolvedValueOnce([first, second]);
+    await svc.loadTasks();
+
+    expect(svc.todayBoardTasks().map(t => t.title)).toEqual([
+      'Pay the electricity bill',
+      'Call the plumber',
+    ]);
+  });
+
   // ── addToToday / removeFromToday ──────────────────────────────────────
 
   it('addToToday() sets todayOrder to a positive number', async () => {

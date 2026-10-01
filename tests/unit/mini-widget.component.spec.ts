@@ -8,6 +8,7 @@ import { NotificationService } from '../../src/app/core/services/notification.se
 import { TimerService } from '../../src/app/core/services/timer.service';
 import { UiService } from '../../src/app/core/services/ui.service';
 import { TimerType } from '../../src/app/core/models/session.model';
+import { ALERT_COLOURS } from '../../src/app/core/constants/alert.constants';
 
 const SESSION_SECONDS = 25 * 60;
 
@@ -53,6 +54,8 @@ const makeMockNotifications = () => {
   return {
     ringing,
     alertPulse,
+    /** How long the shake lasts, from Settings. */
+    alertShakeMs: signal(2200),
     /** One more tone — the alert re-announcing itself, as the service does it. */
     pulse: () => alertPulse.update(pulse => pulse + 1),
     dismiss: vi.fn(() => ringing.set(false)),
@@ -131,9 +134,36 @@ describe('MiniWidgetComponent', () => {
     expect(widget.ringGradient()).toContain('mini-ring-long');
   });
 
+  it('shakes fast for as long as the settings say', () => {
+    notifications.ringing.set(true);
+
+    // The length is the user's; the tempo is not. A shake that is still going
+    // four seconds later has to still be shaking, so a longer setting buys more
+    // swings rather than slower ones.
+    notifications.alertShakeMs.set(700);
+    expect(widget.shake().swings).toBe(6);
+
+    notifications.alertShakeMs.set(2200);
+    const short = widget.shake();
+    expect(short.swings).toBe(18);
+    expect(short.swingMs).toBeCloseTo(122.22, 1);
+
+    notifications.alertShakeMs.set(4000);
+    const long = widget.shake();
+    expect(long.swings).toBe(33);
+    expect(long.swingMs).toBeCloseTo(121.21, 1);
+    expect(Math.abs(long.swingMs - short.swingMs)).toBeLessThan(5);
+
+    // And the two numbers reach the stylesheet as the custom properties the one
+    // swing is repeated with.
+    expect(widget.alertVars()?.['--alert-shake-swings']).toBe('33');
+    expect(widget.alertVars()?.['--alert-shake-swing-ms']).toBe('121.21ms');
+    expect(widget.alertVars()?.['--alert-accent']).toBe(ALERT_COLOURS[0].accent);
+  });
+
   it('paints the ring the alert colour while a finished session is unanswered', () => {
     // One colour across surface, ring, bell and buttons: the alternative is a
-    // teal session gradient sitting on a blue surface, which is the clash the
+    // teal session gradient sitting on a coloured surface, which is the clash the
     // alert colour exists to avoid. The session's own colour comes back with the
     // answer.
     expect(widget.ringStroke()).toContain('mini-ring-work');
@@ -145,18 +175,55 @@ describe('MiniWidgetComponent', () => {
     expect(widget.ringStroke()).toContain('mini-ring-work');
   });
 
-  it('rocks the ring on every tone the alert repeats, not on a clock of its own', () => {
-    // The alert has to say "this, again" every time the tone plays, and a colour
-    // that is already on screen cannot. The two names alternate because a CSS
-    // animation only restarts when its name changes.
+  it('walks the alert palette on every tone, not on a clock of its own', () => {
+    // A colour that is already on screen cannot say "this, again", so the alert
+    // does not have one colour: each repeat moves to the next entry of the
+    // palette, and the palette is wide enough that two in a row never look like
+    // the same colour.
     notifications.ringing.set(true);
-    expect(widget.rockB()).toBe(false);
+    // The raise is the first tone — the service rings it as it sets `ringing` —
+    // and it opens on the blue the alert has always worn.
+    notifications.pulse();
+    expect(widget.alertTheme().accent).toBe(ALERT_COLOURS[0].accent);
+    expect(widget.alertTheme().surface).toBe(ALERT_COLOURS[0].surface);
 
     notifications.pulse();
-    expect(widget.rockB()).toBe(true);
+    expect(widget.alertTheme().accent).toBe(ALERT_COLOURS[1].accent);
+    expect(widget.alertTheme().surface).toBe(ALERT_COLOURS[1].surface);
 
     notifications.pulse();
-    expect(widget.rockB()).toBe(false);
+    expect(widget.alertTheme().accent).toBe(ALERT_COLOURS[2].accent);
+
+    // ...and the whole palette is a cycle rather than a one-way trip.
+    for (let i = 0; i < ALERT_COLOURS.length; i += 1) notifications.pulse();
+    expect(widget.alertTheme().accent).toBe(ALERT_COLOURS[2].accent);
+    // The ring is stroked with the same entry the surface is painted from.
+    expect(widget.ringStroke()).toBe(widget.alertTheme().accent);
+  });
+
+  it('shakes the whole widget on every tone the alert repeats', () => {
+    // The motion is what re-announces the alert where the user is already
+    // looking, and it is the whole widget that moves — surface, ring and all four
+    // buttons. The two names alternate because a CSS animation only restarts when
+    // its name changes.
+    notifications.ringing.set(true);
+    expect(widget.shakeB()).toBe(false);
+
+    notifications.pulse();
+    expect(widget.shakeB()).toBe(true);
+
+    notifications.pulse();
+    expect(widget.shakeB()).toBe(false);
+  });
+
+  it('carries no alert palette at all while nothing is ringing', () => {
+    expect(widget.alertVars()).toBeNull();
+
+    notifications.ringing.set(true);
+    expect(widget.alertVars()?.['--alert-accent']).toBe('#7dd3fc');
+
+    notifications.ringing.set(false);
+    expect(widget.alertVars()).toBeNull();
   });
 
   it('starts the timer from the widget when it is idle', () => {
@@ -263,42 +330,57 @@ describe('MiniWidgetComponent (template affordances)', () => {
     expect(src).toMatch(/@if \(ringing\(\)\)[\s\S]*@else \{\s*<span class="mini-time">/);
   });
 
-  it('cools the whole surface while the alert rings, and settles back', () => {
+  it('takes one alert colour over the whole surface, and settles back', () => {
     // An unanswered alert has to be visible from across the desk, so it changes
     // the surface rather than adding a badge — slowly, and only while it is
-    // unanswered: answering is what puts the widget's own colour back.
+    // unanswered: answering is what puts the widget's own colour back. The colour
+    // itself arrives from the palette (see ALERT_COLOURS) as custom properties,
+    // so the surface and the answers cannot drift apart from it.
     expect(src).toContain('[class.alerting]="ringing()"');
-    expect(src).toMatch(/\.mini-widget\.alerting \{[\s\S]*?background: #0d1b2a;/);
+    expect(src).toContain('[style]="alertVars()"');
+    expect(src).toMatch(/\.mini-widget\.alerting \{[\s\S]*?background: var\(--alert-surface\);/);
     expect(src).toMatch(/\.mini-widget \{[\s\S]*?transition: background-color 450ms ease/);
   });
 
-  it('rocks the ring once per tone, and stops asking for less motion', () => {
-    // The motion is the alert's repeat made visible: one rock per tone, on the
+  it('shakes the whole widget once per tone, and stops asking for less motion', () => {
+    // The motion is the alert's repeat made visible: one shake per tone, on the
     // beat of the same sound the user is hearing, and nothing at all for anyone
     // whose system asks for reduced motion — they keep the colour, which is the
     // part that carries the meaning.
-    expect(src).toContain('[class.rock-a]="ringing() && !rockB()"');
-    expect(src).toContain('[class.rock-b]="ringing() && rockB()"');
-    expect(src).toMatch(/\.ring-wrap\.ringing\.rock-a \{ animation: alert-rock-a 0\.7s/);
-    expect(src).toMatch(/\.ring-wrap\.ringing\.rock-b \{ animation: alert-rock-b 0\.7s/);
+    expect(src).toContain('[class.shake-a]="ringing() && !shakeB()"');
+    expect(src).toContain('[class.shake-b]="ringing() && shakeB()"');
+    // On the widget itself, not on the ring inside it: the whole 136x76 panel is
+    // what has to be caught by someone looking at another window.
+    expect(src).not.toContain('ring-wrap.ringing.rock-a');
+    // How long the shake lasts is the user's call (`Alert shake` in Settings),
+    // and how fast it moves is not: the length is divided into swings of about
+    // 120ms, so the long settings are long *fast* shakes. Both numbers arrive as
+    // custom properties, with the 2.2s default divided the same way as the
+    // fallback.
+    expect(src).toMatch(
+      /\.mini-widget\.alerting\.shake-a \{\s*animation: alert-shake-a var\(--alert-shake-swing-ms, 122ms\) ease-in-out\s*var\(--alert-shake-swings, 18\)/
+    );
+    expect(src).toMatch(
+      /\.mini-widget\.alerting\.shake-b \{\s*animation: alert-shake-b var\(--alert-shake-swing-ms, 122ms\) ease-in-out\s*var\(--alert-shake-swings, 18\)/
+    );
     // Two keyframe sets, identical in everything but their name: the name is
-    // what restarts the animation, the motion is deliberately the same rock.
+    // what restarts the animation, the motion is deliberately the same shake.
     const keyframesBlock = (name: string): string => {
       const start = src.indexOf(`@keyframes ${name} {`);
       return src.slice(start, src.indexOf('\n    }', start));
     };
-    const rockA = keyframesBlock('alert-rock-a');
-    const rockB = keyframesBlock('alert-rock-b');
-    expect(rockA).not.toBe('');
-    expect(rockA.replace('alert-rock-a', '')).toBe(rockB.replace('alert-rock-b', ''));
-    // The rock moves the ring; it never scales it, which would resample the
+    const shakeA = keyframesBlock('alert-shake-a');
+    const shakeB = keyframesBlock('alert-shake-b');
+    expect(shakeA).not.toBe('');
+    expect(shakeA.replace('alert-shake-a', '')).toBe(shakeB.replace('alert-shake-b', ''));
+    // The shake moves the widget; it never scales it, which would resample the
     // circle the widget is careful to draw at its own size.
-    for (const keyframes of [rockA, rockB]) {
+    for (const keyframes of [shakeA, shakeB]) {
       expect(keyframes).toContain('translateX');
       expect(keyframes).not.toContain('scale(');
     }
     expect(src).toMatch(
-      /@media \(prefers-reduced-motion: reduce\) \{[\s\S]*?\.ring-wrap\.ringing\.rock-a,[\s\S]*?animation: none;/
+      /@media \(prefers-reduced-motion: reduce\) \{[\s\S]*?\.mini-widget\.alerting\.shake-a,[\s\S]*?animation: none;/
     );
   });
 

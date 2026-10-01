@@ -1,4 +1,4 @@
-import { test, expect } from '@playwright/test';
+import { test, expect, type Page } from '@playwright/test';
 
 test.describe('Pomodoro Timer', () => {
   test.beforeEach(async ({ page }) => {
@@ -97,6 +97,81 @@ test.describe('Pomodoro Timer', () => {
     // Close fullscreen
     await page.locator('.exit-fullscreen-btn').click();
     await expect(page.locator('.fullscreen-overlay')).not.toBeVisible({ timeout: 3000 });
+  });
+});
+
+/**
+ * A finished session is announced from the timer, not from a page.
+ *
+ * The alert — tone, card and system notification — used to be raised by the
+ * Dashboard component, so a session that ran out while the user was anywhere else
+ * (or in the mini widget, which can be opened from any page) finished in
+ * complete silence: no sound, no toast, no notification. Every session type is
+ * checked here, because a break ending is exactly as much news as a focus block
+ * ending.
+ */
+test.describe('a finished session is announced wherever the user is', () => {
+  test.beforeEach(async ({ page }) => {
+    // Two focus sessions to a long break, so one test can walk the whole cycle.
+    await page.addInitScript(() => {
+      localStorage.setItem('deepwork_settings', JSON.stringify({ sessionsBeforeLongBreak: 2 }));
+    });
+    await page.clock.install();
+    await page.goto('/');
+    await expect(page.locator('.page-title').first()).toHaveText('Dashboard', { timeout: 8000 });
+  });
+
+  /** Walks away from the Dashboard, leaving the timer running behind us. */
+  const openTasksPage = async (page: Page): Promise<void> => {
+    await page.getByRole('link', { name: 'Tasks' }).click();
+    await expect(page.locator('.page-title')).toHaveText('Tasks', { timeout: 8000 });
+  };
+
+  const startSession = async (page: Page, name: RegExp): Promise<void> => {
+    await page.locator('.timer-controls').getByRole('button', { name }).click();
+  };
+
+  const expectAnnouncement = async (page: Page, title: string): Promise<void> => {
+    await expect(page.locator('.toast-title')).toHaveText(title, { timeout: 5000 });
+    await page.locator('.toast-dismiss').click();
+    await expect(page.locator('.toast-container')).toHaveCount(0, { timeout: 5000 });
+  };
+
+  test('focus, short break and long break all ring while another page is open', async ({
+    page,
+  }) => {
+    const minutes = (count: number) => count * 60 * 1000;
+
+    // Focus.
+    await startSession(page, /Start Focus/i);
+    await openTasksPage(page);
+    await page.clock.runFor(minutes(25));
+    await page.clock.runFor(300); // the card is raised on a 50ms timeout
+    await expectAnnouncement(page, 'Focus session complete!');
+
+    // The short break that follows it — the one that used to be silent.
+    await page.goto('/');
+    await startSession(page, /Start Break/i);
+    await openTasksPage(page);
+    await page.clock.runFor(minutes(5));
+    await page.clock.runFor(300);
+    await expectAnnouncement(page, 'Break is over!');
+
+    // The second focus session closes the cycle, so its announcement says so.
+    await page.goto('/');
+    await startSession(page, /Start Focus/i);
+    await openTasksPage(page);
+    await page.clock.runFor(minutes(25));
+    await page.clock.runFor(300);
+    await expectAnnouncement(page, 'Cycle complete!');
+
+    // And the long break that ends it.
+    await page.goto('/');
+    await startSession(page, /Start Break/i);
+    await openTasksPage(page);
+    await page.clock.runFor(minutes(15));
+    await page.clock.runFor(300);
+    await expectAnnouncement(page, 'Long break is over!');
   });
 });
 

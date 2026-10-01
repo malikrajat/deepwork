@@ -86,8 +86,8 @@ describe('DesktopPrefsService (desktop shell)', () => {
   });
 
   it('init() trusts the OS over stale stored state', async () => {
-    // The Windows installer can enable startup before the app ever runs, and a
-    // user can delete the entry by hand — the OS wins either way.
+    // The startup entry can be added or removed outside the app — by hand, or by
+    // another tool — so the OS wins over whatever was stored last time.
     hoisted.invoke.mockResolvedValue(false);
     setup({ startWithSystem: true });
 

@@ -4,6 +4,22 @@ import { signal } from '@angular/core';
 import { NotificationService } from '../../src/app/core/services/notification.service';
 import { SettingsService } from '../../src/app/core/services/settings.service';
 import { DEFAULT_SETTINGS } from '../../src/app/core/models/settings.model';
+import { BREAK_QUOTES, FOCUS_QUOTES } from '../../src/app/core/constants/alert.constants';
+
+/**
+ * The desktop shell and its notification plugin, as the service finds them.
+ *
+ * Both are reached through `import()` inside the service, because the browser
+ * build has neither — so the mocks are module mocks rather than injected
+ * services. `invoke` starts out refusing, which is what a browser tab sees, and
+ * the tests that care about the desktop toast say so.
+ */
+vi.mock('@tauri-apps/api/core', () => ({ invoke: vi.fn() }));
+vi.mock('@tauri-apps/plugin-notification', () => ({
+  sendNotification: vi.fn(),
+  isPermissionGranted: vi.fn().mockResolvedValue(true),
+  requestPermission: vi.fn().mockResolvedValue('granted'),
+}));
 
 const makeMockSettings = () => ({
   settings: signal({ ...DEFAULT_SETTINGS }),
@@ -15,6 +31,7 @@ describe('NotificationService', () => {
 
   beforeEach(() => {
     vi.useFakeTimers();
+    vi.clearAllMocks();
     mockSettings = makeMockSettings();
     TestBed.configureTestingModule({
       providers: [
@@ -65,10 +82,11 @@ describe('NotificationService', () => {
     expect(svc.ringing()).toBe(false);
   });
 
-  it('pulses once per tone, so the widget can move on the beat of the sound', async () => {
-    // The ring is not only heard: the widget rocks the ring on every tone it
-    // plays, and an edge per raise is what keeps the two on the same count
-    // instead of on two clocks that slowly drift apart.
+  it('pulses once per tone, so both surfaces can move on the beat of the sound', async () => {
+    // The tone is heard, but an alert that has to be seen repeating needs a
+    // count: one edge per raise drives the widget's shake, the card's shake and
+    // the palette colour both of them take, so what is heard and what is seen
+    // share one count instead of running on two clocks that slowly drift apart.
     (svc as any).sendNotification = vi.fn().mockResolvedValue(undefined);
     (svc as any).playSound = vi.fn();
 
@@ -88,24 +106,180 @@ describe('NotificationService', () => {
     expect(svc.alertPulse()).toBe(3);
   });
 
-  it('repeats the tone and the card, but posts the system notice only once', async () => {
-    // The OS owns its notification from the moment it is posted and keeps it in
-    // the notification centre, so re-posting it every interval only stacks
-    // duplicates of a message that is already on the user's desktop.
+  it('re-posts the system notice on every repeat, counting as it goes', async () => {
+    // Half of this alert is that the user is somewhere else, so a repeat that
+    // only sounded in the app would be a repeat the desktop never saw. It goes
+    // back under the alert's own handle, which is what makes it one notification
+    // that re-raises itself rather than one copy per interval — and the count in
+    // the body is what makes each post say something new.
     const sendNotification = ((svc as any).sendNotification = vi.fn().mockResolvedValue(undefined));
     (svc as any).playSound = vi.fn();
     const showToast = vi.spyOn(svc as any, 'showToast');
 
     await svc.fireTimerComplete('work');
-    expect(sendNotification).toHaveBeenCalledTimes(1);
     expect(showToast).toHaveBeenCalledTimes(1);
+    // The raise itself is not a repeat: it is the alert, not a reminder of one.
+    // It carries the first line of the focus list, as a quote of its own rather
+    // than as the message's last sentence.
+    expect(sendNotification).toHaveBeenLastCalledWith(
+      'Focus session complete!',
+      'Great work! Time for a short break.',
+      0,
+      { quote: FOCUS_QUOTES[0] }
+    );
 
     (svc as any).onRepeatTick();
     (svc as any).onRepeatTick();
 
-    expect(sendNotification).toHaveBeenCalledTimes(1);
+    expect(sendNotification).toHaveBeenCalledTimes(3);
+    // A repeat says something new ("Reminder 2 · …") and quotes the same line:
+    // the sentence belongs to the alert, not to the tone that re-announces it.
+    expect(sendNotification).toHaveBeenLastCalledWith(
+      'Focus session complete!',
+      'Great work! Time for a short break.',
+      2,
+      { quote: FOCUS_QUOTES[0] }
+    );
     expect(showToast).toHaveBeenCalledTimes(3);
     expect((svc as any).playSound).toHaveBeenCalledTimes(3);
+  });
+
+  it('counts the repeats from one again for the next alert', async () => {
+    const sendNotification = ((svc as any).sendNotification = vi.fn().mockResolvedValue(undefined));
+    (svc as any).playSound = vi.fn();
+
+    await svc.fireTimerComplete('work');
+    (svc as any).onRepeatTick();
+    (svc as any).onRepeatTick();
+    svc.dismiss();
+
+    await svc.fireTimerComplete('short-break');
+    (svc as any).onRepeatTick();
+
+    expect(sendNotification).toHaveBeenLastCalledWith(
+      'Break is over!',
+      'Ready to focus again?',
+      1,
+      // The second alert of the run, so the second line of the break list.
+      { quote: BREAK_QUOTES[1] }
+    );
+  });
+
+  it('gives a finished session a line of its own to read', async () => {
+    // The alert's own sentence is the news; the quote is the encouragement, and
+    // the two are drawn apart everywhere they are shown. A focus session sends
+    // the user away from the desk and a break calls them back, so which list the
+    // line comes from follows what just finished — and the list is walked one
+    // entry per session rather than one per repeat.
+    (svc as any).sendNotification = vi.fn().mockResolvedValue(undefined);
+    (svc as any).playSound = vi.fn();
+    (svc as any).startRepeatLoop = vi.fn();
+
+    await svc.fireTimerComplete('work');
+    vi.runAllTimers();
+    expect(svc.toast()?.body).toBe('Great work! Time for a short break.');
+    expect(svc.toast()?.quote).toBe(FOCUS_QUOTES[0]);
+
+    svc.dismiss();
+    await svc.fireTimerComplete('work');
+    vi.runAllTimers();
+    // The next session gets the next line rather than the same one again.
+    expect(svc.toast()?.quote).toBe(FOCUS_QUOTES[1]);
+
+    svc.dismiss();
+    await svc.fireTimerComplete('short-break');
+    vi.runAllTimers();
+    // A finished break draws from the other list — about coming back rather than
+    // about stepping away — entered wherever the count has reached.
+    expect(svc.toast()?.quote).toBe(BREAK_QUOTES[2]);
+    // And never glued onto the message it arrived with.
+    expect(svc.toast()?.body).not.toContain(BREAK_QUOTES[2]);
+  });
+
+  it('posts the alert as a tagged desktop toast where the shell can', async () => {
+    const { invoke } = await import('@tauri-apps/api/core');
+    const plugin = await import('@tauri-apps/plugin-notification');
+    vi.mocked(invoke).mockResolvedValue(undefined as never);
+
+    await (svc as any).sendNotification(
+      'Focus session complete!',
+      'Great work! Time for a short break.',
+      3
+    );
+
+    // The tag is the whole point of going through the shell's own command: it is
+    // what Windows replaces rather than stacking a second toast beside, and the
+    // count in the body is what makes the replacement something new to read.
+    expect(invoke).toHaveBeenCalledWith('alert_notify', {
+      title: 'Focus session complete!',
+      body: 'Reminder 3 · Great work! Time for a short break.',
+      tag: 'deepwork-alert',
+      // An alert has no quote of its own, and it repeats on its own clock, so it
+      // asks for neither the extra line nor the wait.
+      quote: null,
+      sticky: false,
+    });
+    expect(plugin.sendNotification).not.toHaveBeenCalled();
+  });
+
+  it('posts a quote as a line of its own, and asks for a toast that waits', async () => {
+    const { invoke } = await import('@tauri-apps/api/core');
+    vi.mocked(invoke).mockResolvedValue(undefined as never);
+
+    await svc.announce('Drink water — 500 ml', 'Time for 500 ml. Today: 1.0 L of 2.0 L.', {
+      quote: 'Small sips, all day. That is the whole trick.',
+      tag: NotificationService.WATER_NOTIFICATION_TAG,
+      sticky: true,
+    });
+
+    // The quote is its own field, not the message's last sentence: the shell
+    // gives it a smaller line of its own, and the thread posting it is the one
+    // the user will not lose behind another window.
+    expect(invoke).toHaveBeenCalledWith('alert_notify', {
+      title: 'Drink water — 500 ml',
+      body: 'Time for 500 ml. Today: 1.0 L of 2.0 L.',
+      tag: 'deepwork-water',
+      quote: 'Small sips, all day. That is the whole trick.',
+      sticky: true,
+    });
+  });
+
+  it('separates the quote from the message on the surfaces that take one string', async () => {
+    const { invoke } = await import('@tauri-apps/api/core');
+    const plugin = await import('@tauri-apps/plugin-notification');
+    // A desktop whose shell has no tagged toast, so the plugin is what posts it.
+    vi.mocked(invoke).mockRejectedValue(new Error('command alert_notify not found'));
+
+    await svc.announce('Drink water — 500 ml', 'Time for 500 ml.', {
+      quote: 'Refill the bottle and the habit refills itself.',
+    });
+
+    expect(plugin.sendNotification).toHaveBeenCalledWith({
+      id: 7301,
+      title: 'Drink water — 500 ml',
+      body: 'Time for 500 ml.\n\nRefill the bottle and the habit refills itself.',
+    });
+  });
+
+  it('falls back to the notification plugin when the shell has no tagged toast', async () => {
+    const { invoke } = await import('@tauri-apps/api/core');
+    const plugin = await import('@tauri-apps/plugin-notification');
+    // What a non-Windows desktop, or a shell older than the command, reports.
+    vi.mocked(invoke).mockRejectedValue(new Error('command alert_notify not found'));
+
+    await (svc as any).sendNotification(
+      'Focus session complete!',
+      'Great work! Time for a short break.',
+      2
+    );
+
+    // The plugin path has no tag to post under, so the id it does take is the
+    // only handle there is, and the count is what keeps repeats distinguishable.
+    expect(plugin.sendNotification).toHaveBeenCalledWith({
+      id: 7301,
+      title: 'Focus session complete!',
+      body: 'Reminder 2 · Great work! Time for a short break.',
+    });
   });
 
   it('stops repeating once the alert is answered, and stays quiet afterwards', async () => {

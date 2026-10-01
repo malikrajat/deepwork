@@ -145,15 +145,21 @@ describe('No square box around the widget', () => {
     expect(styles).toContain('@import "tailwindcss" source(none);');
   });
 
-  it('fills the widget window edge to edge, and rounds only the floating panel', () => {
-    // The native widget *is* its window, and that window is a rectangle the OS
-    // frames. Rounding the card inside it leaves the desktop at the four
-    // corners — a white border around the widget whenever what is behind is
-    // light — so the surface fills the window and only the browser build's
-    // floating panel, which really does float over the app, gets a radius.
+  it('rounds the widget frame itself, in both builds', () => {
+    // The native widget *is* its window, and the window is transparent with the
+    // page behind it cleared while the widget is up (see below), so a rounded
+    // surface leaves the desktop at the four corners exactly as the browser
+    // build's floating panel does. The radius belongs to the surface and to
+    // nothing inside it: `overflow: hidden` is what clips the ring, the bell and
+    // the four buttons to the rounded frame instead of rounding four separate
+    // things, which is the difference between a rounded widget and rounded
+    // controls in a square box.
     expect(widget).toMatch(/\.mini-widget\s*{[^}]*box-shadow: inset/);
-    expect(widget).not.toMatch(/\.mini-widget\s*{[^}]*border-radius/);
-    expect(widget).toMatch(/\.mini-widget\.floating \{[^}]*border-radius: 18px;/s);
+    expect(widget).toMatch(/\.mini-widget\s*{[^}]*border-radius: 18px;/);
+    expect(widget).toMatch(/\.mini-widget\s*{[^}]*overflow: hidden;/);
+    // ...and the browser build's panel does not carry a second radius of its own:
+    // the two builds are meant to be the same object seen in two places.
+    expect(widget).not.toMatch(/\.mini-widget\.floating \{[^}]*border-radius/);
     expect(widget).not.toMatch(/\.mini-widget\s*{[^}]*\n\s*border:\s/);
   });
 

@@ -14,6 +14,7 @@ import {
   WATER_GOAL_OPTIONS,
   WATER_INTERVAL_OPTIONS,
 } from '../../src/app/core/constants/water.constants';
+import { ALERT_SHAKE_OPTIONS } from '../../src/app/core/constants/alert.constants';
 
 /** Today in the user's own timezone, the way the form factory computes it. */
 function localToday(): string {
@@ -103,6 +104,8 @@ describe('form model factories', () => {
       expect(d.notificationSound).toBe('bell');
       expect(typeof d.notificationRepeatInterval).toBe('number');
       expect(d.notificationRepeatInterval).toBeGreaterThan(0);
+      // The shake is picked from a list too, so the default has to be on it.
+      expect(ALERT_SHAKE_OPTIONS).toContain(d.alertShakeMs);
     });
 
     it('returns a new object each call', () => {

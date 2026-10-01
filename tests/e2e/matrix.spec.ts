@@ -1,4 +1,15 @@
-import { test, expect } from '@playwright/test';
+import { test, expect, Page } from '@playwright/test';
+
+/** Create an unassigned task from the Tasks page. */
+async function createMatrixTask(page: Page, title: string): Promise<void> {
+  await page.goto('/tasks');
+  await expect(page.locator('.page-title')).toHaveText('Tasks', { timeout: 8000 });
+  await page.getByRole('button', { name: 'Add Task' }).click();
+  await expect(page.locator('.slide-panel')).toBeVisible();
+  await page.locator('.slide-panel input[placeholder="What needs to be done?"]').fill(title);
+  await page.locator('.slide-panel').getByRole('button', { name: 'Create Task' }).click();
+  await expect(page.locator('.slide-panel')).not.toBeVisible({ timeout: 5000 });
+}
 
 test.describe('Eisenhower Matrix', () => {
   test.beforeEach(async ({ page }) => {
@@ -81,5 +92,70 @@ test.describe('Eisenhower Matrix', () => {
     // Should appear in the unassigned panel
     const panel = page.locator('.unassigned-panel');
     await expect(panel.locator('.card-title', { hasText: taskTitle })).toBeVisible({ timeout: 5000 });
+  });
+
+  test('cards use a one-click status switch instead of a completion checkbox', async ({ page }) => {
+    const taskTitle = `Matrix Status ${Date.now()}`;
+    await createMatrixTask(page, taskTitle);
+
+    await page.goto('/matrix');
+    await expect(page.locator('.page-title')).toHaveText('Eisenhower Matrix', { timeout: 8000 });
+    await page.waitForTimeout(600);
+
+    const card = page.locator('.unassigned-panel .matrix-card', { hasText: taskTitle });
+    await expect(card).toBeVisible({ timeout: 5000 });
+    await expect(card.locator('.card-check')).toHaveCount(0);
+
+    const statusSwitch = card.locator('.status-switch');
+    await expect(statusSwitch).toBeVisible();
+    await expect(statusSwitch.getByRole('button', { name: 'To Do' })).toHaveAttribute('aria-pressed', 'true');
+
+    await statusSwitch.getByRole('button', { name: 'Doing' }).click();
+    await expect(statusSwitch.getByRole('button', { name: 'Doing' })).toHaveAttribute('aria-pressed', 'true');
+
+    // The status write is persisted, not just a temporary UI state.
+    await page.reload();
+    await page.waitForTimeout(600);
+    const reloadedCard = page.locator('.unassigned-panel .matrix-card', { hasText: taskTitle });
+    await expect(reloadedCard.locator('.status-switch').getByRole('button', { name: 'Doing' }))
+      .toHaveAttribute('aria-pressed', 'true', { timeout: 5000 });
+  });
+
+  test('right-click menu moves a card and changes its status', async ({ page }) => {
+    const taskTitle = `Matrix Menu ${Date.now()}`;
+    await createMatrixTask(page, taskTitle);
+
+    await page.goto('/matrix');
+    await expect(page.locator('.page-title')).toHaveText('Eisenhower Matrix', { timeout: 8000 });
+    await page.waitForTimeout(600);
+
+    const unassignedCard = page.locator('.unassigned-panel .matrix-card', { hasText: taskTitle });
+    await expect(unassignedCard).toBeVisible({ timeout: 5000 });
+
+    await unassignedCard.click({ button: 'right' });
+    const menu = page.locator('.matrix-menu');
+    await expect(menu).toBeVisible({ timeout: 3000 });
+    await expect(menu).toContainText('Move to quadrant');
+    await expect(menu).toContainText('Status');
+    await expect(menu).toContainText('Unassigned · To Do');
+
+    await menu.locator('.menu-option', { hasText: 'Do First' }).click();
+    const q1Card = page.locator('.quadrant.urgent-important .matrix-card', { hasText: taskTitle });
+    await expect(q1Card).toBeVisible({ timeout: 5000 });
+
+    await q1Card.click({ button: 'right' });
+    await page.locator('.matrix-menu .menu-option', { hasText: 'Eliminate' }).click();
+    const movedCard = page.locator('.quadrant.neither .matrix-card', { hasText: taskTitle });
+    await expect(movedCard).toBeVisible({ timeout: 5000 });
+
+    await movedCard.click({ button: 'right' });
+    await page.locator('.matrix-menu .menu-option', { hasText: 'In Progress' }).click();
+    await expect(movedCard.locator('.status-switch').getByRole('button', { name: 'Doing' }))
+      .toHaveAttribute('aria-pressed', 'true');
+
+    await movedCard.click({ button: 'right' });
+    await page.locator('.matrix-menu .menu-option', { hasText: 'Done' }).click();
+    // Done tasks leave the matrix; they are still available on the Tasks/Today boards.
+    await expect(page.locator('.matrix-card', { hasText: taskTitle })).toHaveCount(0, { timeout: 5000 });
   });
 });
