@@ -13,12 +13,29 @@ describe('DashboardComponent (file presence)', () => {
 describe('DashboardComponent (start button label logic)', () => {
   const src = readFileSync(
     resolve(__dirname, '../../src/app/pages/dashboard/dashboard.component.ts'),
-    'utf8'
+    'utf8',
   );
+
+  /**
+   * How many times the template spells out `text`, allowing for however Prettier
+   * wrapped it across lines.
+   *
+   * These assertions are about the *logic* in the interpolation — that the label
+   * is chosen from `timerType()`, and that the same choice is made in the main
+   * control and the fullscreen one. Where the line breaks fall is the formatter's
+   * business, and `npm run format` moves them; matching the raw text made the
+   * formatting of a line part of the app's behaviour, which it is not.
+   */
+  const occurrences = (text: string): number => {
+    const pattern = text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&').replace(/\s+/g, '\\s*');
+    return (src.match(new RegExp(pattern, 'g')) ?? []).length;
+  };
+
+  const startLabel = "timer.timerType() === 'work' ? 'Start Focus' : 'Start Break'";
 
   it('shows "Start Focus" when timer type is work and not paused mid-session', () => {
     // The template must use timerType() === 'work' to show 'Start Focus'
-    expect(src).toContain("timer.timerType() === 'work' ? 'Start Focus' : 'Start Break'");
+    expect(occurrences(startLabel)).toBeGreaterThan(0);
   });
 
   it('shows "Start Break" label branch for break timer types', () => {
@@ -26,12 +43,13 @@ describe('DashboardComponent (start button label logic)', () => {
   });
 
   it('shows "Resume" when remaining seconds is less than total duration', () => {
-    expect(src).toContain("timer.remainingSeconds() < timer.totalDuration() ? 'Resume'");
+    expect(
+      occurrences("timer.remainingSeconds() < timer.totalDuration() ? 'Resume'"),
+    ).toBeGreaterThan(0);
   });
 
   it('the start button label expression appears in both main and fullscreen controls', () => {
-    const matches = src.match(/timer\.timerType\(\) === 'work' \? 'Start Focus' : 'Start Break'/g);
-    expect(matches?.length).toBe(2);
+    expect(occurrences(startLabel)).toBe(2);
   });
 });
 
@@ -81,6 +99,8 @@ describe('DashboardComponent (the clock card never scrolls)', () => {
     expect(ruleBody('.main-row')).toContain('flex: 1 0 560px');
     // The timeline stacks underneath below 1024px and takes a slice of the row
     // with it, so that layout needs a floor of its own.
-    expect(src).toMatch(/@media \(max-width: 1024px\)[\s\S]*?\.main-row\s*\{[\s\S]*?flex-basis: 680px/);
+    expect(src).toMatch(
+      /@media \(max-width: 1024px\)[\s\S]*?\.main-row\s*\{[\s\S]*?flex-basis: 680px/,
+    );
   });
 });

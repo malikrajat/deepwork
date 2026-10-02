@@ -2,7 +2,9 @@ import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { TestBed } from '@angular/core/testing';
 import { TaskService } from '../../src/app/core/services/task.service';
 import { DbService } from '../../src/app/core/services/db.service';
+import { SettingsService } from '../../src/app/core/services/settings.service';
 import { Task } from '../../src/app/core/models/task.model';
+import { DEFAULT_SETTINGS } from '../../src/app/core/models/settings.model';
 
 const today = new Date().toISOString().slice(0, 10);
 
@@ -74,7 +76,7 @@ describe('TaskService', () => {
   it('createTask() calls db.createTask and adds task to signal', async () => {
     const created = await svc.createTask({ title: 'New task' });
     expect(mockDb.createTask).toHaveBeenCalledTimes(1);
-    expect(svc.tasks().find(t => t.id === created.id)).toBeDefined();
+    expect(svc.tasks().find((t) => t.id === created.id)).toBeDefined();
   });
 
   it('createTask() assigns default status todo and priority 3', async () => {
@@ -97,7 +99,7 @@ describe('TaskService', () => {
     await svc.loadTasks();
     await svc.deleteTask(t.id);
     expect(mockDb.deleteTask).toHaveBeenCalledWith(t.id);
-    expect(svc.tasks().find(x => x.id === t.id)).toBeUndefined();
+    expect(svc.tasks().find((x) => x.id === t.id)).toBeUndefined();
   });
 
   // ── updateTask ────────────────────────────────────────────────────────
@@ -108,7 +110,7 @@ describe('TaskService', () => {
     await svc.loadTasks();
     await svc.updateTask({ ...t, title: 'Updated title' });
     expect(mockDb.updateTask).toHaveBeenCalled();
-    expect(svc.tasks().find(x => x.id === t.id)?.title).toBe('Updated title');
+    expect(svc.tasks().find((x) => x.id === t.id)?.title).toBe('Updated title');
   });
 
   // ── toggleStatus ──────────────────────────────────────────────────────
@@ -118,7 +120,7 @@ describe('TaskService', () => {
     mockDb.getTasks.mockResolvedValueOnce([t]);
     await svc.loadTasks();
     await svc.toggleStatus(t);
-    expect(svc.tasks().find(x => x.id === t.id)?.status).toBe('in-progress');
+    expect(svc.tasks().find((x) => x.id === t.id)?.status).toBe('in-progress');
   });
 
   it('toggleStatus() cycles in-progress → done and sets completedAt', async () => {
@@ -126,7 +128,7 @@ describe('TaskService', () => {
     mockDb.getTasks.mockResolvedValueOnce([t]);
     await svc.loadTasks();
     await svc.toggleStatus(t);
-    const updated = svc.tasks().find(x => x.id === t.id)!;
+    const updated = svc.tasks().find((x) => x.id === t.id)!;
     expect(updated.status).toBe('done');
     expect(updated.completedAt).not.toBeNull();
   });
@@ -136,7 +138,7 @@ describe('TaskService', () => {
     mockDb.getTasks.mockResolvedValueOnce([t]);
     await svc.loadTasks();
     await svc.toggleStatus(t);
-    const updated = svc.tasks().find(x => x.id === t.id)!;
+    const updated = svc.tasks().find((x) => x.id === t.id)!;
     expect(updated.status).toBe('todo');
     expect(updated.completedAt).toBeNull();
   });
@@ -148,7 +150,7 @@ describe('TaskService', () => {
     mockDb.getTasks.mockResolvedValueOnce([t]);
     await svc.loadTasks();
     await svc.setStatus(t, 'done');
-    const updated = svc.tasks().find(x => x.id === t.id)!;
+    const updated = svc.tasks().find((x) => x.id === t.id)!;
     expect(updated.status).toBe('done');
     expect(updated.completedAt).not.toBeNull();
     expect(mockDb.updateTask).toHaveBeenCalledTimes(1);
@@ -159,7 +161,7 @@ describe('TaskService', () => {
     mockDb.getTasks.mockResolvedValueOnce([t]);
     await svc.loadTasks();
     await svc.setStatus(t, 'in-progress');
-    const updated = svc.tasks().find(x => x.id === t.id)!;
+    const updated = svc.tasks().find((x) => x.id === t.id)!;
     expect(updated.status).toBe('in-progress');
     expect(updated.completedAt).toBeNull();
   });
@@ -178,14 +180,14 @@ describe('TaskService', () => {
     const t = makeTask({ deadline: today, status: 'todo' });
     mockDb.getTasks.mockResolvedValueOnce([t]);
     await svc.loadTasks();
-    expect(svc.todayTasks().find(x => x.id === t.id)).toBeDefined();
+    expect(svc.todayTasks().find((x) => x.id === t.id)).toBeDefined();
   });
 
   it('todayTasks() excludes done tasks', async () => {
     const t = makeTask({ deadline: today, status: 'done' });
     mockDb.getTasks.mockResolvedValueOnce([t]);
     await svc.loadTasks();
-    expect(svc.todayTasks().find(x => x.id === t.id)).toBeUndefined();
+    expect(svc.todayTasks().find((x) => x.id === t.id)).toBeUndefined();
   });
 
   it('todayTasks() excludes tasks with future deadline', async () => {
@@ -201,7 +203,7 @@ describe('TaskService', () => {
     });
     mockDb.getTasks.mockResolvedValueOnce([t]);
     await svc.loadTasks();
-    expect(svc.todayTasks().find(x => x.id === t.id)).toBeUndefined();
+    expect(svc.todayTasks().find((x) => x.id === t.id)).toBeUndefined();
   });
 
   it('todayTasks() leaves a task dated for another day out, even when it was written today', async () => {
@@ -212,14 +214,41 @@ describe('TaskService', () => {
     const t = makeTask({ deadline: future.toISOString().slice(0, 10), status: 'todo' });
     mockDb.getTasks.mockResolvedValueOnce([t]);
     await svc.loadTasks();
-    expect(svc.todayBoardTasks().find(x => x.id === t.id)).toBeUndefined();
+    expect(svc.todayBoardTasks().find((x) => x.id === t.id)).toBeUndefined();
   });
 
   it('todayTasks() keeps an overdue task on today, where the slip is visible', async () => {
     const t = makeTask({ deadline: '2001-02-03', status: 'todo' });
     mockDb.getTasks.mockResolvedValueOnce([t]);
     await svc.loadTasks();
-    expect(svc.todayTasks().find(x => x.id === t.id)).toBeDefined();
+    expect(svc.todayTasks().find((x) => x.id === t.id)).toBeDefined();
+  });
+
+  it("todayTasks() leaves yesterday's task off today, however overdue it is", async () => {
+    // What the code does today, pinned so the carry-forward setting's two sides
+    // stay honest: a task written yesterday is *not* moved onto today's board.
+    // It stays open, and the Tasks page files it under its own day — the case
+    // above only stays on today because the task was written today.
+    //
+    // Note the discrepancy this documents: `datedToday`'s own comment and
+    // `specs/012-task-dates-and-today` AC-4 both say an overdue task *stays* on
+    // today, which is true only of one written today. Whether "Carry forward
+    // unfinished tasks" should also pull earlier work onto today's board is an
+    // open question — see `specs/013-carry-forward-and-offline-ai`.
+    const yesterday = new Date();
+    yesterday.setDate(yesterday.getDate() - 1);
+    const t = makeTask({
+      deadline: yesterday.toISOString().slice(0, 10),
+      createdAt: yesterday.toISOString(),
+      status: 'todo',
+    });
+    mockDb.getTasks.mockResolvedValueOnce([t]);
+    await svc.loadTasks();
+
+    expect(svc.todayTasks().find((x) => x.id === t.id)).toBeUndefined();
+    expect(svc.todayBoardTasks().find((x) => x.id === t.id)).toBeUndefined();
+    // Still on the user's plate, just not on today's list.
+    expect(svc.tasks()[0].status).toBe('todo');
   });
 
   it('todayTasks() honours "Add to Today" over the date, because the user said so', async () => {
@@ -232,7 +261,7 @@ describe('TaskService', () => {
     });
     mockDb.getTasks.mockResolvedValueOnce([t]);
     await svc.loadTasks();
-    expect(svc.todayTasks().find(x => x.id === t.id)).toBeDefined();
+    expect(svc.todayTasks().find((x) => x.id === t.id)).toBeDefined();
   });
 
   // ── todayBoardTasks (the Today board keeps its Done column) ────────────
@@ -241,8 +270,8 @@ describe('TaskService', () => {
     const t = makeTask({ deadline: today, status: 'done', completedAt: new Date().toISOString() });
     mockDb.getTasks.mockResolvedValueOnce([t]);
     await svc.loadTasks();
-    expect(svc.todayBoardTasks().find(x => x.id === t.id)).toBeDefined();
-    expect(svc.todayTasks().find(x => x.id === t.id)).toBeUndefined();
+    expect(svc.todayBoardTasks().find((x) => x.id === t.id)).toBeDefined();
+    expect(svc.todayTasks().find((x) => x.id === t.id)).toBeUndefined();
   });
 
   it('todayBoardTasks() follows the day sequence: quadrant, then todayOrder', async () => {
@@ -250,7 +279,7 @@ describe('TaskService', () => {
     const first = makeTask({ deadline: today, todayOrder: 1, title: 'First' });
     mockDb.getTasks.mockResolvedValueOnce([later, first]);
     await svc.loadTasks();
-    expect(svc.todayBoardTasks().map(t => t.title)).toEqual(['First', 'Second']);
+    expect(svc.todayBoardTasks().map((t) => t.title)).toEqual(['First', 'Second']);
   });
 
   it('todayBoardTasks() leaves out tasks that are not on today', async () => {
@@ -326,7 +355,7 @@ describe('TaskService', () => {
     mockDb.getTasks.mockResolvedValueOnce([first, second]);
     await svc.loadTasks();
 
-    expect(svc.todayBoardTasks().map(t => t.title)).toEqual([
+    expect(svc.todayBoardTasks().map((t) => t.title)).toEqual([
       'Pay the electricity bill',
       'Call the plumber',
     ]);
@@ -339,7 +368,7 @@ describe('TaskService', () => {
     mockDb.getTasks.mockResolvedValueOnce([t]);
     await svc.loadTasks();
     await svc.addToToday(t.id);
-    expect(svc.tasks().find(x => x.id === t.id)?.todayOrder).toBeGreaterThanOrEqual(1);
+    expect(svc.tasks().find((x) => x.id === t.id)?.todayOrder).toBeGreaterThanOrEqual(1);
   });
 
   it('addToToday() is idempotent when already in today', async () => {
@@ -355,7 +384,7 @@ describe('TaskService', () => {
     mockDb.getTasks.mockResolvedValueOnce([t]);
     await svc.loadTasks();
     await svc.removeFromToday(t.id);
-    expect(svc.tasks().find(x => x.id === t.id)?.todayOrder).toBeNull();
+    expect(svc.tasks().find((x) => x.id === t.id)?.todayOrder).toBeNull();
   });
 
   // ── setQuadrant ───────────────────────────────────────────────────────
@@ -365,7 +394,7 @@ describe('TaskService', () => {
     mockDb.getTasks.mockResolvedValueOnce([t]);
     await svc.loadTasks();
     await svc.setQuadrant(t.id, 'urgent-important');
-    expect(svc.tasks().find(x => x.id === t.id)?.quadrant).toBe('urgent-important');
+    expect(svc.tasks().find((x) => x.id === t.id)?.quadrant).toBe('urgent-important');
   });
 
   it('setQuadrant() can clear quadrant to null', async () => {
@@ -373,7 +402,7 @@ describe('TaskService', () => {
     mockDb.getTasks.mockResolvedValueOnce([t]);
     await svc.loadTasks();
     await svc.setQuadrant(t.id, null);
-    expect(svc.tasks().find(x => x.id === t.id)?.quadrant).toBeNull();
+    expect(svc.tasks().find((x) => x.id === t.id)?.quadrant).toBeNull();
   });
 
   // ── searchTasks ───────────────────────────────────────────────────────
@@ -392,5 +421,110 @@ describe('TaskService', () => {
     const result = await svc.searchTasks('specific');
     expect(mockDb.searchTasks).toHaveBeenCalledWith('specific');
     expect(result).toHaveLength(1);
+  });
+
+  // ── closeExpiredTasks (what "do not carry forward" means) ─────────────
+
+  /** Yesterday's date, and a task written yesterday, for the carry-forward cases. */
+  const yesterdayIso = (): string => {
+    const d = new Date();
+    d.setDate(d.getDate() - 1);
+    return d.toISOString();
+  };
+  const yesterdayDay = (): string => yesterdayIso().slice(0, 10);
+
+  /** Turn carry-forward off the way the Settings page does. */
+  const stopCarryingForward = (): void => {
+    TestBed.inject(SettingsService).settings.set({
+      ...DEFAULT_SETTINGS,
+      carryForwardTasks: false,
+    });
+  };
+
+  it('closeExpiredTasks() does nothing while carry-forward is on, which is the default', async () => {
+    const stale = makeTask({ deadline: '2001-02-03' });
+    mockDb.getTasks.mockResolvedValueOnce([stale]);
+    await svc.loadTasks();
+
+    expect(await svc.closeExpiredTasks()).toBe(0);
+    expect(mockDb.updateTask).not.toHaveBeenCalled();
+    expect(svc.tasks()[0].status).toBe('todo');
+  });
+
+  it('closeExpiredTasks() closes a task the day after its deadline', async () => {
+    stopCarryingForward();
+    const stale = makeTask({ deadline: yesterdayDay() });
+    mockDb.getTasks.mockResolvedValueOnce([stale]);
+    await svc.loadTasks();
+
+    expect(await svc.closeExpiredTasks()).toBe(1);
+    const closed = svc.tasks()[0];
+    expect(closed.status).toBe('done');
+    expect(closed.completedAt).not.toBeNull();
+    // The task's own day is untouched — it is still filed under its own date,
+    // it is only no longer open.
+    expect(closed.deadline).toBe(yesterdayDay());
+    expect(mockDb.updateTask).toHaveBeenCalledTimes(1);
+  });
+
+  it('closeExpiredTasks() closes a task with no deadline the day after it was written', async () => {
+    stopCarryingForward();
+    const stale = makeTask({ deadline: null, createdAt: yesterdayIso() });
+    mockDb.getTasks.mockResolvedValueOnce([stale]);
+    await svc.loadTasks();
+
+    expect(await svc.closeExpiredTasks()).toBe(1);
+    expect(svc.tasks()[0].status).toBe('done');
+  });
+
+  it('closeExpiredTasks() leaves today, tomorrow and finished work alone', async () => {
+    stopCarryingForward();
+    const future = new Date();
+    future.setDate(future.getDate() + 3);
+
+    const dueToday = makeTask({ title: 'today', deadline: today });
+    const writtenToday = makeTask({ title: 'no deadline today' });
+    const upcoming = makeTask({ title: 'later', deadline: future.toISOString().slice(0, 10) });
+    const alreadyDone = makeTask({ title: 'done', deadline: '2001-02-03', status: 'done' });
+
+    mockDb.getTasks.mockResolvedValueOnce([dueToday, writtenToday, upcoming, alreadyDone]);
+    await svc.loadTasks();
+
+    expect(await svc.closeExpiredTasks()).toBe(0);
+    expect(mockDb.updateTask).not.toHaveBeenCalled();
+    expect(svc.tasks().map((task) => task.status)).toEqual(['todo', 'todo', 'todo', 'done']);
+  });
+
+  it('closeExpiredTasks() counts and closes every expired task in one pass', async () => {
+    stopCarryingForward();
+    const stale = [
+      makeTask({ title: 'a', deadline: yesterdayDay() }),
+      makeTask({ title: 'b', createdAt: yesterdayIso() }),
+      makeTask({ title: 'c', deadline: '2001-02-03' }),
+    ];
+    mockDb.getTasks.mockResolvedValueOnce(stale);
+    await svc.loadTasks();
+
+    expect(await svc.closeExpiredTasks()).toBe(3);
+    expect(svc.tasks().every((task) => task.status === 'done')).toBe(true);
+    expect(mockDb.updateTask).toHaveBeenCalledTimes(3);
+  });
+
+  // ── runDailyUpkeep (the one call every page makes at start-up) ────────
+
+  it('runDailyUpkeep() closes expired work before re-asking the day', async () => {
+    stopCarryingForward();
+    const stale = makeTask({ title: 'stale', deadline: '2001-02-03', quadrant: 'urgent' });
+    mockDb.getTasks.mockResolvedValueOnce([stale]);
+    await svc.loadTasks();
+
+    await svc.runDailyUpkeep();
+
+    const settled = svc.tasks()[0];
+    // Closed by the calendar, so the quadrant reset below has nothing to clear:
+    // one write, not two.
+    expect(settled.status).toBe('done');
+    expect(settled.quadrant).toBe('urgent');
+    expect(mockDb.updateTask).toHaveBeenCalledTimes(1);
   });
 });

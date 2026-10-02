@@ -5,6 +5,7 @@ import {
   BREAK_QUOTES,
   DEFAULT_ALERT_SHAKE_MS,
   FOCUS_QUOTES,
+  TASK_QUOTES,
   alertTheme,
   formatShakeDuration,
   quoteAt,
@@ -127,10 +128,13 @@ describe('the alert quotes', () => {
     // of sessions does not repeat itself.
     expect(FOCUS_QUOTES.length).toBeGreaterThanOrEqual(20);
     expect(BREAK_QUOTES.length).toBeGreaterThanOrEqual(20);
-    expect(new Set([...FOCUS_QUOTES, ...BREAK_QUOTES]).size).toBe(
-      FOCUS_QUOTES.length + BREAK_QUOTES.length
+    // The card raised when a *task* is finished draws from a third list, so a
+    // busy list of tasks cannot quietly become a list of session lines.
+    expect(TASK_QUOTES.length).toBeGreaterThanOrEqual(20);
+    expect(new Set([...FOCUS_QUOTES, ...BREAK_QUOTES, ...TASK_QUOTES]).size).toBe(
+      FOCUS_QUOTES.length + BREAK_QUOTES.length + TASK_QUOTES.length,
     );
-    for (const line of [...FOCUS_QUOTES, ...BREAK_QUOTES]) {
+    for (const line of [...FOCUS_QUOTES, ...BREAK_QUOTES, ...TASK_QUOTES]) {
       expect(line.trim()).toBe(line);
       expect(line.length).toBeGreaterThan(10);
     }
@@ -141,6 +145,8 @@ describe('the alert quotes', () => {
     expect(quoteAt(FOCUS_QUOTES, FOCUS_QUOTES.length)).toBe(FOCUS_QUOTES[0]);
     expect(quoteAt(FOCUS_QUOTES, FOCUS_QUOTES.length + 3)).toBe(FOCUS_QUOTES[3]);
     expect(quoteAt(BREAK_QUOTES, -1)).toBe(BREAK_QUOTES[BREAK_QUOTES.length - 1]);
+    expect(quoteAt(TASK_QUOTES, 0)).toBe(TASK_QUOTES[0]);
+    expect(quoteAt(TASK_QUOTES, TASK_QUOTES.length + 2)).toBe(TASK_QUOTES[2]);
     // A list with nothing in it is a missing quote, not a crash.
     expect(quoteAt([], 4)).toBe('');
   });

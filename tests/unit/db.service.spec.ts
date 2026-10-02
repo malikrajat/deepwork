@@ -113,9 +113,7 @@ describe('DbService (browser/localStorage mode)', () => {
     expect(repaired.waterStart).toBe(DEFAULT_SETTINGS.waterStart);
     expect(repaired.waterIntervalMinutes).toBe(DEFAULT_SETTINGS.waterIntervalMinutes);
     // A hand-edited store cannot decide for the user either.
-    expect(repaired.waterAutoLogWhenMinimized).toBe(
-      DEFAULT_SETTINGS.waterAutoLogWhenMinimized,
-    );
+    expect(repaired.waterAutoLogWhenMinimized).toBe(DEFAULT_SETTINGS.waterAutoLogWhenMinimized);
   });
 
   it('starts with the water reminder off', async () => {
@@ -127,6 +125,24 @@ describe('DbService (browser/localStorage mode)', () => {
     expect(s.waterGoalMl).toBe(2000);
     // A minimised window is left alone until the user asks otherwise.
     expect(s.waterAutoLogWhenMinimized).toBe(true);
+  });
+
+  it('round-trips the carry-forward choice, and defaults it to on', async () => {
+    await db.init();
+    // Nothing stored yet: the app carries unfinished work forward, as it always
+    // did — the switch is how a user asks for the other behaviour.
+    expect((await db.getSettings()).carryForwardTasks).toBe(true);
+
+    await db.saveSettings({ ...DEFAULT_SETTINGS, carryForwardTasks: false });
+    expect((await db.getSettings()).carryForwardTasks).toBe(false);
+
+    // A store holding something that is not a boolean falls back to the
+    // default rather than letting a stray string decide what happens to work.
+    localStorage.setItem(
+      'deepwork_settings',
+      JSON.stringify({ ...DEFAULT_SETTINGS, carryForwardTasks: 'nope' }),
+    );
+    expect((await db.getSettings()).carryForwardTasks).toBe(DEFAULT_SETTINGS.carryForwardTasks);
   });
 
   // ── Water ─────────────────────────────────────────────────────────────
@@ -277,7 +293,13 @@ describe('DbService (browser/localStorage mode)', () => {
 
   it('createHabit() / getHabits() roundtrip', async () => {
     await db.init();
-    const habit = { id: crypto.randomUUID(), name: 'Meditate', icon: '🧘', targetFrequency: 'daily', createdAt: new Date().toISOString() };
+    const habit = {
+      id: crypto.randomUUID(),
+      name: 'Meditate',
+      icon: '🧘',
+      targetFrequency: 'daily',
+      createdAt: new Date().toISOString(),
+    };
     await db.createHabit(habit);
     const habits = await db.getHabits();
     expect(habits.find((h: any) => h.id === habit.id)).toBeDefined();
@@ -286,7 +308,13 @@ describe('DbService (browser/localStorage mode)', () => {
 
   it('deleteHabit() removes habit', async () => {
     await db.init();
-    const habit = { id: crypto.randomUUID(), name: 'Exercise', icon: '💪', targetFrequency: 'daily', createdAt: new Date().toISOString() };
+    const habit = {
+      id: crypto.randomUUID(),
+      name: 'Exercise',
+      icon: '💪',
+      targetFrequency: 'daily',
+      createdAt: new Date().toISOString(),
+    };
     await db.createHabit(habit);
     await db.deleteHabit(habit.id);
     const habits = await db.getHabits();

@@ -4,7 +4,11 @@ import { signal } from '@angular/core';
 import { NotificationService } from '../../src/app/core/services/notification.service';
 import { SettingsService } from '../../src/app/core/services/settings.service';
 import { DEFAULT_SETTINGS } from '../../src/app/core/models/settings.model';
-import { BREAK_QUOTES, FOCUS_QUOTES } from '../../src/app/core/constants/alert.constants';
+import {
+  BREAK_QUOTES,
+  FOCUS_QUOTES,
+  TASK_QUOTES,
+} from '../../src/app/core/constants/alert.constants';
 
 /**
  * The desktop shell and its notification plugin, as the service finds them.
@@ -34,10 +38,7 @@ describe('NotificationService', () => {
     vi.clearAllMocks();
     mockSettings = makeMockSettings();
     TestBed.configureTestingModule({
-      providers: [
-        NotificationService,
-        { provide: SettingsService, useValue: mockSettings },
-      ],
+      providers: [NotificationService, { provide: SettingsService, useValue: mockSettings }],
     });
     svc = TestBed.inject(NotificationService);
   });
@@ -125,7 +126,7 @@ describe('NotificationService', () => {
       'Focus session complete!',
       'Great work! Time for a short break.',
       0,
-      { quote: FOCUS_QUOTES[0] }
+      { quote: FOCUS_QUOTES[0] },
     );
 
     (svc as any).onRepeatTick();
@@ -138,7 +139,7 @@ describe('NotificationService', () => {
       'Focus session complete!',
       'Great work! Time for a short break.',
       2,
-      { quote: FOCUS_QUOTES[0] }
+      { quote: FOCUS_QUOTES[0] },
     );
     expect(showToast).toHaveBeenCalledTimes(3);
     expect((svc as any).playSound).toHaveBeenCalledTimes(3);
@@ -161,7 +162,7 @@ describe('NotificationService', () => {
       'Ready to focus again?',
       1,
       // The second alert of the run, so the second line of the break list.
-      { quote: BREAK_QUOTES[1] }
+      { quote: BREAK_QUOTES[1] },
     );
   });
 
@@ -196,6 +197,29 @@ describe('NotificationService', () => {
     expect(svc.toast()?.body).not.toContain(BREAK_QUOTES[2]);
   });
 
+  it('gives a finished task a line of its own, walked one per task', () => {
+    // The card is a receipt rather than an alert: no tone, no repeat, and no
+    // desktop notification — so nothing here stubs a sound or a repeat loop, and
+    // the test fails loudly if one is ever wired in.
+    svc.announceTaskCompleted('Write the release notes');
+    vi.runAllTimers();
+
+    expect(svc.toast()?.title).toBe('Task completed');
+    expect(svc.toast()?.body).toBe('Write the release notes');
+    expect(svc.toast()?.quote).toBe(TASK_QUOTES[0]);
+
+    svc.dismiss();
+    svc.announceTaskCompleted('Ship the patch');
+    vi.runAllTimers();
+
+    // The next task gets the next line rather than the same one again, from the
+    // one list kept for finished work — not from the session lists.
+    expect(svc.toast()?.quote).toBe(TASK_QUOTES[1]);
+    expect(FOCUS_QUOTES).not.toContain(TASK_QUOTES[1]);
+    // The news and the encouragement are two things, drawn apart.
+    expect(svc.toast()?.body).not.toContain(TASK_QUOTES[1]);
+  });
+
   it('posts the alert as a tagged desktop toast where the shell can', async () => {
     const { invoke } = await import('@tauri-apps/api/core');
     const plugin = await import('@tauri-apps/plugin-notification');
@@ -204,7 +228,7 @@ describe('NotificationService', () => {
     await (svc as any).sendNotification(
       'Focus session complete!',
       'Great work! Time for a short break.',
-      3
+      3,
     );
 
     // The tag is the whole point of going through the shell's own command: it is
@@ -270,7 +294,7 @@ describe('NotificationService', () => {
     await (svc as any).sendNotification(
       'Focus session complete!',
       'Great work! Time for a short break.',
-      2
+      2,
     );
 
     // The plugin path has no tag to post under, so the id it does take is the

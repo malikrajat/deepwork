@@ -15,6 +15,7 @@ import {
   WATER_INTERVAL_OPTIONS,
 } from '../../src/app/core/constants/water.constants';
 import { ALERT_SHAKE_OPTIONS } from '../../src/app/core/constants/alert.constants';
+import { DEFAULT_SETTINGS } from '../../src/app/core/models/settings.model';
 
 /** Today in the user's own timezone, the way the form factory computes it. */
 function localToday(): string {
@@ -24,7 +25,6 @@ function localToday(): string {
 }
 
 describe('form model factories', () => {
-
   // ── createTaskFormDefaults ─────────────────────────────────────────────
   describe('createTaskFormDefaults', () => {
     it('returns correct default shape', () => {
@@ -93,9 +93,9 @@ describe('form model factories', () => {
   describe('createSettingsFormDefaults', () => {
     it('returns correct timer duration defaults (in seconds)', () => {
       const d: SettingsFormModel = createSettingsFormDefaults();
-      expect(d.workDuration).toBe(1500);    // 25 min
-      expect(d.shortBreak).toBe(300);       // 5 min
-      expect(d.longBreak).toBe(900);        // 15 min
+      expect(d.workDuration).toBe(1500); // 25 min
+      expect(d.shortBreak).toBe(300); // 5 min
+      expect(d.longBreak).toBe(900); // 15 min
       expect(d.sessionsBeforeLongBreak).toBe(4);
     });
 
@@ -125,6 +125,12 @@ describe('form model factories', () => {
       expect(WATER_GOAL_OPTIONS).toContain(d.waterGoalMl);
       expect(d.waterAmountMl).toBe(500);
       expect(d.waterGoalMl).toBe(2000);
+    });
+
+    it('starts carry-forward on, which is what the app did before the choice existed', () => {
+      const d = createSettingsFormDefaults();
+      expect(d.carryForwardTasks).toBe(true);
+      expect(d.carryForwardTasks).toBe(DEFAULT_SETTINGS.carryForwardTasks);
     });
   });
 });
