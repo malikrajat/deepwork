@@ -4,13 +4,17 @@ import { DesktopPrefsPanelComponent } from '../desktop-prefs-panel/desktop-prefs
 import { MINI_WIDGET_HELP } from '../../../core/constants/desktop-prefs.constants';
 
 /**
- * One-time "here is what these two options do" dialog, shown the first time the
+ * One-time "here is what these options do" dialog, shown the first time the
  * desktop app runs.
  *
- * The Windows installer can ask about startup, but a macOS `.dmg`, a Linux
- * `.deb` and an `.AppImage` cannot show a checkbox — so every platform gets the
- * same, equally clear offer on first launch. It is also the only place that
- * explains the mini widget before the user discovers it by accident.
+ * This dialog is the *only* place startup is offered, on every platform alike: a
+ * `.dmg`, a `.deb` and an `.AppImage` have nowhere to put a checkbox, and the
+ * Windows installer deliberately does not write the entry either — a per-user
+ * `Run` value written by a fresh, unsigned installer is what antivirus
+ * heuristics call persistence, and Defender quarantined that installer for it
+ * (see `src-tauri/src/autostart.rs`). Asking here, after the app is installed
+ * and running, is the same question without the shape. It is also the only place
+ * that explains the mini widget before the user discovers it by accident.
  */
 @Component({
   selector: 'app-welcome-prefs-dialog',
@@ -33,8 +37,9 @@ import { MINI_WIDGET_HELP } from '../../../core/constants/desktop-prefs.constant
             Make DeepWork work your way
           </h2>
           <p class="dialog-subtitle">
-            Two optional settings — change them now or any time later. Nothing is
-            switched on unless you choose it.
+            Three settings, changeable now or any time later. The first two stay
+            off until you choose them; the third keeps DeepWork running in the
+            tray when you close the window.
           </p>
 
           <div class="dialog-body">

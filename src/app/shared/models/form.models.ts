@@ -44,6 +44,7 @@ export interface SettingsFormModel {
   waterAmountMl: number;
   waterGoalMl: number;
   waterAutoLogWhenMinimized: boolean;
+  carryForwardTasks: boolean;
 }
 
 /** Dashboard task selector form model */
@@ -116,6 +117,7 @@ export function createSettingsFormDefaults(): SettingsFormModel {
     waterAmountMl: DEFAULT_SETTINGS.waterAmountMl,
     waterGoalMl: DEFAULT_SETTINGS.waterGoalMl,
     waterAutoLogWhenMinimized: DEFAULT_SETTINGS.waterAutoLogWhenMinimized,
+    carryForwardTasks: DEFAULT_SETTINGS.carryForwardTasks,
   };
 }
 
