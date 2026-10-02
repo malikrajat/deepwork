@@ -113,7 +113,7 @@ import { TimerService } from '../../../core/services/timer.service';
     .hour-label {
       width: 38px;
       flex-shrink: 0;
-      font-size: 0.55rem;
+      font-size: 10px;
       font-family: var(--font-mono);
       color: var(--color-text-muted);
       padding-top: 0;
@@ -181,7 +181,7 @@ import { TimerService } from '../../../core/services/timer.service';
       box-shadow: 0 2px 8px rgba(52,211,153,0.1);
     }
     .bar-label {
-      font-size: 0.6rem;
+      font-size: 10px;
       font-weight: 600;
       color: var(--color-text-primary);
       white-space: nowrap;
@@ -197,7 +197,7 @@ import { TimerService } from '../../../core/services/timer.service';
       overflow: visible;
     }
     .session-bar.short-segment .bar-label {
-      font-size: 0.45rem;
+      font-size: 10px;
       line-height: 1;
     }
 
@@ -266,7 +266,7 @@ import { TimerService } from '../../../core/services/timer.service';
       background: linear-gradient(to right, #f87171, rgba(248,113,113,0.1));
     }
     .now-time {
-      font-size: 0.5rem;
+      font-size: 10px;
       font-family: var(--font-mono);
       color: #f87171;
       font-weight: 600;

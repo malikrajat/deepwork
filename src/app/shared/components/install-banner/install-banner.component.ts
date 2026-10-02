@@ -73,7 +73,7 @@ import { InstallService } from '../../../core/services/install.service';
       opacity: 0.9;
     }
     .banner-text {
-      font-size: 0.82rem;
+      font-size: 13px;
       color: var(--color-text-secondary);
       white-space: nowrap;
       overflow: hidden;
@@ -100,7 +100,7 @@ import { InstallService } from '../../../core/services/install.service';
       border: 1px solid rgba(139,92,246,0.5);
       background: rgba(139,92,246,0.2);
       color: var(--color-text-primary);
-      font-size: 0.78rem;
+      font-size: 12px;
       font-weight: 600;
       cursor: pointer;
       transition: all 0.2s;
