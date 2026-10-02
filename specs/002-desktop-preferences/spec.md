@@ -16,8 +16,11 @@ are not concepts most people can be expected to already understand.
 
 ### Primary stories
 
-1. **Choose at install time (Windows).** While installing, the user is asked
-   whether DeepWork should start with Windows. Accepting creates the startup entry.
+1. ~~**Choose at install time (Windows).**~~ *Retired in 2.0.13.* The installer no
+   longer asks and no longer writes the entry: a per-user `Run` value written by a
+   freshly downloaded, unsigned installer is what Defender scored as
+   `Behavior:Win32/Persistence.A!ml` when it quarantined 2.0.12. Story 2 is now the
+   only place the offer is made, on every platform alike.
 2. **Choose on first launch (all platforms).** The first time the desktop app runs,
    a dialog offers the options and explains the mini widget before the user
    discovers it by surprise.
@@ -74,7 +77,9 @@ are not concepts most people can be expected to already understand.
 ### Out of scope
 
 - A per-platform custom installer page (NSIS `template`) — the stock Tauri template
-  plus `installerHooks` covers the requirement without forking the installer.
+  covers the requirement without forking the installer. (2.0.13 dropped the
+  `installerHooks` use with the install-time prompt, so the stock template is now
+  used untouched.)
 - Populating the OS "Open at login" list on macOS via `launchctl` — the LaunchAgent
   is picked up at next sign-in.
 
@@ -90,7 +95,7 @@ are not concepts most people can be expected to already understand.
 | FR-6 | `DesktopPrefsService` is the single source of truth for those signals; every UI surface reads and writes through it. |
 | FR-7 | The mini widget is always on top while open and hands the window back with the user's preference re-applied. |
 | FR-8 | The widget relaxes and then restores the window minimum size (the configured 800×600 would otherwise clamp it). |
-| FR-9 | `nsis/hooks.nsh` asks the startup question in `NSIS_HOOK_POSTINSTALL` for GUI installs only. |
+| FR-9 | *Retired in 2.0.13.* `nsis/hooks.nsh` asked the startup question in `NSIS_HOOK_POSTINSTALL` for GUI installs only; the hook, the entry it wrote and the file are gone, and the first-run dialog is the only offer (see `CHANGELOG.md`). |
 | FR-14 | `trayBehavior` (`minimize` \| `quit`) becomes the stored preference behind the close button, defaulting to `minimize` (migration `008_close_to_tray.sql`). |
 | FR-15 | Rust holds the close behaviour in `CloseInTray` (an `AtomicBool`, default *keep running*), and `WindowEvent::CloseRequested` either `prevent_close()` + `hide()` or quits, according to it. |
 | FR-16 | `DesktopPrefsService.closeToTray` mirrors the preference, pushes it to Rust when settings load and whenever the **Keep running in the tray** switch is flipped, and rolls back on failure. |
@@ -106,8 +111,8 @@ are not concepts most people can be expected to already understand.
 - All existing and new unit tests pass (386 tests / 32 files).
 - `cargo check` is clean with no warnings.
 - `tauri.conf.json` validates against the Tauri CLI schema.
-- The NSIS hook compiles with `makensis`.
-- The Windows installer builds and installs the startup prompt.
+- The Windows installer builds, installs, and writes no startup entry of its own
+  (2.0.13 — `src-tauri/nsis/hooks.nsh` is gone; see `CHANGELOG.md`).
 
 ## Assumptions
 

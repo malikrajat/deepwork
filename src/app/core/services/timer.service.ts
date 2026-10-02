@@ -3,11 +3,15 @@ import { TimerType, TimerState, PomodoroSession } from '../models/session.model'
 import { AppSettings, DEFAULT_SETTINGS } from '../models/settings.model';
 import { DbService } from './db.service';
 import { SettingsService } from './settings.service';
+import { LogService } from './log.service';
+import { NotificationService } from './notification.service';
 
 @Injectable({ providedIn: 'root' })
 export class TimerService implements OnDestroy {
   private readonly db = inject(DbService);
   private readonly settingsService = inject(SettingsService);
+  private readonly log = inject(LogService);
+  private readonly notifications = inject(NotificationService);
 
   // Signals
   readonly isRunning = signal(false);
@@ -27,6 +31,16 @@ export class TimerService implements OnDestroy {
     return `${m}:${s}`;
   });
   readonly totalDuration = computed(() => this.getDurationForType(this.timerType()));
+  /**
+   * How far through the current session the clock is: 0 the moment it starts, 1
+   * when the time is up.
+   *
+   * The one value both progress surfaces read — the Dashboard clock's arc and the
+   * mini widget's ring — so they fill together, in the same direction, at the
+   * same speed. Two of them used to disagree about which end they were counting
+   * from, and the mini widget therefore appeared to run backwards next to the
+   * full window.
+   */
   readonly progress = computed(() => {
     const total = this.totalDuration();
     if (total === 0) return 0;
@@ -96,6 +110,7 @@ export class TimerService implements OnDestroy {
     this.intervalId = setInterval(() => this.tick(), 1000);
     this.persistIntervalId = setInterval(() => this.persistState(), 30000);
     this.persistState();
+    this.log.info('flow', `timer started · ${this.timerType()}`);
   }
 
   pause(): void {
@@ -103,6 +118,7 @@ export class TimerService implements OnDestroy {
     this.stopInterval();
     this.isRunning.set(false);
     this.persistState();
+    this.log.info('flow', `timer paused · ${this.timerType()}`);
   }
 
   resume(): void {
@@ -122,6 +138,7 @@ export class TimerService implements OnDestroy {
     this.startedAt = null;
     this.resetToCurrentType();
     this.persistState();
+    this.log.info('flow', `timer stopped · ${this.timerType()}`);
   }
 
   skip(): void {
@@ -131,6 +148,7 @@ export class TimerService implements OnDestroy {
     this.startedAt = null;
     this.advanceToNext();
     this.persistState();
+    this.log.info('flow', `timer skipped · next is ${this.timerType()}`);
   }
 
   reset(): void {
@@ -142,6 +160,7 @@ export class TimerService implements OnDestroy {
     this.sessionCount.set(0);
     this.remainingSeconds.set(this.getDurationForType('work'));
     this.persistState();
+    this.log.info('flow', 'timer reset');
   }
 
   linkTask(taskId: string | null): void {
@@ -175,9 +194,17 @@ export class TimerService implements OnDestroy {
     this.recordSession(false);
     const completedType = this.timerType();
     this.startedAt = null;
+    this.log.info('flow', `timer finished · ${completedType}`);
 
     // Advance to the next timer type (e.g., work -> short-break)
     this.advanceToNext();
+
+    // Announced from here, because a finished session is the timer's news and not
+    // any one page's: the ring, the card and the OS notification used to hang off
+    // `DashboardComponent`, so a focus session — or a break — that ended while the
+    // user was on another page, or in the mini widget, finished in complete
+    // silence. Every session type goes through this one line.
+    void this.notifications.fireTimerComplete(completedType, this.timerType());
 
     if (this.onCompleteCallback) {
       this.onCompleteCallback(completedType);
@@ -213,9 +240,12 @@ export class TimerService implements OnDestroy {
   private getDurationForType(type: TimerType): number {
     const settings = this.settingsService.settings();
     switch (type) {
-      case 'work': return settings.workDuration;
-      case 'short-break': return settings.shortBreak;
-      case 'long-break': return settings.longBreak;
+      case 'work':
+        return settings.workDuration;
+      case 'short-break':
+        return settings.shortBreak;
+      case 'long-break':
+        return settings.longBreak;
     }
   }
 

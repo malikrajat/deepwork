@@ -1,7 +1,7 @@
 {
   "$schema": "../node_modules/@tauri-apps/cli/config.schema.json",
   "productName": "DeepWork",
-  "version": "2.0.0",
+  "version": "2.0.17",
   "identifier": "com.deepwork.app",
   "build": {
     "frontendDist": "../dist/deepwork/browser",
@@ -20,6 +20,7 @@
         "resizable": true,
         "fullscreen": false,
         "decorations": true,
+        "transparent": true,
         "center": true,
         "dragDropEnabled": false,
         "devtools": true
@@ -32,6 +33,13 @@
   "bundle": {
     "active": true,
     "targets": "all",
+    "publisher": "Rajat Malik",
+    "copyright": "Copyright © 2026 Rajat Malik",
+    "homepage": "https://github.com/malikrajat/deepwork",
+    "category": "Productivity",
+    "shortDescription": "A focus timer and task manager that keeps your data — and its offline AI analysis — on your own machine.",
+    "longDescription": "DeepWork is a Pomodoro timer and task manager for the desktop. It keeps its data in a local database on your computer — no account, no cloud, no telemetry — and adds an Eisenhower matrix, a task board, reminders, water tracking, a draggable mini widget and a system tray of its own. Its analytics are read offline as well: an AI-assisted pass over your own sessions, tasks, habits and journal, computed on the machine you are sitting at, with nothing uploaded, pooled or sent anywhere.",
+    "resources": [],
     "icon": [
       "icons/32x32.png",
       "icons/128x128.png",
@@ -40,11 +48,13 @@
       "icons/icon.ico"
     ],
     "windows": {
+      "webviewInstallMode": {
+        "type": "embedBootstrapper"
+      },
       "nsis": {
         "installMode": "currentUser",
         "displayLanguageSelector": false,
-        "installerIcon": "icons/icon.ico",
-        "installerHooks": "nsis/hooks.nsh"
+        "installerIcon": "icons/icon.ico"
       },
       "wix": null
     },

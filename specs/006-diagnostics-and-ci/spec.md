@@ -30,7 +30,8 @@ request.
 4. **Leave it running.** Nobody has to prune anything: each file rolls over at
    512 KB and keeps five archived generations.
 5. **Trust the pipeline.** A push or pull request runs lint, format-check, unit
-   tests and the production build; the built site is downloadable from the run.
+   tests and the production build. The run stores nothing: no step uploads an
+   artifact, so a green check and the run log are the whole record.
 
 ### Acceptance criteria
 
@@ -61,11 +62,13 @@ request.
   Vitest with coverage, the Angular production build and `cargo fmt --check`, on
   pull requests, pushes to `main`, and on demand.
 - **AC-11** The same workflow runs the Playwright suite against a server it starts
-  itself, and uploads the report and traces; the job is advisory until the
-  expectations that still describe the pre-refactor pages are updated.
+  itself; the failures are listed in the run log and no report is uploaded. The
+  job is advisory until the expectations that still describe the pre-refactor
+  pages are updated.
 - **AC-12** On pushes to `main`, tags and manual runs, a Windows/Linux/macOS
-  matrix builds the real installers and uploads them as artifacts (`.msi`/`.exe`,
-  `.deb`/`.rpm`/`.AppImage`, `.dmg`/`.app`), with the Rust build cached.
+  matrix builds the real installers (`.msi`/`.exe`, `.deb`/`.rpm`/`.AppImage`,
+  `.dmg`/`.app`) with the Rust build cached. Nothing is uploaded: the job proves
+  the bundles still build and keeps no copies.
 - **AC-13** Coverage counts every file in `src/app`, and the run fails if it drops
   below the recorded floor or if `src/app/core/utils/**` falls below 90%.
 - **AC-14** Every run reports the distance to the 90% goal for the whole app.

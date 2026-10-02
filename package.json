@@ -1,6 +1,6 @@
 {
   "name": "deepwork-app",
-  "version": "2.0.12",
+  "version": "2.0.17",
   "scripts": {
     "ng": "ng",
     "start": "ng serve --port 4999",
@@ -10,6 +10,8 @@
     "test": "vitest run",
     "test:coverage": "vitest run --coverage",
     "coverage:summary": "node scripts/coverage-summary.mjs",
+    "version:bump": "node scripts/bump-version.mjs",
+    "version:check": "node scripts/bump-version.mjs --check",
     "lint": "eslint .",
     "lint:fix": "eslint . --fix",
     "format": "prettier --write .",

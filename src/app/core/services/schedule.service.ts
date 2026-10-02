@@ -39,7 +39,7 @@ const PREFS_KEY = 'schedule_prefs';
  * Turns the Eisenhower matrix into a daily timeline.
  *
  * The quadrant board stays authoritative: tasks are queued by quadrant order
- * (Q1 Ã¢â€ â€™ Q4) and then by their position inside that quadrant, and that queue is
+ * (Q1 → Q4) and then by their position inside that quadrant, and that queue is
  * poured into pomodoro focus blocks with short/long breaks reserved between
  * them. Manual placements (`slotStart`) are honoured as fixed events and the
  * automatic flow is laid out around them, so drag-and-drop on the calendar and
@@ -61,16 +61,16 @@ export class ScheduleService {
 
   // Ã¢â€â‚¬Ã¢â€â‚¬ Pomodoro configuration (shared with the timer) Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬
   readonly focusMinutes = computed(() =>
-    Math.max(1, Math.round(this.settingsService.settings().workDuration / 60))
+    Math.max(1, Math.round(this.settingsService.settings().workDuration / 60)),
   );
   readonly shortBreakMinutes = computed(() =>
-    Math.max(1, Math.round(this.settingsService.settings().shortBreak / 60))
+    Math.max(1, Math.round(this.settingsService.settings().shortBreak / 60)),
   );
   readonly longBreakMinutes = computed(() =>
-    Math.max(1, Math.round(this.settingsService.settings().longBreak / 60))
+    Math.max(1, Math.round(this.settingsService.settings().longBreak / 60)),
   );
   readonly pomodorosBeforeLongBreak = computed(() =>
-    Math.max(1, this.settingsService.settings().sessionsBeforeLongBreak)
+    Math.max(1, this.settingsService.settings().sessionsBeforeLongBreak),
   );
 
   // Ã¢â€â‚¬Ã¢â€â‚¬ Plan state Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬
@@ -80,21 +80,21 @@ export class ScheduleService {
   readonly todayQueue = computed(() => this.buildQueue(dayKey(), this.plans()));
 
   readonly schedule = computed(() =>
-    this.buildSchedule(this.buildScheduleItems(this.selectedDate()), this.prefs())
+    this.buildSchedule(this.buildScheduleItems(this.selectedDate()), this.prefs()),
   );
 
   readonly unassigned = computed(() => {
     const date = this.selectedDate();
     const entries = this.entryIndex(this.plans()[date]);
     return this.dayTasks(date, entries)
-      .filter(task => task.quadrant === null)
+      .filter((task) => task.quadrant === null)
       .sort((a, b) => a.priority - b.priority || a.createdAt.localeCompare(b.createdAt));
   });
 
   /** Task ids that currently sit on the timeline, in visual order. */
   readonly scheduledTaskIds = computed(() => {
     const placements = [...this.schedule().placements].sort((a, b) => a.startMin - b.startMin);
-    return placements.map(p => p.taskId);
+    return placements.map((p) => p.taskId);
   });
 
   // Ã¢â€â‚¬Ã¢â€â‚¬ Loading Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬
@@ -118,8 +118,8 @@ export class ScheduleService {
   /** Tasks of a quadrant in plan order (today's plan). */
   tasksInQuadrant(quadrant: TaskQuadrant, date: string = dayKey()): Task[] {
     return this.buildQueue(date, this.plans())
-      .filter(item => item.quadrant === quadrant)
-      .map(item => item.task);
+      .filter((item) => item.quadrant === quadrant)
+      .map((item) => item.task);
   }
 
   // Ã¢â€â‚¬Ã¢â€â‚¬ Mutations Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬
@@ -197,7 +197,7 @@ export class ScheduleService {
   async clearPins(): Promise<void> {
     const date = this.selectedDate();
     const entries = this.entryIndex(this.plans()[date]);
-    if (![...entries.values()].some(entry => entry.slotStart !== null)) return;
+    if (![...entries.values()].some((entry) => entry.slotStart !== null)) return;
     for (const [id, entry] of entries) {
       entries.set(id, { ...entry, slotStart: null });
     }
@@ -218,7 +218,7 @@ export class ScheduleService {
     const sequenced = new Set(orderedIds);
 
     for (const quadrant of QUADRANT_ORDER) {
-      perQuadrant[quadrant] = perQuadrant[quadrant].filter(id => !sequenced.has(id));
+      perQuadrant[quadrant] = perQuadrant[quadrant].filter((id) => !sequenced.has(id));
     }
     for (const id of orderedIds) {
       const task = this.findTask(id);
@@ -260,7 +260,7 @@ export class ScheduleService {
     taskId: string,
     quadrant: TaskQuadrant | null,
     index: number,
-    date: string = this.selectedDate()
+    date: string = this.selectedDate(),
   ): Promise<void> {
     const task = this.findTask(taskId);
     if (!task) return;
@@ -334,13 +334,16 @@ export class ScheduleService {
 
   // Ã¢â€â‚¬Ã¢â€â‚¬ Derived helpers for the UI Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬
   placementOf(taskId: string): PlacedTask | undefined {
-    return this.schedule().placements.find(placement => placement.taskId === taskId);
+    return this.schedule().placements.find((placement) => placement.taskId === taskId);
   }
 
   /** Reserved pomodoros for a task on the selected day. */
   pomodorosOf(taskId: string): number {
     const entry = this.entryIndex(this.plans()[this.selectedDate()]).get(taskId);
-    return Math.max(MIN_POMODOROS, Math.min(MAX_POMODOROS, Math.round(entry?.pomodoros ?? MIN_POMODOROS)));
+    return Math.max(
+      MIN_POMODOROS,
+      Math.min(MAX_POMODOROS, Math.round(entry?.pomodoros ?? MIN_POMODOROS)),
+    );
   }
 
   /** Lightweight per-day summary used by the week strip. */
@@ -368,15 +371,15 @@ export class ScheduleService {
 
   // Ã¢â€â‚¬Ã¢â€â‚¬ Internal: queue building Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬
   private findTask(taskId: string): Task | undefined {
-    return this.taskService.tasks().find(task => task.id === taskId);
+    return this.taskService.tasks().find((task) => task.id === taskId);
   }
 
   private entryIndex(plan?: DayPlan): Map<string, ScheduleEntry> {
-    return new Map((plan?.entries ?? []).map(entry => [entry.taskId, { ...entry }]));
+    return new Map((plan?.entries ?? []).map((entry) => [entry.taskId, { ...entry }]));
   }
 
   private dayTasks(date: string, entries: Map<string, ScheduleEntry>): Task[] {
-    return this.taskService.tasks().filter(task => {
+    return this.taskService.tasks().filter((task) => {
       if (task.status === 'done') return false;
       if (entries.has(task.id)) return true;
       if (task.deadline === date) return true;
@@ -386,7 +389,7 @@ export class ScheduleService {
 
   private buildQueue(date: string, plans: Record<string, DayPlan>): QueuedTask[] {
     const entries = this.entryIndex(plans[date]);
-    const assigned = this.dayTasks(date, entries).filter(task => task.quadrant !== null);
+    const assigned = this.dayTasks(date, entries).filter((task) => task.quadrant !== null);
 
     assigned.sort((a, b) => {
       const qa = QUADRANT_CONFIG[a.quadrant as TaskQuadrant]?.sortOrder ?? 99;
@@ -418,12 +421,16 @@ export class ScheduleService {
     const queue = this.buildQueue(date, this.plans());
 
     const extras = this.dayTasks(date, entries)
-      .filter(task => task.quadrant === null)
-      .map(task => ({ task, entry: entries.get(task.id) ?? null }))
-      .filter((item): item is { task: Task; entry: ScheduleEntry } =>
-        !!item.entry && item.entry.slotStart !== null
+      .filter((task) => task.quadrant === null)
+      .map((task) => ({ task, entry: entries.get(task.id) ?? null }))
+      .filter(
+        (item): item is { task: Task; entry: ScheduleEntry } =>
+          !!item.entry && item.entry.slotStart !== null,
       )
-      .sort((a, b) => a.task.priority - b.task.priority || a.task.createdAt.localeCompare(b.task.createdAt))
+      .sort(
+        (a, b) =>
+          a.task.priority - b.task.priority || a.task.createdAt.localeCompare(b.task.createdAt),
+      )
       .map((item, position) => ({
         task: item.task,
         quadrant: null,
@@ -457,7 +464,9 @@ export class ScheduleService {
   }
 
   private async writePlan(date: string, entries: ScheduleEntry[]): Promise<void> {
-    const sorted = [...entries].sort((a, b) => a.order - b.order || a.taskId.localeCompare(b.taskId));
+    const sorted = [...entries].sort(
+      (a, b) => a.order - b.order || a.taskId.localeCompare(b.taskId),
+    );
     const plans = { ...this.plans() };
     if (sorted.length === 0) {
       delete plans[date];

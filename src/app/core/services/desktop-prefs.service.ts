@@ -13,21 +13,26 @@ async function invokeCmd<T>(cmd: string, args?: Record<string, unknown>): Promis
 }
 
 /**
- * Owns the two desktop preferences the user can flip from anywhere in the app:
+ * Owns the desktop preferences the user can flip from anywhere in the app:
  *
  * - **Start with system** — a per-user OS autostart entry (Windows `Run` key,
  *   Linux XDG autostart, macOS LaunchAgent) written by the Rust layer.
  * - **Always on top** — whether the main window floats above other windows.
+ * - **Keep running in the tray** — whether closing the window hides DeepWork
+ *   next to the clock or ends it. The window itself decides the moment the X is
+ *   pressed (it cannot wait for the frontend), so this one is *pushed* to Rust
+ *   whenever it changes, and the Rust side keeps working while the window is
+ *   hidden and there is no page left to ask.
  *
  * Both are mirrored into three places (Settings, the dashboard, the system tray)
  * plus a first-run dialog, so this service is the single source of truth: every
  * surface reads these signals and calls these setters, and nobody touches the
  * window or the OS directly.
  *
- * The OS is authoritative for "start with system", because the Windows installer
- * can enable it before the app has ever run and a user can remove the entry by
- * hand. On startup we read the real state and reconcile the stored preference to
- * match, so the switch never lies.
+ * The OS is authoritative for "start with system", because the entry can be
+ * added or removed outside the app — by hand in Task Manager's startup list, or
+ * by another tool. On startup we read the real state and reconcile the stored
+ * preference to match, so the switch never lies.
  */
 @Injectable({ providedIn: 'root' })
 export class DesktopPrefsService {
@@ -42,6 +47,14 @@ export class DesktopPrefsService {
 
   /** Mirrors the main window's always-on-top flag. */
   readonly alwaysOnTop = signal(false);
+
+  /**
+   * True while closing the window leaves DeepWork running in the system tray.
+   *
+   * On by default, and the tray menu's own **Exit** is the other half of it: a
+   * hidden window is never a window that cannot be closed.
+   */
+  readonly closeToTray = signal(true);
 
   /** True once the one-time desktop-preferences dialog has been shown. */
   readonly prompted = signal(false);
@@ -81,6 +94,8 @@ export class DesktopPrefsService {
       // Browser/PWA build: nothing to reconcile with the OS.
       this.startWithSystem.set(false);
       this.alwaysOnTop.set(false);
+      // Nothing to hide a tab *into* without a tray, so the switch is moot here.
+      this.closeToTray.set(false);
       this.ready.set(true);
       return;
     }
@@ -101,6 +116,16 @@ export class DesktopPrefsService {
       await this.applyAlwaysOnTop(stored.alwaysOnTop);
     } catch (err) {
       this.error.set(this.describe(err, 'Could not apply always-on-top.'));
+    }
+
+    // What the close button does is decided by Rust, at the moment the X is
+    // pressed — so the stored preference is handed over as soon as the settings
+    // are read, rather than being left to the switch to remember.
+    this.closeToTray.set(stored.trayBehavior !== 'quit');
+    try {
+      await this.applyCloseBehavior(this.closeToTray());
+    } catch (err) {
+      this.error.set(this.describe(err, 'Could not apply the close behaviour.'));
     }
 
     this.ready.set(true);
@@ -163,6 +188,35 @@ export class DesktopPrefsService {
   }
 
   /**
+   * Chooses what the window's close button does.
+   *
+   * On: the X hides DeepWork in the system tray and everything keeps running —
+   * the timer, the water reminder, the tray icon — until **Exit** is chosen from
+   * the tray menu. Off: the X quits, as it always used to.
+   *
+   * The window is told first and the preference stored second, so a write that
+   * fails cannot leave the app hiding when the user asked it to quit.
+   */
+  async setCloseToTray(enabled: boolean): Promise<void> {
+    if (!IN_TAURI) return;
+    const previous = this.closeToTray();
+    if (previous === enabled) return;
+
+    this.busy.set(true);
+    this.error.set(null);
+    try {
+      await this.applyCloseBehavior(enabled);
+      this.closeToTray.set(enabled);
+      await this.persist({ trayBehavior: enabled ? 'minimize' : 'quit' });
+    } catch (err) {
+      this.closeToTray.set(previous);
+      this.error.set(this.describe(err, 'Could not change what closing the window does.'));
+    } finally {
+      this.busy.set(false);
+    }
+  }
+
+  /**
    * Records a change the tray menu already made to the OS.
    *
    * The Rust side flips the real state and emits an event; there is nothing left
@@ -197,9 +251,14 @@ export class DesktopPrefsService {
     await invokeCmd('window_set_always_on_top', { enabled });
   }
 
+  private async applyCloseBehavior(keepInTray: boolean): Promise<void> {
+    await invokeCmd('window_set_close_behavior', { keepInTray });
+  }
+
   private async persist(patch: {
     startWithSystem?: boolean;
     alwaysOnTop?: boolean;
+    trayBehavior?: 'minimize' | 'quit';
     desktopPrefsPrompted?: boolean;
   }): Promise<void> {
     const current = this.settings.settings();
