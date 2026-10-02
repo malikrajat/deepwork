@@ -12,8 +12,9 @@ A secure, lightweight, cross-platform Pomodoro & Task Management desktop app bui
 - Daily planner (Today's View)
 - Bulk task import from Excel / CSV, with a downloadable template
 - Task list export to CSV with quick date ranges and 24 report columns, saved where you can find it
+- Unfinished-work policy: carry yesterday's tasks forward (default), or let them close themselves when their day passes
 - Habit tracking & journaling
-- Analytics dashboard
+- Analytics dashboard, with every figure paired with an offline reading of it
 - Glassmorphism dark UI
 - SQLite local database (no cloud, no accounts)
 - OS-native notifications that repeat until you answer them — from the app, or
@@ -31,11 +32,11 @@ Three settings control how DeepWork sits on your desktop. The first two are **of
 default** — nothing changes until you ask for it. The third is **on**, because it is
 what stops a stray click on the window's X from ending a focus session.
 
-| Option                          | What it does                                                                                                                                             |
-| ------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **Start with system**           | DeepWork launches when you sign in and opens its normal window — without stealing focus from whatever you are doing — and is in the system tray as well. |
-| **Always on top**               | Keeps the main window above every other window, so the timer stays visible while you work in other apps.                                                 |
-| **Keep running in the tray**    | Closing the window puts DeepWork next to the clock instead of ending it. Right-click the tray icon and choose **Exit** to quit completely.                |
+| Option                       | What it does                                                                                                                                             |
+| ---------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Start with system**        | DeepWork launches when you sign in and opens its normal window — without stealing focus from whatever you are doing — and is in the system tray as well. |
+| **Always on top**            | Keeps the main window above every other window, so the timer stays visible while you work in other apps.                                                 |
+| **Keep running in the tray** | Closing the window puts DeepWork next to the clock instead of ending it. Right-click the tray icon and choose **Exit** to quit completely.               |
 
 ### Where to change them
 
@@ -92,41 +93,56 @@ and then stop hearing. The **system notification** goes back to the desktop unde
 alert's own tag, so Windows re-raises the notification already in the notification
 centre instead of stacking a copy per interval. The **whole widget shakes** on the
 beat of the tone — surface, ring and all four buttons moving together, which is what
-makes the nudge visible to someone working in another window. And both surfaces the
+makes the nudge visible to someone working in another window. How long it shakes for
+is yours to set — **Alert shake** in Settings, from 0.7 s to 4 s — because the length
+that matters is the length of the tone: it should outlast the sound, and past that it
+is taste. The **tempo** is not yours to set, because a slow shake is not the thing the
+setting is about: the length is divided into swings of about an eighth of a second, so
+0.7 s is six quick swings and 4 s is thirty-three of the same, rather than one slow
+lean with the time to fill. And both surfaces the
 alert owns — the widget and the full window's card — move to the **next colour of a
 twelve-entry palette**: a pastel accent over a very dark surface of the same hue,
 easy to look at for however long the alert waits and still unmistakable when it
-happens *again*. The card is raised again on every repeat too, so the same three
+happens _again_. The card is raised again on every repeat too, so the same three
 things happen whether you are looking at the app or at the widget. A finished focus
 session, short break or long break is announced from the timer itself, so it reaches
 you wherever you are — any page, the widget, or the tray — rather than only while the
 Dashboard happens to be open.
 
-### Asking at install time
+The alert also **says something worth reading**. A finished focus session and a
+finished break each draw from their own list of twenty-four lines written for this
+app — step-away lines for one, come-back lines for the other — walked one line per
+session so the same sentence does not come back twice in a row. The line is set
+**apart from the message** rather than run into it: its own smaller line in the
+Windows toast, its own paragraph in the browser and plugin fallbacks, its own
+indented rule and tint on the card. It is the same treatment the water reminder's
+quote gets.
 
-The **Windows installer** asks whether DeepWork should start with Windows, right
-after the files are copied (see `src-tauri/nsis/hooks.nsh`). If you accept, it
-writes the same per-user entry the app manages itself:
+### Asking on first run, never at install time
 
-```
-HKCU\Software\Microsoft\Windows\CurrentVersion\Run\DeepWork
-  = "<install dir>\deepwork.exe" --autostart
-```
-
-Tauri's uninstaller already deletes that value, so uninstalling never leaves a
-startup entry behind. Silent (`/S`) and passive installs skip the prompt and leave
-startup off.
-
-macOS `.dmg`/`.app` and Linux `.deb`/`.AppImage` installers have no standard place
-to show a checkbox, so on those platforms the same choice is offered by a
-**one-time dialog on first launch** — and afterwards in Settings, the dashboard and
-the tray. Where the entry lives per platform:
+No installer writes a startup entry. The **one-time dialog on first launch** offers
+"start with the system" next to "always on top" and "keep running in the tray", and
+afterwards the same three switches live in Settings, the dashboard and the tray
+menu — on every platform, since a `.dmg`, a `.deb` and an `.AppImage` have nowhere
+to put a checkbox either. Where the entry lives once it is turned on:
 
 | Platform | Mechanism                                                      |
 | -------- | -------------------------------------------------------------- |
 | Windows  | `HKCU\Software\Microsoft\Windows\CurrentVersion\Run`           |
 | Linux    | `~/.config/autostart/com.deepwork.app.desktop` (XDG autostart) |
 | macOS    | `~/Library/LaunchAgents/com.deepwork.app.plist` (LaunchAgent)  |
+
+The Windows installer used to ask this question itself, right after the files were
+copied, and write the entry when the answer was yes. It no longer does, because a
+per-user `Run` value written by a freshly downloaded, unsigned installer is the
+shape antivirus heuristics score as _persistence_ — and Windows Defender said so
+in as many words, quarantining the 2.0.12 `-setup.exe` as
+`Behavior:Win32/Persistence.A!ml` before the install could finish
+([`docs/code-signing.md`](docs/code-signing.md) has the whole story, and what to do
+when a build is flagged anyway). Tauri's uninstaller still deletes the `DeepWork`
+value, so uninstalling never leaves a startup entry behind. Silent (`/S`) and
+passive installs, which used to skip the prompt, are now indistinguishable from
+every other install.
 
 A login-launched copy opens the normal DeepWork window, at its usual size. The
 only difference from a manual launch is that it does not pull focus away from the
@@ -220,11 +236,19 @@ are dragged between them to change their status.
   and struck through) and can be dragged back — while the dashboard's "today" list
   still counts only open work.
 - **Today holds the day's own work**: a task dated today, an overdue task that is
-  still open, or one written today with no deadline. A task dated for *tomorrow* is
+  still open, or one written today with no deadline. A task dated for _tomorrow_ is
   tomorrow's — it waits in that section until its day comes, which is how a task list
   imported for the rest of the week stays out of the way. Starring a card (**Add to
   Today**, or `Yes` in the importer's column) is the one thing that pulls it onto
   today anyway.
+- **The same task gets one card, not two.** A title can qualify for today twice over —
+  today's copy, and an older copy that is still starred, or was imported again (which
+  the importer writes on purpose and labels _Duplicate_) — and the board used to show
+  both, as two identical cards with nothing to tell them apart. Today's own copy now
+  wins and the older one is left alone: it is still a task, filed on the Tasks page
+  under its own day, and Today shows one card for it. Titles are compared the way the
+  importer compares them, so spacing and capitalisation do not smuggle a second copy
+  through, and two genuinely different tasks are never merged.
 
 ---
 
@@ -271,7 +295,7 @@ preview before anything is written to the database.
   tomorrow arrives as tomorrow's task (the Tasks page opens the section it landed in, and
   today's board stays today's), and a past deadline still imports with a warning
   ("Deadline 2026-01-05 is in the past") so you can confirm it. Set **Add to Today** to
-  `Yes` on a row when you want it on today's list *as well* — that is the only answer that
+  `Yes` on a row when you want it on today's list _as well_ — that is the only answer that
   overrules the date.
 - **Safety:** nothing is saved until you confirm the preview. Rows with errors are never imported;
   unusable values, duplicate titles (existing tasks or repeated rows in the file) and ambiguous
@@ -347,13 +371,13 @@ of the day as it goes.
 **Settings → Water Reminder** asks a few questions, and every answer is a fixed
 choice rather than something to type:
 
-| Question            | What it offers                                                     |
-| ------------------- | ------------------------------------------------------------------ |
-| Working hours       | a **from** and a **to** time — reminders only fire between them    |
-| Remind me every     | 15, 20, 25, 30, 45, 60, 90, 120 or 180 minutes (60 by default)     |
+| Question            | What it offers                                                                     |
+| ------------------- | ---------------------------------------------------------------------------------- |
+| Working hours       | a **from** and a **to** time — reminders only fire between them                    |
+| Remind me every     | 15, 20, 25, 30, 45, 60, 90, 120 or 180 minutes (60 by default)                     |
 | One drink counts as | 30, 50, 70, 90, 100, 150, 200, 250, 300, 400, 500, 750 or 1000 ml (500 by default) |
-| Daily target        | 1.5 L, 2 L, 2.5 L or 3 L (2 L by default)                          |
-| While minimised     | ring and count the drink instead of asking (on by default)          |
+| Daily target        | 1.5 L, 2 L, 2.5 L or 3 L (2 L by default)                                          |
+| While minimised     | ring and count the drink instead of asking (on by default)                         |
 
 **Test** sends the reminder straight away so you can see what it looks like. The
 reminder is **off until you turn it on** — it is a habit you ask for.
@@ -389,8 +413,13 @@ reminder is **off until you turn it on** — it is a habit you ask for.
   held until you answer, and it starts again from the answer — so "Yes" at 14:00
   means the next one is a full interval later, not one that was already due.
 - Outside your hours it stays quiet, and the Dashboard says when it resumes.
-- A **system notification** goes with the card, carrying the same line, so the
-  reminder is also in the operating system's notification centre.
+- A **system notification** goes with the card, carrying the same two lines — the
+  message, and the motivational line set apart underneath it rather than run on
+  as one sentence. On Windows it is posted as a **reminder** toast, which waits
+  on screen until you dismiss or answer it instead of sliding away after a few
+  seconds: a nudge that disappears while you are heads-down is a nudge that was
+  never delivered. It is kept out of the completion alert's own notification, so
+  neither can take the other's place in the notification centre.
 
 ### On the Dashboard
 
@@ -454,7 +483,7 @@ A few details that matter in practice:
 ### Updating
 
 When a newer release exists, three things say so: an **Update** pill next to the
-version in the sidebar, one **system notification** ("DeepWork v2.1.0 is
+version in the sidebar, one **system notification** ("DeepWork v2.0.17 is
 available"), and a card in the corner of the window with an **Update** button.
 The notification is sent once per version — a version you have waved away with
 **Later** is not announced again, and the next release is announced as normal.
@@ -546,13 +575,27 @@ npx tauri dev
 
 ## Building Desktop Apps
 
+Two things are true of every build, on every platform:
+
+- **The fonts travel with the app.** Inter and JetBrains Mono are in `src/fonts`
+  (SIL Open Font License 1.1, licences in `public/fonts`), declared with
+  `@font-face` in `src/styles.css`. Nothing is fetched from Google at runtime, so
+  the app looks like itself offline, behind a proxy, or on a machine that cannot
+  reach a font CDN.
+- **The packaged app has no web inspector.** The `devtools` cargo feature is
+  deliberately absent from `src-tauri/Cargo.toml`: it is the flag that carries
+  the inspector into a _release_ build, and the shipped app has no inspect entry,
+  no `F12` and no `Ctrl+Shift+I`. `npm run tauri:dev` is unaffected — debug builds
+  get one either way — so put the feature back only if a release build ever has
+  to be inspected in the field.
+
 ### Windows (.exe / .msi installer)
 
 ```powershell
 npm run build:windows
 ```
 
-Output: `src-tauri/target/release/bundle/msi/DeepWork_2.0.12_x64_en-US.msi`
+Output: `src-tauri/target/release/bundle/msi/DeepWork_2.0.17_x64_en-US.msi`
 
 Also produces a standalone `.exe` at: `src-tauri/target/release/deepwork.exe`
 
@@ -574,7 +617,7 @@ npm run build:mac-arm
 Output:
 
 - `src-tauri/target/release/bundle/macos/DeepWork.app`
-- `src-tauri/target/release/bundle/dmg/DeepWork_2.0.12_x64.dmg`
+- `src-tauri/target/release/bundle/dmg/DeepWork_2.0.17_x64.dmg`
 
 > **Note:** Must be run on a Mac.
 
@@ -586,8 +629,8 @@ npm run build:linux
 
 Output:
 
-- `src-tauri/target/release/bundle/deb/deep-work_2.0.12_amd64.deb`
-- `src-tauri/target/release/bundle/appimage/deep-work_2.0.12_amd64.AppImage`
+- `src-tauri/target/release/bundle/deb/deep-work_2.0.17_amd64.deb`
+- `src-tauri/target/release/bundle/appimage/deep-work_2.0.17_amd64.AppImage`
 
 > **Note:** Must be run on Linux with system dependencies installed (see [SETUP.md](SETUP.md)).
 
@@ -608,21 +651,36 @@ Output:
 
 ## Releasing a New Version
 
-Before building a release, update the version number in **all three** of these files (they must match):
+The version is written down in more places than one build system can see, and
+nothing reads any of the others, so one command writes them all:
 
-| File                                                     | Key                  |
-| -------------------------------------------------------- | -------------------- |
-| [`package.json`](package.json)                           | `"version": "x.y.z"` |
-| [`src-tauri/tauri.conf.json`](src-tauri/tauri.conf.json) | `"version": "x.y.z"` |
-| [`src-tauri/Cargo.toml`](src-tauri/Cargo.toml)           | `version = "x.y.z"`  |
+```powershell
+npm run version:bump -- x.y.z    # package.json, both lock files, tauri.conf.json,
+                                 # Cargo.toml, Cargo.lock, APP_VERSION, the docs
+npm run version:check            # or fail if they have drifted apart
+```
 
-> `tauri.conf.json` controls what appears in the installer and app About dialog.  
-> `Cargo.toml` is used by the Rust build.  
-> `package.json` is used by npm/Angular tooling.
+| File                                                     | What carries the number                    |
+| -------------------------------------------------------- | ------------------------------------------ |
+| [`package.json`](package.json)                           | `"version"`                                |
+| [`package-lock.json`](package-lock.json)                 | `"version"`, in two places                 |
+| [`src-tauri/tauri.conf.json`](src-tauri/tauri.conf.json) | `"version"` — the installer and About page |
+| [`src-tauri/Cargo.toml`](src-tauri/Cargo.toml)           | `version`                                  |
+| [`src-tauri/Cargo.lock`](src-tauri/Cargo.lock)           | the `deepwork` crate's own block           |
+| `src/app/core/constants/app-info.constants.ts`           | `APP_VERSION` — the update check           |
+| `README.md`, `SETUP.md`, `docs/code-signing.md`          | the artefact names in the examples         |
+
+> `tauri.conf.json` controls what appears in the installer and the app's About
+> dialog, `Cargo.toml`/`Cargo.lock` are the Rust build's, `package.json` is
+> npm/Angular tooling's, and `APP_VERSION` is what the About page shows and what
+> the update check compares against GitHub. CI runs `npm run version:check`, so a
+> release that updated five of the six fails the lint job instead of shipping two
+> versions. `CHANGELOG.md` is deliberately left alone — a changelog records the
+> versions of the past.
 
 ### Signing the installers
 
-The installers are **not signed yet**, so Windows says *Unknown publisher* in the
+The installers are **not signed yet**, so Windows says _Unknown publisher_ in the
 UAC prompt and SmartScreen can interrupt with "Windows protected your PC". That
 line is the Authenticode signature and nothing else — no setting in the app can
 change it, and the certificate has to be issued in the name you want shown.
@@ -725,11 +783,11 @@ SETUP.md          → Developer setup guide
 
 ## Tech Stack
 
-| Layer           | Technology                                  |
-| --------------- | ------------------------------------------- |
-| Desktop Runtime | Tauri 2.x                                   |
-| Frontend        | Angular 21 (Standalone Components, Signals) |
-| Styling         | Tailwind CSS + Glassmorphism custom tokens  |
-| Database        | SQLite via tauri-plugin-sql                 |
+| Layer           | Technology                                                           |
+| --------------- | -------------------------------------------------------------------- |
+| Desktop Runtime | Tauri 2.x                                                            |
+| Frontend        | Angular 21 (Standalone Components, Signals)                          |
+| Styling         | Tailwind CSS + Glassmorphism custom tokens                           |
+| Database        | SQLite via tauri-plugin-sql                                          |
 | Notifications   | Tagged WinRT toasts + tauri-plugin-notification, Web Audio API tones |
-| State           | Angular Signals + RxJS                      |
+| State           | Angular Signals + RxJS                                               |

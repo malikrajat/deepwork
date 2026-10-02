@@ -9,6 +9,352 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ---
 
+## [2.0.17] – 2026-10-01
+
+### Added
+
+- **The card raised when a task is finished now says something worth reading.**
+  Ticking a task off from the matrix has always raised a card — _Task completed_,
+  with the task's title under it — while the two cards the timer raises have
+  carried a line of their own since 2.0.14. The finished-task card now has one
+  too, drawn from a third list of twenty-four lines written for this app
+  (`TASK_QUOTES`), about the list rather than about the session: one item closed,
+  one item shorter, and the small quiet win that a board is supposed to be made
+  of. The list is walked one entry per finished task, so two tasks in a row never
+  get the same sentence, and the count is kept by `NotificationService` rather
+  than by the page that raises the card — so whichever surface raises it next
+  draws from the same list in the same order.
+
+  The card is deliberately **not** an alert: no tone, no repeat and no desktop
+  notification. A task gets ticked off dozens of times a day, and the alert's
+  machinery (a tone every minute until it is answered) is the fastest way to have
+  the sound turned off. What it borrows is the shape — the news on one line, the
+  encouragement on another, never glued into one sentence.
+
+- **`docs/code-signing.md` now covers a scanner aggregator, not just Defender.**
+  The 2.0.15 installer came back from VirusTotal at 1/71 — SecureAge's static ML
+  engine alone, with the other seventy undetected. The page names what that is
+  (one engine's opinion on the bytes of a small, freshly built, **unsigned**
+  installer), what clears it (a false-positive report to the engine that flagged
+  it, plus the certificate that settles every scanner at once), and what must not
+  be done about it — renaming or repacking the file to move its hash, which is how
+  a legitimate download starts looking like a dodgy one.
+
+### Changed
+
+- **The version is 2.0.17, in every place it is written down**, moved in one pass
+  by `npm run version:bump -- 2.0.17`.
+
+---
+
+## [2.0.16] – 2026-10-01
+
+### Added
+
+- **A choice about what happens to work you did not finish.** DeepWork has
+  always carried unfinished tasks forward: a task not ticked off stayed open, in
+  the section for its own day, and the backlog only ever grew. It is now a
+  setting — **Carry forward unfinished tasks**, under _Tasks_ in Settings. On,
+  which is the default and the behaviour the app shipped with, nothing changes:
+  work you did not get to keeps its place and stays open. Off, a task is closed
+  automatically once its own day has passed — its deadline when it has one, the
+  day it was written when it has not — so a Tuesday task left unfinished is
+  marked done on Wednesday and the day it names means something again. Turning
+  the switch off sweeps immediately rather than at tomorrow's start, because the
+  switch is a statement about the backlog already in front of you; turning it
+  back on stops the closing but does not reopen anything, which is the honest
+  kind of undo (drag the cards back on the Tasks page).
+
+- **The app now says what its analysis is, where the analysis is read.** The
+  Analytics page has always done more than draw charts — every figure is paired
+  with a plain-language reading of it, drawn from the sessions, tasks, habits and
+  journal entries in the local database — and About → _DeepWork & updates_ now
+  has an **Offline AI** card, plus a one-line _Analysis_ fact and an _Offline AI_
+  pill on the Analytics header. All of it describes where the reading happens:
+  on this machine, against your own records, with no account, no API key, no
+  server of its own and nothing uploaded, pooled or used to train anything.
+  The same sentence reaches the two places the app introduces itself outside its
+  own window: the installer and the file properties of the built `deepwork.exe`
+  (`shortDescription`/`longDescription` in `tauri.conf.json`), and the
+  installable web app's description in `manifest.webmanifest`.
+
+### Changed
+
+- **The schema moves to version 10.** `010_carry_forward_tasks.sql` adds
+  `carry_forward_tasks INTEGER NOT NULL DEFAULT 1`, so an existing database
+  keeps the behaviour it had — carry forward — until someone asks for the other
+  one. The value is repaired on read like the rest of the settings, so a
+  hand-edited store cannot leave the choice holding anything but a yes or a no.
+
+- **One door for the start-of-day housekeeping.** The four pages that could be
+  opened first thing in the morning each ran their own `dailyReset()` and
+  `generateRecurringInstances()`; the Tasks and Analytics pages ran neither. All
+  six now call `TaskService.runDailyUpkeep()`, which closes what the calendar has
+  closed, re-asks the day's quadrants and generates today's recurring instances,
+  in that order — so a deep link opens the day the same way the boards do.
+
+- **The version is 2.0.16, in every place it is written down**, moved in one pass
+  by `npm run version:bump -- 2.0.16`.
+
+---
+
+## [2.0.15] – 2026-09-30
+
+### Changed
+
+- **The packaged app no longer carries a web inspector.** The `devtools` cargo
+  feature is gone from `src-tauri/Cargo.toml`, which is the switch that carries
+  the inspector into a _release_ build — `tauri-runtime-wry` only calls
+  `with_devtools` behind `cfg(any(debug_assertions, feature = "devtools"))`, so
+  what ships now has no inspect entry in the context menu, no `F12` and no
+  `Ctrl+Shift+I`, on every platform. `npm run tauri:dev` is unchanged: debug
+  builds get an inspector either way. The window's `"devtools": true` in
+  `tauri.conf.json` is what a debug build reads and a release build ignores, and
+  it is left there so the development loop keeps what the shipped app loses.
+
+- **Inter and JetBrains Mono are shipped with the app instead of fetched from
+  Google on every start.** `index.html` no longer links
+  `fonts.googleapis.com`; the four subset files (two per family, variable
+  weights, 172 kB) live in `src/fonts/` and are declared with `@font-face` in
+  `styles.css`, hashed into the bundle by the build like any other asset. That
+  removes two third-party requests from an app whose whole promise is that the
+  user's machine is the only place anything happens, and it fixes the case the
+  desktop build was quietly weak on: a machine that is offline, behind a proxy,
+  or simply not allowed to reach Google used to draw its own UI in fallback
+  fonts until — or unless — that request succeeded. Both families are SIL Open
+  Font License 1.1, and the licences ship beside the app in `public/fonts/`.
+
+- **The version is 2.0.15, in every place it is written down**, back on the 2.0
+  line the releases are published under, written in one pass by
+  `npm run version:bump -- 2.0.15`. The entries below this one describe changes
+  that this build also carries.
+
+### Added
+
+- **`docs/memory-footprint.md` is current again** — the fonts and the inspector
+  have moved out of its "levers not taken" table and into what the app does, and
+  the measurement behind the numbers is reproducible from the script at the end
+  of the page.
+
+---
+
+## [2.3.1] – 2026-09-30
+
+### Changed
+
+- **The webview lets go of its caches while DeepWork sits in the tray.** Asked
+  why the app shows ~92 MB, the answer turned out to be mostly Chromium: measured
+  on a running window, `deepwork.exe` holds 14 MB and the seven WebView2
+  processes around it (browser, GPU, renderer, network/storage/audio utilities
+  and the crash handler) hold the rest — a Tauri window _is_ a WebView2 window,
+  and that is the floor it stands on. What could be improved is the state the app
+  spends much of its life in: hidden next to the clock, where nothing is on
+  screen but Chromium is still holding caches sized for a visible page. The
+  window now asks WebView2 for `COREWEBVIEW2_MEMORY_USAGE_TARGET_LEVEL_LOW` when
+  it is hidden and `NORMAL` when it is restored
+  (`set_webview_memory_target` in `src-tauri/src/lib.rs`, via
+  `ICoreWebView2_19`). It is a **hint, not a suspension** — `TrySuspend` would
+  stop the page's scripts too, and the timer that keeps counting in the tray is
+  the whole point — and it is best-effort by construction: an older WebView2
+  runtime, a window that has gone, or a refused call all do nothing.
+
+- **The first suggestion — lazy routes — was already true**, and is now written
+  down rather than re-checked every time it comes up: all eleven routes use
+  `loadComponent`, the initial bundle is 68 kB, the matrix page's own strings are
+  absent from it, and the 40-odd page chunks load as they are visited.
+
+- **The version is 2.3.1, in every place it is written down**, written in one pass
+  by `npm run version:bump -- 2.3.1`.
+
+### Added
+
+- **`docs/memory-footprint.md`** — the measurement above, what the app already
+  does to stay lean (bounded log, no render loops, no service worker in the
+  desktop build, no large assets), and the levers _not_ taken with their prices:
+  `--enable-low-end-device-mode` (softens the crispness work), fewer blurred
+  surfaces (the GPU process is the biggest single line), `TrySuspend` (stops the
+  tray timer), quitting on close instead of parking in the tray, `devtools:
+false` in the packaged build, self-hosting the two web fonts the desktop build
+  currently fetches from Google at startup, and the rewrite a native toolkit
+  would mean.
+
+---
+
+## [2.3.0] – 2026-09-30
+
+### Changed
+
+- **The alert's shake is fast now, whatever length it is set to.** Setting a
+  _longer_ shake used to buy a _slower_ one: the animation spanned the whole
+  configured time, so 2.2s was one lazy lean with four swings to fill, and 4s
+  would have been the same lean dragged out twice as far. The length is the
+  user's question — it has to outlast the tone — but the tempo was never the
+  point, so the length is now _divided_ into swings of about 120ms (roughly eight
+  a second, fast enough to read as "this, again" from across a desk and slow
+  enough to see as motion rather than blur) and the stylesheet repeats one swing
+  as many times as it takes: 0.7s is six quick swings, 2.2s eighteen, 4s
+  thirty-three. The two numbers travel to the stylesheet as
+  `--alert-shake-swings` and `--alert-shake-swing-ms`, re-spread so the total is
+  still the chosen length to the millisecond, and `prefers-reduced-motion` still
+  turns the whole animation off.
+
+- **The version is 2.3.0, in every place it is written down**, written in one pass
+  by `npm run version:bump -- 2.3.0`.
+
+### Fixed
+
+- **The same task no longer takes two cards on Today.** Reported from the app:
+  "I added a task yesterday and added the same task today, and Today shows it
+  twice." It did — and the cause was the rule, not the drawing. A task on today's
+  list qualifies two ways: by its **own date** (dated today, or written today), or
+  by the **star** ("Add to Today"), which is sticky by design because it is the
+  user's own instruction — and which the quick-add dialog and the importer's
+  _Add to Today_ column both set. So yesterday's copy was still on the list, and
+  adding the same work again today put a second, identical card beside it. Today's
+  list is now deduplicated by title, compared the way the importer compares them
+  (trimmed, case-insensitive): the copy whose own date is today wins, because that
+  is the one just written down and the one whose status is current, and the older
+  copy is left untouched — it is still a task, still on the Tasks page under its
+  own day. Nothing is deleted, and two different tasks are never merged. The rule
+  lives in one place, `TaskService.todaysTasks()`, so the Today board, the
+  dashboard's counter, the timer's task picker and the matrix rails cannot
+  disagree about what the day holds.
+
+---
+
+## [2.2.0] – 2026-09-30
+
+### Changed
+
+- **How long the mini widget shakes for is a setting now.** The shake is the
+  alert's repeat made visible, so its length is really a question about the
+  _tone_ it is beating along with — the chosen ones run from 0.6s (ding) to 1.5s
+  (bell) — and a fixed 2.2s was a guess at where that conversation ends.
+  **Alert shake** in Settings offers 0.7s, 1.2s, 1.6s, 2.2s, 3s and 4s, from a
+  fixed list like every other choice in that panel (migration
+  `009_alert_shake.sql`, and `repairSettings` puts a hand-edited number back on
+  the list). The widget reads it as the `--alert-shake-ms` custom property it
+  takes with the alert's colours, and 2200ms stays the fallback, so nothing
+  depends on the settings having loaded. The full window's card keeps its own
+  short shake: it is in front of someone who is already looking at the screen,
+  while the widget is out among other windows and is the one that has to outlast
+  the sound to be seen at all.
+
+- **The completion alert speaks its mind.** A finished session used to say only
+  what happened ("Great work! Time for a short break."); it now also carries a
+  line worth reading, from two lists of twenty-four written for this app —
+  `FOCUS_QUOTES` for the end of a focus session and `BREAK_QUOTES` for the end of
+  a break, because those are opposite instructions (step away, come back) and one
+  list could not say both. The list is walked one entry per finished session
+  rather than per repeat, so the sentence does not change under the user mid-read
+  while the tone keeps coming back. The line is drawn **apart from the message**
+  on every surface — a third `placement="attribution"` text line in the Windows
+  toast, a paragraph after a blank line in the plugin and browser fallbacks, the
+  indented rule and tint on the in-app card — which is the machinery the water
+  reminder's quote already used. Nothing is copied from anywhere: the public
+  quote APIs hand back random, largely off-topic lines, and a famous sentence is
+  one misattribution away from being worse than none — every line here is written
+  for this timer, this block and this desk, the same way `WATER_QUOTES` is.
+
+- **The version is 2.2.0, in every place it is written down**, written in one pass
+  by `npm run version:bump -- 2.2.0` rather than by hand.
+
+---
+
+## [2.1.0] – 2026-09-30
+
+### Changed
+
+- **The water reminder's system notification now waits to be dealt with.** On
+  Windows it is posted as a **`reminder` toast with a long duration** — the one
+  shape the shell has for "stay on screen until the user dismisses or answers
+  this" — instead of the default toast that slides away after a few seconds and
+  leaves the question in the notification centre for someone who has already
+  moved on to something else. A nudge that disappears while the user is
+  heads-down is a nudge that was never delivered, and the card behind it is
+  already the one thing in the app that waits for an answer. The command tries
+  the waiting toast first and falls back to a plain one, so a shell that refuses
+  the scenario still gets told the glass is due; macOS, Linux and the browser
+  build post the notification the way they always did, because their API has no
+  duration to set.
+
+- **Every notification now keeps its message and its motivational line apart.**
+  The quote used to be a second sentence glued onto the message with a space, so
+  a Windows toast, the notification plugin and the in-app card each rendered one
+  run-on paragraph. `quote` is now a field of its own from
+  `NotificationService.announce` all the way down: the Windows toast gives it a
+  third `<text placement="attribution">` line — the toast's own smaller, muted
+  style — the plugin and browser fallbacks get a blank line before it, and the
+  in-app card draws it with the same indented rule and tint the water nudge card
+  uses. The water reminder is the message that carries a quote today; anything
+  else that gains one gets the separation for free.
+
+- **The app's one-off notifications no longer share a handle with the completion
+  alert.** A tagged post replaces the one before it, so a water reminder and an
+  unheard completion alert were overwriting each other in the Action Center. Each
+  message posts under its own handle now — `deepwork-water` and
+  `deepwork-update` beside the alert's `deepwork-alert` — which is what the
+  alert's repeats depend on and what the other two were taking away from it.
+
+- **The mini widget's alert shake runs for 2.2 seconds, up from 1.2.** The shake
+  is the alert's repeat made visible, so it has to last at least as long as the
+  tone the user is hearing — and the longest of the chosen tones (the bell) runs
+  for a second and a half, which the old shake stopped well short of. The extra
+  time is spent on more swings at the tempo the shake already had rather than on
+  stretching each one into a slow lean, so the widget stays on the tone's own
+  beat for as long as the tone lasts.
+
+- **The version is 2.1.0, in every place it is written down.** `package.json`,
+  `package-lock.json`, `src-tauri/Cargo.toml` and its lock,
+  `src-tauri/tauri.conf.json` and `APP_VERSION` all read **2.1.0**, written in one
+  pass by `npm run version:bump -- 2.1.0` rather than by hand.
+
+---
+
+## [2.0.13] – 2026-09-30
+
+### Changed
+
+- **The Windows installer writes nothing outside its own folder — the startup
+  prompt is gone, and with it the detection that quarantined 2.0.12.** Windows
+  Defender blocked the 2.0.12 `-setup.exe` as
+  **`Behavior:Win32/Persistence.A!ml`**, severity _Severe_, and quarantined the file
+  before the install could finish. It was describing something real: the NSIS hook
+  (`src-tauri/nsis/hooks.nsh`, wired up as `bundle.windows.nsis.installerHooks`)
+  asked whether DeepWork should start with Windows and, on _Yes_, wrote
+  `HKCU\Software\Microsoft\Windows\CurrentVersion\Run\DeepWork` — and a freshly
+  downloaded, unsigned installer writing a per-user `Run` value is the shape
+  heuristics call persistence. A `Behavior:` detection is not a byte match that a
+  submission can talk Microsoft out of: the code was doing the thing, so the hook
+  and the file are gone. The **one-time first-run dialog** — which macOS `.dmg`,
+  Linux `.deb` and `.AppImage` users have had all along, because no installer can
+  show them a checkbox — is now the only place the desktop build offers "start with
+  the system", next to "always on top" and "keep running in the tray", and the entry
+  is written only when the user turns it on, by the app, after it is installed. A
+  silent or passive install is no longer a special case, Tauri's uninstaller still
+  deletes the `DeepWork` value, and `docs/code-signing.md` grew the section that
+  tells a byte match from a behaviour match, plus what to do about a build that
+  predates this change.
+
+- **The version is now bumped by one command instead of by hand.**
+  `scripts/bump-version.mjs` (`npm run version:bump -- x.y.z`, with
+  `npm run version:check` to prove they agree) rewrites every file that spells the
+  number out: `package.json` and its lock, `src-tauri/tauri.conf.json`,
+  `src-tauri/Cargo.toml` and its lock, `APP_VERSION`, and the artefact names in
+  `README.md`, `SETUP.md` and `docs/code-signing.md`. CI runs the check from the
+  lint job, so the next release cannot ship a README that names last month's file.
+  `CHANGELOG.md` is deliberately left alone: it is the record of the versions of
+  the past, and rewriting it would erase that.
+
+- **The version the installers report is 2.0.13, in every place it is written
+  down.** `package.json`, `package-lock.json`, `src-tauri/Cargo.toml` and its lock,
+  `src-tauri/tauri.conf.json` and `APP_VERSION` (what the About page shows and what
+  the update check compares against GitHub) all read **2.0.13**, so the number on
+  the installer, in Apps & Features, in the window's product metadata, on the About
+  page and in the release comparison are the same number.
+
+---
+
 ## [2.0.12] – 2026-09-29
 
 ### Changed
@@ -26,14 +372,14 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   rectangle was the last thing that made the desktop build look like the odd one
   out.** The shrunken window was designed to fill its own window edge to edge with
   no rounding, because rounding it left the desktop showing at the four corners
-  *behind a hairline the OS was drawing around the window* — a rounded card inside
+  _behind a hairline the OS was drawing around the window_ — a rounded card inside
   a square outline, which is worse than either. That hairline is gone
   (`window_paint_widget_frame` repaints and extends the frame away while the widget
   is up), and the window has been created transparent since, so the corners really
   are empty now: the widget surface takes the same 18px radius in every build, the
   desktop shows through the four corners exactly as it does in the browser, and the
   browser build's floating panel no longer needs a radius of its own. `overflow:
-  hidden` is what keeps this the *frame's* rounding: the ring, the bell and the
+hidden` is what keeps this the _frame's_ rounding: the ring, the bell and the
   buttons are clipped by the rounded surface rather than being rounded one by one.
   Windows 11 is also asked for rounded window corners directly
   (`DWMWA_WINDOW_CORNER_PREFERENCE`), which is the belt to the CSS's braces on a
@@ -65,7 +411,7 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   repeat posts the notification again — **under the alert's own tag**, so Windows
   replaces the notification it is already holding instead of stacking one copy per
   interval, and the body carries a count (`Reminder 3 · Great work! Time for a
-  short break.`) so the replacement is something new to read. The plugin's desktop
+short break.`) so the replacement is something new to read. The plugin's desktop
   path cannot do this at all: it posts through `notify-rust`, which has no tag to
   post under, so the shell grew a small `alert_notify` command that builds the
   toast directly (`tauri-winrt-notification`'s WinRT layer, `src-tauri/src/lib.rs`)
@@ -75,7 +421,7 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 - **The alert stopped being one colour, and started moving the whole widget.** One
   fixed blue was the right answer to "make it comfortable to look at while it
-  waits" and the wrong one to "make it say *again*": a colour already on screen
+  waits" and the wrong one to "make it say _again_": a colour already on screen
   cannot re-announce anything, and neither can a motion happening inside a 136x76
   panel that is otherwise still. The alert now walks a **twelve-entry palette**
   (`ALERT_COLOURS`), one entry per repeat — sky, aqua, mint, lime, butter, amber,
@@ -100,11 +446,11 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   completion in a real browser and checks the panel itself is the thing animating.
 
 - **The installers now name their publisher, and the way to sign them is written
-  down.** Windows shows *Unknown publisher* on the installer because it is
+  down.** Windows shows _Unknown publisher_ on the installer because it is
   unsigned — checked directly: `Get-AuthenticodeSignature` reports `NotSigned` for
   both the NSIS and MSI bundles. That line comes from the Authenticode signature
   and nothing else, so it cannot be fixed from inside the app; what could be fixed
-  is everything that reads *metadata* instead. `bundle.publisher` was unset, and
+  is everything that reads _metadata_ instead. `bundle.publisher` was unset, and
   Tauri was falling back to the second part of the identifier — `deepwork` — so the
   installer, Add/Remove Programs and the file properties now carry **Rajat Malik**,
   along with a copyright, a homepage, the Productivity category and short and long
@@ -126,7 +472,7 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   a cool, low-saturation blue rather than the amber this started as, because the
   alert may sit on screen unanswered for a long time and a hot colour is the one
   that stops being easy on the eyes. A colour that is already on screen cannot
-  say *again*, though, so the widget also **moves on every tone**: the ring leans
+  say _again_, though, so the widget also **moves on every tone**: the ring leans
   3px off centre and back over 0.7s, on the exact beat of the sound the user is
   hearing (`NotificationService` publishes a pulse per raise, and the widget
   alternates two identical rock animations because alternating names are what
@@ -142,7 +488,7 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   both go back.
 
 - **The white line around the mini widget is gone.** The widget had no border of
-  its own — but Windows draws a hairline border around *every* top-level window,
+  its own — but Windows draws a hairline border around _every_ top-level window,
   decoration-less and transparent ones included, and colours it from the system:
   on a light setup that is a white line, which around a 136x76 widget reads as a
   frame the app never drew. Entering the widget now repaints that border in the
@@ -172,7 +518,7 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   due 20 minutes into the time you were away arrives 20 minutes after you come
   back rather than on the doorstep. A store with no heartbeat to go by (written
   before this rule) counts the whole gap as time away, which costs one interval
-  and never a reminder on the doorstep. What is *not* changed is a machine that
+  and never a reminder on the doorstep. What is _not_ changed is a machine that
   merely slept with the app still open: that still gets one reminder when it
   wakes, as it always did. Held down by `tests/unit/water-reminder.service.spec.ts`.
 
@@ -187,7 +533,7 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   can tint a corner; the hairline inset edge is unchanged. The browser build's
   floating panel keeps its 18px radius, because that one really does float over
   the app rather than being a window. A genuinely rounded widget would mean
-  asking Windows to round the *window* (`DWMWA_WINDOW_CORNER_PREFERENCE`) and
+  asking Windows to round the _window_ (`DWMWA_WINDOW_CORNER_PREFERENCE`) and
   matching the card's radius to the system's — a Windows-only change, noted in
   `specs/008-visual-crispness` and not done here.
 
@@ -213,7 +559,7 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - **A finished session can now be answered from the mini widget — and its system
   notification is posted once instead of every minute.** The alert that rings until
   it is answered is the behaviour the app is built on, and it stays; what was wrong
-  was *where* it could be answered. The only control that ever stopped it was the
+  was _where_ it could be answered. The only control that ever stopped it was the
   close button on the card, and the card is not on screen while the window **is**
   the widget — so the case that actually happens went wrong: the session ended
   while DeepWork was shrunk, the tone rang every interval, and the whole window had
@@ -224,7 +570,7 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   of 120×76 so the buttons stay a comfortable 24px — and while an alert is ringing
   the ring's halo breathes, the countdown gives way to a **bell**, and one press on
   it silences the tone and leaves the timer exactly as it was. Play, skip and stop
-  each answer the alert too, because starting the next session *is* the answer most
+  each answer the alert too, because starting the next session _is_ the answer most
   of the time; expanding deliberately does not, so the card is there to be read
   when the window comes back. The alert's OS half is now posted **once** per
   completion rather than once per interval: Windows and macOS keep it in the
@@ -273,7 +619,7 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   the card, the quote and the two answers. The new **Settings → Water Reminder →
   While minimised** switch (on by default, stored as `water_auto_log_when_minimized`
   by migration `007_add_water_autolog.sql`) turns the shortcut off for anyone who
-  would rather be asked in both cases. A *Test* never counts anything, whichever
+  would rather be asked in both cases. A _Test_ never counts anything, whichever
   window is in front.
 
 - **The clock card no longer grows a scrollbar.** Everything inside it was sized
@@ -341,7 +687,7 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 - **A finished session is announced wherever the user is, whatever kind of session
   it was.** The alert — tone, card and system notification — was raised by the
-  *Dashboard component*, so it only ever happened while that page was the one on
+  _Dashboard component_, so it only ever happened while that page was the one on
   screen: a focus session that ran out while the user was on Tasks, Calendar or
   Settings, or in the mini widget (which can be opened from any page), finished in
   complete silence. Nor was it specific to one session type — focus, short break
@@ -356,7 +702,7 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   open, checking the card for each of focus, short break and long break.
 
 - **The white line around the mini widget is really gone.** The frame Windows
-  keeps around every top-level window was previously only *recoloured* — the
+  keeps around every top-level window was previously only _recoloured_ — the
   widget's own surface colour, through `DWMWA_BORDER_COLOR` — which left the
   hairline visible wherever that attribute is not what the border is drawn from
   (reported on Windows 11 25H2, build 26200). The band itself is now taken away:
@@ -369,7 +715,7 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   impossible to tell apart.
 
 - **A task imported for a future date stays on that date instead of arriving on
-  today.** A sheet row dated tomorrow came in as a task for today: *any* task
+  today.** A sheet row dated tomorrow came in as a task for today: _any_ task
   written today counted as today's work, so the date the user typed was thrown
   away the moment the file was read. A task's date now decides the day it belongs
   to — today, tomorrow, or the month after — and the Tasks page opens the section

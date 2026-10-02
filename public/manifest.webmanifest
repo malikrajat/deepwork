@@ -1,7 +1,7 @@
 {
   "name": "DeepWork",
   "short_name": "DeepWork",
-  "description": "Deep work timer, task manager and productivity tracker",
+  "description": "Deep work timer, task manager and productivity tracker, with offline AI analysis of your own data",
   "start_url": "/",
   "display": "standalone",
   "orientation": "portrait-primary",

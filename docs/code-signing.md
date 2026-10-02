@@ -9,7 +9,7 @@ the release page.
 As things stand the installers are **unsigned**, and Windows says so:
 
 ```powershell
-Get-AuthenticodeSignature .\DeepWork_2.0.12_x64-setup.exe | Select-Object Status
+Get-AuthenticodeSignature .\DeepWork_2.0.17_x64-setup.exe | Select-Object Status
 # Status
 # ------
 # NotSigned
@@ -72,7 +72,9 @@ and the build fails with "command VIAddVersionKey not valid in Section". Closing
 means forking the installer template, which this project deliberately avoids. The
 publisher is on the app binary and in Add/Remove Programs, and once there is a
 certificate it is on the installer's signature — which is where a cautious user
-looks first anyway.
+looks first anyway. (It is no longer used at all — it existed here for the
+startup prompt, and that is gone; see _The kind DeepWork has actually hit_ below,
+and the changelog for the release it went in.)
 
 ## Wiring a certificate in
 
@@ -133,14 +135,14 @@ TAURI_CONFIG='{"bundle":{"windows":{"signCommand":"trusted-signing-cli … %1"}}
 
 ```powershell
 # 1. Is it signed, and by the name you expect?
-Get-AuthenticodeSignature .\DeepWork_2.0.12_x64-setup.exe |
+Get-AuthenticodeSignature .\DeepWork_2.0.17_x64-setup.exe |
   Format-List Status, SignerCertificate
 
 # 2. Does the signature actually validate, chain included?
-signtool verify /pa /v .\DeepWork_2.0.12_x64-setup.exe
+signtool verify /pa /v .\DeepWork_2.0.17_x64-setup.exe
 
 # 3. What will the user's "Publisher" line and Apps & Features say?
-(Get-Item .\DeepWork_2.0.12_x64-setup.exe).VersionInfo |
+(Get-Item .\DeepWork_2.0.17_x64-setup.exe).VersionInfo |
   Format-List CompanyName, ProductName, FileVersion, LegalCopyright
 ```
 
@@ -158,13 +160,13 @@ worth doing permanently:
   confirm the file they downloaded is the file that was built:
 
   ```powershell
-  Get-FileHash .\DeepWork_2.0.12_x64-setup.exe -Algorithm SHA256
+  Get-FileHash .\DeepWork_2.0.17_x64-setup.exe -Algorithm SHA256
   # or, on Linux/macOS:
-  sha256sum DeepWork_2.0.12_amd64.AppImage
+  sha256sum DeepWork_2.0.17_amd64.AppImage
   ```
 
 - **Say where the source is.** The repository, the tag and the build instructions
-  are already public; a release note that points at them ("built from tag v2.0.12 by
+  are already public; a release note that points at them ("built from tag v2.0.17 by
   the GitHub Actions run linked below") gives a suspicious user something to check
   that does not depend on trusting a signature.
 
@@ -177,22 +179,22 @@ Two different things stop an unsigned installer, they look similar in a
 screenshot, and they need different answers. Find out which one it is before
 changing anything: the fix for one does nothing for the other.
 
-| What the user sees                                                                       | What it is              | What drives it                                                                                                                                                |
-| ---------------------------------------------------------------------------------------- | ----------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| *Windows protected your PC* — "unrecognised app", with a **More info → Run anyway** link | SmartScreen             | The signature and the download's reputation. File metadata is not consulted, and there is no per-file appeal                                                                 |
-| *Threat found: Trojan:Win32/…* in a notification, and the file is quarantined             | Defender's antivirus    | A heuristic match against the file's bytes or its behaviour. No "Run anyway" is offered, because the file is gone                                                          |
-| *Do you want to allow this app to make changes?* with **Unknown publisher** under it      | The UAC prompt          | Nothing is blocked — this is the normal prompt for any unsigned installer. "Unknown publisher" is the unsigned signature, exactly as above                      |
+| What the user sees                                                                         | What it is           | What drives it                                                                                                                             |
+| ------------------------------------------------------------------------------------------ | -------------------- | ------------------------------------------------------------------------------------------------------------------------------------------ |
+| _Windows protected your PC_ — "unrecognised app", with a **More info → Run anyway** link   | SmartScreen          | The signature and the download's reputation. File metadata is not consulted, and there is no per-file appeal                               |
+| _Threat found: Trojan:Win32/…_ (or `Behavior:Win32/…`) in a notification, file quarantined | Defender's antivirus | A heuristic match against the file's bytes or its behaviour. No "Run anyway" is offered, because the file is gone                          |
+| _Do you want to allow this app to make changes?_ with **Unknown publisher** under it       | The UAC prompt       | Nothing is blocked — this is the normal prompt for any unsigned installer. "Unknown publisher" is the unsigned signature, exactly as above |
 
 There is a tell in the first two: **SmartScreen needs the Mark-of-the-Web.** It
 only appears for a file that was downloaded or copied from somewhere — a build
 run on the same machine and never passed through a browser or a network share has
-no such mark, and cannot raise *Windows protected your PC* at all. If the file on
+no such mark, and cannot raise _Windows protected your PC_ at all. If the file on
 the machine was built locally and there is no `Zone.Identifier` stream on it,
 what you saw was one of the other two:
 
 ```powershell
 # Nothing printed means the file never came from the internet, so SmartScreen is out.
-Get-Item .\DeepWork_2.0.12_x64-setup.exe -Stream * | Select-Object Stream
+Get-Item .\DeepWork_2.0.17_x64-setup.exe -Stream * | Select-Object Stream
 ```
 
 ### If the antivirus engine flagged it
@@ -221,30 +223,99 @@ a legitimate, currently unsigned installer for a desktop app. A wrong detection 
 removed from the definitions for **everyone** once it is accepted, usually within
 a day or two, and it is the only way to clear it for other people.
 
-For your own machine in the meantime, Windows Security → *Protection history* →
+For your own machine in the meantime, Windows Security → _Protection history_ →
 the entry → **Allow on device** puts it back. That is a workaround for one
 machine, and one you should not ask users to copy: a published download that needs
 an antivirus exclusion to install is a download most people are right to refuse.
+
+#### The kind DeepWork has actually hit: a behaviour detection
+
+The two halves of that threat name mean different things, and they are worth telling
+apart before deciding what to change:
+
+- **`Trojan:Win32/…`, `Program:Win32/…`** — the scanner matched the _bytes_ of the
+  file, before anything ran.
+- **`Behavior:Win32/…`** — nothing in the file matched. The verdict came from what a
+  _running process_ did, and the process's image path is attached to the event —
+  which is how a behaviour finding can name an installer that was, at that moment,
+  halfway through installing.
+
+  2.0.12 hit the second kind: `Behavior:Win32/Persistence.A!ml`, severity **Severe**,
+  quarantining the downloaded `-setup.exe`. The behaviour was the installer's own. Its
+  NSIS hook asked whether DeepWork should start with Windows and, when the answer was
+  yes, wrote
+
+```
+HKCU\Software\Microsoft\Windows\CurrentVersion\Run\DeepWork
+```
+
+A freshly downloaded, unsigned installer writing a per-user `Run` value is textbook
+persistence: Defender was describing the code accurately, not hallucinating. So the
+fix belonged in the code, not in a submission. **The installer no longer writes that
+entry at all** — `src-tauri/nsis/hooks.nsh` is gone, and with it the only
+persistence-shaped thing any DeepWork build did. The app asks the same question in
+its first-run dialog instead, once it is installed and running, and writes the value
+only when the user turns "start with the system" on. Nothing the user could do
+before is missing; there is simply no longer a `Run` key write for a heuristic to
+score.
+
+For a build that predates the change, the two steps above still apply to the file in
+hand: **Allow on device** locally, and the
+[submission portal](https://www.microsoft.com/en-us/wdsi/filesubmission) to get the
+wrong verdict off everyone else's machine.
+
+#### The kind DeepWork has hit twice: one engine, on a scanner aggregator
+
+The 2.0.15 installer came back from VirusTotal at **1/71** — SecureAge's static
+ML engine alone, "Malicious", with the other seventy undetected. That is one
+engine's opinion rather than a verdict, and the site says so itself: the
+community score next to the file is the same 1/71, not a consensus.
+
+The engines are not equals. A **static ML** engine — SecureAge, Acronis, and the
+`…!ml` names generally — scores the file's _bytes_ against a model trained almost
+entirely on malware. A small, freshly built, **unsigned** installer with no
+download history looks like what that model is looking for, however innocent it
+is, and the newest release is always the one with no history.
+
+Nothing in the code fixes this and nothing should be changed to chase it.
+Renaming the file, repacking it or padding it to move its hash is exactly the
+behaviour that makes a legitimate download look worse, and it throws away what
+little reputation the file had. What clears it:
+
+- **Report the false positive to the engine that flagged it.** Most vendors —
+  SecureAge included — have a "report a false positive" form; send the file, its
+  SHA-256, the download URL, and one line saying what it is. Aggregators re-scan
+  once that engine's definitions move.
+- **Sign the build** — _Wiring a certificate in_, above. This is the one change
+  that settles every scanner at once, which is what the certificate is for.
+- **Publish the SHA-256** with the release (_Publishing, even without a
+  certificate_, above), so someone looking at a `1/71` has something checkable.
+
+A single-engine flag on a new unsigned release is the ordinary shape of a false
+positive. What is worth acting on is a _cluster_ of engines, a threat name that
+describes behaviour, or the same detection coming back release after release:
+that is when the finding is about something the build really does, and the
+sections above are where to start.
 
 ### If it is SmartScreen
 
 This one has nothing to appeal: no detection was made, so there is no verdict to
 dispute. The file is simply unknown, and SmartScreen's answer to unknown is to make
-the person installing insist — which is why the dialog offers *Run anyway* at all.
+the person installing insist — which is why the dialog offers _Run anyway_ at all.
 What changes it:
 
 - **A signature.** EV clears it from the first download; OV clears as downloads
   accumulate. This is the only durable fix, and it is the reason the section above
   exists.
 - **A signed, timestamped build is what earns reputation.** Reputation is kept per
-  publisher *and* per file, so it resets with every new binary — which is why the
+  publisher _and_ per file, so it resets with every new binary — which is why the
   answer is a certificate rather than a cleverer release process.
 
 Until then, whoever is installing can insist: **More info → Run anyway**, or, on
 the file, right-click → Properties → **Unblock**, or
 
 ```powershell
-Unblock-File .\DeepWork_2.0.12_x64-setup.exe
+Unblock-File .\DeepWork_2.0.17_x64-setup.exe
 ```
 
 ### What the build does to look less like something to block
@@ -252,6 +323,11 @@ Unblock-File .\DeepWork_2.0.12_x64-setup.exe
 These do not replace a signature, and are worth doing anyway, because heuristics
 score the whole shape of a file rather than one thing in it:
 
+- **The installer writes nothing outside its own folder.** Windows no longer asks
+  about startup at install time and no longer writes `HKCU\…\Run\DeepWork` — the one
+  persistence-shaped behaviour in the build, and the one Defender named in
+  `Behavior:Win32/Persistence.A!ml` (see above). The first-run dialog asks instead,
+  and the entry is written by the app, on request, or not at all.
 - **The WebView2 bootstrapper is no longer downloaded at install time.**
   `bundle.windows.webviewInstallMode` is now `embedBootstrapper`, so the installer
   carries Microsoft's signed bootstrapper instead of reaching out to the internet
@@ -265,7 +341,7 @@ score the whole shape of a file rather than one thing in it:
 - **The binaries identify themselves.** `publisher`, `copyright`, `category` and
   both descriptions are set, and the app binary carries `CompanyName`,
   `ProductName`, `ProductVersion` and the version number. The one gap left is the
-  NSIS *installer's* "Company" line, which Tauri's template does not write — see
+  NSIS _installer's_ "Company" line, which Tauri's template does not write — see
   above for why that cannot be patched from this repository.
 - **One installer per release, same name pattern, from the same URL.** Reputation
   is per file, so a renamed or re-packed build starts from zero again — and

@@ -1,6 +1,6 @@
 [package]
 name = "deepwork"
-version = "2.0.12"
+version = "2.0.17"
 description = "DeepWork - Pomodoro & Task Management"
 authors = ["you"]
 license = "MIT"
@@ -17,7 +17,13 @@ tauri-build = { version = "2.6.2", features = [] }
 
 [dependencies]
 log = "0.4"
-tauri = { version = "2.11.2", features = ["tray-icon", "devtools"] }
+# No `devtools` feature, on purpose: that flag is what carries the web inspector
+# into a *packaged* build (`tauri-runtime-wry` only calls `with_devtools` behind
+# `cfg(any(debug_assertions, feature = "devtools"))`). `tauri dev` keeps its
+# inspector without it — debug builds get one either way — so the shipped app has
+# no inspect entry, no F12, and nothing to open in the context menu, while the
+# development loop is unchanged.
+tauri = { version = "2.11.2", features = ["tray-icon"] }
 tauri-plugin-log = "2"
 tauri-plugin-sql = { version = "2", features = ["sqlite"] }
 tauri-plugin-notification = "2"
@@ -27,6 +33,11 @@ tauri-plugin-single-instance = "2"
 # window's own frame away while it is the mini widget.
 [target.'cfg(windows)'.dependencies]
 winreg = "0.55"
+# WebView2's memory-target API (`ICoreWebView2_19`), for telling Chromium to let
+# go of its caches while the window is parked in the tray. The high-level
+# `webview2-com` crate does not surface that interface, but its sys bindings do —
+# and wry already builds them, so this adds no new crate to the build.
+webview2-com = "0.38"
 windows-sys = { version = "0.61", features = [
     "Win32_Foundation",
     "Win32_Graphics_Dwm",

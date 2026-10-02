@@ -1,10 +1,20 @@
-import { Component, inject, OnInit, OnDestroy, computed, signal, ViewChild, ChangeDetectionStrategy } from '@angular/core';
+import {
+  Component,
+  inject,
+  OnInit,
+  OnDestroy,
+  computed,
+  signal,
+  ViewChild,
+  ChangeDetectionStrategy,
+} from '@angular/core';
 import { form, FormField } from '@angular/forms/signals';
 import { AnimatedClockComponent } from '../../shared/components/animated-clock/animated-clock.component';
 import { TimelineBarComponent } from '../../shared/components/timeline-bar/timeline-bar.component';
 import { ConfettiComponent } from '../../shared/components/confetti/confetti.component';
 import { TooltipDirective } from '../../shared/directives/tooltip.directive';
 import { DesktopPrefsPanelComponent } from '../../shared/components/desktop-prefs-panel/desktop-prefs-panel.component';
+import { WaterCardComponent } from '../../shared/components/water-card/water-card.component';
 import { TimerService } from '../../core/services/timer.service';
 import { NotificationService } from '../../core/services/notification.service';
 import { DbService } from '../../core/services/db.service';
@@ -18,12 +28,18 @@ import { TaskSelectFormModel, createTaskSelectFormDefaults } from '../../shared/
 
 @Component({
   selector: 'app-dashboard',
-  imports: [AnimatedClockComponent, TimelineBarComponent, ConfettiComponent, TooltipDirective, FormField, DesktopPrefsPanelComponent],
+  imports: [
+    AnimatedClockComponent,
+    TimelineBarComponent,
+    ConfettiComponent,
+    TooltipDirective,
+    FormField,
+    DesktopPrefsPanelComponent,
+    WaterCardComponent,
+  ],
   changeDetection: ChangeDetectionStrategy.OnPush,
   host: {
-    '(window:mousemove)': 'onDrag($event)',
-    '(window:mouseup)': 'onDragEnd()',
-    '(window:keydown.escape)': 'onEscape()'
+    '(window:keydown.escape)': 'onEscape()',
   },
   template: `
     <!-- Fullscreen overlay -->
@@ -31,8 +47,17 @@ import { TaskSelectFormModel, createTaskSelectFormDefaults } from '../../shared/
       <div class="fullscreen-overlay">
         <div class="fullscreen-ambient"></div>
         <button class="exit-fullscreen-btn" (click)="toggleFullscreen()">
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <path d="M8 3v3a2 2 0 01-2 2H3m18 0h-3a2 2 0 01-2-2V3m0 18v-3a2 2 0 012-2h3M3 16h3a2 2 0 012 2v3"/>
+          <svg
+            width="18"
+            height="18"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+          >
+            <path
+              d="M8 3v3a2 2 0 01-2 2H3m18 0h-3a2 2 0 01-2-2V3m0 18v-3a2 2 0 012-2h3M3 16h3a2 2 0 012 2v3"
+            />
           </svg>
           Exit
         </button>
@@ -46,51 +71,47 @@ import { TaskSelectFormModel, createTaskSelectFormDefaults } from '../../shared/
         <div class="fullscreen-controls">
           @if (timer.isRunning()) {
             <button class="btn btn-secondary btn-lg" (click)="timer.pause()">
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="4" width="4" height="16" rx="1"/><rect x="14" y="4" width="4" height="16" rx="1"/></svg>
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+                <rect x="6" y="4" width="4" height="16" rx="1" />
+                <rect x="14" y="4" width="4" height="16" rx="1" />
+              </svg>
               Pause
             </button>
           } @else {
             <button class="btn btn-primary btn-lg" (click)="startTimer()">
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><polygon points="5,3 19,12 5,21"/></svg>
-              {{ timer.remainingSeconds() < timer.totalDuration() ? 'Resume' : (timer.timerType() === 'work' ? 'Start Focus' : 'Start Break') }}
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+                <polygon points="5,3 19,12 5,21" />
+              </svg>
+              {{
+                timer.remainingSeconds() < timer.totalDuration()
+                  ? 'Resume'
+                  : timer.timerType() === 'work'
+                    ? 'Start Focus'
+                    : 'Start Break'
+              }}
             </button>
           }
-          <button class="btn btn-ghost" (click)="stopTimer()" [disabled]="!timer.isRunning() && timer.remainingSeconds() === timer.totalDuration()">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><rect x="4" y="4" width="16" height="16" rx="3"/></svg>
+          <button
+            class="btn btn-ghost"
+            (click)="stopTimer()"
+            [disabled]="!timer.isRunning() && timer.remainingSeconds() === timer.totalDuration()"
+          >
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+              <rect x="4" y="4" width="16" height="16" rx="3" />
+            </svg>
           </button>
           <button class="btn btn-ghost" (click)="skipTimer()">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><polygon points="5,4 15,12 5,20"/><line x1="19" y1="5" x2="19" y2="19" stroke="currentColor" stroke-width="2.5"/></svg>
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+              <polygon points="5,4 15,12 5,20" />
+              <line x1="19" y1="5" x2="19" y2="19" stroke="currentColor" stroke-width="2.5" />
+            </svg>
           </button>
         </div>
       </div>
     }
 
-    <!-- Floating mini-clock (browser only) -->
-    @if (ui.isMiniMode() && !ui.isTauriEnv) {
-      <div class="mini-clock-float"
-        [style.left.px]="miniPos.x"
-        [style.top.px]="miniPos.y"
-        (mousedown)="startDrag($event)"
-      >
-        <span class="mini-time">{{ timer.displayTime() }}</span>
-        <button class="mini-expand" (click)="toggleMiniMode()">
-          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="15,3 21,3 21,9"/><polyline points="9,21 3,21 3,15"/></svg>
-        </button>
-      </div>
-    }
-
-    <!-- Tauri mini-clock: fills the entire shrunken always-on-top native window -->
-    @if (ui.isMiniMode() && ui.isTauriEnv) {
-      <div class="tauri-mini-window" (mousedown)="startTauriDrag($event)">
-        <span class="mini-time">{{ timer.displayTime() }}</span>
-        <button class="mini-restore-btn" (click)="toggleMiniMode()" title="Restore" (mousedown)="$event.stopPropagation()">
-          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="15,3 21,3 21,9"/><polyline points="9,21 3,21 3,15"/></svg>
-        </button>
-      </div>
-    }
-
     <!-- Main dashboard -->
-    <div class="dashboard-wrapper" [class.hidden]="isFullscreen() || (ui.isMiniMode() && ui.isTauriEnv)">
+    <div class="dashboard-wrapper" [class.hidden]="isFullscreen() || ui.isNativeWidget()">
       <div class="page-header animate-fade-in">
         <div class="header-content">
           <h1 class="gradient-text page-title">Dashboard</h1>
@@ -105,11 +126,37 @@ import { TaskSelectFormModel, createTaskSelectFormDefaults } from '../../shared/
             <div class="timer-ambient"></div>
             <!-- Action buttons top-right -->
             <div class="card-actions">
-              <button class="action-btn" title="Minimize to floating clock" (click)="toggleMiniMode()" appTooltip="Mini widget — shrinks DeepWork into a small floating clock that always stays above your other windows. Drag it anywhere on your desktop; click the expand arrow (or press Esc) to bring the full window back.">
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="5" y1="12" x2="19" y2="12"/></svg>
+              <button
+                class="action-btn"
+                title="Minimize to floating clock"
+                (click)="toggleMiniMode()"
+                appTooltip="Mini widget — shrinks DeepWork into a small floating clock that always stays above your other windows. The window's own minimise button does the same thing. Drag it anywhere on your desktop; click the play button to run the timer, or the expand arrow (or press Esc) to bring the full window back."
+              >
+                <svg
+                  width="14"
+                  height="14"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="2"
+                >
+                  <line x1="5" y1="12" x2="19" y2="12" />
+                </svg>
               </button>
               <button class="action-btn" title="Fullscreen" (click)="toggleFullscreen()">
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="15,3 21,3 21,9"/><polyline points="9,21 3,21 3,15"/><line x1="21" y1="3" x2="14" y2="10"/><line x1="3" y1="21" x2="10" y2="14"/></svg>
+                <svg
+                  width="14"
+                  height="14"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="2"
+                >
+                  <polyline points="15,3 21,3 21,9" />
+                  <polyline points="9,21 3,21 3,15" />
+                  <line x1="21" y1="3" x2="14" y2="10" />
+                  <line x1="3" y1="21" x2="10" y2="14" />
+                </svg>
               </button>
             </div>
 
@@ -121,7 +168,11 @@ import { TaskSelectFormModel, createTaskSelectFormDefaults } from '../../shared/
             <!-- Task selector -->
             @if (taskService.todayTasks().length > 0) {
               <div class="task-selector">
-                <select [formField]="taskSelectForm.taskId" (change)="onTaskSelect()" [appTooltip]="selectedTaskFullTitle()">
+                <select
+                  [formField]="taskSelectForm.taskId"
+                  (change)="onTaskSelect()"
+                  [appTooltip]="selectedTaskFullTitle()"
+                >
                   <option value="">No task linked</option>
                   @for (group of taskGroups(); track group.quadrant) {
                     <optgroup [label]="group.label">
@@ -141,20 +192,42 @@ import { TaskSelectFormModel, createTaskSelectFormDefaults } from '../../shared/
             <div class="timer-controls">
               @if (timer.isRunning()) {
                 <button class="btn btn-secondary btn-lg" (click)="timer.pause()">
-                  <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="4" width="4" height="16" rx="1"/><rect x="14" y="4" width="4" height="16" rx="1"/></svg>
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+                    <rect x="6" y="4" width="4" height="16" rx="1" />
+                    <rect x="14" y="4" width="4" height="16" rx="1" />
+                  </svg>
                   Pause
                 </button>
               } @else {
                 <button class="btn btn-primary btn-lg" (click)="startTimer()">
-                  <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><polygon points="5,3 19,12 5,21"/></svg>
-                  {{ timer.remainingSeconds() < timer.totalDuration() ? 'Resume' : (timer.timerType() === 'work' ? 'Start Focus' : 'Start Break') }}
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+                    <polygon points="5,3 19,12 5,21" />
+                  </svg>
+                  {{
+                    timer.remainingSeconds() < timer.totalDuration()
+                      ? 'Resume'
+                      : timer.timerType() === 'work'
+                        ? 'Start Focus'
+                        : 'Start Break'
+                  }}
                 </button>
               }
-              <button class="btn btn-ghost" (click)="stopTimer()" [disabled]="!timer.isRunning() && timer.remainingSeconds() === timer.totalDuration()">
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><rect x="4" y="4" width="16" height="16" rx="3"/></svg>
+              <button
+                class="btn btn-ghost"
+                (click)="stopTimer()"
+                [disabled]="
+                  !timer.isRunning() && timer.remainingSeconds() === timer.totalDuration()
+                "
+              >
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+                  <rect x="4" y="4" width="16" height="16" rx="3" />
+                </svg>
               </button>
               <button class="btn btn-ghost" (click)="skipTimer()">
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><polygon points="5,4 15,12 5,20"/><line x1="19" y1="5" x2="19" y2="19" stroke="currentColor" stroke-width="2.5"/></svg>
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+                  <polygon points="5,4 15,12 5,20" />
+                  <line x1="19" y1="5" x2="19" y2="19" stroke="currentColor" stroke-width="2.5" />
+                </svg>
               </button>
             </div>
           </div>
@@ -164,7 +237,17 @@ import { TaskSelectFormModel, createTaskSelectFormDefaults } from '../../shared/
         <div class="timeline-panel">
           <div class="timeline-panel-inner">
             <div class="panel-header">
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12,6 12,12 16,14"/></svg>
+              <svg
+                width="14"
+                height="14"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+              >
+                <circle cx="12" cy="12" r="10" />
+                <polyline points="12,6 12,12 16,14" />
+              </svg>
               <span>Timeline</span>
             </div>
             <app-timeline-bar
@@ -188,7 +271,13 @@ import { TaskSelectFormModel, createTaskSelectFormDefaults } from '../../shared/
             </div>
             <span class="goal-percent">{{ dailyGoalPercentage() }}%</span>
           </div>
-          <div class="goal-track" role="progressbar" [attr.aria-valuenow]="dailyGoalPercentage()" aria-valuemin="0" aria-valuemax="100">
+          <div
+            class="goal-track"
+            role="progressbar"
+            [attr.aria-valuenow]="dailyGoalPercentage()"
+            aria-valuemin="0"
+            aria-valuemax="100"
+          >
             <span [style.width.%]="dailyGoalPercentage()"></span>
           </div>
           <p>{{ dailyGoalMessage() }}</p>
@@ -200,7 +289,9 @@ import { TaskSelectFormModel, createTaskSelectFormDefaults } from '../../shared/
               <span class="eyebrow">Session cycle</span>
               <h2>Next long break</h2>
             </div>
-            <span class="cycle-status" [class.break-ready]="timer.timerType() === 'long-break'">{{ timer.timerType() === 'long-break' ? 'Long break ready' : 'In progress' }}</span>
+            <span class="cycle-status" [class.break-ready]="timer.timerType() === 'long-break'">{{
+              timer.timerType() === 'long-break' ? 'Long break ready' : 'In progress'
+            }}</span>
           </div>
           <p>{{ nextBreakMessage() }}</p>
         </article>
@@ -209,18 +300,33 @@ import { TaskSelectFormModel, createTaskSelectFormDefaults } from '../../shared/
           <div class="insight-header">
             <div>
               <span class="eyebrow">Current focus</span>
-              <h2 [appTooltip]="activeTask()?.title ?? ''">{{ activeTask()?.title ?? 'Choose a task to give this session context' }}</h2>
+              <h2 [appTooltip]="activeTask()?.title ?? ''">
+                {{ activeTask()?.title ?? 'Choose a task to give this session context' }}
+              </h2>
             </div>
             @if (activeTask()?.quadrant; as quadrant) {
               <span class="task-priority">{{ quadrantFullLabel(quadrant) }}</span>
             }
           </div>
-          <p>{{ openTodayTasks() }} open task{{ openTodayTasks() === 1 ? '' : 's' }} today · {{ completedTodayTasks() }} completed</p>
+          <p>
+            {{ openTodayTasks() }} open task{{ openTodayTasks() === 1 ? '' : 's' }} today ·
+            {{ completedTodayTasks() }} completed
+          </p>
           <div class="task-actions">
-            <button class="insight-action" type="button" (click)="focusNextTask()" [disabled]="taskService.todayTasks().length === 0">
+            <button
+              class="insight-action"
+              type="button"
+              (click)="focusNextTask()"
+              [disabled]="taskService.todayTasks().length === 0"
+            >
               Focus next task
             </button>
-            <button class="insight-action secondary" type="button" (click)="clearFocusedTask()" [disabled]="!selectedTaskId()">
+            <button
+              class="insight-action secondary"
+              type="button"
+              (click)="clearFocusedTask()"
+              [disabled]="!selectedTaskId()"
+            >
               Clear task
             </button>
           </div>
@@ -234,9 +340,15 @@ import { TaskSelectFormModel, createTaskSelectFormDefaults } from '../../shared/
             </div>
           </div>
           <div class="schedule-stats">
-            <span><strong>{{ completedWorkSessions() }}</strong> focus blocks</span>
-            <span><strong>{{ completedBreakSessions() }}</strong> breaks</span>
-            <span><strong>{{ averageFocusTimeDisplay() }}</strong> average focus</span>
+            <span
+              ><strong>{{ completedWorkSessions() }}</strong> focus blocks</span
+            >
+            <span
+              ><strong>{{ completedBreakSessions() }}</strong> breaks</span
+            >
+            <span
+              ><strong>{{ averageFocusTimeDisplay() }}</strong> average focus</span
+            >
           </div>
           <p>{{ nextBreakMessage() }}</p>
         </article>
@@ -245,10 +357,23 @@ import { TaskSelectFormModel, createTaskSelectFormDefaults } from '../../shared/
       <section class="quick-actions animate-fade-in-delay-2" aria-label="Quick actions">
         <span class="eyebrow">Quick actions</span>
         <div class="quick-action-list">
-          <button class="quick-action primary" type="button" (click)="startTimer()" [disabled]="timer.isRunning()">
-            {{ timer.remainingSeconds() < timer.totalDuration() ? 'Resume timer' : (timer.timerType() === 'work' ? 'Start focus' : 'Start break') }}
+          <button
+            class="quick-action primary"
+            type="button"
+            (click)="startTimer()"
+            [disabled]="timer.isRunning()"
+          >
+            {{
+              timer.remainingSeconds() < timer.totalDuration()
+                ? 'Resume timer'
+                : timer.timerType() === 'work'
+                  ? 'Start focus'
+                  : 'Start break'
+            }}
           </button>
-          <button class="quick-action" type="button" (click)="skipTimer()">Skip {{ timer.timerType() === 'work' ? 'focus' : 'break' }}</button>
+          <button class="quick-action" type="button" (click)="skipTimer()">
+            Skip {{ timer.timerType() === 'work' ? 'focus' : 'break' }}
+          </button>
           <button class="quick-action" type="button" (click)="resetTimer()">Reset cycle</button>
         </div>
       </section>
@@ -256,9 +381,22 @@ import { TaskSelectFormModel, createTaskSelectFormDefaults } from '../../shared/
       <!-- Bottom row: Today's Progress -->
       <div class="progress-row animate-fade-in-delay-2">
         <div class="progress-card">
-          <div class="progress-item" appTooltip="Completed focus sessions today. Interrupted sessions are not counted.">
+          <div
+            class="progress-item"
+            appTooltip="Completed focus sessions today. Interrupted sessions are not counted."
+          >
             <div class="progress-icon sessions-icon">
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 11.08V12a10 10 0 11-5.93-9.14"/><polyline points="22,4 12,14.01 9,11.01"/></svg>
+              <svg
+                width="16"
+                height="16"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+              >
+                <path d="M22 11.08V12a10 10 0 11-5.93-9.14" />
+                <polyline points="22,4 12,14.01 9,11.01" />
+              </svg>
             </div>
             <div class="progress-info">
               <span class="progress-value">{{ completedWorkSessions() }}</span>
@@ -268,7 +406,17 @@ import { TaskSelectFormModel, createTaskSelectFormDefaults } from '../../shared/
           <div class="progress-divider"></div>
           <div class="progress-item" appTooltip="Total time spent in focus sessions today.">
             <div class="progress-icon focus-icon">
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12,6 12,12 16,14"/></svg>
+              <svg
+                width="16"
+                height="16"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+              >
+                <circle cx="12" cy="12" r="10" />
+                <polyline points="12,6 12,12 16,14" />
+              </svg>
             </div>
             <div class="progress-info">
               <span class="progress-value">{{ focusTimeDisplay() }}</span>
@@ -276,9 +424,21 @@ import { TaskSelectFormModel, createTaskSelectFormDefaults } from '../../shared/
             </div>
           </div>
           <div class="progress-divider"></div>
-          <div class="progress-item" appTooltip="Your current focus-session streak for today. It resets at the start of a new day.">
+          <div
+            class="progress-item"
+            appTooltip="Your current focus-session streak for today. It resets at the start of a new day."
+          >
             <div class="progress-icon streak-icon">
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="13,2 3,14 12,14 11,22 21,10 12,10 13,2"/></svg>
+              <svg
+                width="16"
+                height="16"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+              >
+                <polyline points="13,2 3,14 12,14 11,22 21,10 12,10 13,2" />
+              </svg>
             </div>
             <div class="progress-info">
               <span class="progress-value">{{ timer.sessionCount() }}</span>
@@ -286,9 +446,23 @@ import { TaskSelectFormModel, createTaskSelectFormDefaults } from '../../shared/
             </div>
           </div>
           <div class="progress-divider"></div>
-          <div class="progress-item" appTooltip="Today's target is 8 completed focus sessions. This shows your progress toward it.">
+          <div
+            class="progress-item"
+            appTooltip="Today's target is 8 completed focus sessions. This shows your progress toward it."
+          >
             <div class="progress-icon goal-icon">
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/></svg>
+              <svg
+                width="16"
+                height="16"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+              >
+                <circle cx="12" cy="12" r="10" />
+                <circle cx="12" cy="12" r="6" />
+                <circle cx="12" cy="12" r="2" />
+              </svg>
             </div>
             <div class="progress-info">
               <span class="progress-value">{{ dailyGoalProgress() }}</span>
@@ -298,7 +472,10 @@ import { TaskSelectFormModel, createTaskSelectFormDefaults } from '../../shared/
         </div>
       </div>
 
-      <!-- Desktop behaviour: same two switches as Settings, one click away -->
+      <!-- Today's water: what has been drunk, and one tap to add a glass -->
+      <app-water-card class="animate-fade-in-delay-2" />
+
+      <!-- Desktop behaviour: the same switches as Settings, one click away -->
       <div class="dashboard-prefs animate-fade-in-delay-2">
         <app-desktop-prefs-panel title="Desktop Behaviour" />
       </div>
@@ -307,369 +484,714 @@ import { TaskSelectFormModel, createTaskSelectFormDefaults } from '../../shared/
     <!-- Confetti celebration -->
     <app-confetti [sessionsBeforeLongBreak]="sessionsBeforeLongBreak()" />
   `,
-  styles: [`
-    :host { display: block; min-height: 100%; position: relative; }
-
-    /* ===== Main Layout ===== */
-    .dashboard-wrapper { min-height: 100%; display: flex; flex-direction: column; padding-bottom: var(--space-xl); }
-    .dashboard-wrapper.hidden { display: none; }
-    /* Desktop switches: same glass card as the other dashboard panels. */
-    .dashboard-prefs {
-      margin-top: var(--space-md);
-      max-width: 560px;
-      background: var(--glass-bg); backdrop-filter: blur(16px);
-      border: 1px solid rgba(139, 92, 246, 0.08); border-radius: 16px;
-      padding: var(--space-lg); transition: border-color 0.3s;
-    }
-    .dashboard-prefs:hover { border-color: rgba(139, 92, 246, 0.15); }
-    .page-header {
-      display: flex; align-items: center; justify-content: space-between;
-      margin-bottom: var(--space-lg);
-    }
-    .page-title { font-size: 1.5rem; font-weight: 800; letter-spacing: -0.5px; }
-    .page-subtitle { color: var(--color-text-muted); margin-top: 2px; font-size: 0.8rem; }
-
-    /* ===== Main Row: Clock 70% | Timeline 30% ===== */
-    .main-row {
-      flex: 1 0 520px;
-      display: grid;
-      grid-template-columns: 7fr 3fr;
-      gap: var(--space-md);
-      min-height: 0;
-    }
-
-    /* Timer Card */
-    .timer-card { position: relative; border-radius: var(--glass-radius); overflow: hidden; }
-    .timer-card-inner {
-      position: relative; height: 100%;
-      display: flex; flex-direction: column;
-      align-items: center; justify-content: center;
-      gap: var(--space-lg); padding: var(--space-xl);
-      background: var(--glass-bg);
-      backdrop-filter: blur(20px);
-      border: 1px solid rgba(139, 92, 246, 0.08);
-      border-radius: var(--glass-radius);
-      overflow-y: auto;
-    }
-    .timer-card-inner app-animated-clock {
-      --clock-size: clamp(180px, 35vmin, 340px);
-      width: var(--clock-size);
-      height: var(--clock-size);
-      flex-shrink: 0;
-    }
-    .timer-ambient {
-      position: absolute; inset: 0; border-radius: inherit;
-      background: radial-gradient(circle at 50% 40%, rgba(139, 92, 246, 0.06) 0%, transparent 60%);
-      pointer-events: none;
-    }
-
-    /* Card action buttons */
-    .card-actions {
-      position: absolute; top: 16px; right: 16px;
-      display: flex; gap: 6px; z-index: 3;
-    }
-    .action-btn {
-      width: 32px; height: 32px; border-radius: 8px;
-      background: var(--glass-bg); border: 1px solid var(--glass-border);
-      color: var(--color-text-muted); cursor: pointer;
-      display: flex; align-items: center; justify-content: center;
-      transition: all 0.2s;
-    }
-    .action-btn:hover {
-      background: rgba(139,92,246,0.1); border-color: rgba(139,92,246,0.3);
-      color: var(--color-text-primary);
-    }
-
-    /* Timer controls */
-    .timer-controls { display: flex; align-items: center; gap: var(--space-md); z-index: 1; }
-
-    /* Task Selector */
-    .task-selector {
-      display: flex; flex-direction: column; align-items: center; gap: 6px;
-      margin-bottom: 8px; z-index: 1; width: 100%; max-width: 320px;
-    }
-    .task-selector select {
-      background: var(--control-bg); border: 1px solid rgba(139,92,246,0.15);
-      border-radius: 8px; padding: 6px 12px; color: var(--color-text-primary);
-      font-size: 0.75rem; outline: none; cursor: pointer;
-      width: 100%; max-width: 260px; min-width: 0;
-      /* A native select widens to its longest option — keep it bounded. */
-      text-overflow: ellipsis; white-space: nowrap; overflow: hidden;
-      transition: border-color 0.2s;
-    }
-    .task-selector select:focus { border-color: rgba(139,92,246,0.4); }
-    .task-selector select option { background: var(--color-bg-secondary); }
-    .task-selector select optgroup {
-      background: var(--color-bg-secondary); color: var(--color-text-muted);
-      font-size: 0.65rem; font-weight: 700; letter-spacing: 0.03em;
-    }
-    .task-selector select optgroup option {
-      font-weight: 400; color: var(--color-text-primary); padding-left: 8px;
-    }
-    .selected-task-name {
-      font-size: 0.65rem; color: var(--timer-work-color); font-weight: 500;
-    }
-    .selected-task-quadrant {
-      font-size: 0.6rem; font-weight: 600; padding: 2px 8px;
-      border-radius: 8px; letter-spacing: 0.03em;
-    }
-    .selected-task-quadrant.urgent-important {
-      background: var(--quadrant-q1-bg); color: var(--quadrant-q1-color); border: 1px solid var(--quadrant-q1-border);
-    }
-    .selected-task-quadrant.important {
-      background: var(--quadrant-q2-bg); color: var(--quadrant-q2-color); border: 1px solid var(--quadrant-q2-border);
-    }
-    .selected-task-quadrant.urgent {
-      background: var(--quadrant-q3-bg); color: var(--quadrant-q3-color); border: 1px solid var(--quadrant-q3-border);
-    }
-    .selected-task-quadrant.neither {
-      background: var(--quadrant-q4-bg); color: var(--quadrant-q4-color); border: 1px solid var(--quadrant-q4-border);
-    }
-
-    /* Buttons */
-    .btn {
-      display: inline-flex; align-items: center; gap: 8px;
-      padding: 10px 20px; border-radius: 12px; font-size: 0.85rem;
-      font-weight: 600; cursor: pointer; border: none;
-      transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
-      font-family: var(--font-sans);
-    }
-    .btn:disabled { opacity: 0.3; cursor: not-allowed; }
-    .btn-lg { padding: 12px 28px; font-size: 0.9rem; }
-    .btn-primary {
-      background: linear-gradient(135deg, #8b5cf6 0%, #7c3aed 50%, #6d28d9 100%);
-      color: white;
-      box-shadow: 0 4px 20px rgba(139, 92, 246, 0.3), inset 0 1px 0 rgba(255,255,255,0.1);
-    }
-    .btn-primary:hover:not(:disabled) {
-      transform: translateY(-2px);
-      box-shadow: 0 8px 30px rgba(139, 92, 246, 0.5), inset 0 1px 0 rgba(255,255,255,0.15);
-    }
-    .btn-primary:active:not(:disabled) { transform: translateY(0); }
-    .btn-secondary {
-      background: rgba(139, 92, 246, 0.1);
-      border: 1px solid rgba(139, 92, 246, 0.25);
-      color: var(--color-text-primary);
-    }
-    .btn-secondary:hover:not(:disabled) { background: rgba(139, 92, 246, 0.15); border-color: rgba(139, 92, 246, 0.4); }
-    .btn-ghost {
-      background: var(--glass-bg); border: 1px solid var(--glass-border);
-      color: var(--color-text-muted); padding: 10px; border-radius: 10px;
-    }
-    .btn-ghost:hover:not(:disabled) { color: var(--color-text-primary); background: var(--glass-bg-hover); }
-
-    /* ===== Timeline Panel ===== */
-    .timeline-panel { border-radius: var(--glass-radius); overflow: hidden; }
-    .timeline-panel-inner {
-      height: 100%; padding: var(--space-md);
-      background: var(--glass-bg);
-      backdrop-filter: blur(16px);
-      border: 1px solid rgba(139,92,246,0.06);
-      border-radius: var(--glass-radius);
-      display: flex; flex-direction: column;
-      overflow: hidden;
-    }
-    .timeline-panel-inner app-timeline-bar {
-      flex: 1;
-      min-height: 0;
-      display: block;
-      overflow: hidden;
-    }
-    .panel-header {
-      display: flex; align-items: center; gap: 6px;
-      font-size: 0.7rem; text-transform: uppercase;
-      letter-spacing: 0.08em; color: var(--color-text-muted);
-      margin-bottom: var(--space-sm); padding-bottom: 8px;
-      border-bottom: 1px solid var(--glass-border);
-      flex-shrink: 0;
-    }
-    .panel-header svg { opacity: 0.5; }
-
-    /* ===== Bottom Progress Row ===== */
-    .progress-row { margin-top: var(--space-md); flex-shrink: 0; }
-    .progress-card {
-      display: flex; align-items: center; justify-content: space-around;
-      padding: 16px 24px;
-      background: var(--glass-bg);
-      backdrop-filter: blur(16px);
-      border: 1px solid rgba(139,92,246,0.06);
-      border-radius: 16px;
-    }
-    .progress-item { display: flex; align-items: center; gap: 12px; }
-    .progress-icon {
-      width: 36px; height: 36px; border-radius: 10px;
-      display: flex; align-items: center; justify-content: center;
-    }
-    .sessions-icon { background: rgba(139,92,246,0.1); color: #8b5cf6; }
-    .focus-icon { background: rgba(6,182,212,0.1); color: #06b6d4; }
-    .streak-icon { background: rgba(251,191,36,0.1); color: #fbbf24; }
-    .goal-icon { background: rgba(52,211,153,0.1); color: #34d399; }
-    .progress-info { display: flex; flex-direction: column; }
-    .progress-value { font-size: 1.1rem; font-weight: 700; font-variant-numeric: tabular-nums; }
-    .progress-label { font-size: 0.65rem; color: var(--color-text-muted); text-transform: uppercase; letter-spacing: 0.05em; }
-    .progress-divider { width: 1px; height: 32px; background: var(--glass-border); }
-
-    /* ===== Focus Insights ===== */
-    .insights-grid {
-      display: grid; grid-template-columns: repeat(2, minmax(0, 1fr));
-      gap: var(--space-md); margin-top: var(--space-md);
-    }
-    .insight-card, .quick-actions {
-      padding: var(--space-md); background: var(--glass-bg); backdrop-filter: blur(16px);
-      border: 1px solid rgba(139,92,246,0.10); border-radius: 16px;
-    }
-    .insight-header { display: flex; justify-content: space-between; gap: var(--space-md); align-items: flex-start; }
-    .eyebrow {
-      display: block; font-size: 0.62rem; font-weight: 700; letter-spacing: 0.08em;
-      text-transform: uppercase; color: var(--color-text-muted);
-    }
-    .insight-card h2 { margin: 4px 0 0; font-size: 0.9rem; line-height: 1.35; color: var(--color-text-primary); }
-    /* Long task titles clamp to two lines instead of stretching the card. */
-    .task-card h2 {
-      display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical;
-      overflow: hidden; overflow-wrap: anywhere;
-    }
-    .insight-card p { margin: var(--space-sm) 0 0; color: var(--color-text-secondary); font-size: 0.73rem; line-height: 1.45; }
-    .goal-percent, .cycle-status, .task-priority {
-      flex-shrink: 0; padding: 4px 7px; border-radius: 6px; font-size: 0.62rem; font-weight: 700;
-      background: rgba(139,92,246,0.12); color: #a78bfa;
-    }
-    .cycle-status.break-ready { background: rgba(52,211,153,0.12); color: #34d399; }
-    .task-priority { max-width: 120px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-    .goal-track { height: 6px; overflow: hidden; margin-top: var(--space-md); border-radius: 999px; background: rgba(255,255,255,0.08); }
-    .goal-track span { display: block; height: 100%; border-radius: inherit; background: linear-gradient(90deg, #8b5cf6, #06b6d4); transition: width 0.3s ease; }
-    .task-actions, .quick-action-list { display: flex; flex-wrap: wrap; gap: 8px; margin-top: var(--space-md); }
-    .insight-action, .quick-action {
-      padding: 7px 10px; border: 1px solid rgba(139,92,246,0.22); border-radius: 8px;
-      background: rgba(139,92,246,0.08); color: var(--color-text-primary); font: 600 0.7rem var(--font-sans); cursor: pointer;
-    }
-    .insight-action.secondary, .quick-action { background: transparent; color: var(--color-text-secondary); }
-    .insight-action:hover:not(:disabled), .quick-action:hover:not(:disabled) { border-color: rgba(139,92,246,0.5); background: rgba(139,92,246,0.14); color: var(--color-text-primary); }
-    .insight-action:disabled, .quick-action:disabled { opacity: 0.45; cursor: not-allowed; }
-    .schedule-stats { display: flex; flex-wrap: wrap; gap: 8px 14px; margin-top: var(--space-md); color: var(--color-text-muted); font-size: 0.68rem; }
-    .schedule-stats strong { color: var(--color-text-primary); font-variant-numeric: tabular-nums; }
-    .quick-actions { display: flex; align-items: center; justify-content: space-between; gap: var(--space-md); margin-top: var(--space-md); }
-    .quick-action-list { margin-top: 0; }
-    .quick-action.primary { background: linear-gradient(135deg, #8b5cf6, #6d28d9); border-color: transparent; color: white; }
-
-    /* ===== Fullscreen Mode ===== */
-    .fullscreen-overlay {
-      position: fixed; inset: 0; z-index: 1000;
-      background: var(--color-bg-primary);
-      display: flex; flex-direction: column;
-      align-items: center; justify-content: center; gap: var(--space-xl);
-    }
-    .fullscreen-ambient {
-      position: absolute; inset: 0;
-      background:
-        radial-gradient(ellipse 60% 40% at 50% 50%, rgba(139,92,246,0.08) 0%, transparent 60%),
-        radial-gradient(circle 300px at 30% 70%, rgba(6,182,212,0.04) 0%, transparent 100%);
-      pointer-events: none;
-    }
-    .exit-fullscreen-btn {
-      position: absolute; top: 24px; right: 24px;
-      display: flex; align-items: center; gap: 6px;
-      padding: 8px 16px; border-radius: 10px;
-      background: var(--glass-bg); border: 1px solid var(--glass-border);
-      color: var(--color-text-secondary); cursor: pointer; font-size: 0.8rem;
-      font-family: var(--font-sans); transition: all 0.2s; z-index: 1;
-    }
-    .exit-fullscreen-btn:hover { background: var(--glass-bg-hover); color: var(--color-text-primary); }
-    .fullscreen-clock {
-      z-index: 1;
-      --clock-size: clamp(220px, 50vmin, 500px);
-      width: var(--clock-size);
-      height: var(--clock-size);
-    }
-    .fullscreen-controls { display: flex; align-items: center; gap: var(--space-md); z-index: 1; }
-
-    /* ===== Floating Mini Clock ===== */
-    .mini-clock-float {
-      position: fixed; z-index: 9999;
-      display: flex; align-items: center; gap: 8px;
-      padding: 8px 14px; border-radius: 12px;
-      background: var(--surface-float); backdrop-filter: blur(20px);
-      border: 1px solid rgba(139,92,246,0.25);
-      box-shadow: var(--glass-shadow), 0 0 20px rgba(139,92,246,0.15);
-      cursor: grab; user-select: none;
-    }
-    .mini-clock-float:active { cursor: grabbing; }
-    .mini-time {
-      font-family: var(--font-mono); font-size: 1rem;
-      font-weight: 700; color: var(--color-text-primary);
-      letter-spacing: -0.5px;
-    }
-    .mini-expand {
-      width: 24px; height: 24px; border-radius: 6px;
-      background: rgba(139,92,246,0.15); border: none;
-      color: var(--color-text-secondary); cursor: pointer;
-      display: flex; align-items: center; justify-content: center;
-      transition: all 0.2s;
-    }
-    .mini-expand:hover { background: rgba(139,92,246,0.3); color: var(--color-text-primary); }
-
-    /* ===== Tauri Floating Mini Window ===== */
-    .tauri-mini-window {
-      position: fixed; inset: 0; z-index: 9999;
-      display: flex; align-items: center; gap: 8px;
-      padding: 0 14px;
-      background: rgba(15,11,31,0.95); backdrop-filter: blur(20px);
-      border: 1px solid rgba(139,92,246,0.3);
-      box-shadow: 0 4px 24px rgba(0,0,0,0.6), 0 0 16px rgba(139,92,246,0.2);
-      cursor: grab; user-select: none;
-    }
-    .tauri-mini-window:active { cursor: grabbing; }
-    .mini-restore-btn {
-      width: 24px; height: 24px; border-radius: 6px;
-      background: rgba(139,92,246,0.15); border: none;
-      color: var(--color-text-secondary); cursor: pointer;
-      display: flex; align-items: center; justify-content: center;
-      transition: all 0.2s; flex-shrink: 0; margin-left: auto;
-    }
-    .mini-restore-btn:hover { background: rgba(139,92,246,0.3); color: var(--color-text-primary); }
-
-    /* ===== Responsive ===== */
-
-    /* Large monitors (>1600px) - scale up clock area */
-    @media (min-width: 1600px) {
-      .timer-card-inner { gap: var(--space-xl); padding: var(--space-2xl, 48px); }
-      .fullscreen-clock { --clock-size: clamp(300px, 55vmin, 600px); width: var(--clock-size); height: var(--clock-size); }
-    }
-
-    /* Tablet (<=1024px) - stack timeline below */
-    @media (max-width: 1024px) {
-      .main-row {
-        grid-template-columns: 1fr;
-        grid-template-rows: 1fr auto;
+  styles: [
+    `
+      :host {
+        display: block;
+        min-height: 100%;
+        position: relative;
       }
-      .timeline-panel { max-height: 180px; }
-      .progress-card { flex-wrap: wrap; gap: 12px; justify-content: center; }
-      .progress-divider { display: none; }
-      .insights-grid { grid-template-columns: 1fr; }
-    }
 
-    /* Mobile (<=640px) - compact everything */
-    @media (max-width: 640px) {
-      .page-header { margin-bottom: var(--space-sm); }
-      .page-title { font-size: 1.2rem; }
-      .timer-card-inner { padding: var(--space-md); gap: var(--space-md); }
-      .timer-controls { gap: var(--space-sm); }
-      .btn-lg { padding: 10px 18px; font-size: 0.8rem; }
-      .card-actions { top: 8px; right: 8px; }
-      .action-btn { width: 28px; height: 28px; }
-      .task-selector select { min-width: 140px; font-size: 0.7rem; }
-      .progress-card { padding: 12px 16px; }
-      .progress-icon { width: 28px; height: 28px; border-radius: 8px; }
-      .progress-icon svg { width: 13px; height: 13px; }
-      .progress-value { font-size: 0.9rem; }
-      .progress-label { font-size: 0.6rem; }
-      .fullscreen-clock { --clock-size: clamp(160px, 45vmin, 280px); width: var(--clock-size); height: var(--clock-size); }
-      .fullscreen-controls { flex-wrap: wrap; justify-content: center; }
-      .quick-actions { align-items: flex-start; flex-direction: column; }
-      .quick-action-list { width: 100%; }
-      .quick-action { flex: 1; }
-    }
-  `]
+      /* ===== Main Layout ===== */
+      .dashboard-wrapper {
+        min-height: 100%;
+        display: flex;
+        flex-direction: column;
+        padding-bottom: var(--space-xl);
+      }
+      .dashboard-wrapper.hidden {
+        display: none;
+      }
+      /* Desktop switches: same glass card as the other dashboard panels. */
+      .dashboard-prefs {
+        margin-top: var(--space-md);
+        max-width: 560px;
+        background: var(--glass-bg);
+        backdrop-filter: blur(16px);
+        border: 1px solid rgba(139, 92, 246, 0.08);
+        border-radius: 16px;
+        padding: var(--space-lg);
+        transition: border-color 0.3s;
+      }
+      .dashboard-prefs:hover {
+        border-color: rgba(139, 92, 246, 0.15);
+      }
+      .page-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        margin-bottom: var(--space-lg);
+      }
+      .page-title {
+        font-size: 24px;
+        font-weight: 800;
+        letter-spacing: -0.5px;
+      }
+      .page-subtitle {
+        color: var(--color-text-muted);
+        margin-top: 2px;
+        font-size: 13px;
+      }
+
+      /* ===== Main Row: Clock 70% | Timeline 30% ===== */
+      .main-row {
+        /* Tall enough for the dial, the task row and the controls together: the
+         clock card must never have to choose between them (and so never
+         scroll). See the breakpoint overrides for the larger paddings and the
+         stacked layout. */
+        flex: 1 0 560px;
+        display: grid;
+        grid-template-columns: 7fr 3fr;
+        gap: var(--space-md);
+        min-height: 0;
+      }
+
+      /* Timer Card */
+      .timer-card {
+        position: relative;
+        border-radius: var(--glass-radius);
+        overflow: hidden;
+      }
+      /*
+     * The card the clock lives in is a fixed shape, so it never scrolls: a
+     * scrollbar down the side of a timer face is worse than a slightly smaller
+     * dial. Nothing in it is sized from the window either — the dial takes the
+     * height left over by the task row and the controls, so a short card shrinks
+     * it and a tall one fills the space instead of leaving it empty.
+     */
+      .timer-card-inner {
+        position: relative;
+        height: 100%;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: var(--space-lg);
+        padding: var(--space-xl);
+        background: var(--glass-bg);
+        backdrop-filter: blur(20px);
+        border: 1px solid rgba(139, 92, 246, 0.08);
+        border-radius: var(--glass-radius);
+        overflow: hidden;
+      }
+      .timer-card-inner app-animated-clock {
+        /* Whatever height the card has left after the task row and the controls,
+         as a square — up to its design size, which is what the card was built
+         around. It only shrinks when the card genuinely cannot hold it. */
+        flex: 1 1 auto;
+        min-height: 0;
+        max-height: min(340px, 35vmin);
+        aspect-ratio: 1;
+        width: auto;
+        max-width: 100%;
+        /* The dial's own clamp (180-360px) is not wanted here: the card decides
+         the size and the component fills the box it is given. */
+        --clock-size: 100%;
+      }
+      .timer-ambient {
+        position: absolute;
+        inset: 0;
+        border-radius: inherit;
+        background: radial-gradient(
+          circle at 50% 40%,
+          rgba(139, 92, 246, 0.06) 0%,
+          transparent 60%
+        );
+        pointer-events: none;
+      }
+
+      /* Card action buttons */
+      .card-actions {
+        position: absolute;
+        top: 16px;
+        right: 16px;
+        display: flex;
+        gap: 6px;
+        z-index: 3;
+      }
+      .action-btn {
+        width: 32px;
+        height: 32px;
+        border-radius: 8px;
+        background: var(--glass-bg);
+        border: 1px solid var(--glass-border);
+        color: var(--color-text-muted);
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        transition: all 0.2s;
+      }
+      .action-btn:hover {
+        background: rgba(139, 92, 246, 0.1);
+        border-color: rgba(139, 92, 246, 0.3);
+        color: var(--color-text-primary);
+      }
+
+      /* Timer controls */
+      .timer-controls {
+        display: flex;
+        align-items: center;
+        gap: var(--space-md);
+        z-index: 1;
+      }
+
+      /* Task Selector */
+      .task-selector {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 6px;
+        margin-bottom: 8px;
+        z-index: 1;
+        width: 100%;
+        max-width: 320px;
+      }
+      .task-selector select {
+        background: var(--control-bg);
+        border: 1px solid rgba(139, 92, 246, 0.15);
+        border-radius: 8px;
+        padding: 6px 12px;
+        color: var(--color-text-primary);
+        font-size: 12px;
+        outline: none;
+        cursor: pointer;
+        width: 100%;
+        max-width: 260px;
+        min-width: 0;
+        /* A native select widens to its longest option — keep it bounded. */
+        text-overflow: ellipsis;
+        white-space: nowrap;
+        overflow: hidden;
+        transition: border-color 0.2s;
+      }
+      .task-selector select:focus {
+        border-color: rgba(139, 92, 246, 0.4);
+      }
+      .task-selector select option {
+        background: var(--color-bg-secondary);
+      }
+      .task-selector select optgroup {
+        background: var(--color-bg-secondary);
+        color: var(--color-text-muted);
+        font-size: 10px;
+        font-weight: 700;
+        letter-spacing: 0.03em;
+      }
+      .task-selector select optgroup option {
+        font-weight: 400;
+        color: var(--color-text-primary);
+        padding-left: 8px;
+      }
+      .selected-task-quadrant {
+        font-size: 10px;
+        font-weight: 600;
+        padding: 2px 8px;
+        border-radius: 8px;
+        letter-spacing: 0.03em;
+      }
+      .selected-task-quadrant.urgent-important {
+        background: var(--quadrant-q1-bg);
+        color: var(--quadrant-q1-color);
+        border: 1px solid var(--quadrant-q1-border);
+      }
+      .selected-task-quadrant.important {
+        background: var(--quadrant-q2-bg);
+        color: var(--quadrant-q2-color);
+        border: 1px solid var(--quadrant-q2-border);
+      }
+      .selected-task-quadrant.urgent {
+        background: var(--quadrant-q3-bg);
+        color: var(--quadrant-q3-color);
+        border: 1px solid var(--quadrant-q3-border);
+      }
+      .selected-task-quadrant.neither {
+        background: var(--quadrant-q4-bg);
+        color: var(--quadrant-q4-color);
+        border: 1px solid var(--quadrant-q4-border);
+      }
+
+      /* Buttons */
+      .btn {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        padding: 10px 20px;
+        border-radius: 12px;
+        font-size: 14px;
+        font-weight: 600;
+        cursor: pointer;
+        border: none;
+        transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+        font-family: var(--font-sans);
+      }
+      .btn:disabled {
+        opacity: 0.3;
+        cursor: not-allowed;
+      }
+      .btn-lg {
+        padding: 12px 28px;
+        font-size: 14px;
+      }
+      .btn-primary {
+        background: linear-gradient(135deg, #8b5cf6 0%, #7c3aed 50%, #6d28d9 100%);
+        color: white;
+        box-shadow:
+          0 4px 20px rgba(139, 92, 246, 0.3),
+          inset 0 1px 0 rgba(255, 255, 255, 0.1);
+      }
+      .btn-primary:hover:not(:disabled) {
+        transform: translateY(-2px);
+        box-shadow:
+          0 8px 30px rgba(139, 92, 246, 0.5),
+          inset 0 1px 0 rgba(255, 255, 255, 0.15);
+      }
+      .btn-primary:active:not(:disabled) {
+        transform: translateY(0);
+      }
+      .btn-secondary {
+        background: rgba(139, 92, 246, 0.1);
+        border: 1px solid rgba(139, 92, 246, 0.25);
+        color: var(--color-text-primary);
+      }
+      .btn-secondary:hover:not(:disabled) {
+        background: rgba(139, 92, 246, 0.15);
+        border-color: rgba(139, 92, 246, 0.4);
+      }
+      .btn-ghost {
+        background: var(--glass-bg);
+        border: 1px solid var(--glass-border);
+        color: var(--color-text-muted);
+        padding: 10px;
+        border-radius: 10px;
+      }
+      .btn-ghost:hover:not(:disabled) {
+        color: var(--color-text-primary);
+        background: var(--glass-bg-hover);
+      }
+
+      /* ===== Timeline Panel ===== */
+      .timeline-panel {
+        border-radius: var(--glass-radius);
+        overflow: hidden;
+      }
+      .timeline-panel-inner {
+        height: 100%;
+        padding: var(--space-md);
+        background: var(--glass-bg);
+        backdrop-filter: blur(16px);
+        border: 1px solid rgba(139, 92, 246, 0.06);
+        border-radius: var(--glass-radius);
+        display: flex;
+        flex-direction: column;
+        overflow: hidden;
+      }
+      .timeline-panel-inner app-timeline-bar {
+        flex: 1;
+        min-height: 0;
+        display: block;
+        overflow: hidden;
+      }
+      .panel-header {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        font-size: 11px;
+        text-transform: uppercase;
+        letter-spacing: 0.08em;
+        color: var(--color-text-muted);
+        margin-bottom: var(--space-sm);
+        padding-bottom: 8px;
+        border-bottom: 1px solid var(--glass-border);
+        flex-shrink: 0;
+      }
+      .panel-header svg {
+        opacity: 0.5;
+      }
+
+      /* ===== Bottom Progress Row ===== */
+      .progress-row {
+        margin-top: var(--space-md);
+        flex-shrink: 0;
+      }
+      .progress-card {
+        display: flex;
+        align-items: center;
+        justify-content: space-around;
+        padding: 16px 24px;
+        background: var(--glass-bg);
+        backdrop-filter: blur(16px);
+        border: 1px solid rgba(139, 92, 246, 0.06);
+        border-radius: 16px;
+      }
+      .progress-item {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+      }
+      .progress-icon {
+        width: 36px;
+        height: 36px;
+        border-radius: 10px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+      }
+      .sessions-icon {
+        background: rgba(139, 92, 246, 0.1);
+        color: #8b5cf6;
+      }
+      .focus-icon {
+        background: rgba(6, 182, 212, 0.1);
+        color: #06b6d4;
+      }
+      .streak-icon {
+        background: rgba(251, 191, 36, 0.1);
+        color: #fbbf24;
+      }
+      .goal-icon {
+        background: rgba(52, 211, 153, 0.1);
+        color: #34d399;
+      }
+      .progress-info {
+        display: flex;
+        flex-direction: column;
+      }
+      .progress-value {
+        font-size: 18px;
+        font-weight: 700;
+        font-variant-numeric: tabular-nums;
+      }
+      .progress-label {
+        font-size: 10px;
+        color: var(--color-text-muted);
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+      }
+      .progress-divider {
+        width: 1px;
+        height: 32px;
+        background: var(--glass-border);
+      }
+
+      /* ===== Focus Insights ===== */
+      .insights-grid {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: var(--space-md);
+        margin-top: var(--space-md);
+      }
+      .insight-card,
+      .quick-actions {
+        padding: var(--space-md);
+        background: var(--glass-bg);
+        backdrop-filter: blur(16px);
+        border: 1px solid rgba(139, 92, 246, 0.1);
+        border-radius: 16px;
+      }
+      .insight-header {
+        display: flex;
+        justify-content: space-between;
+        gap: var(--space-md);
+        align-items: flex-start;
+      }
+      .eyebrow {
+        display: block;
+        font-size: 10px;
+        font-weight: 700;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        color: var(--color-text-muted);
+      }
+      .insight-card h2 {
+        margin: 4px 0 0;
+        font-size: 14px;
+        line-height: 1.35;
+        color: var(--color-text-primary);
+      }
+      /* Long task titles clamp to two lines instead of stretching the card. */
+      .task-card h2 {
+        display: -webkit-box;
+        -webkit-line-clamp: 2;
+        -webkit-box-orient: vertical;
+        overflow: hidden;
+        overflow-wrap: anywhere;
+      }
+      .insight-card p {
+        margin: var(--space-sm) 0 0;
+        color: var(--color-text-secondary);
+        font-size: 12px;
+        line-height: 1.45;
+      }
+      .goal-percent,
+      .cycle-status,
+      .task-priority {
+        flex-shrink: 0;
+        padding: 4px 7px;
+        border-radius: 6px;
+        font-size: 10px;
+        font-weight: 700;
+        background: rgba(139, 92, 246, 0.12);
+        color: #a78bfa;
+      }
+      .cycle-status.break-ready {
+        background: rgba(52, 211, 153, 0.12);
+        color: #34d399;
+      }
+      .task-priority {
+        max-width: 120px;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+      }
+      .goal-track {
+        height: 6px;
+        overflow: hidden;
+        margin-top: var(--space-md);
+        border-radius: 999px;
+        background: rgba(255, 255, 255, 0.08);
+      }
+      .goal-track span {
+        display: block;
+        height: 100%;
+        border-radius: inherit;
+        background: linear-gradient(90deg, #8b5cf6, #06b6d4);
+        transition: width 0.3s ease;
+      }
+      .task-actions,
+      .quick-action-list {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+        margin-top: var(--space-md);
+      }
+      .insight-action,
+      .quick-action {
+        padding: 7px 10px;
+        border: 1px solid rgba(139, 92, 246, 0.22);
+        border-radius: 8px;
+        background: rgba(139, 92, 246, 0.08);
+        color: var(--color-text-primary);
+        font: 600 11px var(--font-sans);
+        cursor: pointer;
+      }
+      .insight-action.secondary,
+      .quick-action {
+        background: transparent;
+        color: var(--color-text-secondary);
+      }
+      .insight-action:hover:not(:disabled),
+      .quick-action:hover:not(:disabled) {
+        border-color: rgba(139, 92, 246, 0.5);
+        background: rgba(139, 92, 246, 0.14);
+        color: var(--color-text-primary);
+      }
+      .insight-action:disabled,
+      .quick-action:disabled {
+        opacity: 0.45;
+        cursor: not-allowed;
+      }
+      .schedule-stats {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px 14px;
+        margin-top: var(--space-md);
+        color: var(--color-text-muted);
+        font-size: 11px;
+      }
+      .schedule-stats strong {
+        color: var(--color-text-primary);
+        font-variant-numeric: tabular-nums;
+      }
+      .quick-actions {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: var(--space-md);
+        margin-top: var(--space-md);
+      }
+      .quick-action-list {
+        margin-top: 0;
+      }
+      .quick-action.primary {
+        background: linear-gradient(135deg, #8b5cf6, #6d28d9);
+        border-color: transparent;
+        color: white;
+      }
+
+      /* ===== Fullscreen Mode ===== */
+      .fullscreen-overlay {
+        position: fixed;
+        inset: 0;
+        z-index: 1000;
+        background: var(--color-bg-primary);
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: var(--space-xl);
+      }
+      .fullscreen-ambient {
+        position: absolute;
+        inset: 0;
+        background:
+          radial-gradient(ellipse 60% 40% at 50% 50%, rgba(139, 92, 246, 0.08) 0%, transparent 60%),
+          radial-gradient(circle 300px at 30% 70%, rgba(6, 182, 212, 0.04) 0%, transparent 100%);
+        pointer-events: none;
+      }
+      .exit-fullscreen-btn {
+        position: absolute;
+        top: 24px;
+        right: 24px;
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        padding: 8px 16px;
+        border-radius: 10px;
+        background: var(--glass-bg);
+        border: 1px solid var(--glass-border);
+        color: var(--color-text-secondary);
+        cursor: pointer;
+        font-size: 13px;
+        font-family: var(--font-sans);
+        transition: all 0.2s;
+        z-index: 1;
+      }
+      .exit-fullscreen-btn:hover {
+        background: var(--glass-bg-hover);
+        color: var(--color-text-primary);
+      }
+      .fullscreen-clock {
+        z-index: 1;
+        --clock-size: clamp(220px, 50vmin, 500px);
+        width: var(--clock-size);
+        height: var(--clock-size);
+      }
+      .fullscreen-controls {
+        display: flex;
+        align-items: center;
+        gap: var(--space-md);
+        z-index: 1;
+      }
+
+      /* ===== Responsive ===== */
+
+      /* Large monitors (>1600px) - scale up clock area */
+      @media (min-width: 1600px) {
+        /* The roomier padding and gaps below need a roomier row, or the card
+         would have to shrink the dial to pay for them. */
+        .main-row {
+          flex-basis: 640px;
+        }
+        .timer-card-inner {
+          gap: var(--space-xl);
+          padding: var(--space-2xl, 48px);
+        }
+        .fullscreen-clock {
+          --clock-size: clamp(300px, 55vmin, 600px);
+          width: var(--clock-size);
+          height: var(--clock-size);
+        }
+      }
+
+      /* Tablet (<=1024px) - stack timeline below */
+      @media (max-width: 1024px) {
+        .main-row {
+          grid-template-columns: 1fr;
+          grid-template-rows: 1fr auto;
+          /* The timeline stacks under the clock here and takes a slice of the row
+           with it, so the row keeps enough height for both — otherwise the card
+           is squeezed to the point where the dial has nothing left to give. */
+          flex-basis: 680px;
+        }
+        .timeline-panel {
+          max-height: 180px;
+        }
+        .progress-card {
+          flex-wrap: wrap;
+          gap: 12px;
+          justify-content: center;
+        }
+        .progress-divider {
+          display: none;
+        }
+        .insights-grid {
+          grid-template-columns: 1fr;
+        }
+      }
+
+      /* Mobile (<=640px) - compact everything */
+      @media (max-width: 640px) {
+        .page-header {
+          margin-bottom: var(--space-sm);
+        }
+        .page-title {
+          font-size: 20px;
+        }
+        /* The padding stays at its full size even here: the dial draws a glow that
+         reaches 30px past itself, and the card clips at its padding edge. */
+        .timer-card-inner {
+          gap: var(--space-md);
+        }
+        .timer-controls {
+          gap: var(--space-sm);
+        }
+        .btn-lg {
+          padding: 10px 18px;
+          font-size: 13px;
+        }
+        .card-actions {
+          top: 8px;
+          right: 8px;
+        }
+        .action-btn {
+          width: 28px;
+          height: 28px;
+        }
+        .task-selector select {
+          min-width: 140px;
+          font-size: 11px;
+        }
+        .progress-card {
+          padding: 12px 16px;
+        }
+        .progress-icon {
+          width: 28px;
+          height: 28px;
+          border-radius: 8px;
+        }
+        .progress-icon svg {
+          width: 13px;
+          height: 13px;
+        }
+        .progress-value {
+          font-size: 14px;
+        }
+        .progress-label {
+          font-size: 10px;
+        }
+        .fullscreen-clock {
+          --clock-size: clamp(160px, 45vmin, 280px);
+          width: var(--clock-size);
+          height: var(--clock-size);
+        }
+        .fullscreen-controls {
+          flex-wrap: wrap;
+          justify-content: center;
+        }
+        .quick-actions {
+          align-items: flex-start;
+          flex-direction: column;
+        }
+        .quick-action-list {
+          width: 100%;
+        }
+        .quick-action {
+          flex: 1;
+        }
+      }
+    `,
+  ],
 })
 export class DashboardComponent implements OnInit, OnDestroy {
   readonly timer = inject(TimerService);
@@ -691,37 +1213,34 @@ export class DashboardComponent implements OnInit, OnDestroy {
   readonly selectedTaskName = computed(() => {
     const id = this.selectedTaskId();
     if (!id) return '';
-    const task = this.taskService.todayTasks().find(t => t.id === id);
+    const task = this.taskService.todayTasks().find((t) => t.id === id);
     return task?.title ?? '';
   });
   readonly selectedTaskQuadrant = computed(() => {
     const id = this.selectedTaskId();
     if (!id) return '';
-    const task = this.taskService.todayTasks().find(t => t.id === id);
+    const task = this.taskService.todayTasks().find((t) => t.id === id);
     return task?.quadrant ?? '';
   });
   readonly taskGroups = computed(() => {
     const tasks = this.taskService.todayTasks();
-    const order = (Object.keys(QUADRANT_CONFIG) as TaskQuadrant[]).map(q => ({
+    const order = (Object.keys(QUADRANT_CONFIG) as TaskQuadrant[]).map((q) => ({
       quadrant: q,
       label: `${QUADRANT_CONFIG[q].emoji} ${QUADRANT_CONFIG[q].label}`,
     }));
     // Show only the highest-priority quadrant that still has open tasks
     for (const g of order) {
-      const groupTasks = tasks.filter(t => t.quadrant === g.quadrant);
+      const groupTasks = tasks.filter((t) => t.quadrant === g.quadrant);
       if (groupTasks.length > 0) {
         return [{ ...g, tasks: groupTasks }];
       }
     }
     return [];
   });
-  miniPos = { x: 20, y: 20 };
-  private isDragging = false;
-  private dragOffset = { x: 0, y: 0 };
   private confettiTimeout: ReturnType<typeof setTimeout> | null = null;
 
   readonly sessionsBeforeLongBreak = computed(
-    () => this.settingsService.settings().sessionsBeforeLongBreak
+    () => this.settingsService.settings().sessionsBeforeLongBreak,
   );
 
   /**
@@ -738,7 +1257,7 @@ export class DashboardComponent implements OnInit, OnDestroy {
   selectedTaskFullTitle(): string {
     const id = this.selectedTaskId();
     if (!id) return '';
-    return this.taskService.tasks().find(task => task.id === id)?.title ?? '';
+    return this.taskService.tasks().find((task) => task.id === id)?.title ?? '';
   }
 
   /** Current position within the configured session cycle, resets after each cycle. */
@@ -760,16 +1279,16 @@ export class DashboardComponent implements OnInit, OnDestroy {
     return Math.max(0, Math.floor((Date.now() - new Date(started).getTime()) / 1000));
   });
 
-  readonly completedWorkSessions = computed(() =>
-    this.todaySessions().filter(s => s.type === 'work' && !s.interrupted).length
+  readonly completedWorkSessions = computed(
+    () => this.todaySessions().filter((s) => s.type === 'work' && !s.interrupted).length,
   );
-  readonly completedBreakSessions = computed(() =>
-    this.todaySessions().filter(s => s.type !== 'work' && !s.interrupted).length
+  readonly completedBreakSessions = computed(
+    () => this.todaySessions().filter((s) => s.type !== 'work' && !s.interrupted).length,
   );
 
   readonly focusTimeDisplay = computed(() => {
     const totalSec = this.todaySessions()
-      .filter(s => s.type === 'work')
+      .filter((s) => s.type === 'work')
       .reduce((sum, s) => sum + s.durationActual, 0);
     const h = Math.floor(totalSec / 3600);
     const m = Math.floor((totalSec % 3600) / 60);
@@ -777,9 +1296,11 @@ export class DashboardComponent implements OnInit, OnDestroy {
   });
 
   readonly dailyGoalTarget = 8;
-  readonly dailyGoalProgress = computed(() => `${this.completedWorkSessions()}/${this.dailyGoalTarget}`);
+  readonly dailyGoalProgress = computed(
+    () => `${this.completedWorkSessions()}/${this.dailyGoalTarget}`,
+  );
   readonly dailyGoalPercentage = computed(() =>
-    Math.min(100, Math.round((this.completedWorkSessions() / this.dailyGoalTarget) * 100))
+    Math.min(100, Math.round((this.completedWorkSessions() / this.dailyGoalTarget) * 100)),
   );
   readonly dailyGoalMessage = computed(() => {
     const remaining = Math.max(0, this.dailyGoalTarget - this.completedWorkSessions());
@@ -789,32 +1310,42 @@ export class DashboardComponent implements OnInit, OnDestroy {
   });
   readonly activeTask = computed<Task | null>(() => {
     const selectedTaskId = this.selectedTaskId();
-    return this.taskService.todayTasks().find(task => task.id === selectedTaskId) ?? null;
+    return this.taskService.todayTasks().find((task) => task.id === selectedTaskId) ?? null;
   });
   readonly openTodayTasks = computed(() => this.taskService.todayTasks().length);
   readonly completedTodayTasks = computed(() => {
     const today = new Date().toISOString().slice(0, 10);
-    return this.taskService.tasks().filter(task => task.completedAt?.startsWith(today)).length;
+    return this.taskService.tasks().filter((task) => task.completedAt?.startsWith(today)).length;
   });
   readonly averageFocusTimeDisplay = computed(() => {
-    const focusSessions = this.todaySessions().filter(session => session.type === 'work' && !session.interrupted);
+    const focusSessions = this.todaySessions().filter(
+      (session) => session.type === 'work' && !session.interrupted,
+    );
     if (!focusSessions.length) return '0m';
-    const averageSeconds = focusSessions.reduce((total, session) => total + session.durationActual, 0) / focusSessions.length;
+    const averageSeconds =
+      focusSessions.reduce((total, session) => total + session.durationActual, 0) /
+      focusSessions.length;
     return this.formatDuration(averageSeconds);
   });
   readonly nextBreakMessage = computed(() => {
-    if (this.timer.timerType() === 'long-break') return 'Long break is ready. Recharge before beginning the next cycle.';
-    if (this.timer.timerType() === 'short-break') return 'Short break is ready. Return refreshed for the next focus session.';
+    if (this.timer.timerType() === 'long-break')
+      return 'Long break is ready. Recharge before beginning the next cycle.';
+    if (this.timer.timerType() === 'short-break')
+      return 'Short break is ready. Return refreshed for the next focus session.';
     const position = this.cyclePosition();
-    const remaining = position === this.sessionsBeforeLongBreak()
-      ? this.sessionsBeforeLongBreak()
-      : this.sessionsBeforeLongBreak() - position;
+    const remaining =
+      position === this.sessionsBeforeLongBreak()
+        ? this.sessionsBeforeLongBreak()
+        : this.sessionsBeforeLongBreak() - position;
     return `${remaining} more focus session${remaining === 1 ? '' : 's'} until your next long break.`;
   });
   readonly scheduleHeadline = computed(() => {
     const type = this.timer.timerType();
-    if (this.timer.isRunning()) return `Current ${type === 'work' ? 'focus' : type.replace('-', ' ')} block is in progress`;
-    return type === 'work' ? 'Ready for your next focus block' : `Next up: ${type.replace('-', ' ')}`;
+    if (this.timer.isRunning())
+      return `Current ${type === 'work' ? 'focus' : type.replace('-', ' ')} block is in progress`;
+    return type === 'work'
+      ? 'Ready for your next focus block'
+      : `Next up: ${type.replace('-', ' ')}`;
   });
 
   ngOnInit(): void {
@@ -823,22 +1354,23 @@ export class DashboardComponent implements OnInit, OnDestroy {
 
   private async initAsync(): Promise<void> {
     await this.timer.init();
-    await this.notifications.init();
     await this.settingsService.loadSettings();
     await this.taskService.loadTasks();
-    await this.taskService.dailyReset();
-    await this.taskService.generateRecurringInstances();
+    await this.taskService.runDailyUpkeep();
 
     // Restore focused task from Today's view
     const focusId = localStorage.getItem('deepwork_focusTaskId');
     if (focusId) {
       this.selectedTaskId.set(focusId);
-      this.taskSelectModel.update(m => ({ ...m, taskId: focusId }));
+      this.taskSelectModel.update((m) => ({ ...m, taskId: focusId }));
     }
 
+    // What this page does when a session ends — and only what this page can do.
+    // The alert itself (tone, card, system notification) is raised by
+    // `TimerService`, which is always alive: this callback only exists while the
+    // Dashboard is mounted, and a session that ended on another page used to
+    // finish in silence because the ring hung off it (see the CHANGELOG).
     this.timer.onComplete((completedType) => {
-      const nextType = this.timer.timerType();
-      this.notifications.fireTimerComplete(completedType, nextType);
       this.loadTodaySessions();
       // Fire confetti when the configured number of focus sessions completes.
       if (
@@ -875,7 +1407,9 @@ export class DashboardComponent implements OnInit, OnDestroy {
   }
 
   focusNextTask(): void {
-    const nextTask = this.taskService.todayTasks().find(task => task.id !== this.selectedTaskId());
+    const nextTask = this.taskService
+      .todayTasks()
+      .find((task) => task.id !== this.selectedTaskId());
     if (nextTask) this.selectTask(nextTask.id);
   }
 
@@ -885,7 +1419,7 @@ export class DashboardComponent implements OnInit, OnDestroy {
 
   selectTask(taskId: string): void {
     this.selectedTaskId.set(taskId);
-    this.taskSelectModel.update(m => ({ ...m, taskId }));
+    this.taskSelectModel.update((m) => ({ ...m, taskId }));
     localStorage.setItem('deepwork_focusTaskId', taskId);
     this.timer.linkTask(taskId || null);
   }
@@ -914,7 +1448,7 @@ export class DashboardComponent implements OnInit, OnDestroy {
   }
 
   toggleFullscreen(): void {
-    this.isFullscreen.update(v => !v);
+    this.isFullscreen.update((v) => !v);
   }
 
   async toggleMiniMode(): Promise<void> {
@@ -925,40 +1459,13 @@ export class DashboardComponent implements OnInit, OnDestroy {
     }
   }
 
-  startDrag(event: MouseEvent): void {
-    this.isDragging = true;
-    this.dragOffset = {
-      x: event.clientX - this.miniPos.x,
-      y: event.clientY - this.miniPos.y,
-    };
-  }
-
-  async startTauriDrag(event: MouseEvent): Promise<void> {
-    // Only drag on left mouse button
-    if (event.button !== 0) return;
-    try {
-      const { getCurrentWindow } = await import('@tauri-apps/api/window');
-      await getCurrentWindow().startDragging();
-    } catch (e) {
-      console.warn('Tauri startDragging failed', e);
-    }
-  }
-
-  onDrag(event: MouseEvent): void {
-    if (!this.isDragging) return;
-    this.miniPos = {
-      x: event.clientX - this.dragOffset.x,
-      y: event.clientY - this.dragOffset.y,
-    };
-  }
-
-  onDragEnd(): void {
-    this.isDragging = false;
-  }
-
+  /**
+   * Esc belongs to the fullscreen overlay here; leaving the widget is handled by
+   * the app shell, because the OS minimise button can shrink the window from any
+   * page — not only from this one.
+   */
   onEscape(): void {
     if (this.isFullscreen()) this.isFullscreen.set(false);
-    else if (this.ui.isMiniMode()) void this.toggleMiniMode();
   }
 
   ngOnDestroy(): void {

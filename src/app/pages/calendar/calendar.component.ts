@@ -21,7 +21,12 @@ import {
   snapMinute,
 } from '../../core/services/schedule.service';
 import { QUADRANT_CONFIG } from '../../core/constants/theme.constants';
-import { Task, TaskQuadrant, TASK_TITLE_MAX_LENGTH, normalizeTaskTitle } from '../../core/models/task.model';
+import {
+  Task,
+  TaskQuadrant,
+  TASK_TITLE_MAX_LENGTH,
+  normalizeTaskTitle,
+} from '../../core/models/task.model';
 import {
   BreakBlock,
   DaySchedule,
@@ -72,14 +77,26 @@ interface PanelState {
 /** "rgba(r, g, b, a)" needs the channels, and color-mix() is not available everywhere. */
 function hexToRgb(hex: string): string {
   const value = hex.replace('#', '');
-  const full = value.length === 3 ? value.split('').map(c => c + c).join('') : value;
+  const full =
+    value.length === 3
+      ? value
+          .split('')
+          .map((c) => c + c)
+          .join('')
+      : value;
   const int = Number.parseInt(full, 16);
   if (!Number.isFinite(int)) return '139, 92, 246';
   return `${(int >> 16) & 255}, ${(int >> 8) & 255}, ${int & 255}`;
 }
 
 const COLLAPSED_GROUPS_KEY = 'deepwork_calendar_collapsed_groups';
-const RAIL_GROUP_IDS = ['urgent-important', 'important', 'urgent', 'neither', 'unassigned'] as const;
+const RAIL_GROUP_IDS = [
+  'urgent-important',
+  'important',
+  'urgent',
+  'neither',
+  'unassigned',
+] as const;
 
 /** Which queue groups the user folded away — remembered between sessions. */
 function readCollapsedGroups(): Record<string, boolean> {
@@ -123,17 +140,27 @@ function persistCollapsedGroups(value: Record<string, boolean>): void {
       <div>
         <h1 class="gradient-text page-title">Calendar</h1>
         <p class="page-subtitle">
-          Your quadrants, scheduled into {{ focusMinutes() }}-minute focus blocks with {{ pomodorosBeforeLongBreak() }}
+          Your quadrants, scheduled into {{ focusMinutes() }}-minute focus blocks with
+          {{ pomodorosBeforeLongBreak() }}
           pomodoros per long break
         </p>
       </div>
       <div class="header-actions">
-        <button class="cal-btn ghost" type="button" (click)="clearPins()" [disabled]="!hasPins()"
-          appTooltip="Return every hand-placed task to the automatic flow">
+        <button
+          class="cal-btn ghost"
+          type="button"
+          (click)="clearPins()"
+          [disabled]="!hasPins()"
+          appTooltip="Return every hand-placed task to the automatic flow"
+        >
           Clear pins
         </button>
-        <button class="cal-btn ghost" type="button" (click)="fitDay()"
-          appTooltip="Extend the day until every queued task fits">
+        <button
+          class="cal-btn ghost"
+          type="button"
+          (click)="fitDay()"
+          appTooltip="Extend the day until every queued task fits"
+        >
           Fit day
         </button>
       </div>
@@ -141,17 +168,44 @@ function persistCollapsedGroups(value: Record<string, boolean>): void {
 
     <div class="cal-toolbar">
       <div class="date-nav">
-        <button class="nav-btn" type="button" (click)="shiftDay(-1)" aria-label="Previous day">‹</button>
-        <button class="nav-btn today-btn" type="button" [class.active]="isToday()" (click)="goToday()">Today</button>
+        <button class="nav-btn" type="button" (click)="shiftDay(-1)" aria-label="Previous day">
+          ‹
+        </button>
+        <button
+          class="nav-btn today-btn"
+          type="button"
+          [class.active]="isToday()"
+          (click)="goToday()"
+        >
+          Today
+        </button>
         <button class="nav-btn" type="button" (click)="shiftDay(1)" aria-label="Next day">›</button>
       </div>
-      <input class="date-input" type="date" [value]="selectedDate()" (change)="onDateInput($event)" aria-label="Pick a date">
+      <input
+        class="date-input"
+        type="date"
+        [value]="selectedDate()"
+        (change)="onDateInput($event)"
+        aria-label="Pick a date"
+      />
       <span class="day-title">{{ longDate() }}</span>
       <div class="day-window">
         <span class="window-label">Day window</span>
-        <input type="time" step="300" [value]="startTime()" (change)="onDayStart($event)" aria-label="Day starts at">
+        <input
+          type="time"
+          step="300"
+          [value]="startTime()"
+          (change)="onDayStart($event)"
+          aria-label="Day starts at"
+        />
         <span class="dash">–</span>
-        <input type="time" step="300" [value]="endTime()" (change)="onDayEnd($event)" aria-label="Day ends at">
+        <input
+          type="time"
+          step="300"
+          [value]="endTime()"
+          (change)="onDayEnd($event)"
+          aria-label="Day ends at"
+        />
       </div>
     </div>
 
@@ -182,7 +236,11 @@ function persistCollapsedGroups(value: Record<string, boolean>): void {
               type="button"
               class="rail-collapse"
               (click)="toggleAllGroups()"
-              [appTooltip]="allGroupsCollapsed() ? 'Expand every quadrant in the queue' : 'Collapse every quadrant in the queue'"
+              [appTooltip]="
+                allGroupsCollapsed()
+                  ? 'Expand every quadrant in the queue'
+                  : 'Collapse every quadrant in the queue'
+              "
             >
               {{ allGroupsCollapsed() ? 'Expand all' : 'Collapse all' }}
             </button>
@@ -191,21 +249,38 @@ function persistCollapsedGroups(value: Record<string, boolean>): void {
         </div>
         <div class="rail-scroll">
           @for (group of queueGroups(); track group.id) {
-            <section class="rail-group" [class.is-collapsed]="isGroupCollapsed(group.id)" [style.--q-color]="group.color">
+            <section
+              class="rail-group"
+              [class.is-collapsed]="isGroupCollapsed(group.id)"
+              [style.--q-color]="group.color"
+            >
               <button
                 type="button"
                 class="rail-group-head"
                 (click)="toggleGroup(group.id)"
                 [attr.aria-expanded]="!isGroupCollapsed(group.id)"
-                [attr.aria-label]="(isGroupCollapsed(group.id) ? 'Expand ' : 'Collapse ') + group.label"
+                [attr.aria-label]="
+                  (isGroupCollapsed(group.id) ? 'Expand ' : 'Collapse ') + group.label
+                "
               >
-                <svg class="chevron" [class.open]="!isGroupCollapsed(group.id)" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                <svg
+                  class="chevron"
+                  [class.open]="!isGroupCollapsed(group.id)"
+                  width="12"
+                  height="12"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="2.5"
+                >
                   <polyline points="9,6 15,12 9,18" />
                 </svg>
                 <span class="dot"></span>
                 <span class="group-label">{{ group.label }}</span>
                 @if (isGroupCollapsed(group.id)) {
-                  <span class="group-summary">{{ group.items.length }} · {{ group.focusLabel }}</span>
+                  <span class="group-summary"
+                    >{{ group.items.length }} · {{ group.focusLabel }}</span
+                  >
                 } @else {
                   <span class="group-count">{{ group.items.length }}</span>
                 }
@@ -220,7 +295,9 @@ function persistCollapsedGroups(value: Record<string, boolean>): void {
                   >
                     <span class="seq">{{ item.seq }}</span>
                     <div class="rail-body">
-                      <span class="rail-task" [appTooltip]="item.task.title">{{ item.task.title }}</span>
+                      <span class="rail-task" [appTooltip]="item.task.title">{{
+                        item.task.title
+                      }}</span>
                       <span class="rail-meta">
                         <span>{{ item.pomodoros }}× pomodoro</span>
                         <span class="sep">·</span>
@@ -228,11 +305,35 @@ function persistCollapsedGroups(value: Record<string, boolean>): void {
                       </span>
                     </div>
                     <div class="rail-actions">
-                      <button type="button" [disabled]="item.isFirst" aria-label="Move earlier" (click)="reorder(item.task, -1, $event)">↑</button>
-                      <button type="button" [disabled]="item.isLast" aria-label="Move later" (click)="reorder(item.task, 1, $event)">↓</button>
-                      <button type="button" [class.on]="item.pinned" aria-label="Pin or unpin"
-                        [appTooltip]="item.pinned ? 'Pinned — click to return to the automatic flow' : 'Pin to this time'"
-                        (click)="togglePin(item.task, $event)">📌</button>
+                      <button
+                        type="button"
+                        [disabled]="item.isFirst"
+                        aria-label="Move earlier"
+                        (click)="reorder(item.task, -1, $event)"
+                      >
+                        ↑
+                      </button>
+                      <button
+                        type="button"
+                        [disabled]="item.isLast"
+                        aria-label="Move later"
+                        (click)="reorder(item.task, 1, $event)"
+                      >
+                        ↓
+                      </button>
+                      <button
+                        type="button"
+                        [class.on]="item.pinned"
+                        aria-label="Pin or unpin"
+                        [appTooltip]="
+                          item.pinned
+                            ? 'Pinned — click to return to the automatic flow'
+                            : 'Pin to this time'
+                        "
+                        (click)="togglePin(item.task, $event)"
+                      >
+                        📌
+                      </button>
                     </div>
                   </article>
                 }
@@ -244,15 +345,29 @@ function persistCollapsedGroups(value: Record<string, boolean>): void {
           }
 
           @if (unassignedItems().length) {
-            <section class="rail-group unassigned-group" [class.is-collapsed]="isGroupCollapsed('unassigned')">
+            <section
+              class="rail-group unassigned-group"
+              [class.is-collapsed]="isGroupCollapsed('unassigned')"
+            >
               <button
                 type="button"
                 class="rail-group-head"
                 (click)="toggleGroup('unassigned')"
                 [attr.aria-expanded]="!isGroupCollapsed('unassigned')"
-                [attr.aria-label]="(isGroupCollapsed('unassigned') ? 'Expand ' : 'Collapse ') + 'Unassigned'"
+                [attr.aria-label]="
+                  (isGroupCollapsed('unassigned') ? 'Expand ' : 'Collapse ') + 'Unassigned'
+                "
               >
-                <svg class="chevron" [class.open]="!isGroupCollapsed('unassigned')" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                <svg
+                  class="chevron"
+                  [class.open]="!isGroupCollapsed('unassigned')"
+                  width="12"
+                  height="12"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="2.5"
+                >
                   <polyline points="9,6 15,12 9,18" />
                 </svg>
                 <span class="dot"></span>
@@ -261,16 +376,29 @@ function persistCollapsedGroups(value: Record<string, boolean>): void {
               </button>
               @if (!isGroupCollapsed('unassigned')) {
                 @for (item of unassignedItems(); track item.task.id) {
-                  <article class="rail-card" [class.pinned]="item.pinned"
+                  <article
+                    class="rail-card"
+                    [class.pinned]="item.pinned"
                     [class.dragging]="dragTaskId() === item.task.id"
-                    (pointerdown)="onItemPointerDown($event, item.task)">
+                    (pointerdown)="onItemPointerDown($event, item.task)"
+                  >
                     <span class="seq muted">–</span>
                     <div class="rail-body">
-                      <span class="rail-task" [appTooltip]="item.task.title">{{ item.task.title }}</span>
-                      <span class="rail-meta"><span>{{ item.atLabel }}</span></span>
+                      <span class="rail-task" [appTooltip]="item.task.title">{{
+                        item.task.title
+                      }}</span>
+                      <span class="rail-meta"
+                        ><span>{{ item.atLabel }}</span></span
+                      >
                     </div>
                     <div class="rail-actions">
-                      <button type="button" (click)="assignToQuadrant(item.task, $event)" appTooltip="Put in Q1 · Do First">Q1</button>
+                      <button
+                        type="button"
+                        (click)="assignToQuadrant(item.task, $event)"
+                        appTooltip="Put in Q1 · Do First"
+                      >
+                        Q1
+                      </button>
                     </div>
                   </article>
                 }
@@ -281,7 +409,8 @@ function persistCollapsedGroups(value: Record<string, boolean>): void {
         </div>
         @if (overflow().length) {
           <div class="rail-warning">
-            <strong>{{ overflow().length }} task{{ overflow().length === 1 ? '' : 's' }}</strong> don't fit in the day window.
+            <strong>{{ overflow().length }} task{{ overflow().length === 1 ? '' : 's' }}</strong>
+            don't fit in the day window.
             <button type="button" (click)="fitDay()">Fit day</button>
           </div>
         }
@@ -294,20 +423,24 @@ function persistCollapsedGroups(value: Record<string, boolean>): void {
             <span class="chip">{{ totals().tasks }} scheduled</span>
             <span class="chip accent">{{ duration(totals().focusMinutes) }} focus</span>
             <span class="chip cyan">{{ totals().pomodoros }} pomodoros</span>
-            <span class="chip muted">{{ totals().breaks }} breaks · {{ duration(totals().breakMinutes) }}</span>
+            <span class="chip muted"
+              >{{ totals().breaks }} breaks · {{ duration(totals().breakMinutes) }}</span
+            >
           </div>
         </header>
 
         <div class="timeline-scroll">
           <div class="gutter">
             @for (hour of hourMarks(); track hour) {
-              <div class="hour-cell" [style.height.px]="pxPerHour()"><span>{{ hourLabel(hour) }}</span></div>
+              <div class="hour-cell" [style.height.px]="pxPerHour()">
+                <span>{{ hourLabel(hour) }}</span>
+              </div>
             }
           </div>
 
           <div
             #grid
-            class="grid"
+            class="day-grid"
             [style.height.px]="gridHeight()"
             [class.drop-active]="dragTaskId() !== null"
             (click)="onGridClick($event)"
@@ -330,28 +463,45 @@ function persistCollapsedGroups(value: Record<string, boolean>): void {
                   [style.height.px]="item.height"
                   [style.left.%]="item.left"
                   [style.width.%]="item.width"
-                  [style.background]="'linear-gradient(135deg, ' + item.tint + ', rgba(14, 12, 30, 0.88))'"
+                  [style.background]="
+                    'linear-gradient(135deg, ' + item.tint + ', rgba(14, 12, 30, 0.88))'
+                  "
                   [style.border-color]="item.stroke"
                   [style.border-left-color]="item.color"
                   (pointerdown)="onBlockPointerDown($event, item)"
                   (click)="openPanel(item.block, $event)"
                 >
                   <div class="ev-head">
-                    <span class="ev-time">{{ formatMinute(item.block.startMin) }}–{{ formatMinute(item.block.endMin) }}</span>
+                    <span class="ev-time"
+                      >{{ formatMinute(item.block.startMin) }}–{{
+                        formatMinute(item.block.endMin)
+                      }}</span
+                    >
                     <span class="ev-badges">
-                      @if (item.block.pinned) { <span class="badge pin">pinned</span> }
-                      @if (item.block.continued) { <span class="badge">cont.</span> }
+                      @if (item.block.pinned) {
+                        <span class="badge pin">pinned</span>
+                      }
+                      @if (item.block.continued) {
+                        <span class="badge">cont.</span>
+                      }
                     </span>
                   </div>
                   @for (task of item.tasks; track task.id) {
                     <div class="ev-task">
-                      <button class="ev-check" type="button" (click)="complete(task, $event)"
-                        [attr.aria-label]="'Mark ' + task.title + ' complete'"></button>
+                      <button
+                        class="ev-check"
+                        type="button"
+                        (click)="complete(task, $event)"
+                        [attr.aria-label]="'Mark ' + task.title + ' complete'"
+                      ></button>
                       <span class="ev-title" [appTooltip]="task.title">{{ task.title }}</span>
                     </div>
                   }
-                  <span class="ev-resize" (pointerdown)="onResizePointerDown($event, item)"
-                    appTooltip="Drag to add or remove pomodoros"></span>
+                  <span
+                    class="ev-resize"
+                    (pointerdown)="onResizePointerDown($event, item)"
+                    appTooltip="Drag to add or remove pomodoros"
+                  ></span>
                 </article>
               } @else {
                 <div
@@ -364,8 +514,12 @@ function persistCollapsedGroups(value: Record<string, boolean>): void {
                   [appTooltip]="breakLabel(item.block) + ' — reserved automatically'"
                 >
                   @if (item.height >= 22) {
-                    <span class="rest-label">{{ item.block.kind === 'long-break' ? 'Long break' : 'Short break' }}</span>
-                    <span class="rest-time">{{ duration(item.block.endMin - item.block.startMin) }}</span>
+                    <span class="rest-label">{{
+                      item.block.kind === 'long-break' ? 'Long break' : 'Short break'
+                    }}</span>
+                    <span class="rest-time">{{
+                      duration(item.block.endMin - item.block.startMin)
+                    }}</span>
                   }
                 </div>
               }
@@ -392,13 +546,17 @@ function persistCollapsedGroups(value: Record<string, boolean>): void {
               <span class="panel-time">{{ formatMinute(target.startMin) }}</span>
               <span class="panel-sub">{{ panelSubtitle() }}</span>
             </div>
-            <button type="button" class="panel-close" (click)="closePanel()" aria-label="Close">✕</button>
+            <button type="button" class="panel-close" (click)="closePanel()" aria-label="Close">
+              ✕
+            </button>
           </header>
 
           @if (panelBreak(); as brk) {
             <p class="panel-note">
-              {{ brk.kind === 'long-break' ? 'Long break' : 'Short break' }} ({{ duration(brk.endMin - brk.startMin) }})
-              is reserved automatically from your pomodoro settings. Breaks are never filled with work.
+              {{ brk.kind === 'long-break' ? 'Long break' : 'Short break' }} ({{
+                duration(brk.endMin - brk.startMin)
+              }}) is reserved automatically from your pomodoro settings. Breaks are never filled
+              with work.
             </p>
           } @else {
             @if (panelTasks().length) {
@@ -406,32 +564,81 @@ function persistCollapsedGroups(value: Record<string, boolean>): void {
                 @for (task of panelTasks(); track task.id) {
                   <div class="panel-task" [class.done]="task.status === 'done'">
                     <div class="panel-task-head">
-                      <button class="ev-check" type="button" (click)="complete(task, $event)"
-                        [attr.aria-label]="'Mark ' + task.title + ' complete'"></button>
-                      <span class="panel-task-title" [appTooltip]="task.title">{{ task.title }}</span>
+                      <button
+                        class="ev-check"
+                        type="button"
+                        (click)="complete(task, $event)"
+                        [attr.aria-label]="'Mark ' + task.title + ' complete'"
+                      ></button>
+                      <span class="panel-task-title" [appTooltip]="task.title">{{
+                        task.title
+                      }}</span>
                     </div>
                     <div class="panel-task-meta">
                       <span
                         class="q-chip"
                         [style.background]="quadrantTint(task)"
                         [style.color]="quadrantColor(task)"
-                      >{{ quadrantLabel(task) }}</span>
-                      <span class="meta-text">{{ pomodoros(task.id) }}× pomodoro · {{ taskTimeLabel(task) }}</span>
+                        >{{ quadrantLabel(task) }}</span
+                      >
+                      <span class="meta-text"
+                        >{{ pomodoros(task.id) }}× pomodoro · {{ taskTimeLabel(task) }}</span
+                      >
                     </div>
                     <div class="panel-task-actions">
-                      <button type="button" (click)="nudge(task, -5, $event)" appTooltip="Move 5 minutes earlier">−5 min</button>
-                      <button type="button" (click)="nudge(task, 5, $event)" appTooltip="Move 5 minutes later">+5 min</button>
-                      <button type="button" (click)="bumpPomodoros(task, 1, $event)" appTooltip="Add a pomodoro">+1 pomo</button>
-                      <button type="button" (click)="bumpPomodoros(task, -1, $event)" appTooltip="Remove a pomodoro" [disabled]="pomodoros(task.id) <= 1">−1 pomo</button>
-                      <button type="button" [class.on]="isPinned(task.id)" (click)="togglePin(task, $event)"
-                        appTooltip="Pin or unpin">{{ isPinned(task.id) ? 'Unpin' : 'Pin' }}</button>
-                      <button type="button" class="danger" (click)="unschedule(task, $event)" appTooltip="Take off the timeline">Remove</button>
+                      <button
+                        type="button"
+                        (click)="nudge(task, -5, $event)"
+                        appTooltip="Move 5 minutes earlier"
+                      >
+                        −5 min
+                      </button>
+                      <button
+                        type="button"
+                        (click)="nudge(task, 5, $event)"
+                        appTooltip="Move 5 minutes later"
+                      >
+                        +5 min
+                      </button>
+                      <button
+                        type="button"
+                        (click)="bumpPomodoros(task, 1, $event)"
+                        appTooltip="Add a pomodoro"
+                      >
+                        +1 pomo
+                      </button>
+                      <button
+                        type="button"
+                        (click)="bumpPomodoros(task, -1, $event)"
+                        appTooltip="Remove a pomodoro"
+                        [disabled]="pomodoros(task.id) <= 1"
+                      >
+                        −1 pomo
+                      </button>
+                      <button
+                        type="button"
+                        [class.on]="isPinned(task.id)"
+                        (click)="togglePin(task, $event)"
+                        appTooltip="Pin or unpin"
+                      >
+                        {{ isPinned(task.id) ? 'Unpin' : 'Pin' }}
+                      </button>
+                      <button
+                        type="button"
+                        class="danger"
+                        (click)="unschedule(task, $event)"
+                        appTooltip="Take off the timeline"
+                      >
+                        Remove
+                      </button>
                     </div>
                   </div>
                 }
               </div>
             } @else {
-              <p class="panel-note">This slot is free. Add a task below or drag one from the queue.</p>
+              <p class="panel-note">
+                This slot is free. Add a task below or drag one from the queue.
+              </p>
             }
 
             <div class="panel-add">
@@ -443,10 +650,14 @@ function persistCollapsedGroups(value: Record<string, boolean>): void {
                 [value]="search()"
                 (input)="onSearch($event)"
                 aria-label="Search tasks to add"
-              >
+              />
               <div class="panel-candidates">
                 @for (task of candidates(); track task.id) {
-                  <button type="button" class="candidate" (click)="addExisting(task, target.startMin)">
+                  <button
+                    type="button"
+                    class="candidate"
+                    (click)="addExisting(task, target.startMin)"
+                  >
                     <span class="cand-title" [appTooltip]="task.title">{{ task.title }}</span>
                     <span class="cand-meta">{{ quadrantLabel(task) }}</span>
                   </button>
@@ -466,24 +677,36 @@ function persistCollapsedGroups(value: Record<string, boolean>): void {
                   (input)="onNewTitle($event)"
                   (keydown.enter)="createTask(target.startMin)"
                   aria-label="New task title"
-                >
+                />
                 <div class="panel-new-row">
-                  <select [value]="newPomodoros()" (change)="onNewPomodoros($event)" aria-label="Pomodoros for the new task">
+                  <select
+                    [value]="newPomodoros()"
+                    (change)="onNewPomodoros($event)"
+                    aria-label="Pomodoros for the new task"
+                  >
                     @for (n of pomodoroChoices; track n) {
                       <option [value]="n">{{ n }}× pomodoro</option>
                     }
                   </select>
-                  <button type="button" class="cal-btn primary" (click)="createTask(target.startMin)">Add</button>
+                  <button
+                    type="button"
+                    class="cal-btn primary"
+                    (click)="createTask(target.startMin)"
+                  >
+                    Add
+                  </button>
                 </div>
                 <p class="panel-hint">
-                  A new task joins {{ slotQuadrantLabel() }} and is scheduled straight away
-                  (titles up to {{ titleMax }} characters).
+                  A new task joins {{ slotQuadrantLabel() }} and is scheduled straight away (titles
+                  up to {{ titleMax }} characters).
                 </p>
               </div>
             </div>
 
             <footer class="panel-foot">
-              <span class="panel-hint">Drag a block to re-time it · drag its bottom edge to add or remove pomodoros</span>
+              <span class="panel-hint"
+                >Drag a block to re-time it · drag its bottom edge to add or remove pomodoros</span
+              >
             </footer>
           }
         </aside>
@@ -491,369 +714,991 @@ function persistCollapsedGroups(value: Record<string, boolean>): void {
     </div>
 
     @if (dragGhost(); as ghost) {
-      <div class="drag-ghost" [style.left.px]="ghost.x" [style.top.px]="ghost.y">{{ ghost.title }}</div>
+      <div class="drag-ghost" [style.left.px]="ghost.x" [style.top.px]="ghost.y">
+        {{ ghost.title }}
+      </div>
     }
   `,
-  styles: [`
-    :host { display: flex; flex-direction: column; height: 100%; overflow: hidden; }
-
-    .page-header {
-      display: flex; align-items: flex-start; justify-content: space-between;
-      gap: 12px; flex-wrap: wrap; margin-bottom: 10px;
-    }
-    .page-title { font-size: 1.5rem; font-weight: 800; letter-spacing: -0.5px; }
-    .page-subtitle { color: var(--color-text-muted); margin-top: 4px; font-size: 0.8rem; }
-    .header-actions { display: flex; align-items: center; gap: 8px; }
-
-    .cal-btn {
-      display: inline-flex; align-items: center; gap: 6px;
-      padding: 7px 12px; border-radius: 10px; font-size: 0.75rem; font-weight: 600;
-      border: 1px solid var(--glass-border); background: var(--glass-bg);
-      color: var(--color-text-secondary); cursor: pointer; transition: all 0.2s;
-    }
-    .cal-btn:hover:not(:disabled) { color: var(--color-text-primary); border-color: rgba(139, 92, 246, 0.35); }
-    .cal-btn:disabled { opacity: 0.45; cursor: not-allowed; }
-    .cal-btn.primary {
-      background: rgba(139, 92, 246, 0.18); border-color: rgba(139, 92, 246, 0.45);
-      color: var(--color-text-primary);
-    }
-
-    .cal-toolbar {
-      display: flex; align-items: center; gap: 12px; flex-wrap: wrap;
-      padding: 8px 12px; border-radius: 12px; margin-bottom: 8px;
-      background: var(--glass-bg); border: 1px solid var(--glass-border);
-    }
-    .date-nav { display: flex; align-items: center; gap: 4px; }
-    .nav-btn {
-      min-width: 30px; height: 28px; padding: 0 8px; border-radius: 8px; cursor: pointer;
-      background: transparent; border: 1px solid transparent; color: var(--color-text-secondary);
-      font-size: 0.9rem; line-height: 1; transition: all 0.2s;
-    }
-    .nav-btn:hover { background: rgba(139, 92, 246, 0.12); color: var(--color-text-primary); }
-    .today-btn { font-size: 0.72rem; font-weight: 700; }
-    .today-btn.active { border-color: rgba(139, 92, 246, 0.4); color: var(--color-text-primary); }
-    .date-input {
-      background: rgba(255, 255, 255, 0.04); border: 1px solid var(--glass-border);
-      color: var(--color-text-secondary); border-radius: 8px; padding: 5px 8px; font-size: 0.72rem;
-    }
-    .day-title { font-size: 0.85rem; font-weight: 700; color: var(--color-text-primary); }
-    .day-window {
-      display: flex; align-items: center; gap: 6px; margin-left: auto;
-      font-size: 0.7rem; color: var(--color-text-muted);
-    }
-    .day-window input[type='time'] {
-      background: rgba(255, 255, 255, 0.04); border: 1px solid var(--glass-border);
-      color: var(--color-text-secondary); border-radius: 8px; padding: 4px 6px; font-size: 0.72rem;
-    }
-    .window-label { text-transform: uppercase; letter-spacing: 0.08em; font-size: 0.62rem; }
-    .dash { opacity: 0.6; }
-
-    .week-strip { display: grid; grid-template-columns: repeat(7, 1fr); gap: 6px; margin-bottom: 10px; }
-    .week-day {
-      display: flex; flex-direction: column; align-items: center; gap: 1px;
-      padding: 6px 4px; border-radius: 10px; cursor: pointer;
-      background: var(--glass-bg); border: 1px solid var(--glass-border);
-      color: var(--color-text-secondary); transition: all 0.2s;
-    }
-    .week-day:hover { border-color: rgba(139, 92, 246, 0.35); color: var(--color-text-primary); }
-    .week-day.active { border-color: rgba(139, 92, 246, 0.6); background: rgba(139, 92, 246, 0.12); color: var(--color-text-primary); }
-    .week-day.is-today .wd-num { color: var(--color-accent-primary); }
-    .wd-name { font-size: 0.6rem; text-transform: uppercase; letter-spacing: 0.08em; opacity: 0.75; }
-    .wd-num { font-size: 0.95rem; font-weight: 800; }
-    .wd-meta, .wd-focus { font-size: 0.6rem; opacity: 0.7; }
-
-    .cal-layout { display: flex; gap: 10px; align-items: stretch; flex: 1; min-height: 0; }
-
-    /* ── Queue rail ───────────────────────────────────────────────────── */
-    .queue-rail {
-      width: 268px; flex-shrink: 0; display: flex; flex-direction: column;
-      background: var(--glass-bg); border: 1px solid var(--glass-border); border-radius: 14px;
-      overflow: hidden;
-    }
-    .rail-head { padding: 10px 12px 6px; border-bottom: 1px solid var(--glass-border); flex-shrink: 0; }
-    .rail-head-row { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
-    .rail-title { font-size: 0.78rem; font-weight: 800; color: var(--color-text-primary); }
-    .rail-collapse {
-      background: none; border: 1px solid var(--glass-border); border-radius: 7px;
-      color: var(--color-text-muted); font-size: 0.6rem; padding: 2px 7px; cursor: pointer;
-      white-space: nowrap; transition: all 0.2s;
-    }
-    .rail-collapse:hover { color: var(--color-text-primary); border-color: rgba(139, 92, 246, 0.4); }
-    .rail-hint { display: block; font-size: 0.62rem; color: var(--color-text-muted); margin-top: 2px; }
-    .rail-scroll {
-      flex: 1; min-height: 0; overflow-y: auto; padding: 8px;
-      scrollbar-width: thin; scrollbar-color: rgba(139,92,246,0.35) transparent;
-    }
-    .rail-group { margin-bottom: 10px; }
-    .rail-group-head {
-      display: flex; align-items: center; gap: 6px; width: 100%;
-      padding: 5px 6px; margin-bottom: 4px; border-radius: 8px; cursor: pointer;
-      background: rgba(255, 255, 255, 0.03); border: 1px solid var(--glass-border);
-      font-size: 0.68rem; font-weight: 700; color: var(--color-text-secondary);
-      text-transform: uppercase; letter-spacing: 0.06em; text-align: left;
-      transition: all 0.2s;
-    }
-    .rail-group-head:hover { color: var(--color-text-primary); border-color: rgba(139, 92, 246, 0.35); }
-    .chevron { flex-shrink: 0; color: var(--color-text-muted); transition: transform 0.2s ease; }
-    .chevron.open { transform: rotate(90deg); }
-    .rail-group.is-collapsed .rail-group-head { background: rgba(139, 92, 246, 0.08); }
-    .rail-group-head .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--q-color, var(--color-accent-primary)); flex-shrink: 0; }
-    .unassigned-group .dot { background: var(--color-text-muted); }
-    .group-label { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-    .group-summary {
-      margin-left: auto; font-size: 0.58rem; font-weight: 600; letter-spacing: 0;
-      color: var(--color-text-muted); text-transform: none; white-space: nowrap;
-    }
-    .group-count {
-      margin-left: auto; font-size: 0.62rem; padding: 1px 6px; border-radius: 999px;
-      background: rgba(255, 255, 255, 0.06); color: var(--color-text-muted);
-    }
-    .rail-card {
-      display: flex; align-items: center; gap: 8px; padding: 6px 8px; margin-bottom: 4px;
-      border-radius: 10px; cursor: grab; touch-action: none;
-      user-select: none; -webkit-user-select: none;
-      background: rgba(255, 255, 255, 0.03);
-      border-left: 3px solid var(--q-color, var(--color-accent-primary));
-      transition: background 0.15s, transform 0.15s;
-    }
-    .rail-card:hover { background: rgba(139, 92, 246, 0.1); }
-    .rail-card.pinned { box-shadow: inset 0 0 0 1px rgba(139, 92, 246, 0.4); }
-    .rail-card.dragging { opacity: 0.45; cursor: grabbing; }
-    .seq {
-      width: 18px; height: 18px; flex-shrink: 0; border-radius: 6px;
-      display: flex; align-items: center; justify-content: center;
-      font-size: 0.6rem; font-weight: 800; color: var(--color-text-primary);
-      background: rgba(139, 92, 246, 0.2);
-    }
-    .seq.muted { background: rgba(255, 255, 255, 0.06); color: var(--color-text-muted); }
-    .rail-body { flex: 1; min-width: 0; }
-    .rail-task {
-      display: block; font-size: 0.74rem; font-weight: 600; color: var(--color-text-primary);
-      overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
-    }
-    .rail-meta { display: flex; gap: 4px; font-size: 0.6rem; color: var(--color-text-muted); }
-    .rail-actions { display: flex; gap: 2px; opacity: 0; transition: opacity 0.15s; }
-    .rail-card:hover .rail-actions, .rail-card:focus-within .rail-actions { opacity: 1; }
-    .rail-actions button {
-      width: 20px; height: 20px; border-radius: 6px; cursor: pointer; font-size: 0.62rem;
-      background: rgba(255, 255, 255, 0.05); border: 1px solid var(--glass-border);
-      color: var(--color-text-secondary); display: flex; align-items: center; justify-content: center;
-    }
-    .rail-actions button:hover:not(:disabled) { color: var(--color-text-primary); border-color: rgba(139, 92, 246, 0.4); }
-    .rail-actions button:disabled { opacity: 0.3; cursor: not-allowed; }
-    .rail-actions button.on { background: rgba(139, 92, 246, 0.25); border-color: rgba(139, 92, 246, 0.5); }
-    .rail-empty, .rail-note { font-size: 0.62rem; color: var(--color-text-muted); padding: 2px 4px 6px; }
-    .rail-warning {
-      padding: 8px 10px; font-size: 0.66rem; color: #fbbf24;
-      border-top: 1px solid var(--glass-border); background: rgba(251, 191, 36, 0.08);
-    }
-    .rail-warning button {
-      margin-left: 6px; background: none; border: none; color: #fbbf24;
-      text-decoration: underline; cursor: pointer; font-size: 0.66rem;
-    }
-
-    /* ── Timeline ─────────────────────────────────────────────────────── */
-    .timeline {
-      flex: 1; min-width: 0; display: flex; flex-direction: column;
-      background: var(--glass-bg); border: 1px solid var(--glass-border); border-radius: 14px;
-      overflow: hidden;
-    }
-    .timeline-head { padding: 8px 12px; border-bottom: 1px solid var(--glass-border); }
-    .summary { display: flex; gap: 6px; flex-wrap: wrap; }
-    .chip {
-      font-size: 0.63rem; padding: 3px 8px; border-radius: 999px;
-      background: rgba(255, 255, 255, 0.05); color: var(--color-text-secondary);
-      border: 1px solid var(--glass-border);
-    }
-    .chip.accent { color: #c4b5fd; border-color: rgba(139, 92, 246, 0.35); }
-    .chip.cyan { color: #67e8f9; border-color: rgba(6, 182, 212, 0.3); }
-    .chip.muted { color: var(--color-text-muted); }
-
-    .timeline-scroll { flex: 1; overflow-y: auto; display: flex; position: relative; }
-    .gutter { width: 58px; flex-shrink: 0; border-right: 1px solid var(--glass-border); }
-    .hour-cell {
-      position: relative; box-sizing: border-box;
-      font-size: 0.6rem; color: var(--color-text-muted); text-align: right; padding-right: 8px;
-    }
-    .hour-cell span { position: relative; top: -6px; }
-    .grid { position: relative; flex: 1; min-width: 0; border-bottom: 1px solid rgba(255, 255, 255, 0.05); }
-    .grid.drop-active { background: rgba(139, 92, 246, 0.04); }
-    .hour-line { position: absolute; left: 0; right: 0; border-top: 1px solid rgba(255, 255, 255, 0.05); }
-    .hour-line:nth-child(even) { border-top-color: rgba(255, 255, 255, 0.03); }
-
-    .ev {
-      position: absolute; box-sizing: border-box; overflow: hidden;
-      border-radius: 8px; padding: 4px 6px; cursor: grab; touch-action: none;
-      user-select: none; -webkit-user-select: none;
-      background: rgba(14, 12, 30, 0.88);
-      border: 1px solid rgba(139, 92, 246, 0.4);
-      border-left: 4px solid var(--color-accent-primary);
-      transition: box-shadow 0.15s, transform 0.05s;
-    }
-    .ev.focus:hover { box-shadow: 0 4px 18px rgba(0, 0, 0, 0.35); }
-    .ev.focus.selected { box-shadow: 0 0 0 2px rgba(139, 92, 246, 0.6); }
-    .ev.focus.dragging { opacity: 0.8; cursor: grabbing; z-index: 40; box-shadow: 0 10px 28px rgba(0, 0, 0, 0.5); }
-    .ev.focus.continued { border-left-style: dashed; }
-    .ev-head { display: flex; align-items: center; justify-content: space-between; gap: 4px; }
-    .ev-time { font-size: 0.6rem; font-weight: 700; color: var(--color-text-primary); opacity: 0.9; }
-    .ev-badges { display: flex; gap: 3px; }
-    .badge {
-      font-size: 0.52rem; padding: 0 4px; border-radius: 999px; text-transform: uppercase;
-      background: rgba(255, 255, 255, 0.12); color: var(--color-text-secondary);
-    }
-    .badge.pin { background: rgba(139, 92, 246, 0.35); color: #ede9fe; }
-    .ev-task { display: flex; align-items: center; gap: 5px; margin-top: 2px; min-width: 0; }
-    .ev-title {
-      font-size: 0.68rem; font-weight: 600; color: var(--color-text-primary);
-      flex: 1; min-width: 0;
-      overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
-    }
-    .ev-check {
-      width: 12px; height: 12px; flex-shrink: 0; border-radius: 50%; cursor: pointer;
-      border: 1.5px solid rgba(255, 255, 255, 0.4); background: transparent; padding: 0;
-    }
-    .ev-check:hover { border-color: var(--color-accent-primary); background: rgba(139, 92, 246, 0.25); }
-    .ev-resize {
-      position: absolute; left: 0; right: 0; bottom: 0; height: 6px;
-      cursor: ns-resize; background: transparent;
-    }
-    .ev-resize:hover { background: rgba(139, 92, 246, 0.45); }
-
-    .ev.rest {
-      cursor: default; padding: 0 6px;
-      background: repeating-linear-gradient(45deg, rgba(6, 182, 212, 0.14) 0 6px, rgba(6, 182, 212, 0.06) 6px 12px);
-      border: 1px dashed rgba(6, 182, 212, 0.35); border-radius: 6px;
-      display: flex; align-items: center; gap: 6px;
-    }
-    .ev.rest.long {
-      background: repeating-linear-gradient(45deg, rgba(52, 211, 153, 0.16) 0 6px, rgba(52, 211, 153, 0.07) 6px 12px);
-      border-color: rgba(52, 211, 153, 0.4);
-    }
-    .rest-label { font-size: 0.58rem; font-weight: 700; color: #67e8f9; text-transform: uppercase; letter-spacing: 0.05em; }
-    .ev.rest.long .rest-label { color: #6ee7b7; }
-    .rest-time { font-size: 0.56rem; color: var(--color-text-muted); }
-
-    .drop-hint {
-      position: absolute; left: 0; right: 0; height: 0; z-index: 30;
-      border-top: 2px dashed rgba(139, 92, 246, 0.9);
-    }
-    .drop-hint span {
-      position: absolute; right: 4px; top: -9px; font-size: 0.58rem; font-weight: 700;
-      background: rgba(139, 92, 246, 0.9); color: #fff; padding: 1px 5px; border-radius: 5px;
-    }
-    .now-line { position: absolute; left: 0; right: 0; border-top: 2px solid #f87171; z-index: 20; }
-    .now-dot {
-      position: absolute; left: -5px; top: -5px; width: 8px; height: 8px; border-radius: 50%;
-      background: #f87171; box-shadow: 0 0 8px rgba(248, 113, 113, 0.8);
-    }
-
-    /* ── Slot panel ───────────────────────────────────────────────────── */
-    .slot-panel {
-      flex: 0 0 330px; width: 330px; display: flex; flex-direction: column;
-      background: var(--glass-bg); border: 1px solid var(--glass-border); border-radius: 14px;
-      overflow: hidden;
-    }
-    .panel-head {
-      display: flex; align-items: flex-start; justify-content: space-between; gap: 8px;
-      padding: 10px 12px; border-bottom: 1px solid var(--glass-border); flex-shrink: 0;
-    }
-    .panel-time { font-size: 0.95rem; font-weight: 800; color: var(--color-text-primary); }
-    .panel-sub { display: block; font-size: 0.62rem; color: var(--color-text-muted); }
-    .panel-close {
-      background: none; border: none; color: var(--color-text-muted); cursor: pointer;
-      font-size: 0.8rem; flex-shrink: 0; padding: 0 2px; line-height: 1;
-    }
-    .panel-close:hover { color: var(--color-text-primary); }
-    .panel-tasks {
-      padding: 8px; border-bottom: 1px solid var(--glass-border);
-      flex: 0 1 auto; min-height: 0; overflow-y: auto;
-      scrollbar-width: thin; scrollbar-color: rgba(139,92,246,0.35) transparent;
-    }
-    /* Rows are stacked so long titles and the action buttons can never collide. */
-    .panel-task {
-      display: flex; flex-direction: column; gap: 5px;
-      padding: 8px; border-radius: 10px; margin-bottom: 6px;
-      background: rgba(255, 255, 255, 0.03); border: 1px solid var(--glass-border);
-    }
-    .panel-task:last-child { margin-bottom: 0; }
-    .panel-task.done .panel-task-title { text-decoration: line-through; opacity: 0.6; }
-    .panel-task-head { display: flex; align-items: center; gap: 6px; min-width: 0; }
-    /* Long titles are clamped to two lines; hover shows the whole task. */
-    .panel-task-title {
-      font-size: 0.72rem; font-weight: 600; color: var(--color-text-primary);
-      min-width: 0; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical;
-      overflow: hidden; overflow-wrap: anywhere;
-    }
-    .panel-task-meta { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
-    .meta-text { font-size: 0.6rem; color: var(--color-text-muted); }
-    .q-chip {
-      font-size: 0.56rem; font-weight: 700; padding: 1px 7px; border-radius: 999px;
-      text-transform: uppercase; letter-spacing: 0.04em; white-space: nowrap;
-    }
-    .panel-task-actions { display: flex; flex-wrap: wrap; gap: 4px; }
-    .panel-task-actions button {
-      padding: 3px 7px; border-radius: 7px; font-size: 0.58rem; cursor: pointer;
-      background: rgba(255, 255, 255, 0.05); border: 1px solid var(--glass-border);
-      color: var(--color-text-secondary); white-space: nowrap;
-    }
-    .panel-task-actions button:hover:not(:disabled) { color: var(--color-text-primary); border-color: rgba(139, 92, 246, 0.4); }
-    .panel-task-actions button:disabled { opacity: 0.35; cursor: not-allowed; }
-    .panel-task-actions button.on { background: rgba(139, 92, 246, 0.25); }
-    .panel-task-actions button.danger:hover { color: #fca5a5; border-color: rgba(248, 113, 113, 0.4); }
-    .panel-note { padding: 10px 12px; font-size: 0.66rem; color: var(--color-text-muted); line-height: 1.5; }
-    .panel-note.small { padding: 4px 2px; }
-    .panel-add {
-      padding: 8px 10px; flex: 1 1 auto; min-height: 0; overflow-y: auto;
-      scrollbar-width: thin; scrollbar-color: rgba(139,92,246,0.35) transparent;
-    }
-    .panel-add h4 {
-      font-size: 0.66rem; text-transform: uppercase; letter-spacing: 0.08em;
-      color: var(--color-text-muted); margin-bottom: 6px;
-    }
-    .panel-search {
-      width: 100%; box-sizing: border-box; padding: 6px 8px; margin-bottom: 6px;
-      background: rgba(255, 255, 255, 0.04); border: 1px solid var(--glass-border);
-      border-radius: 8px; color: var(--color-text-primary); font-size: 0.7rem;
-    }
-    .panel-search::placeholder { color: var(--color-text-muted); }
-    .panel-candidates { max-height: 160px; overflow-y: auto; margin-bottom: 8px; }
-    .candidate {
-      display: flex; align-items: center; justify-content: space-between; gap: 6px; width: 100%;
-      padding: 5px 7px; margin-bottom: 3px; border-radius: 8px; cursor: pointer; text-align: left;
-      background: rgba(255, 255, 255, 0.03); border: 1px solid transparent;
-      color: var(--color-text-secondary); font-size: 0.68rem;
-    }
-    .candidate:hover { border-color: rgba(139, 92, 246, 0.4); color: var(--color-text-primary); }
-    .cand-title { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-    .cand-meta { font-size: 0.58rem; color: var(--color-text-muted); flex-shrink: 0; }
-    .panel-new-row { display: flex; gap: 6px; align-items: center; }
-    .panel-new-row select {
-      flex: 1; min-width: 0; padding: 5px; border-radius: 8px; font-size: 0.62rem;
-      background: rgba(255, 255, 255, 0.04); border: 1px solid var(--glass-border);
-      color: var(--color-text-secondary);
-    }
-    .panel-foot { padding: 8px 10px; border-top: 1px solid var(--glass-border); flex-shrink: 0; }
-    .panel-hint { font-size: 0.58rem; color: var(--color-text-muted); line-height: 1.5; }
-
-    .drag-ghost {
-      position: fixed; z-index: 9999; pointer-events: none;
-      padding: 5px 9px; border-radius: 8px; font-size: 0.7rem; font-weight: 600;
-      background: rgba(139, 92, 246, 0.95); color: #fff;
-      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.45);
-      max-width: 220px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
-    }
-
-    /* Narrow windows: the slot panel becomes a drawer over the timeline instead
-       of squeezing it (and never overlaps the queue rail). */
-    @media (max-width: 1360px) {
-      .cal-layout { position: relative; }
-      .slot-panel {
-        position: absolute; top: 6px; right: 6px; bottom: 6px;
-        width: 330px; max-width: calc(100% - 12px);
-        z-index: 40; box-shadow: 0 16px 48px rgba(0, 0, 0, 0.55);
+  styles: [
+    `
+      :host {
+        display: flex;
+        flex-direction: column;
+        height: 100%;
+        overflow: hidden;
       }
-    }
-  `],
+
+      .page-header {
+        display: flex;
+        align-items: flex-start;
+        justify-content: space-between;
+        gap: 12px;
+        flex-wrap: wrap;
+        margin-bottom: 10px;
+      }
+      .page-title {
+        font-size: 24px;
+        font-weight: 800;
+        letter-spacing: -0.5px;
+      }
+      .page-subtitle {
+        color: var(--color-text-muted);
+        margin-top: 4px;
+        font-size: 13px;
+      }
+      .header-actions {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+      }
+
+      .cal-btn {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        padding: 7px 12px;
+        border-radius: 10px;
+        font-size: 12px;
+        font-weight: 600;
+        border: 1px solid var(--glass-border);
+        background: var(--glass-bg);
+        color: var(--color-text-secondary);
+        cursor: pointer;
+        transition: all 0.2s;
+      }
+      .cal-btn:hover:not(:disabled) {
+        color: var(--color-text-primary);
+        border-color: rgba(139, 92, 246, 0.35);
+      }
+      .cal-btn:disabled {
+        opacity: 0.45;
+        cursor: not-allowed;
+      }
+      .cal-btn.primary {
+        background: rgba(139, 92, 246, 0.18);
+        border-color: rgba(139, 92, 246, 0.45);
+        color: var(--color-text-primary);
+      }
+
+      .cal-toolbar {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        flex-wrap: wrap;
+        padding: 8px 12px;
+        border-radius: 12px;
+        margin-bottom: 8px;
+        background: var(--glass-bg);
+        border: 1px solid var(--glass-border);
+      }
+      .date-nav {
+        display: flex;
+        align-items: center;
+        gap: 4px;
+      }
+      .nav-btn {
+        min-width: 30px;
+        height: 28px;
+        padding: 0 8px;
+        border-radius: 8px;
+        cursor: pointer;
+        background: transparent;
+        border: 1px solid transparent;
+        color: var(--color-text-secondary);
+        font-size: 14px;
+        line-height: 1;
+        transition: all 0.2s;
+      }
+      .nav-btn:hover {
+        background: rgba(139, 92, 246, 0.12);
+        color: var(--color-text-primary);
+      }
+      .today-btn {
+        font-size: 12px;
+        font-weight: 700;
+      }
+      .today-btn.active {
+        border-color: rgba(139, 92, 246, 0.4);
+        color: var(--color-text-primary);
+      }
+      .date-input {
+        background: rgba(255, 255, 255, 0.04);
+        border: 1px solid var(--glass-border);
+        color: var(--color-text-secondary);
+        border-radius: 8px;
+        padding: 5px 8px;
+        font-size: 12px;
+      }
+      .day-title {
+        font-size: 14px;
+        font-weight: 700;
+        color: var(--color-text-primary);
+      }
+      .day-window {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        margin-left: auto;
+        font-size: 11px;
+        color: var(--color-text-muted);
+      }
+      .day-window input[type='time'] {
+        background: rgba(255, 255, 255, 0.04);
+        border: 1px solid var(--glass-border);
+        color: var(--color-text-secondary);
+        border-radius: 8px;
+        padding: 4px 6px;
+        font-size: 12px;
+      }
+      .window-label {
+        text-transform: uppercase;
+        letter-spacing: 0.08em;
+        font-size: 10px;
+      }
+      .dash {
+        opacity: 0.6;
+      }
+
+      .week-strip {
+        display: grid;
+        grid-template-columns: repeat(7, 1fr);
+        gap: 6px;
+        margin-bottom: 10px;
+      }
+      .week-day {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 1px;
+        padding: 6px 4px;
+        border-radius: 10px;
+        cursor: pointer;
+        background: var(--glass-bg);
+        border: 1px solid var(--glass-border);
+        color: var(--color-text-secondary);
+        transition: all 0.2s;
+      }
+      .week-day:hover {
+        border-color: rgba(139, 92, 246, 0.35);
+        color: var(--color-text-primary);
+      }
+      .week-day.active {
+        border-color: rgba(139, 92, 246, 0.6);
+        background: rgba(139, 92, 246, 0.12);
+        color: var(--color-text-primary);
+      }
+      .week-day.is-today .wd-num {
+        color: var(--color-accent-primary);
+      }
+      .wd-name {
+        font-size: 10px;
+        text-transform: uppercase;
+        letter-spacing: 0.08em;
+        opacity: 0.75;
+      }
+      .wd-num {
+        font-size: 15px;
+        font-weight: 800;
+      }
+      .wd-meta,
+      .wd-focus {
+        font-size: 10px;
+        opacity: 0.7;
+      }
+
+      .cal-layout {
+        display: flex;
+        gap: 10px;
+        align-items: stretch;
+        flex: 1;
+        min-height: 0;
+      }
+
+      /* ── Queue rail ───────────────────────────────────────────────────── */
+      .queue-rail {
+        width: 268px;
+        flex-shrink: 0;
+        display: flex;
+        flex-direction: column;
+        background: var(--glass-bg);
+        border: 1px solid var(--glass-border);
+        border-radius: 14px;
+        overflow: hidden;
+      }
+      .rail-head {
+        padding: 10px 12px 6px;
+        border-bottom: 1px solid var(--glass-border);
+        flex-shrink: 0;
+      }
+      .rail-head-row {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 8px;
+      }
+      .rail-title {
+        font-size: 12px;
+        font-weight: 800;
+        color: var(--color-text-primary);
+      }
+      .rail-collapse {
+        background: none;
+        border: 1px solid var(--glass-border);
+        border-radius: 6px;
+        color: var(--color-text-muted);
+        font-size: 10px;
+        padding: 2px 7px;
+        cursor: pointer;
+        white-space: nowrap;
+        transition: all 0.2s;
+      }
+      .rail-collapse:hover {
+        color: var(--color-text-primary);
+        border-color: rgba(139, 92, 246, 0.4);
+      }
+      .rail-hint {
+        display: block;
+        font-size: 10px;
+        color: var(--color-text-muted);
+        margin-top: 2px;
+      }
+      .rail-scroll {
+        flex: 1;
+        min-height: 0;
+        overflow-y: auto;
+        padding: 8px;
+        scrollbar-width: thin;
+        scrollbar-color: rgba(139, 92, 246, 0.35) transparent;
+      }
+      .rail-group {
+        margin-bottom: 10px;
+      }
+      .rail-group-head {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        width: 100%;
+        padding: 5px 6px;
+        margin-bottom: 4px;
+        border-radius: 8px;
+        cursor: pointer;
+        background: rgba(255, 255, 255, 0.03);
+        border: 1px solid var(--glass-border);
+        font-size: 11px;
+        font-weight: 700;
+        color: var(--color-text-secondary);
+        text-transform: uppercase;
+        letter-spacing: 0.06em;
+        text-align: left;
+        transition: all 0.2s;
+      }
+      .rail-group-head:hover {
+        color: var(--color-text-primary);
+        border-color: rgba(139, 92, 246, 0.35);
+      }
+      .chevron {
+        flex-shrink: 0;
+        color: var(--color-text-muted);
+        transition: transform 0.2s ease;
+      }
+      .chevron.open {
+        transform: rotate(90deg);
+      }
+      .rail-group.is-collapsed .rail-group-head {
+        background: rgba(139, 92, 246, 0.08);
+      }
+      .rail-group-head .dot {
+        width: 8px;
+        height: 8px;
+        border-radius: 50%;
+        background: var(--q-color, var(--color-accent-primary));
+        flex-shrink: 0;
+      }
+      .unassigned-group .dot {
+        background: var(--color-text-muted);
+      }
+      .group-label {
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+      .group-summary {
+        margin-left: auto;
+        font-size: 10px;
+        font-weight: 600;
+        letter-spacing: 0;
+        color: var(--color-text-muted);
+        text-transform: none;
+        white-space: nowrap;
+      }
+      .group-count {
+        margin-left: auto;
+        font-size: 10px;
+        padding: 1px 6px;
+        border-radius: 999px;
+        background: rgba(255, 255, 255, 0.06);
+        color: var(--color-text-muted);
+      }
+      .rail-card {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        padding: 6px 8px;
+        margin-bottom: 4px;
+        border-radius: 10px;
+        cursor: grab;
+        touch-action: none;
+        user-select: none;
+        -webkit-user-select: none;
+        background: rgba(255, 255, 255, 0.03);
+        border-left: 3px solid var(--q-color, var(--color-accent-primary));
+        transition:
+          background 0.15s,
+          transform 0.15s;
+      }
+      .rail-card:hover {
+        background: rgba(139, 92, 246, 0.1);
+      }
+      .rail-card.pinned {
+        box-shadow: inset 0 0 0 1px rgba(139, 92, 246, 0.4);
+      }
+      .rail-card.dragging {
+        opacity: 0.45;
+        cursor: grabbing;
+      }
+      .seq {
+        width: 18px;
+        height: 18px;
+        flex-shrink: 0;
+        border-radius: 6px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 10px;
+        font-weight: 800;
+        color: var(--color-text-primary);
+        background: rgba(139, 92, 246, 0.2);
+      }
+      .seq.muted {
+        background: rgba(255, 255, 255, 0.06);
+        color: var(--color-text-muted);
+      }
+      .rail-body {
+        flex: 1;
+        min-width: 0;
+      }
+      .rail-task {
+        display: block;
+        font-size: 12px;
+        font-weight: 600;
+        color: var(--color-text-primary);
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+      .rail-meta {
+        display: flex;
+        gap: 4px;
+        font-size: 10px;
+        color: var(--color-text-muted);
+      }
+      .rail-actions {
+        display: flex;
+        gap: 2px;
+        opacity: 0;
+        transition: opacity 0.15s;
+      }
+      .rail-card:hover .rail-actions,
+      .rail-card:focus-within .rail-actions {
+        opacity: 1;
+      }
+      .rail-actions button {
+        width: 20px;
+        height: 20px;
+        border-radius: 6px;
+        cursor: pointer;
+        font-size: 10px;
+        background: rgba(255, 255, 255, 0.05);
+        border: 1px solid var(--glass-border);
+        color: var(--color-text-secondary);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+      }
+      .rail-actions button:hover:not(:disabled) {
+        color: var(--color-text-primary);
+        border-color: rgba(139, 92, 246, 0.4);
+      }
+      .rail-actions button:disabled {
+        opacity: 0.3;
+        cursor: not-allowed;
+      }
+      .rail-actions button.on {
+        background: rgba(139, 92, 246, 0.25);
+        border-color: rgba(139, 92, 246, 0.5);
+      }
+      .rail-empty,
+      .rail-note {
+        font-size: 10px;
+        color: var(--color-text-muted);
+        padding: 2px 4px 6px;
+      }
+      .rail-warning {
+        padding: 8px 10px;
+        font-size: 11px;
+        color: #fbbf24;
+        border-top: 1px solid var(--glass-border);
+        background: rgba(251, 191, 36, 0.08);
+      }
+      .rail-warning button {
+        margin-left: 6px;
+        background: none;
+        border: none;
+        color: #fbbf24;
+        text-decoration: underline;
+        cursor: pointer;
+        font-size: 11px;
+      }
+
+      /* ── Timeline ─────────────────────────────────────────────────────── */
+      .timeline {
+        flex: 1;
+        min-width: 0;
+        display: flex;
+        flex-direction: column;
+        background: var(--glass-bg);
+        border: 1px solid var(--glass-border);
+        border-radius: 14px;
+        overflow: hidden;
+      }
+      .timeline-head {
+        padding: 8px 12px;
+        border-bottom: 1px solid var(--glass-border);
+      }
+      .summary {
+        display: flex;
+        gap: 6px;
+        flex-wrap: wrap;
+      }
+      .chip {
+        font-size: 10px;
+        padding: 3px 8px;
+        border-radius: 999px;
+        background: rgba(255, 255, 255, 0.05);
+        color: var(--color-text-secondary);
+        border: 1px solid var(--glass-border);
+      }
+      .chip.accent {
+        color: #c4b5fd;
+        border-color: rgba(139, 92, 246, 0.35);
+      }
+      .chip.cyan {
+        color: #67e8f9;
+        border-color: rgba(6, 182, 212, 0.3);
+      }
+      .chip.muted {
+        color: var(--color-text-muted);
+      }
+
+      .timeline-scroll {
+        flex: 1;
+        overflow-y: auto;
+        display: flex;
+        position: relative;
+      }
+      .gutter {
+        width: 58px;
+        flex-shrink: 0;
+        border-right: 1px solid var(--glass-border);
+      }
+      .hour-cell {
+        position: relative;
+        box-sizing: border-box;
+        font-size: 10px;
+        color: var(--color-text-muted);
+        text-align: right;
+        padding-right: 8px;
+      }
+      .hour-cell span {
+        position: relative;
+        top: -6px;
+      }
+      /* Not "grid": Tailwind reads bare class names out of the source, and that one
+       is its own display utility — it was quietly turning this column into a
+       grid container. */
+      .day-grid {
+        position: relative;
+        flex: 1;
+        min-width: 0;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+      }
+      .day-grid.drop-active {
+        background: rgba(139, 92, 246, 0.04);
+      }
+      .hour-line {
+        position: absolute;
+        left: 0;
+        right: 0;
+        border-top: 1px solid rgba(255, 255, 255, 0.05);
+      }
+      .hour-line:nth-child(even) {
+        border-top-color: rgba(255, 255, 255, 0.03);
+      }
+
+      .ev {
+        position: absolute;
+        box-sizing: border-box;
+        overflow: hidden;
+        border-radius: 8px;
+        padding: 4px 6px;
+        cursor: grab;
+        touch-action: none;
+        user-select: none;
+        -webkit-user-select: none;
+        background: rgba(14, 12, 30, 0.88);
+        border: 1px solid rgba(139, 92, 246, 0.4);
+        border-left: 4px solid var(--color-accent-primary);
+        transition:
+          box-shadow 0.15s,
+          transform 0.05s;
+      }
+      .ev.focus:hover {
+        box-shadow: 0 4px 18px rgba(0, 0, 0, 0.35);
+      }
+      .ev.focus.selected {
+        box-shadow: 0 0 0 2px rgba(139, 92, 246, 0.6);
+      }
+      .ev.focus.dragging {
+        opacity: 0.8;
+        cursor: grabbing;
+        z-index: 40;
+        box-shadow: 0 10px 28px rgba(0, 0, 0, 0.5);
+      }
+      .ev.focus.continued {
+        border-left-style: dashed;
+      }
+      .ev-head {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 4px;
+      }
+      .ev-time {
+        font-size: 10px;
+        font-weight: 700;
+        color: var(--color-text-primary);
+        opacity: 0.9;
+      }
+      .ev-badges {
+        display: flex;
+        gap: 3px;
+      }
+      .badge {
+        font-size: 10px;
+        padding: 0 4px;
+        border-radius: 999px;
+        text-transform: uppercase;
+        background: rgba(255, 255, 255, 0.12);
+        color: var(--color-text-secondary);
+      }
+      .badge.pin {
+        background: rgba(139, 92, 246, 0.35);
+        color: #ede9fe;
+      }
+      .ev-task {
+        display: flex;
+        align-items: center;
+        gap: 5px;
+        margin-top: 2px;
+        min-width: 0;
+      }
+      .ev-title {
+        font-size: 11px;
+        font-weight: 600;
+        color: var(--color-text-primary);
+        flex: 1;
+        min-width: 0;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+      .ev-check {
+        width: 12px;
+        height: 12px;
+        flex-shrink: 0;
+        border-radius: 50%;
+        cursor: pointer;
+        /* A whole-pixel ring: a 1.5px circle stroke renders as a soft, uneven halo
+         at 100% scaling. */
+        border: 1px solid rgba(255, 255, 255, 0.5);
+        background: transparent;
+        padding: 0;
+      }
+      .ev-check:hover {
+        border-color: var(--color-accent-primary);
+        background: rgba(139, 92, 246, 0.25);
+      }
+      .ev-resize {
+        position: absolute;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        height: 6px;
+        cursor: ns-resize;
+        background: transparent;
+      }
+      .ev-resize:hover {
+        background: rgba(139, 92, 246, 0.45);
+      }
+
+      .ev.rest {
+        cursor: default;
+        padding: 0 6px;
+        background: repeating-linear-gradient(
+          45deg,
+          rgba(6, 182, 212, 0.14) 0 6px,
+          rgba(6, 182, 212, 0.06) 6px 12px
+        );
+        border: 1px dashed rgba(6, 182, 212, 0.35);
+        border-radius: 6px;
+        display: flex;
+        align-items: center;
+        gap: 6px;
+      }
+      .ev.rest.long {
+        background: repeating-linear-gradient(
+          45deg,
+          rgba(52, 211, 153, 0.16) 0 6px,
+          rgba(52, 211, 153, 0.07) 6px 12px
+        );
+        border-color: rgba(52, 211, 153, 0.4);
+      }
+      .rest-label {
+        font-size: 10px;
+        font-weight: 700;
+        color: #67e8f9;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+      }
+      .ev.rest.long .rest-label {
+        color: #6ee7b7;
+      }
+      .rest-time {
+        font-size: 10px;
+        color: var(--color-text-muted);
+      }
+
+      .drop-hint {
+        position: absolute;
+        left: 0;
+        right: 0;
+        height: 0;
+        z-index: 30;
+        border-top: 2px dashed rgba(139, 92, 246, 0.9);
+      }
+      .drop-hint span {
+        position: absolute;
+        right: 4px;
+        top: -9px;
+        font-size: 10px;
+        font-weight: 700;
+        background: rgba(139, 92, 246, 0.9);
+        color: #fff;
+        padding: 1px 5px;
+        border-radius: 4px;
+      }
+      .now-line {
+        position: absolute;
+        left: 0;
+        right: 0;
+        border-top: 2px solid #f87171;
+        z-index: 20;
+      }
+      .now-dot {
+        position: absolute;
+        left: -5px;
+        top: -5px;
+        width: 8px;
+        height: 8px;
+        border-radius: 50%;
+        background: #f87171;
+        box-shadow: 0 0 8px rgba(248, 113, 113, 0.8);
+      }
+
+      /* ── Slot panel ───────────────────────────────────────────────────── */
+      .slot-panel {
+        flex: 0 0 330px;
+        width: 330px;
+        display: flex;
+        flex-direction: column;
+        background: var(--glass-bg);
+        border: 1px solid var(--glass-border);
+        border-radius: 14px;
+        overflow: hidden;
+      }
+      .panel-head {
+        display: flex;
+        align-items: flex-start;
+        justify-content: space-between;
+        gap: 8px;
+        padding: 10px 12px;
+        border-bottom: 1px solid var(--glass-border);
+        flex-shrink: 0;
+      }
+      .panel-time {
+        font-size: 15px;
+        font-weight: 800;
+        color: var(--color-text-primary);
+      }
+      .panel-sub {
+        display: block;
+        font-size: 10px;
+        color: var(--color-text-muted);
+      }
+      .panel-close {
+        background: none;
+        border: none;
+        color: var(--color-text-muted);
+        cursor: pointer;
+        font-size: 13px;
+        flex-shrink: 0;
+        padding: 0 2px;
+        line-height: 1;
+      }
+      .panel-close:hover {
+        color: var(--color-text-primary);
+      }
+      .panel-tasks {
+        padding: 8px;
+        border-bottom: 1px solid var(--glass-border);
+        flex: 0 1 auto;
+        min-height: 0;
+        overflow-y: auto;
+        scrollbar-width: thin;
+        scrollbar-color: rgba(139, 92, 246, 0.35) transparent;
+      }
+      /* Rows are stacked so long titles and the action buttons can never collide. */
+      .panel-task {
+        display: flex;
+        flex-direction: column;
+        gap: 5px;
+        padding: 8px;
+        border-radius: 10px;
+        margin-bottom: 6px;
+        background: rgba(255, 255, 255, 0.03);
+        border: 1px solid var(--glass-border);
+      }
+      .panel-task:last-child {
+        margin-bottom: 0;
+      }
+      .panel-task.done .panel-task-title {
+        text-decoration: line-through;
+        opacity: 0.6;
+      }
+      .panel-task-head {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        min-width: 0;
+      }
+      /* Long titles are clamped to two lines; hover shows the whole task. */
+      .panel-task-title {
+        font-size: 12px;
+        font-weight: 600;
+        color: var(--color-text-primary);
+        min-width: 0;
+        display: -webkit-box;
+        -webkit-line-clamp: 2;
+        -webkit-box-orient: vertical;
+        overflow: hidden;
+        overflow-wrap: anywhere;
+      }
+      .panel-task-meta {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        flex-wrap: wrap;
+      }
+      .meta-text {
+        font-size: 10px;
+        color: var(--color-text-muted);
+      }
+      .q-chip {
+        font-size: 10px;
+        font-weight: 700;
+        padding: 1px 7px;
+        border-radius: 999px;
+        text-transform: uppercase;
+        letter-spacing: 0.04em;
+        white-space: nowrap;
+      }
+      .panel-task-actions {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 4px;
+      }
+      .panel-task-actions button {
+        padding: 3px 7px;
+        border-radius: 6px;
+        font-size: 10px;
+        cursor: pointer;
+        background: rgba(255, 255, 255, 0.05);
+        border: 1px solid var(--glass-border);
+        color: var(--color-text-secondary);
+        white-space: nowrap;
+      }
+      .panel-task-actions button:hover:not(:disabled) {
+        color: var(--color-text-primary);
+        border-color: rgba(139, 92, 246, 0.4);
+      }
+      .panel-task-actions button:disabled {
+        opacity: 0.35;
+        cursor: not-allowed;
+      }
+      .panel-task-actions button.on {
+        background: rgba(139, 92, 246, 0.25);
+      }
+      .panel-task-actions button.danger:hover {
+        color: #fca5a5;
+        border-color: rgba(248, 113, 113, 0.4);
+      }
+      .panel-note {
+        padding: 10px 12px;
+        font-size: 11px;
+        color: var(--color-text-muted);
+        line-height: 1.5;
+      }
+      .panel-note.small {
+        padding: 4px 2px;
+      }
+      .panel-add {
+        padding: 8px 10px;
+        flex: 1 1 auto;
+        min-height: 0;
+        overflow-y: auto;
+        scrollbar-width: thin;
+        scrollbar-color: rgba(139, 92, 246, 0.35) transparent;
+      }
+      .panel-add h4 {
+        font-size: 11px;
+        text-transform: uppercase;
+        letter-spacing: 0.08em;
+        color: var(--color-text-muted);
+        margin-bottom: 6px;
+      }
+      .panel-search {
+        width: 100%;
+        box-sizing: border-box;
+        padding: 6px 8px;
+        margin-bottom: 6px;
+        background: rgba(255, 255, 255, 0.04);
+        border: 1px solid var(--glass-border);
+        border-radius: 8px;
+        color: var(--color-text-primary);
+        font-size: 11px;
+      }
+      .panel-search::placeholder {
+        color: var(--color-text-muted);
+      }
+      .panel-candidates {
+        max-height: 160px;
+        overflow-y: auto;
+        margin-bottom: 8px;
+      }
+      .candidate {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 6px;
+        width: 100%;
+        padding: 5px 7px;
+        margin-bottom: 3px;
+        border-radius: 8px;
+        cursor: pointer;
+        text-align: left;
+        background: rgba(255, 255, 255, 0.03);
+        border: 1px solid transparent;
+        color: var(--color-text-secondary);
+        font-size: 11px;
+      }
+      .candidate:hover {
+        border-color: rgba(139, 92, 246, 0.4);
+        color: var(--color-text-primary);
+      }
+      .cand-title {
+        flex: 1;
+        min-width: 0;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+      .cand-meta {
+        font-size: 10px;
+        color: var(--color-text-muted);
+        flex-shrink: 0;
+      }
+      .panel-new-row {
+        display: flex;
+        gap: 6px;
+        align-items: center;
+      }
+      .panel-new-row select {
+        flex: 1;
+        min-width: 0;
+        padding: 5px;
+        border-radius: 8px;
+        font-size: 10px;
+        background: rgba(255, 255, 255, 0.04);
+        border: 1px solid var(--glass-border);
+        color: var(--color-text-secondary);
+      }
+      .panel-foot {
+        padding: 8px 10px;
+        border-top: 1px solid var(--glass-border);
+        flex-shrink: 0;
+      }
+      .panel-hint {
+        font-size: 10px;
+        color: var(--color-text-muted);
+        line-height: 1.5;
+      }
+
+      .drag-ghost {
+        position: fixed;
+        z-index: 9999;
+        pointer-events: none;
+        padding: 5px 9px;
+        border-radius: 8px;
+        font-size: 11px;
+        font-weight: 600;
+        background: rgba(139, 92, 246, 0.95);
+        color: #fff;
+        box-shadow: 0 8px 24px rgba(0, 0, 0, 0.45);
+        max-width: 220px;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+
+      /* Narrow windows: the slot panel becomes a drawer over the timeline instead
+       of squeezing it (and never overlaps the queue rail). */
+      @media (max-width: 1360px) {
+        .cal-layout {
+          position: relative;
+        }
+        .slot-panel {
+          position: absolute;
+          top: 6px;
+          right: 6px;
+          bottom: 6px;
+          width: 330px;
+          max-width: calc(100% - 12px);
+          z-index: 40;
+          box-shadow: 0 16px 48px rgba(0, 0, 0, 0.55);
+        }
+      }
+    `,
+  ],
 })
 export class CalendarComponent implements OnInit, OnDestroy {
   protected readonly schedule = inject(ScheduleService);
@@ -891,7 +1736,7 @@ export class CalendarComponent implements OnInit, OnDestroy {
   protected readonly totals = computed(() => this.daySchedule().totals);
   protected readonly overflow = computed(() => this.daySchedule().unscheduled);
   protected readonly hasPins = computed(() =>
-    this.daySchedule().placements.some(placement => placement.pinned)
+    this.daySchedule().placements.some((placement) => placement.pinned),
   );
 
   protected readonly startTime = computed(() => formatMinute(this.schedule.prefs().dayStart));
@@ -903,13 +1748,13 @@ export class CalendarComponent implements OnInit, OnDestroy {
       day: 'numeric',
       year: 'numeric',
       timeZone: 'UTC',
-    })
+    }),
   );
 
   protected readonly isToday = computed(() => this.selectedDate() === dayKey(this.clock()));
 
   protected readonly weekStrip = computed(() =>
-    this.schedule.weekDates().map(date => {
+    this.schedule.weekDates().map((date) => {
       const summary = this.schedule.summaryFor(date);
       const d = new Date(`${date}T00:00:00Z`);
       return {
@@ -920,17 +1765,17 @@ export class CalendarComponent implements OnInit, OnDestroy {
         tasks: summary.tasks,
         focusLabel: summary.focusMinutes ? formatDuration(summary.focusMinutes) : '—',
       };
-    })
+    }),
   );
 
   protected readonly queueGroups = computed(() => {
     const queue = this.schedule.queue();
     const placements = this.daySchedule().placements;
 
-    return QUADRANT_ORDER.map(quadrant => {
-      const items = queue.filter(item => item.quadrant === quadrant);
+    return QUADRANT_ORDER.map((quadrant) => {
+      const items = queue.filter((item) => item.quadrant === quadrant);
       const cards = items.map((item, position) => {
-        const placement = placements.find(p => p.taskId === item.task.id);
+        const placement = placements.find((p) => p.taskId === item.task.id);
         return {
           task: item.task,
           seq: item.index + 1,
@@ -943,7 +1788,8 @@ export class CalendarComponent implements OnInit, OnDestroy {
           isLast: position === items.length - 1,
         };
       });
-      const focusMinutes = cards.reduce((sum, card) => sum + card.pomodoros, 0) * this.schedule.focusMinutes();
+      const focusMinutes =
+        cards.reduce((sum, card) => sum + card.pomodoros, 0) * this.schedule.focusMinutes();
       return {
         id: quadrant,
         label: QUADRANT_CONFIG[quadrant].label,
@@ -956,8 +1802,8 @@ export class CalendarComponent implements OnInit, OnDestroy {
 
   protected readonly unassignedItems = computed(() => {
     const placements = this.daySchedule().placements;
-    return this.schedule.unassigned().map(task => {
-      const placement = placements.find(p => p.taskId === task.id);
+    return this.schedule.unassigned().map((task) => {
+      const placement = placements.find((p) => p.taskId === task.id);
       return {
         task,
         pinned: !!placement?.pinned,
@@ -971,14 +1817,14 @@ export class CalendarComponent implements OnInit, OnDestroy {
   protected readonly panelBlock = computed(() => {
     const target = this.panel();
     if (!target?.blockId) return null;
-    const block = this.daySchedule().blocks.find(candidate => candidate.id === target.blockId);
+    const block = this.daySchedule().blocks.find((candidate) => candidate.id === target.blockId);
     return block && block.kind === 'focus' ? block : null;
   });
 
   protected readonly panelBreak = computed(() => {
     const target = this.panel();
     if (!target?.blockId) return null;
-    const block = this.daySchedule().blocks.find(candidate => candidate.id === target.blockId);
+    const block = this.daySchedule().blocks.find((candidate) => candidate.id === target.blockId);
     return block && block.kind !== 'focus' ? (block as BreakBlock) : null;
   });
 
@@ -994,26 +1840,29 @@ export class CalendarComponent implements OnInit, OnDestroy {
     const block = this.panelBlock();
     if (block) {
       return block.taskIds
-        .map(id => this.taskService.tasks().find(task => task.id === id))
+        .map((id) => this.taskService.tasks().find((task) => task.id === id))
         .filter((task): task is Task => !!task);
     }
     const target = this.panel();
     if (!target) return [];
     return this.daySchedule()
-      .placements.filter(p => target.startMin >= p.startMin && target.startMin < p.endMin)
-      .map(p => this.taskService.tasks().find(task => task.id === p.taskId))
+      .placements.filter((p) => target.startMin >= p.startMin && target.startMin < p.endMin)
+      .map((p) => this.taskService.tasks().find((task) => task.id === p.taskId))
       .filter((task): task is Task => !!task);
   });
 
   protected readonly candidates = computed(() => {
     const query = this.search().trim().toLowerCase();
-    const inPanel = new Set(this.panelTasks().map(task => task.id));
-    const scheduled = new Set(this.daySchedule().placements.map(p => p.taskId));
+    const inPanel = new Set(this.panelTasks().map((task) => task.id));
+    const scheduled = new Set(this.daySchedule().placements.map((p) => p.taskId));
 
     return this.poolTasks()
-      .filter(task => !inPanel.has(task.id))
-      .filter(task => !query || task.title.toLowerCase().includes(query))
-      .sort((a, b) => Number(scheduled.has(a.id)) - Number(scheduled.has(b.id)) || a.priority - b.priority)
+      .filter((task) => !inPanel.has(task.id))
+      .filter((task) => !query || task.title.toLowerCase().includes(query))
+      .sort(
+        (a, b) =>
+          Number(scheduled.has(a.id)) - Number(scheduled.has(b.id)) || a.priority - b.priority,
+      )
       .slice(0, 30);
   });
 
@@ -1024,12 +1873,12 @@ export class CalendarComponent implements OnInit, OnDestroy {
   });
 
   protected readonly gridHeight = computed(
-    () => (this.daySchedule().viewEndMin - this.daySchedule().viewStartMin) * this.pxPerMinute
+    () => (this.daySchedule().viewEndMin - this.daySchedule().viewStartMin) * this.pxPerMinute,
   );
 
   protected readonly layout = computed<BlockLayout[]>(() => {
     const tasks = this.taskService.tasks();
-    const nodes = this.daySchedule().blocks.map(block => ({
+    const nodes = this.daySchedule().blocks.map((block) => ({
       block,
       start: block.startMin,
       end: block.endMin,
@@ -1039,7 +1888,7 @@ export class CalendarComponent implements OnInit, OnDestroy {
 
     const columnEnds: number[] = [];
     for (const node of [...nodes].sort((a, b) => a.start - b.start || a.end - b.end)) {
-      let column = columnEnds.findIndex(end => end <= node.start);
+      let column = columnEnds.findIndex((end) => end <= node.start);
       if (column === -1) {
         column = columnEnds.length;
       }
@@ -1048,21 +1897,22 @@ export class CalendarComponent implements OnInit, OnDestroy {
     }
 
     for (const node of nodes) {
-      const overlapping = nodes.filter(other => other.start < node.end && other.end > node.start);
-      node.columns = Math.max(1, ...overlapping.map(other => other.column + 1));
+      const overlapping = nodes.filter((other) => other.start < node.end && other.end > node.start);
+      node.columns = Math.max(1, ...overlapping.map((other) => other.column + 1));
     }
 
     const viewStart = this.daySchedule().viewStartMin;
     const width = 100;
 
     return nodes
-      .map(node => {
+      .map((node) => {
         const block = node.block;
-        const blockTasks = block.kind === 'focus'
-          ? block.taskIds
-              .map(id => tasks.find(task => task.id === id))
-              .filter((task): task is Task => !!task)
-          : [];
+        const blockTasks =
+          block.kind === 'focus'
+            ? block.taskIds
+                .map((id) => tasks.find((task) => task.id === id))
+                .filter((task): task is Task => !!task)
+            : [];
         const first = blockTasks[0];
         const color = first?.quadrant ? QUADRANT_CONFIG[first.quadrant].color : '#8b5cf6';
         const rgb = hexToRgb(color);
@@ -1108,8 +1958,7 @@ export class CalendarComponent implements OnInit, OnDestroy {
   private async init(): Promise<void> {
     await this.schedule.load();
     await this.taskService.loadTasks();
-    await this.taskService.dailyReset();
-    await this.taskService.generateRecurringInstances();
+    await this.taskService.runDailyUpkeep();
     // Open on today once the stored plan and tasks are in.
     this.schedule.selectedDate.set(dayKey());
   }
@@ -1183,9 +2032,9 @@ export class CalendarComponent implements OnInit, OnDestroy {
 
   private poolTasks(): Task[] {
     const day = this.schedule.selectedDate();
-    const active = this.taskService.tasks().filter(task => task.status !== 'done');
-    const forDay = active.filter(task =>
-      task.deadline === day || task.createdAt.startsWith(day) || !!task.quadrant
+    const active = this.taskService.tasks().filter((task) => task.status !== 'done');
+    const forDay = active.filter(
+      (task) => task.deadline === day || task.createdAt.startsWith(day) || !!task.quadrant,
     );
     return forDay.length ? forDay : active;
   }
@@ -1203,7 +2052,7 @@ export class CalendarComponent implements OnInit, OnDestroy {
 
   protected allGroupsCollapsed(): boolean {
     const state = this.collapsedGroups();
-    return RAIL_GROUP_IDS.every(id => state[id] === true);
+    return RAIL_GROUP_IDS.every((id) => state[id] === true);
   }
 
   protected toggleAllGroups(): void {
@@ -1258,7 +2107,7 @@ export class CalendarComponent implements OnInit, OnDestroy {
     event.stopPropagation();
     const quadrant = task.quadrant;
     if (!quadrant) return;
-    const ids = this.schedule.tasksInQuadrant(quadrant).map(item => item.id);
+    const ids = this.schedule.tasksInQuadrant(quadrant).map((item) => item.id);
     const from = ids.indexOf(task.id);
     const to = from + delta;
     if (from === -1 || to < 0 || to >= ids.length) return;
@@ -1278,8 +2127,8 @@ export class CalendarComponent implements OnInit, OnDestroy {
 
   /** Quadrant of the slot's owning task, used for the read-only badge and new tasks. */
   private slotQuadrant(): TaskQuadrant {
-    const owner = this.panelBlock()?.taskIds
-      .map(id => this.taskService.tasks().find(task => task.id === id))
+    const owner = this.panelBlock()
+      ?.taskIds.map((id) => this.taskService.tasks().find((task) => task.id === id))
       .find((task): task is Task => !!task);
     return owner?.quadrant ?? 'urgent-important';
   }
@@ -1379,10 +2228,10 @@ export class CalendarComponent implements OnInit, OnDestroy {
   private resolveSlot(minute: number): MinuteOfDay {
     const blocks = this.daySchedule().blocks;
     const focus = blocks.filter((block): block is FocusBlock => block.kind === 'focus');
-    const inside = focus.find(block => minute >= block.startMin && minute < block.endMin);
+    const inside = focus.find((block) => minute >= block.startMin && minute < block.endMin);
     if (inside) return inside.startMin;
 
-    const next = focus.find(block => block.startMin > minute);
+    const next = focus.find((block) => block.startMin > minute);
     if (next && next.startMin - minute <= 30) return next.startMin;
 
     return clampMinute(minute);
@@ -1395,7 +2244,7 @@ export class CalendarComponent implements OnInit, OnDestroy {
     const minute = snapMinute(this.minuteAt(event.clientY));
     const slot = this.resolveSlot(minute);
     const block = this.daySchedule().blocks.find(
-      candidate => candidate.kind === 'focus' && candidate.startMin === slot
+      (candidate) => candidate.kind === 'focus' && candidate.startMin === slot,
     );
     this.panel.set({ startMin: slot, blockId: block?.id ?? null });
     this.resetPanelInputs();
@@ -1415,7 +2264,7 @@ export class CalendarComponent implements OnInit, OnDestroy {
     if (target.closest('button') || target.closest('.ev-resize')) return;
     const taskId = item.block.kind === 'focus' ? item.block.taskIds[0] : null;
     if (!taskId) return;
-    const task = this.taskService.tasks().find(candidate => candidate.id === taskId);
+    const task = this.taskService.tasks().find((candidate) => candidate.id === taskId);
     if (!task) return;
     const placement = this.schedule.placementOf(taskId);
     const origin = placement?.startMin ?? item.block.startMin;
@@ -1428,7 +2277,7 @@ export class CalendarComponent implements OnInit, OnDestroy {
     task: Task,
     origin: MinuteOfDay,
     grabOffset: number,
-    source: 'rail' | 'event'
+    source: 'rail' | 'event',
   ): void {
     this.drag = {
       taskId: task.id,

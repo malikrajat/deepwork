@@ -1,0 +1,12 @@
+-- DeepWork: closing the window keeps the app running in the system tray.
+--
+-- `tray_behavior` has been a column since the first build, but nothing ever read
+-- it: the app never offered the choice, and closing the window always quit. It is
+-- now the preference behind the window's close button, and its default is "keep
+-- running in the tray" — the X hides DeepWork next to the clock, the timer and
+-- the water reminder carry on, and the tray menu's **Exit** is the only way out.
+--
+-- Only the old default is moved. The switch in Desktop Behaviour is the one way
+-- to choose the old behaviour back, and it did not exist before this migration,
+-- so no row can be holding a deliberate 'quit'.
+UPDATE settings SET tray_behavior = 'minimize' WHERE tray_behavior = 'quit';

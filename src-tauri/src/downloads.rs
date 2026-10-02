@@ -57,7 +57,10 @@ fn unique_path(dir: &Path, file_name: &str) -> PathBuf {
 ///
 /// Path separators and the characters Windows forbids in a file name become
 /// underscores, and leading dots are dropped so `..` cannot climb out.
-fn sanitize_file_name(file_name: &str) -> String {
+///
+/// Shared with [`crate::updates`], which writes an installer into its own
+/// folder and has to be just as careful about the name it is given.
+pub(crate) fn sanitize_file_name(file_name: &str) -> String {
     let cleaned: String = file_name
         .chars()
         .map(|character| match character {

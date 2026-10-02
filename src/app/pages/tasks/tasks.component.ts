@@ -2,7 +2,6 @@ import {
   ChangeDetectionStrategy,
   Component,
   ElementRef,
-  OnDestroy,
   OnInit,
   computed,
   effect,
@@ -17,43 +16,50 @@ import { TaskService } from '../../core/services/task.service';
 import { DbService } from '../../core/services/db.service';
 import {
   Task,
-  TaskStatus,
   TaskQuadrant,
   RecurrenceConfig,
   taskActivityIso,
 } from '../../core/models/task.model';
 import { ImportCommitResult } from '../../core/models/task-import.model';
 import { TooltipDirective } from '../../shared/directives/tooltip.directive';
-import { STATUS_CONFIG, QUADRANT_CONFIG } from '../../core/constants/theme.constants';
 import { FormFieldWrapperComponent } from '../../shared/components/form-field/form-field-wrapper.component';
 import { TaskImportPanelComponent } from '../../shared/components/task-import-panel/task-import-panel.component';
 import { TaskExportPanelComponent } from '../../shared/components/task-export-panel/task-export-panel.component';
-import { TaskFormModel, SearchFormModel, createTaskFormDefaults, createSearchFormDefaults } from '../../shared/models/form.models';
+import {
+  BoardMove,
+  TaskBoardComponent,
+} from '../../shared/components/task-board/task-board.component';
+import { QUADRANT_CONFIG } from '../../core/constants/theme.constants';
+import {
+  TaskFormModel,
+  SearchFormModel,
+  createTaskFormDefaults,
+  createSearchFormDefaults,
+} from '../../shared/models/form.models';
 import { noXss, trimmedRequired, futureDate } from '../../shared/validators/form-validators';
-import {
-  TASK_DESCRIPTION_MAX_LENGTH,
-  TASK_TITLE_MAX_LENGTH,
-} from '../../core/models/task.model';
-import {
-  DateGroup,
-  HEADER_HEIGHT,
-  ListRow,
-  OVERSCAN_PX,
-  ROW_HEIGHT,
-  buildRows,
-  groupByDay,
-  localDayKey,
-  totalHeight,
-  windowRows,
-} from './task-list.view';
+import { TaskDateGroup, groupTasksByDate, sectionKeyFor } from './task-date-groups.view';
+import { TASK_DESCRIPTION_MAX_LENGTH, TASK_TITLE_MAX_LENGTH } from '../../core/models/task.model';
 
 type SortKey = 'updated' | 'priority' | 'deadline' | 'newest';
 
-const FALLBACK_VIEWPORT_HEIGHT = 520;
+/** Readable names for the priority options, used in the defaults summary. */
+const PRIORITY_LABELS: Record<string, string> = {
+  '1': 'P1 Critical',
+  '2': 'P2 High',
+  '3': 'P3 Medium',
+  '4': 'P4 Low',
+};
 
 @Component({
   selector: 'app-tasks',
-  imports: [FormField, TooltipDirective, FormFieldWrapperComponent, TaskImportPanelComponent, TaskExportPanelComponent],
+  imports: [
+    FormField,
+    TooltipDirective,
+    FormFieldWrapperComponent,
+    TaskImportPanelComponent,
+    TaskExportPanelComponent,
+    TaskBoardComponent,
+  ],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <div class="tasks-layout">
@@ -64,36 +70,97 @@ const FALLBACK_VIEWPORT_HEIGHT = 520;
           <span class="task-count">{{ filteredTasks().length }} tasks</span>
         </div>
         <div class="header-actions">
-          <button class="btn btn-outline btn-sm" type="button" (click)="exportOpen.set(true)" appTooltip="Export the task list to CSV (Excel)">
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+          <button
+            class="btn btn-outline btn-sm"
+            type="button"
+            (click)="exportOpen.set(true)"
+            appTooltip="Export the task list to CSV (Excel)"
+          >
+            <svg
+              width="14"
+              height="14"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2.2"
+            >
+              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+              <polyline points="7 10 12 15 17 10" />
+              <line x1="12" y1="15" x2="12" y2="3" />
+            </svg>
             Export
           </button>
-          <button class="btn btn-outline btn-sm" type="button" (click)="importOpen.set(true)" appTooltip="Import tasks from an Excel or CSV file">
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 9 12 4 17 9"/><line x1="12" y1="4" x2="12" y2="16"/></svg>
+          <button
+            class="btn btn-outline btn-sm"
+            type="button"
+            (click)="openImportPanel()"
+            appTooltip="Import tasks from an Excel or CSV file"
+          >
+            <svg
+              width="14"
+              height="14"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2.2"
+            >
+              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+              <polyline points="7 9 12 4 17 9" />
+              <line x1="12" y1="4" x2="12" y2="16" />
+            </svg>
             Import
           </button>
           <button class="btn btn-primary btn-sm" type="button" (click)="openAddPanel()">
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+            <svg
+              width="14"
+              height="14"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2.5"
+            >
+              <line x1="12" y1="5" x2="12" y2="19" />
+              <line x1="5" y1="12" x2="19" y2="12" />
+            </svg>
             Add Task
           </button>
         </div>
       </div>
 
-      <!-- Search & Filters -->
+      <!-- Search & sort. The columns are the status filter now: every task is on
+           the board, so there are no filter pills to click. -->
       <div class="filters-bar">
         <div class="search-box">
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
-          <input type="text" placeholder="Search all dates..." [formField]="searchForm.query" />
+          <svg
+            width="14"
+            height="14"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+          >
+            <circle cx="11" cy="11" r="8" />
+            <line x1="21" y1="21" x2="16.65" y2="16.65" />
+          </svg>
+          <input type="text" placeholder="Search all tasks..." [formField]="searchForm.query" />
           @if (searchQuery()) {
-            <button class="clear-search" type="button" (click)="clearSearch()" appTooltip="Clear search">
-              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
-            </button>
-          }
-        </div>
-        <div class="filter-chips">
-          @for (f of statusFilters; track f.value) {
-            <button class="chip" type="button" [class.active]="activeFilter() === f.value" (click)="setFilter(f.value)">
-              {{ f.label }} <span>{{ filterCount(f.value) }}</span>
+            <button
+              class="clear-search"
+              type="button"
+              (click)="clearSearch()"
+              appTooltip="Clear search"
+            >
+              <svg
+                width="12"
+                height="12"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+              >
+                <line x1="18" y1="6" x2="6" y2="18" />
+                <line x1="6" y1="6" x2="18" y2="18" />
+              </svg>
             </button>
           }
         </div>
@@ -106,102 +173,100 @@ const FALLBACK_VIEWPORT_HEIGHT = 520;
             <option value="newest">Newest</option>
           </select>
         </label>
-        <button class="btn btn-outline btn-sm collapse-toggle" type="button" (click)="toggleAllGroups()"
-          [appTooltip]="allExpanded() ? 'Collapse every date group' : 'Expand every date group'">
+        <button
+          class="btn btn-outline btn-sm"
+          type="button"
+          (click)="toggleAllGroups()"
+          [appTooltip]="allExpanded() ? 'Fold every date section' : 'Open every date section'"
+        >
+          <svg
+            width="12"
+            height="12"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2.5"
+            [class.open]="allExpanded()"
+          >
+            <polyline points="9,6 15,12 9,18" />
+          </svg>
           {{ allExpanded() ? 'Collapse all' : 'Expand all' }}
         </button>
+        <span class="board-hint"
+          >Drag a card into another column to change its status · <kbd>1</kbd> <kbd>2</kbd>
+          <kbd>3</kbd> with a card focused</span
+        >
       </div>
 
-      <!-- Task list: grouped by date, virtualised (only visible rows exist in the DOM) -->
-      @if (taskGroups().length === 0) {
-        <div class="task-list is-empty">
+      <!-- Date sections: each one folds away, and holds the status board inside,
+           so cards are still dragged between To Do / In Progress / Done. -->
+      @if (filteredTasks().length === 0) {
+        <div class="board-empty">
           <div class="empty-state">
-            <p>{{ searchQuery() || activeFilter() !== 'all' ? 'No tasks match these filters.' : 'No tasks yet. Add your first task to get started.' }}</p>
-            @if (!searchQuery() && activeFilter() === 'all') {
+            <p>
+              {{
+                searchQuery()
+                  ? 'No tasks match this search.'
+                  : 'No tasks yet. Add your first task to get started.'
+              }}
+            </p>
+            @if (!searchQuery()) {
               <div class="empty-actions">
-                <button class="btn btn-primary btn-sm" type="button" (click)="openAddPanel()">Add your first task</button>
-                <button class="btn btn-outline btn-sm" type="button" (click)="importOpen.set(true)">Import from Excel</button>
+                <button class="btn btn-primary btn-sm" type="button" (click)="openAddPanel()">
+                  Add your first task
+                </button>
+                <button class="btn btn-outline btn-sm" type="button" (click)="openImportPanel()">
+                  Import from Excel
+                </button>
               </div>
             }
           </div>
         </div>
       } @else {
-        <div class="task-list" #scroller (scroll)="onScroll($event)">
-          <div class="list-canvas" [style.height.px]="totalHeight()">
-            @for (row of visibleRows(); track row.key) {
-              @if (row.kind === 'header') {
-                <button
-                  class="group-header"
-                  type="button"
-                  [style.top.px]="row.top"
-                  [style.height.px]="row.height"
-                  [attr.aria-expanded]="isGroupOpen(row.group.key)"
-                  (click)="toggleGroup(row.group.key)"
+        <div class="date-groups" [class.multi-open]="openGroups().length > 1">
+          @for (group of taskGroups(); track group.key) {
+            <section class="date-group" [class.open]="isGroupOpen(group.key)">
+              <button
+                class="group-header"
+                type="button"
+                [attr.aria-expanded]="isGroupOpen(group.key)"
+                [attr.aria-controls]="'task-group-' + group.key"
+                (click)="toggleGroup(group.key)"
+              >
+                <svg
+                  class="chevron"
+                  [class.open]="isGroupOpen(group.key)"
+                  width="12"
+                  height="12"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="2.5"
                 >
-                  <svg class="chevron" [class.open]="isGroupOpen(row.group.key)" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
-                    <polyline points="9,6 15,12 9,18" />
-                  </svg>
-                  <span class="group-label">{{ row.group.label }}</span>
-                  <span class="group-count">{{ row.group.tasks.length }}</span>
-                  @if (row.group.doneCount > 0) {
-                    <span class="group-done">{{ row.group.doneCount }} done</span>
-                  }
-                </button>
-              } @else if (row.task; as task) {
-                <div
-                  class="task-row"
-                  [class.done]="task.status === 'done'"
-                  [class.in-progress]="task.status === 'in-progress'"
-                  [style.top.px]="row.top"
-                  [style.height.px]="row.height"
-                  (click)="openEditPanel(task)"
-                >
-                  <button class="status-btn" [class]="task.status" (click)="toggleStatus(task); $event.stopPropagation()"
-                    [appTooltip]="statusTooltip(task.status)">
-                    @if (task.status === 'done') {
-                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><polyline points="20,6 9,17 4,12"/></svg>
-                    } @else if (task.status === 'in-progress') {
-                      <div class="progress-dot"></div>
-                    }
-                  </button>
-                  <div class="task-info">
-                    <span class="task-title" [appTooltip]="task.title">{{ task.title }}</span>
-                    <div class="task-meta">
-                      @if (task.deadline) {
-                        <span class="meta-badge deadline" [class.overdue]="isOverdue(task)">
-                          <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12,6 12,12 16,14"/></svg>
-                          {{ formatDeadline(task.deadline) }}
-                        </span>
-                      }
-                      @if (task.quadrant) {
-                        <span class="meta-badge quadrant">{{ quadrantLabel(task.quadrant) }}</span>
-                      }
-                      @if (task.recurrence) {
-                        <span class="meta-badge recurring">
-                          <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 2l4 4-4 4"/><path d="M3 11V9a4 4 0 014-4h14"/><path d="M7 22l-4-4 4-4"/><path d="M21 13v2a4 4 0 01-4 4H3"/></svg>
-                          {{ task.recurrence.frequency }}
-                        </span>
-                      }
-                      <span class="meta-badge updated" [appTooltip]="'Last changed ' + formatActivity(task)">
-                        {{ formatActivity(task) }}
-                      </span>
-                    </div>
-                  </div>
-                  <span class="status-tag" [class]="task.status">{{ statusLabel(task.status) }}</span>
-                  <div class="task-actions">
-                    <span class="priority-badge p{{ task.priority }}">P{{ task.priority }}</span>
-                    <button class="icon-btn" [appTooltip]="task.todayOrder !== null ? 'Remove from Today' : 'Add to Today'"
-                      (click)="toggleToday(task); $event.stopPropagation()">
-                      <svg width="14" height="14" viewBox="0 0 24 24" [attr.fill]="task.todayOrder !== null ? '#8b5cf6' : 'none'" stroke="currentColor" stroke-width="2"><path d="M12 2L15.09 8.26L22 9.27L17 14.14L18.18 21.02L12 17.77L5.82 21.02L7 14.14L2 9.27L8.91 8.26L12 2Z"/></svg>
-                    </button>
-                    <button class="icon-btn delete" (click)="deleteTask(task.id); $event.stopPropagation()" appTooltip="Delete">
-                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3,6 5,6 21,6"/><path d="M19,6v14a2,2,0,0,1-2,2H7a2,2,0,0,1-2-2V6M8,6V4a2,2,0,0,1,2-2h4a2,2,0,0,1,2,2V6"/></svg>
-                    </button>
-                  </div>
+                  <polyline points="9,6 15,12 9,18" />
+                </svg>
+                <span class="group-label">{{ group.label }}</span>
+                <span class="group-count">{{ group.tasks.length }}</span>
+                @if (group.doneCount > 0) {
+                  <span class="group-done">{{ group.doneCount }} done</span>
+                }
+              </button>
+
+              @if (isGroupOpen(group.key)) {
+                <div class="group-board" [id]="'task-group-' + group.key">
+                  <app-task-board
+                    [tasks]="group.tasks"
+                    [actions]="boardActions"
+                    emptyText="Drop a task here"
+                    (moved)="onMoved($event)"
+                    (opened)="openEditPanel($event)"
+                    (todayToggled)="toggleToday($event)"
+                    (deleteRequested)="deleteTask($event.id)"
+                  />
                 </div>
               }
-            }
-          </div>
+            </section>
+          }
         </div>
       }
 
@@ -212,63 +277,134 @@ const FALLBACK_VIEWPORT_HEIGHT = 520;
           <div class="panel-header">
             <h2>{{ editingTask() ? 'Edit Task' : 'New Task' }}</h2>
             <button class="icon-btn" (click)="closePanel()">
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+              <svg
+                width="18"
+                height="18"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+              >
+                <line x1="18" y1="6" x2="6" y2="18" />
+                <line x1="6" y1="6" x2="18" y2="18" />
+              </svg>
             </button>
           </div>
           <form class="panel-form" (submit)="onSubmitTask($event)">
             <app-form-field label="Title" [fieldState]="taskForm.title()" [hint]="titleHint()">
-              <input type="text" [formField]="taskForm.title" placeholder="What needs to be done?" autofocus />
+              <input
+                #taskTitleInput
+                type="text"
+                [formField]="taskForm.title"
+                placeholder="What needs to be done?"
+              />
             </app-form-field>
-            <app-form-field label="Description" [fieldState]="taskForm.description()" [hint]="descriptionHint()">
-              <textarea [formField]="taskForm.description" rows="3" placeholder="Optional details..."></textarea>
-            </app-form-field>
-            <div class="form-row">
-              <app-form-field label="Priority" [fieldState]="taskForm.priority()">
-                <select [formField]="taskForm.priority">
-                  <option value="1">P1 — Critical</option>
-                  <option value="2">P2 — High</option>
-                  <option value="3">P3 — Medium</option>
-                  <option value="4">P4 — Low</option>
-                </select>
-              </app-form-field>
-              <app-form-field label="Quadrant" [fieldState]="taskForm.quadrant()">
-                <select [formField]="taskForm.quadrant">
-                  <option value="">Unassigned</option>
-                  <option value="urgent-important">Urgent + Important</option>
-                  <option value="important">Important</option>
-                  <option value="urgent">Urgent</option>
-                  <option value="neither">Neither</option>
-                </select>
-              </app-form-field>
-            </div>
-            <app-form-field label="Deadline" [fieldState]="taskForm.deadline()" hint="Must be a future date if set">
-              <input type="date" [formField]="taskForm.deadline" />
-            </app-form-field>
-            <!-- Recurrence config -->
-            <app-form-field label="Repeat" [fieldState]="taskForm.recurFrequency()">
-              <select [formField]="taskForm.recurFrequency">
-                <option value="">No repeat</option>
-                <option value="daily">Daily</option>
-                <option value="weekly">Weekly</option>
-                <option value="monthly">Monthly</option>
-              </select>
-            </app-form-field>
-            @if (taskFormModel().recurFrequency) {
-              <div class="recurrence-options">
-                @if (taskFormModel().recurFrequency === 'weekly') {
-                  <div class="form-group">
-                    <label>Days</label>
-                    <div class="day-picker">
-                      @for (d of weekDays; track d.value) {
-                        <button type="button" class="day-btn" [class.active]="formRecurDays.includes(d.value)"
-                          (click)="toggleDay(d.value)">{{ d.label }}</button>
-                      }
-                    </div>
+
+            <!-- A title is enough: state plainly what the hidden fields will be -->
+            <p class="defaults-note">
+              Only a title is needed. It is saved with <strong>{{ advancedSummary() }}</strong
+              >.
+              <span
+                >Title up to {{ titleMax }} characters · description up to
+                {{ descriptionMax }} characters.</span
+              >
+            </p>
+
+            <button
+              class="advanced-toggle"
+              type="button"
+              [attr.aria-expanded]="advancedOpen()"
+              (click)="advancedOpen.set(!advancedOpen())"
+            >
+              <svg
+                width="12"
+                height="12"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2.5"
+                [class.open]="advancedOpen()"
+              >
+                <polyline points="9,6 15,12 9,18" />
+              </svg>
+              {{ advancedOpen() ? 'Hide advanced options' : 'Advanced options' }}
+            </button>
+
+            @if (advancedOpen()) {
+              <div class="advanced-fields">
+                <app-form-field
+                  label="Description"
+                  [fieldState]="taskForm.description()"
+                  [hint]="descriptionHint()"
+                >
+                  <textarea
+                    [formField]="taskForm.description"
+                    rows="3"
+                    placeholder="Optional details..."
+                  ></textarea>
+                </app-form-field>
+                <div class="form-row">
+                  <app-form-field label="Priority" [fieldState]="taskForm.priority()">
+                    <select [formField]="taskForm.priority">
+                      <option value="1">P1 — Critical</option>
+                      <option value="2">P2 — High</option>
+                      <option value="3">P3 — Medium</option>
+                      <option value="4">P4 — Low</option>
+                    </select>
+                  </app-form-field>
+                  <app-form-field label="Quadrant" [fieldState]="taskForm.quadrant()">
+                    <select [formField]="taskForm.quadrant">
+                      <option value="">Unassigned</option>
+                      <option value="urgent-important">Urgent + Important</option>
+                      <option value="important">Important</option>
+                      <option value="urgent">Urgent</option>
+                      <option value="neither">Neither</option>
+                    </select>
+                  </app-form-field>
+                </div>
+                <app-form-field
+                  label="Deadline"
+                  [fieldState]="taskForm.deadline()"
+                  hint="Starts on today — move it to any later day, or clear it for no deadline"
+                >
+                  <input type="date" [formField]="taskForm.deadline" />
+                </app-form-field>
+                <!-- Recurrence config -->
+                <app-form-field label="Repeat" [fieldState]="taskForm.recurFrequency()">
+                  <select [formField]="taskForm.recurFrequency">
+                    <option value="">No repeat</option>
+                    <option value="daily">Daily</option>
+                    <option value="weekly">Weekly</option>
+                    <option value="monthly">Monthly</option>
+                  </select>
+                </app-form-field>
+                @if (taskFormModel().recurFrequency) {
+                  <div class="recurrence-options">
+                    @if (taskFormModel().recurFrequency === 'weekly') {
+                      <div class="form-group">
+                        <label>Days</label>
+                        <div class="day-picker">
+                          @for (d of weekDays; track d.value) {
+                            <button
+                              type="button"
+                              class="day-btn"
+                              [class.active]="formRecurDays.includes(d.value)"
+                              (click)="toggleDay(d.value)"
+                            >
+                              {{ d.label }}
+                            </button>
+                          }
+                        </div>
+                      </div>
+                    }
+                    <app-form-field
+                      label="End date (optional)"
+                      [fieldState]="taskForm.recurEndDate()"
+                    >
+                      <input type="date" [formField]="taskForm.recurEndDate" />
+                    </app-form-field>
                   </div>
                 }
-                <app-form-field label="End date (optional)" [fieldState]="taskForm.recurEndDate()">
-                  <input type="date" [formField]="taskForm.recurEndDate" />
-                </app-form-field>
               </div>
             }
             <div class="form-actions">
@@ -282,10 +418,7 @@ const FALLBACK_VIEWPORT_HEIGHT = 520;
       }
       <!-- Import from Excel -->
       @if (importOpen()) {
-        <app-task-import-panel
-          (closed)="closeImportPanel()"
-          (imported)="onTasksImported($event)"
-        />
+        <app-task-import-panel (closed)="closeImportPanel()" (imported)="onTasksImported($event)" />
       }
 
       <!-- Export to CSV -->
@@ -294,212 +427,509 @@ const FALLBACK_VIEWPORT_HEIGHT = 520;
       }
     </div>
   `,
-  styles: [`
-    :host { display: block; height: 100%; overflow: hidden; }
-    .tasks-layout { display: flex; flex-direction: column; height: 100%; min-height: 0; gap: 16px; }
-    .page-header {
-      display: flex; align-items: center; justify-content: space-between;
-    }
-    .header-left { display: flex; align-items: baseline; gap: 12px; }
-    .header-actions { display: flex; align-items: center; gap: 8px; }
-    .page-title { font-size: 1.5rem; font-weight: 800; letter-spacing: -0.5px; }
-    .task-count { font-size: 0.75rem; color: var(--color-text-muted); }
+  styles: [
+    `
+      :host {
+        display: block;
+        height: 100%;
+        overflow: hidden;
+      }
+      .tasks-layout {
+        display: flex;
+        flex-direction: column;
+        height: 100%;
+        min-height: 0;
+        gap: 16px;
+      }
+      .page-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+      }
+      .header-left {
+        display: flex;
+        align-items: baseline;
+        gap: 12px;
+      }
+      .header-actions {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+      }
+      .page-title {
+        font-size: 24px;
+        font-weight: 800;
+        letter-spacing: -0.5px;
+      }
+      .task-count {
+        font-size: 12px;
+        color: var(--color-text-muted);
+      }
 
-    .filters-bar { display: flex; align-items: center; gap: 12px; }
-    .search-box {
-      display: flex; align-items: center; gap: 8px;
-      background: var(--control-bg); border: 1px solid rgba(139,92,246,0.12);
-      border-radius: 10px; padding: 8px 14px; flex: 1; max-width: 320px;
-    }
-    .search-box svg { color: var(--color-text-muted); flex-shrink: 0; }
-    .search-box input {
-      background: transparent; border: none; outline: none; color: var(--color-text-primary);
-      font-size: 0.82rem; width: 100%;
-    }
-    .search-box input::placeholder { color: var(--color-text-muted); }
-    .clear-search {
-      display: flex; align-items: center; justify-content: center; flex-shrink: 0;
-      border: none; background: transparent; color: var(--color-text-muted); cursor: pointer; padding: 2px;
-    }
-    .clear-search:hover { color: var(--color-text-primary); }
-    .filter-chips { display: flex; gap: 6px; }
-    .chip {
-      padding: 5px 12px; font-size: 0.7rem; font-weight: 500;
-      background: var(--glass-bg); border: 1px solid rgba(139,92,246,0.1);
-      border-radius: 20px; color: var(--color-text-muted); cursor: pointer;
-      transition: all 0.2s;
-    }
-    .chip:hover { border-color: rgba(139,92,246,0.3); color: var(--color-text-secondary); }
-    .chip.active {
-      background: rgba(139,92,246,0.12); border-color: rgba(139,92,246,0.4);
-      color: var(--timer-work-color); font-weight: 600;
-    }
-    .chip span { opacity: 0.7; font-variant-numeric: tabular-nums; }
-    .sort-control {
-      display: flex; align-items: center; gap: 6px; margin-left: auto;
-      color: var(--color-text-muted); font-size: 0.7rem;
-    }
-    .sort-control select {
-      padding: 6px 8px; border: 1px solid rgba(139,92,246,0.12); border-radius: 8px;
-      background: var(--control-bg); color: var(--color-text-secondary); font: inherit; cursor: pointer;
-    }
+      .filters-bar {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+      }
+      .search-box {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        background: var(--control-bg);
+        border: 1px solid rgba(139, 92, 246, 0.12);
+        border-radius: 8px;
+        min-height: 36px;
+        padding: 0 12px;
+        flex: 1;
+        max-width: 320px;
+      }
+      .search-box svg {
+        color: var(--color-text-muted);
+        flex-shrink: 0;
+      }
+      .search-box input {
+        background: transparent;
+        border: none;
+        outline: none;
+        color: var(--color-text-primary);
+        font-size: 13px;
+        width: 100%;
+        height: 20px;
+        min-height: 0;
+        padding: 0;
+        line-height: 1.4;
+      }
+      .search-box input::placeholder {
+        color: var(--color-text-muted);
+      }
+      .clear-search {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        flex-shrink: 0;
+        border: none;
+        background: transparent;
+        color: var(--color-text-muted);
+        cursor: pointer;
+        padding: 2px;
+      }
+      .clear-search:hover {
+        color: var(--color-text-primary);
+      }
+      .sort-control {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        color: var(--color-text-muted);
+        font-size: 11px;
+      }
+      .sort-control select {
+        padding: 6px 8px;
+        border: 1px solid rgba(139, 92, 246, 0.12);
+        border-radius: 8px;
+        background: var(--control-bg);
+        color: var(--color-text-secondary);
+        font: inherit;
+        cursor: pointer;
+      }
+      .board-hint {
+        margin-left: auto;
+        font-size: 11px;
+        color: var(--color-text-muted);
+      }
+      .board-hint kbd {
+        font-family: var(--font-mono);
+        font-size: 10px;
+        padding: 1px 5px;
+        border: 1px solid rgba(139, 92, 246, 0.25);
+        border-radius: 4px;
+        color: var(--color-text-secondary);
+      }
+      @media (max-width: 1100px) {
+        .board-hint {
+          display: none;
+        }
+      }
 
-    .task-list {
-      flex: 1; min-height: 0; overflow-y: auto; position: relative;
-      padding-right: 4px;
-    }
-    .task-list.is-empty { display: flex; align-items: center; justify-content: center; }
-    .task-list::-webkit-scrollbar { width: 4px; }
-    .task-list::-webkit-scrollbar-thumb { background: rgba(139,92,246,0.2); border-radius: 4px; }
+      .board-empty {
+        flex: 1;
+        min-height: 0;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+      }
 
-    /* Virtual list: the canvas provides the scroll extent, rows are placed
-       absolutely and only the visible ones are ever created. */
-    .list-canvas { position: relative; width: 100%; }
+      /* Date sections — the page's scroll area, not the board's. */
+      .date-groups {
+        flex: 1;
+        min-height: 0;
+        overflow-y: auto;
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+        padding-right: 4px;
+      }
+      .date-groups::-webkit-scrollbar {
+        width: 6px;
+      }
+      .date-groups::-webkit-scrollbar-thumb {
+        background: rgba(139, 92, 246, 0.2);
+        border-radius: 2px;
+      }
 
-    .group-header {
-      position: absolute; left: 0; right: 0; box-sizing: border-box;
-      display: flex; align-items: center; gap: 8px; width: 100%;
-      padding: 0 10px; cursor: pointer; text-align: left;
-      background: transparent; border: none; border-bottom: 1px solid rgba(139,92,246,0.12);
-      color: var(--color-text-secondary); font: inherit;
-    }
-    .group-header:hover { color: var(--color-text-primary); background: rgba(139,92,246,0.05); }
-    .chevron { flex-shrink: 0; color: var(--color-text-muted); transition: transform 0.2s ease; }
-    .chevron.open { transform: rotate(90deg); }
-    .group-label { font-size: 0.74rem; font-weight: 700; letter-spacing: 0.02em; }
-    .group-count {
-      font-size: 0.6rem; padding: 1px 7px; border-radius: 999px;
-      background: rgba(255,255,255,0.06); color: var(--color-text-muted);
-    }
-    .group-done { font-size: 0.6rem; color: #34d399; margin-left: auto; }
+      .date-group {
+        flex-shrink: 0;
+        overflow: hidden;
+        background: var(--glass-bg);
+        border: 1px solid var(--glass-border);
+        border-radius: 14px;
+        transition: border-color 0.2s;
+      }
+      .date-group.open {
+        display: flex;
+        flex-direction: column;
+        border-color: rgba(139, 92, 246, 0.28);
+      }
+      /*
+     * A single open section fills the space left under the filters. As soon as
+     * another one is opened — by hand or with "Expand all" — every open section
+     * keeps its own full-height board and the date area scrolls instead of
+     * squeezing the columns.
+     */
+      .date-groups:not(.multi-open) .date-group.open {
+        flex: 1 1 0;
+      }
+      .date-groups.multi-open .date-group.open {
+        flex: 0 0 auto;
+      }
+      .group-header {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        width: 100%;
+        padding: 10px 14px;
+        border: none;
+        background: transparent;
+        color: var(--color-text-secondary);
+        font: inherit;
+        text-align: left;
+        cursor: pointer;
+      }
+      .group-header:hover {
+        color: var(--color-text-primary);
+        background: rgba(139, 92, 246, 0.06);
+      }
+      .group-header:focus-visible {
+        outline: 2px solid var(--color-accent-glow);
+        outline-offset: -2px;
+      }
+      .chevron {
+        flex-shrink: 0;
+        color: var(--color-text-muted);
+        transition: transform 0.2s ease;
+      }
+      .chevron.open {
+        transform: rotate(90deg);
+      }
+      .group-label {
+        font-size: 12px;
+        font-weight: 700;
+        letter-spacing: 0.01em;
+      }
+      .group-count {
+        font-size: 10px;
+        padding: 1px 8px;
+        border-radius: 999px;
+        background: rgba(255, 255, 255, 0.06);
+        color: var(--color-text-muted);
+        font-variant-numeric: tabular-nums;
+      }
+      .group-done {
+        margin-left: auto;
+        font-size: 10px;
+        color: #34d399;
+      }
+      /* Every open section gets a board of its own; the columns scroll inside it. */
+      .group-board {
+        flex: 1 1 0;
+        min-height: 220px;
+        height: auto;
+        padding: 0 10px 10px;
+      }
+      .date-groups.multi-open .group-board {
+        flex: 0 0 auto;
+        height: calc(100vh - 220px);
+        min-height: 320px;
+      }
+      .group-board app-task-board {
+        display: block;
+        height: 100%;
+      }
 
-    .task-row {
-      position: absolute; left: 0; right: 0; box-sizing: border-box;
-      display: flex; align-items: center; gap: 12px; padding: 10px 16px;
-      background: var(--glass-bg); border: 1px solid rgba(139,92,246,0.06);
-      border-radius: 12px; cursor: pointer; transition: background 0.2s, border-color 0.2s;
-    }
-    .task-row:hover {
-      background: rgba(139,92,246,0.04); border-color: rgba(139,92,246,0.15);
-    }
-    .task-row.done { opacity: 0.5; }
-    .task-row.done .task-title { text-decoration: line-through; }
-    .task-row.in-progress { border-color: var(--status-in-progress-bg); }
-    .meta-badge.updated { background: rgba(255,255,255,0.03); }
-    .collapse-toggle { margin-left: 8px; white-space: nowrap; }
+      .empty-state {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        flex-direction: column;
+        gap: 12px;
+        padding: 60px 20px;
+        color: var(--color-text-muted);
+        font-size: 14px;
+      }
+      .empty-actions {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        flex-wrap: wrap;
+        justify-content: center;
+      }
 
-    .status-btn {
-      width: 22px; height: 22px; border-radius: 6px; border: 2px solid rgba(139,92,246,0.3);
-      background: transparent; display: flex; align-items: center; justify-content: center;
-      cursor: pointer; transition: all 0.2s; flex-shrink: 0;
-    }
-    .status-btn:hover { border-color: #8b5cf6; }
-    .status-btn.done { background: var(--color-accent-primary); border-color: var(--color-accent-primary); }
-    .status-btn.done svg { color: white; }
-    .status-btn.in-progress { border-color: var(--status-in-progress-color); }
-    .progress-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--status-in-progress-color); }
+      /* Slide Panel */
+      .panel-backdrop {
+        position: fixed;
+        inset: 0;
+        background: rgba(0, 0, 0, 0.5);
+        z-index: 100;
+        backdrop-filter: blur(2px);
+      }
+      .slide-panel {
+        position: fixed;
+        top: 0;
+        right: 0;
+        bottom: 0;
+        width: 420px;
+        max-width: 90vw;
+        background: var(--color-bg-secondary);
+        border-left: 1px solid rgba(139, 92, 246, 0.15);
+        z-index: 101;
+        display: flex;
+        flex-direction: column;
+        padding: 24px;
+        animation: slide-in 0.2s ease-out;
+      }
+      @keyframes slide-in {
+        from {
+          transform: translateX(100%);
+        }
+        to {
+          transform: translateX(0);
+        }
+      }
+      .panel-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        margin-bottom: 24px;
+      }
+      .panel-header h2 {
+        font-size: 18px;
+        font-weight: 700;
+      }
+      .panel-form {
+        display: flex;
+        flex-direction: column;
+        gap: 18px;
+        flex: 1;
+      }
+      .form-group {
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+      }
+      .form-group label {
+        font-size: 12px;
+        font-weight: 600;
+        color: var(--color-text-muted);
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+      }
+      .form-group input,
+      .form-group textarea,
+      .form-group select {
+        background: var(--control-bg);
+        border: 1px solid rgba(139, 92, 246, 0.12);
+        border-radius: 10px;
+        padding: 10px 14px;
+        color: var(--color-text-primary);
+        font-size: 14px;
+        outline: none;
+        transition: border-color 0.2s;
+      }
+      .form-group input:focus,
+      .form-group textarea:focus,
+      .form-group select:focus {
+        border-color: rgba(139, 92, 246, 0.4);
+      }
+      .form-group textarea {
+        resize: vertical;
+        min-height: 80px;
+      }
+      .form-group select {
+        cursor: pointer;
+      }
+      .form-group select option {
+        background: var(--color-bg-secondary);
+      }
+      .form-row {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 12px;
+      }
+      .form-actions {
+        display: flex;
+        gap: 10px;
+        justify-content: flex-end;
+        margin-top: auto;
+        padding-top: 16px;
+      }
 
-    .task-info { flex: 1; min-width: 0; }
-    /* Very long titles are clamped, never allowed to push the row out of shape. */
-    .task-title {
-      font-size: 0.85rem; font-weight: 500; color: var(--color-text-primary);
-      display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical;
-      overflow: hidden; overflow-wrap: anywhere;
-    }
-    .task-meta { display: flex; gap: 8px; margin-top: 4px; }
-    .meta-badge {
-      display: flex; align-items: center; gap: 4px;
-      font-size: 0.65rem; color: var(--color-text-muted); padding: 2px 8px;
-      background: var(--glass-bg); border-radius: 6px;
-    }
-    .meta-badge.overdue { color: #f87171; background: rgba(248,113,113,0.08); }
-
-    .task-actions { display: flex; align-items: center; gap: 6px; flex-shrink: 0; }
-    .status-tag {
-      font-size: 0.6rem; font-weight: 600; padding: 2px 8px; border-radius: 8px;
-      letter-spacing: 0.03em; text-transform: uppercase; flex-shrink: 0;
-    }
-    .status-tag.todo { background: var(--status-todo-bg); color: var(--status-todo-color); }
-    .status-tag.in-progress { background: var(--status-in-progress-bg); color: var(--status-in-progress-color); }
-    .status-tag.done { background: var(--status-done-bg); color: var(--status-done-color); }
-    .priority-badge {
-      font-size: 0.6rem; font-weight: 700; padding: 2px 7px; border-radius: 6px;
-      font-family: var(--font-mono);
-    }
-    .priority-badge.p1 { background: var(--priority-p1-bg); color: var(--priority-p1-color); }
-    .priority-badge.p2 { background: var(--priority-p2-bg); color: var(--priority-p2-color); }
-    .priority-badge.p3 { background: var(--priority-p3-bg); color: var(--priority-p3-color); }
-    .priority-badge.p4 { background: var(--priority-p4-bg); color: var(--priority-p4-color); }
-
-    .icon-btn {
-      width: 28px; height: 28px; border-radius: 8px; border: none; background: transparent;
-      display: flex; align-items: center; justify-content: center;
-      color: var(--color-text-muted); cursor: pointer; transition: all 0.2s;
-    }
-    .icon-btn:hover { background: rgba(139,92,246,0.1); color: var(--timer-work-color); }
-    .icon-btn.delete:hover { background: rgba(239,68,68,0.1); color: #f87171; }
-
-    .empty-state {
-      display: flex; align-items: center; justify-content: center;
-      flex-direction: column; gap: 12px; padding: 60px 20px; color: var(--color-text-muted); font-size: 0.85rem;
-    }
-    .empty-actions { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; justify-content: center; }
-
-    /* Slide Panel */
-    .panel-backdrop {
-      position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 100;
-      backdrop-filter: blur(2px);
-    }
-    .slide-panel {
-      position: fixed; top: 0; right: 0; bottom: 0; width: 420px; max-width: 90vw;
-      background: var(--color-bg-secondary); border-left: 1px solid rgba(139,92,246,0.15);
-      z-index: 101; display: flex; flex-direction: column; padding: 24px;
-      animation: slide-in 0.2s ease-out;
-    }
-    @keyframes slide-in {
-      from { transform: translateX(100%); }
-      to { transform: translateX(0); }
-    }
-    .panel-header {
-      display: flex; align-items: center; justify-content: space-between; margin-bottom: 24px;
-    }
-    .panel-header h2 { font-size: 1.1rem; font-weight: 700; }
-    .panel-form { display: flex; flex-direction: column; gap: 18px; flex: 1; }
-    .form-group { display: flex; flex-direction: column; gap: 6px; }
-    .form-group label { font-size: 0.72rem; font-weight: 600; color: var(--color-text-muted); text-transform: uppercase; letter-spacing: 0.05em; }
-    .form-group input, .form-group textarea, .form-group select {
-      background: var(--control-bg); border: 1px solid rgba(139,92,246,0.12);
-      border-radius: 10px; padding: 10px 14px; color: var(--color-text-primary);
-      font-size: 0.85rem; outline: none; transition: border-color 0.2s;
-    }
-    .form-group input:focus, .form-group textarea:focus, .form-group select:focus {
-      border-color: rgba(139,92,246,0.4);
-    }
-    .form-group textarea { resize: vertical; min-height: 80px; }
-    .form-group select { cursor: pointer; }
-    .form-group select option { background: var(--color-bg-secondary); }
-    .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
-    .form-actions { display: flex; gap: 10px; justify-content: flex-end; margin-top: auto; padding-top: 16px; }
-
-    .btn { padding: 8px 18px; border-radius: 10px; font-size: 0.8rem; font-weight: 600; cursor: pointer; border: none; transition: all 0.2s; }
-    .btn-primary { background: linear-gradient(135deg, #8b5cf6, #7c3aed); color: white; }
-    .btn-primary:hover { transform: translateY(-1px); box-shadow: 0 4px 16px rgba(139,92,246,0.3); }
-    .btn-primary:disabled { opacity: 0.4; cursor: not-allowed; transform: none; }
-    .btn-ghost { background: transparent; color: var(--color-text-muted); }
-    .btn-ghost:hover { color: var(--color-text-primary); }
-    .btn-outline {
-      background: transparent; color: var(--color-text-secondary);
-      border: 1px solid rgba(139, 92, 246, 0.3);
-    }
-    .btn-outline:hover { border-color: rgba(139, 92, 246, 0.6); color: var(--color-text-primary); }
-    .btn-sm { padding: 6px 14px; font-size: 0.75rem; display: flex; align-items: center; gap: 6px; }
-    .recurrence-options { padding: 8px 0; display: flex; flex-direction: column; gap: 12px; }
-    .day-picker { display: flex; gap: 4px; flex-wrap: wrap; }
-    .day-btn { width: 36px; height: 36px; border-radius: 50%; border: 1px solid rgba(139,92,246,0.3); background: transparent; color: var(--color-text-muted); cursor: pointer; font-size: 0.7rem; transition: all 0.2s; }
-    .day-btn.active { background: rgba(139,92,246,0.3); border-color: rgba(139,92,246,0.7); color: var(--color-text-primary); }
-    .day-btn:hover { border-color: rgba(139,92,246,0.6); }
-    .meta-badge.recurring { background: rgba(139,92,246,0.15); color: rgb(167,139,250); display: inline-flex; align-items: center; gap: 3px; }
-  `]
+      .btn {
+        padding: 8px 18px;
+        border-radius: 10px;
+        font-size: 13px;
+        font-weight: 600;
+        cursor: pointer;
+        border: none;
+        transition: all 0.2s;
+      }
+      .btn-primary {
+        background: linear-gradient(135deg, #8b5cf6, #7c3aed);
+        color: white;
+      }
+      .btn-primary:hover {
+        transform: translateY(-1px);
+        box-shadow: 0 4px 16px rgba(139, 92, 246, 0.3);
+      }
+      .btn-primary:disabled {
+        opacity: 0.4;
+        cursor: not-allowed;
+        transform: none;
+      }
+      .btn-ghost {
+        background: transparent;
+        color: var(--color-text-muted);
+      }
+      .btn-ghost:hover {
+        color: var(--color-text-primary);
+      }
+      .btn-outline {
+        background: transparent;
+        color: var(--color-text-secondary);
+        border: 1px solid rgba(139, 92, 246, 0.3);
+      }
+      .btn-outline:hover {
+        border-color: rgba(139, 92, 246, 0.6);
+        color: var(--color-text-primary);
+      }
+      .btn-sm {
+        padding: 6px 14px;
+        font-size: 12px;
+        display: flex;
+        align-items: center;
+        gap: 6px;
+      }
+      .btn-sm svg {
+        transition: transform 0.2s ease;
+      }
+      .btn-sm svg.open {
+        transform: rotate(90deg);
+      }
+      .icon-btn {
+        width: 28px;
+        height: 28px;
+        border-radius: 8px;
+        border: none;
+        background: transparent;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: var(--color-text-muted);
+        cursor: pointer;
+        transition: all 0.2s;
+      }
+      .icon-btn:hover {
+        background: rgba(139, 92, 246, 0.1);
+        color: var(--timer-work-color);
+      }
+      .recurrence-options {
+        padding: 8px 0;
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+      }
+      .defaults-note {
+        margin: -6px 0 0;
+        padding: 9px 12px;
+        border-radius: 10px;
+        font-size: 12px;
+        line-height: 1.5;
+        color: var(--color-text-muted);
+        background: rgba(139, 92, 246, 0.07);
+        border: 1px solid rgba(139, 92, 246, 0.16);
+      }
+      .defaults-note strong {
+        color: var(--color-text-secondary);
+      }
+      .defaults-note span {
+        display: block;
+        margin-top: 3px;
+        opacity: 0.85;
+      }
+      .advanced-toggle {
+        display: flex;
+        align-items: center;
+        gap: 7px;
+        align-self: flex-start;
+        padding: 0;
+        border: none;
+        background: transparent;
+        color: var(--color-text-secondary);
+        font: inherit;
+        font-size: 12px;
+        font-weight: 600;
+        cursor: pointer;
+      }
+      .advanced-toggle:hover {
+        color: var(--color-text-primary);
+      }
+      .advanced-toggle svg {
+        transition: transform 0.2s ease;
+        color: var(--color-text-muted);
+      }
+      .advanced-toggle svg.open {
+        transform: rotate(90deg);
+      }
+      .advanced-fields {
+        display: flex;
+        flex-direction: column;
+        gap: 16px;
+      }
+      .day-picker {
+        display: flex;
+        gap: 4px;
+        flex-wrap: wrap;
+      }
+      .day-btn {
+        width: 36px;
+        height: 36px;
+        border-radius: 50%;
+        border: 1px solid rgba(139, 92, 246, 0.3);
+        background: transparent;
+        color: var(--color-text-muted);
+        cursor: pointer;
+        font-size: 11px;
+        transition: all 0.2s;
+      }
+      .day-btn.active {
+        background: rgba(139, 92, 246, 0.3);
+        border-color: rgba(139, 92, 246, 0.7);
+        color: var(--color-text-primary);
+      }
+      .day-btn:hover {
+        border-color: rgba(139, 92, 246, 0.6);
+      }
+    `,
+  ],
 })
 export class TasksComponent implements OnInit {
   private taskService = inject(TaskService);
@@ -507,22 +937,63 @@ export class TasksComponent implements OnInit {
   private readonly route = inject(ActivatedRoute);
   private readonly router = inject(Router);
 
-  activeFilter = signal<'all' | TaskStatus>('todo');
   sortBy = signal<SortKey>('updated');
   panelOpen = signal(false);
   editingTask = signal<Task | null>(null);
+  /** The rest of the form, folded away behind "Advanced options". */
+  readonly advancedOpen = signal(false);
   importOpen = signal(false);
   exportOpen = signal(false);
+  /** Task ids on the board when the import panel opened — see `onTasksImported`. */
+  private idsBeforeImport = new Set<string>();
 
-  // ── Grouped, virtualised list ─────────────────────────────────────────────
-  /** Date groups the user has open. Normally at most one (accordion). */
-  readonly openGroups = signal<string[]>([]);
-  readonly scrollTop = signal(0);
-  readonly viewportHeight = signal(520);
-  private readonly scrollerRef = viewChild<ElementRef<HTMLElement>>('scroller');
-  private resizeObserver: ResizeObserver | null = null;
-  private observedScroller: HTMLElement | null = null;
-  private groupsInitialised = false;
+  /** The panel's title field — focused as soon as the panel opens. */
+  private readonly taskTitleInput = viewChild<ElementRef<HTMLInputElement>>('taskTitleInput');
+
+  constructor() {
+    // `autofocus` does nothing for markup the browser first sees when the panel
+    // is opened, so the title is focused here — the same way the quick-add
+    // dialog does it. Adding a task asks for a title, so that is where the
+    // cursor belongs; editing starts there too.
+    effect(() => {
+      if (!this.panelOpen()) return;
+      this.taskTitleInput()?.nativeElement.focus();
+    });
+
+    // Keep the open sections in step with what is on the page: the newest
+    // section opens on first paint, a section that disappears (a search, an
+    // edit, a delete) drops out of the list, and a search opens its matches.
+    effect(() => {
+      const groups = this.taskGroups();
+      const keys = groups.map((group) => group.key);
+      const searching = this.searchQuery().trim() !== '';
+      const previous = untracked(() => this.openGroups());
+
+      if (!keys.length) {
+        if (previous.length) this.openGroups.set([]);
+        return;
+      }
+
+      if (searching) {
+        if (keys.some((key) => !previous.includes(key))) this.openGroups.set(keys);
+        return;
+      }
+
+      if (!untracked(() => this.groupsInitialised)) {
+        this.groupsInitialised = true;
+        this.openGroups.set([this.defaultOpenKey(groups)]);
+        return;
+      }
+
+      const surviving = previous.filter((key) => keys.includes(key));
+      if (surviving.length !== previous.length) {
+        this.openGroups.set(surviving.length ? surviving : [this.defaultOpenKey(groups)]);
+      }
+    });
+  }
+
+  /** Buttons every card on this page carries. */
+  readonly boardActions = ['today', 'delete'] as const;
 
   // Search form
   private readonly searchModel = signal<SearchFormModel>(createSearchFormDefaults());
@@ -560,12 +1031,34 @@ export class TasksComponent implements OnInit {
    * hints just make the cap visible.
    */
   readonly titleMax = TASK_TITLE_MAX_LENGTH;
+  readonly descriptionMax = TASK_DESCRIPTION_MAX_LENGTH;
   readonly titleHint = computed(
-    () => `${this.taskFormModel().title.trim().length}/${TASK_TITLE_MAX_LENGTH} characters`
+    () => `${this.taskFormModel().title.trim().length}/${TASK_TITLE_MAX_LENGTH} characters`,
   );
   readonly descriptionHint = computed(
-    () => `${this.taskFormModel().description.trim().length}/${TASK_DESCRIPTION_MAX_LENGTH} characters`
+    () =>
+      `${this.taskFormModel().description.trim().length}/${TASK_DESCRIPTION_MAX_LENGTH} characters`,
   );
+
+  /**
+   * What the folded-away fields will be, in plain words — so the Add form can be
+   * a single title field without anyone having to guess what gets saved.
+   */
+  readonly advancedSummary = computed(() => {
+    const model = this.taskFormModel();
+    const priority = PRIORITY_LABELS[model.priority] ?? 'P3 Medium';
+    const today = createTaskFormDefaults().deadline;
+    const due = !model.deadline
+      ? 'no deadline'
+      : model.deadline === today
+        ? 'due today'
+        : `due ${new Date(`${model.deadline}T00:00:00`).toLocaleDateString(undefined, { day: 'numeric', month: 'short' })}`;
+    const quadrant = model.quadrant
+      ? QUADRANT_CONFIG[model.quadrant as TaskQuadrant].label
+      : 'no quadrant';
+    const repeat = model.recurFrequency ? `repeats ${model.recurFrequency}` : 'no repeat';
+    return `${priority} · ${due} · ${quadrant} · ${repeat}`;
+  });
 
   weekDays = [
     { label: 'Sun', value: 0 },
@@ -577,56 +1070,76 @@ export class TasksComponent implements OnInit {
     { label: 'Sat', value: 6 },
   ];
 
-  statusFilters = [
-    { label: 'All', value: 'all' as const },
-    { label: 'To Do', value: 'todo' as const },
-    { label: 'In Progress', value: 'in-progress' as const },
-    { label: 'Done', value: 'done' as const },
-  ];
-
+  /**
+   * The board is the list: search narrows it, the sort control orders every
+   * column, and the columns themselves are the status filter — so no task is
+   * ever hidden behind a pill. What survives is then filed into date sections.
+   */
   filteredTasks = computed(() => {
     let tasks = this.taskService.tasks();
     const q = this.searchQuery().toLowerCase();
     if (q) {
-      tasks = tasks.filter(t => t.title.toLowerCase().includes(q) || t.description.toLowerCase().includes(q));
-    }
-    const filter = this.activeFilter();
-    if (filter !== 'all') {
-      tasks = tasks.filter(t => t.status === filter);
+      tasks = tasks.filter(
+        (t) => t.title.toLowerCase().includes(q) || t.description.toLowerCase().includes(q),
+      );
     }
     return [...tasks].sort((a, b) => this.compareTasks(a, b, this.sortBy()));
   });
 
-  /**
-   * Search and filters run over every date; whatever survives is grouped by the
-   * day it was last touched, newest day first.
-   */
-  readonly taskGroups = computed<DateGroup[]>(() => groupByDay(this.filteredTasks()));
+  // ── Date sections ──────────────────────────────────────────────────────────
+  /** The tasks, filed by their own date — today first, then back through time. */
+  readonly taskGroups = computed<TaskDateGroup[]>(() => groupTasksByDate(this.filteredTasks()));
 
-  /** Flattened rows with pixel offsets — the only thing the viewport renders. */
-  readonly rows = computed<ListRow[]>(() => buildRows(this.taskGroups(), this.openGroups()));
-
-  readonly totalHeight = computed(() => totalHeight(this.rows()));
-
-  /**
-   * Windowing: only the rows that can actually be seen (plus a small buffer)
-   * are handed to the template, so everything below the fold is created on
-   * demand instead of sitting in the DOM.
-   */
-  readonly visibleRows = computed(() =>
-    windowRows(this.rows(), this.scrollTop(), this.viewportHeight(), OVERSCAN_PX)
-  );
+  /** Sections the user has open. Today starts open; the rest are one click away. */
+  readonly openGroups = signal<string[]>([]);
+  private groupsInitialised = false;
 
   readonly allExpanded = computed(() => {
-    const keys = this.taskGroups().map(group => group.key);
-    if (!keys.length) return false;
-    const open = new Set(this.openGroups());
-    return keys.every(key => open.has(key));
+    const keys = this.taskGroups().map((group) => group.key);
+    return keys.length > 0 && keys.every((key) => this.openGroups().includes(key));
   });
+
+  isGroupOpen(key: string): boolean {
+    return this.openGroups().includes(key);
+  }
+
+  /** Sections open independently, so yesterday can be read next to today. */
+  toggleGroup(key: string): void {
+    const open = this.openGroups();
+    this.openGroups.set(open.includes(key) ? open.filter((k) => k !== key) : [...open, key]);
+  }
+
+  toggleAllGroups(): void {
+    this.openGroups.set(this.allExpanded() ? [] : this.taskGroups().map((group) => group.key));
+  }
+
+  /**
+   * Opens the sections the given tasks belong to, keeping the rest as they were.
+   * Anything just added or imported should be visible, wherever its date puts it.
+   */
+  private openSectionsFor(tasks: readonly Task[]): void {
+    if (!tasks.length) return;
+    // Revealing a task settles which sections are open, so the "first paint
+    // opens one section" branch below cannot overwrite it afterwards — the
+    // imported tasks write into the list before this runs.
+    this.groupsInitialised = true;
+    const keys = new Set(this.openGroups());
+    for (const task of tasks) keys.add(sectionKeyFor(task));
+    this.openGroups.set([...keys]);
+  }
+
+  /** What to open for the user: today when it has tasks, otherwise the newest. */
+  private defaultOpenKey(groups: TaskDateGroup[]): string {
+    return (groups.find((group) => group.key === 'today') ?? groups[0]).key;
+  }
 
   async ngOnInit(): Promise<void> {
     await this.db.init();
     await this.taskService.loadTasks();
+    // The Tasks page is a deep link like any other, so it opens the day the same
+    // way the boards do: expired work closed, quadrants re-asked, today's
+    // recurring instances in place.
+    await this.taskService.runDailyUpkeep();
     if (this.route.snapshot.queryParamMap.get('add') === '1') {
       this.openAddPanel();
       await this.router.navigate([], {
@@ -638,132 +1151,30 @@ export class TasksComponent implements OnInit {
     }
   }
 
-  ngOnDestroy(): void {
-    this.resizeObserver?.disconnect();
-  }
-
-  constructor() {
-    // Date groups drive two things: opening the newest one on first paint, and
-    // keeping the open group valid when search, filters or edits move tasks
-    // between groups.
-    effect(() => {
-      const keys = this.taskGroups().map(group => group.key);
-      const previous = untracked(() => this.openGroups());
-
-      if (!untracked(() => this.groupsInitialised)) {
-        if (!keys.length) return;
-        this.groupsInitialised = true;
-        this.openGroups.set([keys[0]]);
-        return;
-      }
-
-      const surviving = previous.filter(key => keys.includes(key));
-      if (surviving.length === previous.length) return;
-
-      // The open group disappeared (a search, a filter, or the last edit moved
-      // its tasks) — show the newest group that still has results. An empty
-      // selection the user chose on purpose ("Collapse all") is left alone.
-      this.openGroups.set(
-        surviving.length === 0 && previous.length > 0 && keys.length ? [keys[0]] : surviving
-      );
-    });
-
-    // The scroller only exists while there are groups, so it is picked up
-    // whenever it appears rather than once at startup.
-    effect(() => {
-      const element = this.scrollerRef()?.nativeElement;
-      if (!element || element === this.observedScroller) return;
-      this.observeScroller(element);
-    });
-  }
-
-  private observeScroller(element: HTMLElement): void {
-    this.resizeObserver?.disconnect();
-    this.observedScroller = element;
-    this.viewportHeight.set(element.clientHeight || FALLBACK_VIEWPORT_HEIGHT);
-    if (typeof ResizeObserver !== 'undefined') {
-      this.resizeObserver = new ResizeObserver(entries => {
-        const height = entries[0]?.contentRect.height;
-        if (height) this.viewportHeight.set(height);
-      });
-      this.resizeObserver.observe(element);
-    }
-  }
-
-  // ── Grouped list behaviour ────────────────────────────────────────────────
-
-  onScroll(event: Event): void {
-    this.scrollTop.set((event.target as HTMLElement).scrollTop);
-  }
-
-  isGroupOpen(key: string): boolean {
-    return this.openGroups().includes(key);
-  }
-
-  /** Accordion: opening a date closes the previous one, clicking it again closes it. */
-  toggleGroup(key: string): void {
-    const open = this.openGroups();
-    this.openGroups.set(open.includes(key) ? open.filter(k => k !== key) : [key]);
-    this.afterLayoutChange();
-  }
-
-  toggleAllGroups(): void {
-    this.openGroups.set(
-      this.allExpanded() ? [] : this.taskGroups().map(group => group.key)
-    );
-    this.afterLayoutChange();
-  }
-
-  /** A new filter or search reshuffles the groups, so show the newest one. */
-  private resetGroupFocus(): void {
-    const first = this.taskGroups()[0];
-    this.openGroups.set(first ? [first.key] : []);
-    this.groupsInitialised = true;
-    this.afterLayoutChange(true);
-  }
-
-  setFilter(filter: 'all' | TaskStatus): void {
-    this.activeFilter.set(filter);
-    this.resetGroupFocus();
-  }
-
-  private afterLayoutChange(resetScroll = false): void {
-    requestAnimationFrame(() => {
-      const element = this.scrollerRef()?.nativeElement;
-      if (!element) return;
-      if (resetScroll) element.scrollTop = 0;
-      const max = Math.max(0, this.totalHeight() - element.clientHeight);
-      if (element.scrollTop > max) element.scrollTop = max;
-      this.scrollTop.set(element.scrollTop);
-    });
-  }
-
-  /** "12 min ago" / "Yesterday 18:04" — the activity stamp shown on each row. */
-  formatActivity(task: Task): string {
-    const iso = taskActivityIso(task);
-    const date = new Date(iso);
-    if (Number.isNaN(date.getTime())) return '';
-    const minutes = Math.round((Date.now() - date.getTime()) / 60000);
-    if (minutes < 1) return 'just now';
-    if (minutes < 60) return `${minutes} min ago`;
-    const time = date.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' });
-    if (localDayKey(iso) === localDayKey(new Date().toISOString())) return time;
-    const yesterday = new Date();
-    yesterday.setDate(yesterday.getDate() - 1);
-    if (localDayKey(iso) === localDayKey(yesterday.toISOString())) return `Yesterday ${time}`;
-    return `${date.toLocaleDateString(undefined, { day: 'numeric', month: 'short' })} ${time}`;
-  }
-
   openAddPanel(): void {
     this.editingTask.set(null);
-    this.taskFormModel.set(createTaskFormDefaults());
+    // `reset` clears touched/dirty on the whole field tree, so a previously
+    // submitted form cannot reopen with its validation messages already shown.
+    this.taskForm().reset(createTaskFormDefaults());
     this.formRecurDays = [];
+    // Adding a task asks for a title; everything else keeps its default until
+    // the user opens Advanced options.
+    this.advancedOpen.set(false);
     this.panelOpen.set(true);
+  }
+
+  /**
+   * The import writes into the task list itself, so the ids that were there
+   * before the panel opened are how the page tells what the file brought in.
+   */
+  openImportPanel(): void {
+    this.idsBeforeImport = new Set(this.taskService.tasks().map((task) => task.id));
+    this.importOpen.set(true);
   }
 
   openEditPanel(task: Task): void {
     this.editingTask.set(task);
-    this.taskFormModel.set({
+    this.taskForm().reset({
       title: task.title,
       description: task.description,
       priority: String(task.priority),
@@ -773,6 +1184,8 @@ export class TasksComponent implements OnInit {
       recurEndDate: task.recurrence?.endDate ?? '',
     });
     this.formRecurDays = task.recurrence?.days ? [...task.recurrence.days] : [];
+    // Editing shows the whole form: the values are the point of the edit.
+    this.advancedOpen.set(true);
     this.panelOpen.set(true);
   }
 
@@ -785,9 +1198,15 @@ export class TasksComponent implements OnInit {
     this.importOpen.set(false);
   }
 
-  /** Called after the importer wrote tasks, so the list reflects the database. */
+  /** Called after the importer wrote tasks, so the board reflects the database. */
   async onTasksImported(result: ImportCommitResult): Promise<void> {
-    if (result.created > 0) await this.taskService.loadTasks();
+    if (result.created <= 0) return;
+    await this.taskService.loadTasks();
+    // A task with a deadline in another month lives in that month's section, and
+    // a card that lands in a folded section reads as a task the import lost.
+    this.openSectionsFor(
+      this.taskService.tasks().filter((task) => !this.idsBeforeImport.has(task.id)),
+    );
   }
 
   onSubmitTask(event: Event): void {
@@ -814,7 +1233,7 @@ export class TasksComponent implements OnInit {
           recurrence,
         });
       } else {
-        await this.taskService.createTask({
+        const created = await this.taskService.createTask({
           title: formData.title.trim(),
           description: formData.description.trim(),
           priority: Number(formData.priority) as 1 | 2 | 3 | 4,
@@ -822,21 +1241,21 @@ export class TasksComponent implements OnInit {
           deadline: formData.deadline || null,
           recurrence,
         });
+        // Its deadline decides the section, so a task for another month opens
+        // that month instead of disappearing into a folded header.
+        this.openSectionsFor([created]);
       }
       this.closePanel();
     });
   }
 
-  async toggleStatus(task: Task): Promise<void> {
-    await this.taskService.toggleStatus(task);
-  }
-
-  statusLabel(status: string): string {
-    return STATUS_CONFIG[status as TaskStatus]?.label ?? status;
-  }
-
-  statusTooltip(status: string): string {
-    return STATUS_CONFIG[status as TaskStatus]?.tooltip ?? 'Click to change status';
+  /**
+   * Dropping a card in another column *is* the status change. Dropping inside
+   * its own column changes nothing: the list is sorted, not hand-ordered.
+   */
+  async onMoved(move: BoardMove): Promise<void> {
+    if (move.task.status === move.status) return;
+    await this.taskService.setStatus(move.task, move.status);
   }
 
   async toggleToday(task: Task): Promise<void> {
@@ -855,32 +1274,11 @@ export class TasksComponent implements OnInit {
     this.searchModel.set(createSearchFormDefaults());
   }
 
-  filterCount(filter: 'all' | TaskStatus): number {
-    return filter === 'all'
-      ? this.taskService.tasks().length
-      : this.taskService.tasks().filter(task => task.status === filter).length;
-  }
-
   onSortChange(event: Event): void {
     const value = (event.target as HTMLSelectElement).value as SortKey;
     if (value === 'updated' || value === 'priority' || value === 'deadline' || value === 'newest') {
       this.sortBy.set(value);
-      this.resetGroupFocus();
     }
-  }
-
-  isOverdue(task: Task): boolean {
-    if (!task.deadline) return false;
-    return new Date(task.deadline) < new Date(new Date().toISOString().slice(0, 10));
-  }
-
-  formatDeadline(deadline: string): string {
-    const d = new Date(deadline);
-    return d.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
-  }
-
-  quadrantLabel(q: TaskQuadrant): string {
-    return QUADRANT_CONFIG[q].label;
   }
 
   toggleDay(day: number): void {

@@ -197,7 +197,7 @@ Both must be set for DevTools to work in **release** builds. In **debug** builds
 npm run build:windows -- --debug
 
 # The installer will be at:
-# src-tauri/target/x86_64-pc-windows-msvc/debug/bundle/nsis/DeepWork_2.0.12_x64-setup.exe
+# src-tauri/target/x86_64-pc-windows-msvc/debug/bundle/nsis/DeepWork_2.0.17_x64-setup.exe
 ```
 
 ### Toggle DevTools for Release Builds

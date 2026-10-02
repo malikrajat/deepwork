@@ -60,13 +60,20 @@ export function todayIsoDate(today = new Date()): string {
  * Values pre-filled into the template rows — mirrors the Add Task form defaults.
  * Deadline and Repeat End Date default to the day the template is downloaded,
  * so a task list typed today is scheduled for today out of the box.
+ *
+ * **Add to Today** defaults to `No`, and it is the deadline that puts a row on
+ * today's list: the pre-filled deadline is already today, so a row typed without
+ * touching the dates lands on Today either way, while a row given a later date
+ * stays on that day. `Yes` is the answer for one specific want — "also show this
+ * on today even though it is dated later" — and a default of `Yes` would quietly
+ * answer it for every dated row in the file.
  */
 export const IMPORT_DEFAULTS = {
   priority: PRIORITY_CONFIG[3].label,
   quadrant: QUADRANT_LABELS[0],
   status: STATUS_CONFIG.todo.label,
   repeat: REPEAT_LABELS[0],
-  addToToday: ADD_TO_TODAY_LABELS[0],
+  addToToday: 'No',
   tags: 'task',
 } as const;
 

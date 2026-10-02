@@ -1,0 +1,13 @@
+-- DeepWork: how long the mini widget shakes when it repeats the completion alert.
+--
+-- The shake is the alert's repeat made visible — a colour that is already on
+-- screen cannot say "this, again", and neither can a widget that is standing
+-- still — so the length of the shake is really a question about the alert tone
+-- it is beating along with. That made a fixed 2.2 seconds wrong for some people
+-- and right for others: the docked tone runs 0.6s, the bell 1.5s, and anyone who
+-- wants the widget to keep moving past the sound has nowhere to say so.
+--
+-- It is a setting now (`Alert shake` in Settings), with the fixed list in
+-- `ALERT_SHAKE_OPTIONS` and this as its default — the value the widget wore
+-- before the choice existed, which clears the longest tone with room to spare.
+ALTER TABLE settings ADD COLUMN alert_shake_ms INTEGER NOT NULL DEFAULT 2200;
