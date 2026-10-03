@@ -2,7 +2,11 @@
 
 ## Windows
 
-### 1. Node.js (v20+)
+### 1. Node.js (22.22.3+, 24.15.0+ or 26+)
+
+The repository pins its expected version in `.nvmrc` (24.15.0) and states the
+supported range in `package.json` → `engines`. If you use nvm, `nvm use` in the
+repository root picks the right one.
 
 ```powershell
 winget install OpenJS.NodeJS.LTS
@@ -51,11 +55,13 @@ winget install Microsoft.VisualStudioCode
 xcode-select --install
 ```
 
-### 2. Node.js (v20+)
+### 2. Node.js (22.22.3+, 24.15.0+ or 26+)
 
 ```bash
-brew install node@20
+brew install node@24
 ```
+
+Or with nvm: `nvm install && nvm use` in the repository root reads `.nvmrc`.
 
 ### 3. Git
 
@@ -86,10 +92,10 @@ sudo apt install -y build-essential curl wget file \
   librsvg2-dev patchelf
 ```
 
-### 2. Node.js (v20+)
+### 2. Node.js (22.22.3+, 24.15.0+ or 26+)
 
 ```bash
-curl -fsSL https://deb.nodesource.com/setup_20.x | sudo -E bash -
+curl -fsSL https://deb.nodesource.com/setup_24.x | sudo -E bash -
 sudo apt install -y nodejs
 ```
 
@@ -118,16 +124,16 @@ sudo snap install code --classic
 
 ```bash
 # Clone the repo
-git clone <your-repo-url>
-cd pomodoro
+git clone https://github.com/malikrajat/deepwork.git
+cd deepwork
 
 # Install npm dependencies
 npm install
 
-# Verify Angular builds
+# Verify the Angular build
 npx ng build
 
-# Run the full Tauri desktop app
+# Run the full Tauri desktop app (first Rust build takes 15–25 minutes)
 npx tauri dev
 ```
 
@@ -152,12 +158,19 @@ uv tool install specify-cli
 
 ## Verify everything works
 
-| Check | Command | Expected |
-|-------|---------|----------|
-| Node | `node --version` | v20+ |
-| npm | `npm --version` | 10+ |
-| Rust | `rustc --version` | 1.77+ |
-| Cargo | `cargo --version` | 1.77+ |
+| Check   | Command               | Expected                     |
+| ------- | --------------------- | ---------------------------- |
+| Node    | `node --version`      | v22.22.3+, v24.15.0+ or v26+ |
+| npm     | `npm --version`       | 11.x                         |
+| Rust    | `rustc --version`     | 1.77.2+                      |
+| Cargo   | `cargo --version`     | 1.77.2+                      |
+| Git     | `git --version`       | 2.x                          |
+| Angular | `npx ng version`      | 22.x (framework and CLI)     |
+| Tauri   | `npx tauri --version` | 2.x                          |
+
+Then, with the repo installed, `npm run start` serves the browser build on
+**http://localhost:4999** — the port `tauri.conf.json` points its `devUrl` at. The
+Playwright suite starts its own server on 4202 so the two never collide.
 
 ---
 
@@ -167,28 +180,34 @@ uv tool install specify-cli
 
 DevTools are controlled by two things:
 
-**1. Cargo feature** in `src-tauri/Cargo.toml`:
+**1. Cargo feature** in `src-tauri/Cargo.toml` — **deliberately absent from this
+repository**, so a packaged release build carries no web inspector:
+
 ```toml
+# how it looks when you want the inspector back in release builds
 tauri = { version = "2.11.2", features = ["tray-icon", "devtools"] }
 ```
 
 **2. Window config** in `src-tauri/tauri.conf.json`:
+
 ```json
 "windows": [{
   "devtools": true
 }]
 ```
 
-Both must be set for DevTools to work in **release** builds. In **debug** builds (`--debug` flag), DevTools are always available regardless of config.
+Both must be set for DevTools to work in **release** builds. In **debug** builds
+(`--debug` flag, and `npm run tauri:dev`), DevTools are always available
+regardless of either setting — which is why the feature can stay out.
 
 ### Build Commands
 
-| Command | Description |
-|---------|-------------|
-| `npm run tauri:dev` | Dev mode with hot-reload + DevTools |
-| `npm run tauri:build:debug` | Debug release build (DevTools enabled, unoptimized) |
-| `npm run build:windows` | Production release (needs `devtools: true` + feature for DevTools) |
-| `npm run build:windows -- --debug` | Windows debug build (faster compile, DevTools auto-enabled) |
+| Command                            | Description                                                   |
+| ---------------------------------- | ------------------------------------------------------------- |
+| `npm run tauri:dev`                | Dev mode with hot-reload + DevTools                           |
+| `npm run tauri:build:debug`        | Debug build (unoptimized, DevTools available)                 |
+| `npm run build:windows`            | Production release (no DevTools: the cargo feature is absent) |
+| `npm run build:windows -- --debug` | Windows debug build (faster compile, DevTools available)      |
 
 ### Quick Debug Workflow
 
@@ -203,13 +222,15 @@ npm run build:windows -- --debug
 ### Toggle DevTools for Release Builds
 
 To **enable** DevTools in production:
-1. Set `"devtools": true` in `src-tauri/tauri.conf.json` (window config)
-2. Ensure `"devtools"` feature is in `src-tauri/Cargo.toml` (already added)
+
+1. Set `"devtools": true` in `src-tauri/tauri.conf.json` (window config — already true, and harmless on its own)
+2. Add `"devtools"` to the `tauri` features in `src-tauri/Cargo.toml` (it is deliberately absent — see the comment beside it)
 3. Rebuild: `npm run build:windows`
 
 To **disable** for final distribution:
-1. Set `"devtools": false` in `src-tauri/tauri.conf.json`
-2. Optionally remove `"devtools"` from Cargo.toml features
+
+1. Remove `"devtools"` from the `tauri` features in `src-tauri/Cargo.toml`
+2. Optionally set `"devtools": false` in `src-tauri/tauri.conf.json`
 3. Rebuild
 
 ### What You Can Do in DevTools
@@ -227,6 +248,7 @@ Look for "Content Security Policy" errors in Console. Fix in `src-tauri/tauri.co
 
 **SQL permission errors:**
 Check `src-tauri/capabilities/default.json` has the needed permissions:
+
 ```json
 "permissions": ["core:default", "sql:default", "sql:allow-execute", "sql:allow-select", ...]
 ```
@@ -235,9 +257,7 @@ Check `src-tauri/capabilities/default.json` has the needed permissions:
 Ensure `.postcssrc.json` exists in project root (not `postcss.config.js`) and `angular.json` has `"inlineCritical": false` in production optimization.
 
 **Git Bash PATH issue (cargo not found):**
+
 ```bash
 export PATH="$HOME/.cargo/bin:$PATH"
 ```
-| Git | `git --version` | 2.x |
-| Angular | `npx ng version` | 21.x |
-| Tauri | `npx tauri --version` | 2.x |

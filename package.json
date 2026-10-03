@@ -30,6 +30,14 @@
     "e2e:open": "playwright show-report || playwright test --output=playwright-report"
   },
   "private": true,
+  "description": "DeepWork — a cross-platform focus timer and task manager built with Tauri 2 and Angular, keeping its database and its analysis on your own machine.",
+  "license": "MIT",
+  "author": "Rajat Malik",
+  "homepage": "https://github.com/malikrajat/deepwork",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/malikrajat/deepwork.git"
+  },
   "packageManager": "npm@11.11.0",
   "engines": {
     "node": "^22.22.3 || ^24.15.0 || >=26.0.0"
