@@ -64,28 +64,43 @@ test.describe('Pomodoro Timer', () => {
 
   test('session indicator reflects progress after skip', async ({ page }) => {
     const controls = page.locator('.timer-controls');
-    const sessionLabel = page.locator('.session-label');
+    const cycleCard = page.locator('.cycle-card');
 
-    // Session label shows "/4" pattern before any sessions
-    await expect(sessionLabel).toBeVisible({ timeout: 5000 });
-    await expect(sessionLabel).toContainText('/4');
+    // The cycle card counts down to the next long break; the default cycle is
+    // four focus sessions.
+    await expect(cycleCard).toBeVisible({ timeout: 5000 });
+    await expect(cycleCard.locator('.eyebrow')).toHaveText('Session cycle');
+    await expect(cycleCard.locator('p')).toContainText('4 more focus sessions');
 
     // Start and skip a work session
     await controls.getByRole('button', { name: /Start Focus/i }).click();
     await expect(controls.getByRole('button', { name: /Pause/i })).toBeVisible({ timeout: 3000 });
     await controls.locator('.btn-ghost').last().click();
 
-    // After one completed work session, break phase is offered
+    // Skipping takes the timer to the break that follows the session …
     await expect(controls.locator('.btn-primary')).toContainText(/Start Break/i, { timeout: 5000 });
+    await expect(cycleCard.locator('p')).toContainText('Short break is ready');
+
+    // … and the session counted towards the cycle: once the break is behind us,
+    // the card has one fewer focus session to go.
+    await controls.locator('.btn-primary').click();
+    await expect(controls.getByRole('button', { name: /Pause/i })).toBeVisible({ timeout: 3000 });
+    await controls.locator('.btn-ghost').last().click();
+    await expect(cycleCard.locator('p')).toContainText('3 more focus sessions', { timeout: 5000 });
   });
 
   test('session dots render in the indicator row', async ({ page }) => {
-    const indicator = page.locator('.session-indicator');
-    await expect(indicator).toBeVisible({ timeout: 5000 });
+    // The four-dot indicator was replaced by the cycle card, which says the same
+    // thing in words: where in the cycle this session is, and what comes next.
+    const cycleCard = page.locator('.cycle-card');
+    await expect(cycleCard).toBeVisible({ timeout: 5000 });
+    await expect(cycleCard.locator('h2')).toHaveText('Next long break');
 
-    // There should be 4 session dots (one per pomodoro before long break)
-    const dots = indicator.locator('.dot');
-    await expect(dots).toHaveCount(4, { timeout: 3000 });
+    // Four sessions to a long break, so that is what it counts down from.
+    await expect(cycleCard.locator('p')).toHaveText(
+      '4 more focus sessions until your next long break.',
+    );
+    await expect(cycleCard.locator('.cycle-status')).toHaveText('In progress');
   });
 
   test('fullscreen mode opens and closes', async ({ page }) => {
@@ -174,4 +189,3 @@ test.describe('a finished session is announced wherever the user is', () => {
     await expectAnnouncement(page, 'Long break is over!');
   });
 });
-

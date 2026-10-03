@@ -1,4 +1,4 @@
-import { Injectable, signal } from '@angular/core';
+import { Injectable, computed, signal } from '@angular/core';
 
 const DISMISS_KEY = 'deepwork_install_dismissed';
 
@@ -21,19 +21,30 @@ export class InstallService {
    * browser-only install UI would otherwise show up on every page of the
    * installed app as an extra full-width bar above the app header.
    */
-  readonly isDesktopApp =
-    typeof globalThis !== 'undefined' && '__TAURI_INTERNALS__' in globalThis;
+  readonly isDesktopApp = typeof globalThis !== 'undefined' && '__TAURI_INTERNALS__' in globalThis;
 
   /** True when the browser's native install prompt is ready to trigger */
   readonly canInstall = signal(false);
 
   /** True when already running as an installed PWA (standalone mode) */
   readonly isInstalled = signal(
-    globalThis.matchMedia?.('(display-mode: standalone)').matches ?? false
+    globalThis.matchMedia?.('(display-mode: standalone)').matches ?? false,
   );
 
   /** True when user dismissed the install banner — stored in localStorage */
   readonly isDismissed = signal(readDismissed());
+
+  /**
+   * True when the banner is on screen.
+   *
+   * The banner is fixed to the top of the window, so the app shell has to know
+   * whether it is there: it leaves the banner's height free at the top rather
+   * than putting the sidebar's own collapse button underneath it. One condition,
+   * asked by both, so the two can never disagree.
+   */
+  readonly isVisible = computed(
+    () => !this.isDesktopApp && !this.isInstalled() && !this.isDismissed(),
+  );
 
   private deferredPrompt: any = null;
 

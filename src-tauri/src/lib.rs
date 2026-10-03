@@ -88,8 +88,8 @@ fn window_keeps_running(window: &tauri::Window) -> bool {
 fn paint_widget_frame(window: &WebviewWindow, widget: bool) {
     use windows_sys::Win32::Graphics::Dwm::{
         DwmExtendFrameIntoClientArea, DwmSetWindowAttribute, DWMWA_BORDER_COLOR,
-        DWMWA_COLOR_DEFAULT, DWMWA_COLOR_NONE, DWMWA_WINDOW_CORNER_PREFERENCE,
-        DWMWCP_DEFAULT, DWMWCP_ROUND,
+        DWMWA_COLOR_DEFAULT, DWMWA_COLOR_NONE, DWMWA_WINDOW_CORNER_PREFERENCE, DWMWCP_DEFAULT,
+        DWMWCP_ROUND,
     };
     use windows_sys::Win32::UI::Controls::MARGINS;
 

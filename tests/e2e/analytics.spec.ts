@@ -1,5 +1,11 @@
 import { test, expect } from '@playwright/test';
 
+/**
+ * Analytics reads the user's own records, so a fresh browser context has nothing
+ * to show: every figure is zero and every "not yet" note is on screen. These
+ * tests describe that first-run page, and the last one adds a session and checks
+ * that the numbers move with it.
+ */
 test.describe('Analytics', () => {
   test.beforeEach(async ({ page }) => {
     await page.goto('/analytics');
@@ -7,87 +13,103 @@ test.describe('Analytics', () => {
     await page.waitForTimeout(400); // allow async data load
   });
 
-  test('four stat cards render with labels', async ({ page }) => {
-    const statCards = page.locator('.stat-card');
-    await expect(statCards).toHaveCount(4, { timeout: 5000 });
+  test('the key numbers render with their labels', async ({ page }) => {
+    await expect(page.locator('.kpi-card')).toHaveCount(6, { timeout: 5000 });
 
-    await expect(page.locator('.stat-label', { hasText: 'Focus Hours (30d)' })).toBeVisible();
-    await expect(page.locator('.stat-label', { hasText: 'Sessions (30d)' })).toBeVisible();
-    await expect(page.locator('.stat-label', { hasText: 'Day Streak' })).toBeVisible();
-    await expect(page.locator('.stat-label', { hasText: 'Peak Hour' })).toBeVisible();
-  });
-
-  test('stat card values are visible (even if zero)', async ({ page }) => {
-    const values = page.locator('.stat-value');
-    await expect(values).toHaveCount(4, { timeout: 5000 });
-
-    // Each value cell should contain visible text (numbers or "--")
-    for (const val of await values.all()) {
-      await expect(val).toBeVisible();
-      const text = await val.textContent();
-      expect(text?.trim().length).toBeGreaterThan(0);
+    for (const label of [
+      'Focus · last 7 days',
+      'Tasks closed · last 7 days',
+      'Focus streak',
+      'Completion rate · 30 days',
+      'Habit consistency · 30 days',
+      'Journal · 12 weeks',
+    ]) {
+      await expect(page.locator('.kpi-label', { hasText: label })).toBeVisible();
     }
   });
 
-  test('daily chart renders 7 bars', async ({ page }) => {
-    const dailyChart = page.locator('.chart-card').filter({ hasText: 'Daily Focus' });
-    await expect(dailyChart).toBeVisible({ timeout: 5000 });
+  test('every key number has a value and a hint to read it against', async ({ page }) => {
+    const values = page.locator('.kpi-value');
+    await expect(values).toHaveCount(6, { timeout: 5000 });
 
-    const bars = dailyChart.locator('.bar-col');
-    await expect(bars).toHaveCount(7, { timeout: 3000 });
-
-    // Each bar column has a label (day abbreviation)
-    const labels = dailyChart.locator('.bar-label');
-    await expect(labels).toHaveCount(7);
-  });
-
-  test('weekly trend chart renders 4 bars', async ({ page }) => {
-    const weeklyChart = page.locator('.chart-card').filter({ hasText: 'Weekly Trend' });
-    await expect(weeklyChart).toBeVisible({ timeout: 5000 });
-
-    const bars = weeklyChart.locator('.bar-col');
-    await expect(bars).toHaveCount(4, { timeout: 3000 });
-  });
-
-  test('recent sessions section renders', async ({ page }) => {
-    const sessionsCard = page.locator('.chart-card').filter({ hasText: 'Recent Sessions' });
-    await expect(sessionsCard).toBeVisible({ timeout: 5000 });
-
-    // If no sessions yet, "No sessions yet" message appears
-    const sessionRows = sessionsCard.locator('.session-row');
-    const rowCount = await sessionRows.count();
-    if (rowCount === 0) {
-      await expect(sessionsCard.locator('.empty-sessions')).toBeVisible({ timeout: 3000 });
-      await expect(sessionsCard.locator('.empty-sessions')).toContainText('No sessions yet');
-    } else {
-      // Sessions exist — verify first row structure
-      const first = sessionRows.first();
-      await expect(first.locator('.session-type')).toBeVisible();
-      await expect(first.locator('.session-info')).toBeVisible();
+    // Each value is visible even at zero — the card shows "0%" or "--" rather
+    // than an empty cell, which is the difference between "nothing yet" and
+    // "the page is broken".
+    for (const value of await values.all()) {
+      await expect(value).toBeVisible();
+      expect((await value.textContent())?.trim().length).toBeGreaterThan(0);
     }
+
+    // A number on this page is never left without its reading.
+    await expect(page.locator('.kpi-hint')).toHaveCount(6);
   });
 
-  test('analytics page loads session data after completing a timer', async ({ page }) => {
-    // Complete a work session via Dashboard: start → skip → go to analytics
+  test('the consistency heatmap covers twelve weeks of days', async ({ page }) => {
+    const card = page.locator('.chart-card').filter({ hasText: 'Focus consistency' });
+    await expect(card).toBeVisible({ timeout: 5000 });
+
+    await expect(card.locator('.heat-col')).toHaveCount(12, { timeout: 3000 });
+    // Seven rows in every column: the grid is the whole quarter, not a sample.
+    await expect(card.locator('.heatmap .heat-cell')).toHaveCount(84);
+  });
+
+  test('the hourly chart draws one bar per hour, labelled every third', async ({ page }) => {
+    const card = page.locator('.chart-card').filter({ hasText: 'When you focus' });
+    await expect(card).toBeVisible({ timeout: 5000 });
+
+    await expect(card.locator('.bar-col')).toHaveCount(24, { timeout: 3000 });
+    await expect(card.locator('.bar-label')).toHaveCount(8);
+  });
+
+  test('the weekday chart draws seven bars, each with its average', async ({ page }) => {
+    const card = page.locator('.chart-card').filter({ hasText: 'Average focus by weekday' });
+    await expect(card).toBeVisible({ timeout: 5000 });
+
+    await expect(card.locator('.bar-col')).toHaveCount(7, { timeout: 3000 });
+    await expect(card.locator('.bar-value')).toHaveCount(7);
+    await expect(card.locator('.bar-label').first()).toHaveText(/^(Sun|Mon|Tue|Wed|Thu|Fri|Sat)$/);
+  });
+
+  test('the task flow chart draws eight weeks of created versus closed', async ({ page }) => {
+    const card = page.locator('.chart-card').filter({ hasText: 'Task flow' });
+    await expect(card).toBeVisible({ timeout: 5000 });
+
+    await expect(card.locator('.bar-col.wide')).toHaveCount(8, { timeout: 3000 });
+  });
+
+  test('recent sessions says so when there are none yet', async ({ page }) => {
+    const card = page.locator('.chart-card').filter({ hasText: 'Recent focus sessions' });
+    await expect(card).toBeVisible({ timeout: 5000 });
+
+    await expect(card.locator('.session-row')).toHaveCount(0);
+    await expect(card.locator('.empty-note')).toContainText('No sessions yet');
+  });
+
+  test('a stopped session shows up in the numbers', async ({ page }) => {
+    // Stopping records an interrupted session; skipping does not.
     await page.goto('/dashboard');
     await expect(page.locator('.page-title').first()).toHaveText('Dashboard', { timeout: 8000 });
 
     const controls = page.locator('.timer-controls');
     await controls.getByRole('button', { name: /Start Focus/i }).click();
     await expect(controls.getByRole('button', { name: /Pause/i })).toBeVisible({ timeout: 3000 });
-
-    // Stop (first .btn-ghost) records an interrupted session; skip does not.
     await controls.locator('.btn-ghost').first().click();
-    await expect(controls.getByRole('button', { name: /Start Focus/i })).toBeVisible({ timeout: 3000 });
+    await expect(controls.getByRole('button', { name: /Start Focus/i })).toBeVisible({
+      timeout: 3000,
+    });
 
-    // Navigate to analytics
     await page.goto('/analytics');
     await expect(page.locator('.page-title')).toHaveText('Analytics', { timeout: 8000 });
     await page.waitForTimeout(400);
 
-    // Sessions (30d) card value should now be at least 1
-    const sessionsCard = page.locator('.stat-card').filter({ has: page.locator('.stat-label', { hasText: 'Sessions (30d)' }) });
-    const val = await sessionsCard.locator('.stat-value').textContent();
-    expect(Number(val?.trim())).toBeGreaterThanOrEqual(1);
+    // The header counts it …
+    await expect(page.locator('.pill', { hasText: 'focus sessions' })).toContainText(
+      '1 focus sessions',
+    );
+
+    // … and the session itself is listed, marked as the interrupted one it is.
+    const card = page.locator('.chart-card').filter({ hasText: 'Recent focus sessions' });
+    await expect(card.locator('.session-row')).toHaveCount(1, { timeout: 5000 });
+    await expect(card.locator('.interrupted-badge')).toBeVisible();
   });
 });

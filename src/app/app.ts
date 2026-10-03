@@ -1,4 +1,11 @@
-import { Component, signal, inject, ChangeDetectionStrategy, OnInit } from '@angular/core';
+import {
+  Component,
+  signal,
+  inject,
+  computed,
+  ChangeDetectionStrategy,
+  OnInit,
+} from '@angular/core';
 import { Router, RouterOutlet } from '@angular/router';
 import { SidebarComponent } from './shared/components/sidebar/sidebar.component';
 import { ToastComponent } from './shared/components/toast/toast.component';
@@ -10,6 +17,7 @@ import { UpdatePromptComponent } from './shared/components/update-prompt/update-
 import { WaterNudgeComponent } from './shared/components/water-nudge/water-nudge.component';
 import { TimerService } from './core/services/timer.service';
 import { UiService } from './core/services/ui.service';
+import { InstallService } from './core/services/install.service';
 import { SettingsService } from './core/services/settings.service';
 import { DbService } from './core/services/db.service';
 import { UpdatePromptService } from './core/services/update-prompt.service';
@@ -56,6 +64,17 @@ export class App implements OnInit {
   private readonly updatePrompt = inject(UpdatePromptService);
   private readonly notifications = inject(NotificationService);
   ui = inject(UiService);
+  private readonly install = inject(InstallService);
+
+  /**
+   * True while the install banner is showing, so the shell can leave it room.
+   *
+   * The banner is not rendered at all while the window is the mini widget, so
+   * neither is the gap.
+   */
+  readonly installBannerOpen = computed(
+    () => !this.ui.isNativeWidget() && this.install.isVisible(),
+  );
 
   sidebarCollapsed = signal(false);
 
