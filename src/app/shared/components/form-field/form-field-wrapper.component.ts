@@ -51,9 +51,9 @@ import { FieldState } from '@angular/forms/signals';
       animation: shake 0.3s ease-in-out;
     }
     .field-hint { font-size: 10px; color: var(--color-text-muted); }
-    .has-error :ng-deep input,
-    .has-error :ng-deep textarea,
-    .has-error :ng-deep select {
+    .has-error ::ng-deep input,
+    .has-error ::ng-deep textarea,
+    .has-error ::ng-deep select {
       border-color: rgba(248, 113, 113, 0.5) !important;
     }
     @keyframes shake {

@@ -1,0 +1,254 @@
+name: CI
+
+# Everything a change has to survive before it is worth building: it must lint,
+# be formatted, pass the unit tests, and compile. Runs on every pull request, on
+# every push to main, and on demand.
+#
+# Nothing is uploaded as an artifact: what a run leaves behind is its pass/fail
+# and its logs. Coverage, reports and installers are printed or discarded rather
+# than stored.
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  lint:
+    name: Lint (ESLint)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Lint
+        run: npm run lint
+
+      # The version is written down in nine files, and nothing reads any of the
+      # others, so a release that updated all but one slips through unless it is
+      # checked here.
+      - name: Check that every version agrees
+        run: npm run version:check
+
+  format:
+    name: Format (Prettier)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          # The commit this push or pull request is compared against has to be
+          # in the checkout for the diff below.
+          fetch-depth: 0
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      # Formatting is checked on the files this change touches, not on the whole
+      # repository: the app predates Prettier, and a gate that fails on code
+      # nobody edited would block every branch. `npm run format` formats
+      # everything when you are ready to pay off the rest.
+      - name: Check the formatting of changed files
+        run: |
+          set -euo pipefail
+
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            git fetch --no-tags --quiet origin "${{ github.base_ref }}"
+            BASE="origin/${{ github.base_ref }}"
+          elif [ -n "${{ github.event.before }}" ] && ! grep -qE '^0+$' <<< "${{ github.event.before }}"; then
+            BASE="${{ github.event.before }}"
+          else
+            BASE="HEAD~1"
+          fi
+
+          CHANGED=$(git diff --name-only --diff-filter=ACMR "$BASE" HEAD -- . \
+            ':(exclude)src-tauri' ':(exclude)package-lock.json' || true)
+
+          if [ -z "$CHANGED" ]; then
+            echo "No changed files to check."
+            exit 0
+          fi
+
+          echo "Checking:"
+          echo "$CHANGED"
+          echo "$CHANGED" | xargs npx prettier --check --ignore-unknown
+
+  test:
+    name: Unit tests (Vitest)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run unit tests
+        run: npm run test:coverage
+
+      # The thresholds in `vitest.config.ts` fail the run if coverage drops below
+      # the floor or if the logic layer leaves 90%; this adds the distance to the
+      # 90% goal for the whole app to the run summary.
+      - name: Coverage summary
+        if: always()
+        run: npm run coverage:summary
+
+  build:
+    name: Build (ng build)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: ng build (production)
+        run: npm run build
+
+  e2e:
+    name: E2E (Playwright) — advisory
+    runs-on: ubuntu-latest
+    # Playwright drives the real app in a browser: every screen, every click, the
+    # whole stack. The suite is not blocking yet because 19 of its expectations
+    # still describe the pages before the current refactor (the removed dictation
+    # panel, the old analytics cards, the matrix panels, the habits calendar and
+    # the sidebar labels). They are reported on every run instead of hidden —
+    # delete the two `continue-on-error` lines the day the suite is green.
+    continue-on-error: true
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Install Chromium
+        run: npx playwright install --with-deps chromium
+
+      # `playwright.config.ts` starts the dev server itself (port 4202).
+      - name: Run the end-to-end suite
+        run: npm run e2e
+
+  installers:
+    name: Installer (${{ matrix.label }})
+    # Building an installer takes 15–25 minutes per OS, so it runs where it is
+    # useful — every push to main, every tag, and on demand — and PRs stay fast.
+    # Delete this `if:` to build installers on pull requests too.
+    if: github.event_name != 'pull_request'
+    needs:
+      - lint
+      - test
+      - build
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - label: Windows
+            os: windows-latest
+          - label: Linux
+            os: ubuntu-latest
+          - label: macOS
+            os: macos-latest
+    runs-on: ${{ matrix.os }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      # The Linux build needs the webview and the tray libraries Tauri links
+      # against; Windows and macOS ship what they need.
+      - name: Install Linux build dependencies
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            libwebkit2gtk-4.1-dev \
+            libappindicator3-dev \
+            librsvg2-dev \
+            patchelf \
+            libgtk-3-dev \
+            libxdo-dev \
+            libssl-dev \
+            build-essential
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Cache the Rust build
+        uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: src-tauri
+
+      - name: Install dependencies
+        run: npm ci
+
+      # `tauri build` runs `npm run build` first (see `beforeBuildCommand`), then
+      # produces this platform's bundles: .msi/.exe on Windows, .deb/.rpm/.AppImage
+      # on Linux, .dmg/.app on macOS.
+      - name: Build the installer
+        run: npm run tauri:build
+
+  desktop-format:
+    name: Desktop format (cargo fmt)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt
+
+      # The Rust side is formatted by cargo, not Prettier. Only formatting is
+      # checked here: compiling the desktop app needs the platform's webview
+      # libraries, which belongs on the machine that builds the installer.
+      - name: Check the Rust formatting
+        run: cargo fmt --manifest-path src-tauri/Cargo.toml --check

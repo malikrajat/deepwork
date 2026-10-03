@@ -1,6 +1,11 @@
 import { defineConfig } from 'vitest/config';
 
 export default defineConfig({
+  // Vite 8 transforms TypeScript with Oxc, not esbuild, and Oxc reads
+  // `experimentalDecorators` from a tsconfig. Without naming one, the specs under
+  // `tests/` fall outside every project and their inline `@Component` decorators
+  // are emitted untouched — which V8 rejects as "Invalid or unexpected token".
+  tsconfig: './tsconfig.spec.json',
   test: {
     globals: true,
     environment: 'jsdom',

@@ -170,8 +170,11 @@ describe('No square box around the widget', () => {
     expect(config.app.windows[0].transparent).toBe(true);
     // The class is what makes the rounded corners empty rather than painted, and
     // it is claimed only while the widget is open and only where transparency
-    // actually works.
-    expect(uiService).toContain("classList.toggle(\n      'widget-transparent'");
+    // actually works — which is why the toggle is called with an explicit force
+    // flag rather than as a bare flip.
+    expect(uiService).toMatch(
+      /classList\.toggle\(\s*'widget-transparent',\s*transparent && this\.widgetWindowIsTransparent/,
+    );
     expect(styles).toContain('html.widget-transparent');
     expect(styles).toContain('widget-transparent body::before');
   });

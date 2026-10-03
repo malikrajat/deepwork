@@ -1,8 +1,9 @@
 import {
   ApplicationConfig,
   ErrorHandler,
+  inject,
+  provideAppInitializer,
   provideBrowserGlobalErrorListeners,
-  APP_INITIALIZER,
 } from '@angular/core';
 import { provideRouter } from '@angular/router';
 
@@ -24,51 +25,36 @@ export const appConfig: ApplicationConfig = {
     // Anything Angular catches goes to `crash.log` rather than only the console.
     { provide: ErrorHandler, useClass: AppErrorHandler },
     provideRouter(routes),
-    {
-      provide: APP_INITIALIZER,
-      useFactory:
-        (
-          log: LogService,
-          db: DbService,
-          settings: SettingsService,
-          theme: ThemeService,
-          trayMenu: TrayMenuService,
-          desktopPrefs: DesktopPrefsService,
-          ui: UiService,
-          schedule: ScheduleService,
-          waterReminder: WaterReminderService,
-        ) =>
-        async (): Promise<void> => {
-          // The log is connected before anything else can fail, so the startup
-          // sequence itself is on the record.
-          await log.install();
-          await db.init();
-          await settings.loadSettings();
-          theme.apply();
-          await schedule.load();
-          // One ticker for the water reminder: it reads the settings on every
-          // tick, so turning the reminder on or off needs no restart.
-          waterReminder.start();
-          await trayMenu.init();
-          // Reconciles "start with system" with the real OS state and applies
-          // the saved always-on-top preference before the UI appears.
-          await desktopPrefs.init();
-          // Listens for the OS minimise button and, when this copy was started by
-          // the OS at login, opens straight into the mini widget.
-          await ui.init();
-        },
-      deps: [
-        LogService,
-        DbService,
-        SettingsService,
-        ThemeService,
-        TrayMenuService,
-        DesktopPrefsService,
-        UiService,
-        ScheduleService,
-        WaterReminderService,
-      ],
-      multi: true,
-    },
+    // `provideAppInitializer` replaced the `APP_INITIALIZER` token in Angular 22;
+    // the callback runs in an injection context, so `inject()` replaces `deps`.
+    provideAppInitializer(async () => {
+      const log = inject(LogService);
+      const db = inject(DbService);
+      const settings = inject(SettingsService);
+      const theme = inject(ThemeService);
+      const schedule = inject(ScheduleService);
+      const waterReminder = inject(WaterReminderService);
+      const trayMenu = inject(TrayMenuService);
+      const desktopPrefs = inject(DesktopPrefsService);
+      const ui = inject(UiService);
+
+      // The log is connected before anything else can fail, so the startup
+      // sequence itself is on the record.
+      await log.install();
+      await db.init();
+      await settings.loadSettings();
+      theme.apply();
+      await schedule.load();
+      // One ticker for the water reminder: it reads the settings on every
+      // tick, so turning the reminder on or off needs no restart.
+      waterReminder.start();
+      await trayMenu.init();
+      // Reconciles "start with system" with the real OS state and applies
+      // the saved always-on-top preference before the UI appears.
+      await desktopPrefs.init();
+      // Listens for the OS minimise button and, when this copy was started by
+      // the OS at login, opens straight into the mini widget.
+      await ui.init();
+    }),
   ],
 };

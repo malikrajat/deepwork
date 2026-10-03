@@ -191,10 +191,10 @@ export class UpdateService {
       return payload.map(toReleaseInfo).filter((release): release is ReleaseInfo => !!release);
     } catch (error) {
       if (error instanceof DOMException && error.name === 'AbortError') {
-        throw new Error('GitHub did not answer in time.');
+        throw new Error('GitHub did not answer in time.', { cause: error });
       }
       // A blocked request surfaces as a TypeError ("Failed to fetch").
-      if (error instanceof TypeError) throw new Error('No connection to GitHub.');
+      if (error instanceof TypeError) throw new Error('No connection to GitHub.', { cause: error });
       throw error;
     } finally {
       clearTimeout(timer);
