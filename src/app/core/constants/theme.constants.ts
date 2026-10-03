@@ -7,6 +7,15 @@ export interface StatusConfig {
   tooltip: string;
   color: string;
   bgColor: string;
+  /**
+   * Class that paints a task card (and its board column) in this status' colour.
+   *
+   * Every surface that renders a task — the Tasks board, the Today board and the
+   * drag preview — uses this one class, so a card's colour always matches its
+   * status and means the same thing on every page. The colours themselves live in
+   * `src/styles.css` next to the status tokens.
+   */
+  cardClass: string;
 }
 
 export const STATUS_CONFIG: Record<TaskStatus, StatusConfig> = {
@@ -15,18 +24,21 @@ export const STATUS_CONFIG: Record<TaskStatus, StatusConfig> = {
     tooltip: 'To Do — click once to start this task (it becomes In Progress)',
     color: '#9ca3af',
     bgColor: 'rgba(107,114,128,0.12)',
+    cardClass: 'status-todo',
   },
   'in-progress': {
     label: 'In Progress',
     tooltip: 'In Progress — click again to mark it Done',
     color: '#f59e0b',
     bgColor: 'rgba(245,158,11,0.12)',
+    cardClass: 'status-in-progress',
   },
   'done': {
     label: 'Done',
     tooltip: 'Done — click once more to move it back to To Do',
     color: '#a78bfa',
     bgColor: 'rgba(139,92,246,0.12)',
+    cardClass: 'status-done',
   },
 };
 

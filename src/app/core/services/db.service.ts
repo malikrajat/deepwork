@@ -1,7 +1,15 @@
 import { Injectable, signal } from '@angular/core';
+import {
+  WATER_AMOUNT_OPTIONS,
+  WATER_GOAL_OPTIONS,
+  WATER_INTERVAL_OPTIONS,
+} from '../constants/water.constants';
+import { ALERT_SHAKE_OPTIONS } from '../constants/alert.constants';
 import { TimerState, PomodoroSession } from '../models/session.model';
 import { AppSettings, DEFAULT_SETTINGS } from '../models/settings.model';
 import { Task } from '../models/task.model';
+import { WaterEntry } from '../models/water.model';
+import { localDayStart, parseTimeOfDay } from '../utils/water.util';
 
 /**
  * Wraps @tauri-apps/plugin-sql with typed, parameterized query methods.
@@ -31,7 +39,10 @@ export class DbService {
     return this.db.select(sql, params);
   }
 
-  async execute(sql: string, params: unknown[] = []): Promise<{ rowsAffected: number; lastInsertId: number }> {
+  async execute(
+    sql: string,
+    params: unknown[] = [],
+  ): Promise<{ rowsAffected: number; lastInsertId: number }> {
     if (!this.db) return { rowsAffected: 0, lastInsertId: 0 };
     return this.db.execute(sql, params);
   }
@@ -41,7 +52,9 @@ export class DbService {
     try {
       const raw = localStorage.getItem(`deepwork_${key}`);
       return raw ? JSON.parse(raw) : fallback;
-    } catch { return fallback; }
+    } catch {
+      return fallback;
+    }
   }
 
   private lsSet(key: string, value: unknown): void {
@@ -51,50 +64,117 @@ export class DbService {
   async getSettings(): Promise<AppSettings> {
     if (this.isBrowser) {
       const raw = this.lsGet<Partial<AppSettings>>('settings', {});
-      return { ...DEFAULT_SETTINGS, ...raw };
+      // The browser fallback stores the same settings as one JSON object, so it
+      // needs the same repair the columns get: a hand-edited store must not be
+      // able to hand the reminder a cadence that is not on the menu.
+      return repairSettings({ ...DEFAULT_SETTINGS, ...raw });
     }
     const rows = await this.query<any>('SELECT * FROM settings WHERE id = 1');
     if (!rows.length) return DEFAULT_SETTINGS;
     const r = rows[0];
-    return {
+    return repairSettings({
       workDuration: r.work_duration ?? DEFAULT_SETTINGS.workDuration,
       shortBreak: r.short_break ?? DEFAULT_SETTINGS.shortBreak,
       longBreak: r.long_break ?? DEFAULT_SETTINGS.longBreak,
-      sessionsBeforeLongBreak: r.sessions_before_long_break ?? DEFAULT_SETTINGS.sessionsBeforeLongBreak,
-      notificationSound: r.notification_sound === 'bell' || r.notification_sound === 'chime' ||
-        r.notification_sound === 'ding' || r.notification_sound === 'none'
-        ? r.notification_sound
-        : DEFAULT_SETTINGS.notificationSound,
-      notificationRepeatInterval: r.notification_repeat_interval ?? DEFAULT_SETTINGS.notificationRepeatInterval,
-      calendarReminders: r.calendar_reminders === undefined || r.calendar_reminders === null
-        ? DEFAULT_SETTINGS.calendarReminders
-        : r.calendar_reminders !== 0,
-      trayBehavior: r.tray_behavior === 'minimize' || r.tray_behavior === 'quit'
-        ? r.tray_behavior
-        : DEFAULT_SETTINGS.trayBehavior,
-      theme: r.theme === 'light' || r.theme === 'dark' || r.theme === 'system' ? r.theme : DEFAULT_SETTINGS.theme,
-      startWithSystem: r.start_with_system === undefined || r.start_with_system === null
-        ? DEFAULT_SETTINGS.startWithSystem
-        : r.start_with_system !== 0,
-      alwaysOnTop: r.always_on_top === undefined || r.always_on_top === null
-        ? DEFAULT_SETTINGS.alwaysOnTop
-        : r.always_on_top !== 0,
-      desktopPrefsPrompted: r.desktop_prefs_prompted === undefined || r.desktop_prefs_prompted === null
-        ? DEFAULT_SETTINGS.desktopPrefsPrompted
-        : r.desktop_prefs_prompted !== 0,
-    };
+      sessionsBeforeLongBreak:
+        r.sessions_before_long_break ?? DEFAULT_SETTINGS.sessionsBeforeLongBreak,
+      notificationSound:
+        r.notification_sound === 'bell' ||
+        r.notification_sound === 'chime' ||
+        r.notification_sound === 'ding' ||
+        r.notification_sound === 'none'
+          ? r.notification_sound
+          : DEFAULT_SETTINGS.notificationSound,
+      notificationRepeatInterval:
+        r.notification_repeat_interval ?? DEFAULT_SETTINGS.notificationRepeatInterval,
+      alertShakeMs:
+        typeof r.alert_shake_ms === 'number' ? r.alert_shake_ms : DEFAULT_SETTINGS.alertShakeMs,
+      trayBehavior:
+        r.tray_behavior === 'minimize' || r.tray_behavior === 'quit'
+          ? r.tray_behavior
+          : DEFAULT_SETTINGS.trayBehavior,
+      theme:
+        r.theme === 'light' || r.theme === 'dark' || r.theme === 'system'
+          ? r.theme
+          : DEFAULT_SETTINGS.theme,
+      startWithSystem:
+        r.start_with_system === undefined || r.start_with_system === null
+          ? DEFAULT_SETTINGS.startWithSystem
+          : r.start_with_system !== 0,
+      alwaysOnTop:
+        r.always_on_top === undefined || r.always_on_top === null
+          ? DEFAULT_SETTINGS.alwaysOnTop
+          : r.always_on_top !== 0,
+      desktopPrefsPrompted:
+        r.desktop_prefs_prompted === undefined || r.desktop_prefs_prompted === null
+          ? DEFAULT_SETTINGS.desktopPrefsPrompted
+          : r.desktop_prefs_prompted !== 0,
+      waterReminders:
+        r.water_reminders === undefined || r.water_reminders === null
+          ? DEFAULT_SETTINGS.waterReminders
+          : r.water_reminders !== 0,
+      waterStart: typeof r.water_start === 'string' ? r.water_start : DEFAULT_SETTINGS.waterStart,
+      waterEnd: typeof r.water_end === 'string' ? r.water_end : DEFAULT_SETTINGS.waterEnd,
+      waterIntervalMinutes:
+        typeof r.water_interval_minutes === 'number'
+          ? r.water_interval_minutes
+          : DEFAULT_SETTINGS.waterIntervalMinutes,
+      waterAmountMl:
+        typeof r.water_amount_ml === 'number' ? r.water_amount_ml : DEFAULT_SETTINGS.waterAmountMl,
+      waterGoalMl:
+        typeof r.water_goal_ml === 'number' ? r.water_goal_ml : DEFAULT_SETTINGS.waterGoalMl,
+      waterAutoLogWhenMinimized:
+        r.water_auto_log_when_minimized === undefined || r.water_auto_log_when_minimized === null
+          ? DEFAULT_SETTINGS.waterAutoLogWhenMinimized
+          : r.water_auto_log_when_minimized !== 0,
+      carryForwardTasks:
+        r.carry_forward_tasks === undefined || r.carry_forward_tasks === null
+          ? DEFAULT_SETTINGS.carryForwardTasks
+          : r.carry_forward_tasks !== 0,
+    });
   }
 
   async saveSettings(s: AppSettings): Promise<void> {
     const merged = { ...DEFAULT_SETTINGS, ...s };
-    if (this.isBrowser) { this.lsSet('settings', merged); return; }
+    if (this.isBrowser) {
+      this.lsSet('settings', merged);
+      return;
+    }
+    // `calendar_reminders` is still a column — a database that has been upgraded
+    // rather than recreated keeps it — but nothing reads or writes it any more.
     await this.execute(
       `UPDATE settings SET work_duration = $1, short_break = $2, long_break = $3,
        sessions_before_long_break = $4, notification_sound = $5, tray_behavior = $6, theme = $7,
-       notification_repeat_interval = $8, calendar_reminders = $9, start_with_system = $10,
-       always_on_top = $11, desktop_prefs_prompted = $12
+       notification_repeat_interval = $8, start_with_system = $9,
+       always_on_top = $10, desktop_prefs_prompted = $11, water_reminders = $12,
+       water_start = $13, water_end = $14, water_interval_minutes = $15,
+       water_amount_ml = $16, water_goal_ml = $17,
+       water_auto_log_when_minimized = $18,
+       alert_shake_ms = $19,
+       carry_forward_tasks = $20
        WHERE id = 1`,
-      [merged.workDuration, merged.shortBreak, merged.longBreak, merged.sessionsBeforeLongBreak, merged.notificationSound, merged.trayBehavior, merged.theme, merged.notificationRepeatInterval, merged.calendarReminders ? 1 : 0, merged.startWithSystem ? 1 : 0, merged.alwaysOnTop ? 1 : 0, merged.desktopPrefsPrompted ? 1 : 0]
+      [
+        merged.workDuration,
+        merged.shortBreak,
+        merged.longBreak,
+        merged.sessionsBeforeLongBreak,
+        merged.notificationSound,
+        merged.trayBehavior,
+        merged.theme,
+        merged.notificationRepeatInterval,
+        merged.startWithSystem ? 1 : 0,
+        merged.alwaysOnTop ? 1 : 0,
+        merged.desktopPrefsPrompted ? 1 : 0,
+        merged.waterReminders ? 1 : 0,
+        merged.waterStart,
+        merged.waterEnd,
+        merged.waterIntervalMinutes,
+        merged.waterAmountMl,
+        merged.waterGoalMl,
+        merged.waterAutoLogWhenMinimized ? 1 : 0,
+        merged.alertShakeMs,
+        merged.carryForwardTasks ? 1 : 0,
+      ],
     );
   }
 
@@ -115,11 +195,22 @@ export class DbService {
   }
 
   async saveTimerState(state: TimerState): Promise<void> {
-    if (this.isBrowser) { this.lsSet('timerState', state); return; }
+    if (this.isBrowser) {
+      this.lsSet('timerState', state);
+      return;
+    }
     await this.execute(
       `UPDATE timer_state SET is_running = $1, type = $2, remaining_seconds = $3,
        task_id = $4, session_count = $5, started_at = $6, last_active_date = $7 WHERE id = 1`,
-      [state.isRunning ? 1 : 0, state.type, state.remainingSeconds, state.taskId, state.sessionCount, state.startedAt, state.lastActiveDate]
+      [
+        state.isRunning ? 1 : 0,
+        state.type,
+        state.remainingSeconds,
+        state.taskId,
+        state.sessionCount,
+        state.startedAt,
+        state.lastActiveDate,
+      ],
     );
   }
 
@@ -133,7 +224,16 @@ export class DbService {
     await this.execute(
       `INSERT INTO sessions (id, task_id, type, duration_planned, duration_actual, started_at, completed_at, interrupted)
        VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
-      [session.id, session.taskId, session.type, session.durationPlanned, session.durationActual, session.startedAt, session.completedAt, session.interrupted ? 1 : 0]
+      [
+        session.id,
+        session.taskId,
+        session.type,
+        session.durationPlanned,
+        session.durationActual,
+        session.startedAt,
+        session.completedAt,
+        session.interrupted ? 1 : 0,
+      ],
     );
   }
 
@@ -141,14 +241,14 @@ export class DbService {
     if (this.isBrowser) {
       const today = new Date().toISOString().slice(0, 10);
       const all = this.lsGet<PomodoroSession[]>('sessions', []);
-      return all.filter(s => s.startedAt >= today);
+      return all.filter((s) => s.startedAt >= today);
     }
     const today = new Date().toISOString().slice(0, 10);
     const rows = await this.query<any>(
       `SELECT * FROM sessions WHERE started_at >= $1 ORDER BY started_at ASC`,
-      [today]
+      [today],
     );
-    return rows.map(r => ({
+    return rows.map((r) => ({
       id: r.id,
       taskId: r.task_id,
       type: r.type,
@@ -165,7 +265,7 @@ export class DbService {
       return this.lsGet<PomodoroSession[]>('sessions', []);
     }
     const rows = await this.query<any>(`SELECT * FROM sessions ORDER BY started_at DESC`);
-    return rows.map(r => ({
+    return rows.map((r) => ({
       id: r.id,
       taskId: r.task_id,
       type: r.type,
@@ -180,13 +280,13 @@ export class DbService {
   async getSessionsSince(dateStr: string): Promise<PomodoroSession[]> {
     if (this.isBrowser) {
       const all = this.lsGet<PomodoroSession[]>('sessions', []);
-      return all.filter(s => s.startedAt >= dateStr);
+      return all.filter((s) => s.startedAt >= dateStr);
     }
     const rows = await this.query<any>(
       `SELECT * FROM sessions WHERE started_at >= $1 ORDER BY started_at ASC`,
-      [dateStr]
+      [dateStr],
     );
-    return rows.map(r => ({
+    return rows.map((r) => ({
       id: r.id,
       taskId: r.task_id,
       type: r.type,
@@ -203,10 +303,22 @@ export class DbService {
   async getHabits(): Promise<any[]> {
     if (this.isBrowser) return this.lsGet<any[]>('habits', []);
     const rows = await this.query<any>('SELECT * FROM habits ORDER BY created_at ASC');
-    return rows.map(r => ({ id: r.id, name: r.name, icon: r.icon, targetFrequency: r.target_frequency, createdAt: r.created_at }));
+    return rows.map((r) => ({
+      id: r.id,
+      name: r.name,
+      icon: r.icon,
+      targetFrequency: r.target_frequency,
+      createdAt: r.created_at,
+    }));
   }
 
-  async createHabit(habit: { id: string; name: string; icon: string; targetFrequency: string; createdAt: string }): Promise<void> {
+  async createHabit(habit: {
+    id: string;
+    name: string;
+    icon: string;
+    targetFrequency: string;
+    createdAt: string;
+  }): Promise<void> {
     if (this.isBrowser) {
       const habits = this.lsGet<any[]>('habits', []);
       habits.push(habit);
@@ -215,15 +327,15 @@ export class DbService {
     }
     await this.execute(
       `INSERT INTO habits (id, name, icon, target_frequency, created_at) VALUES ($1, $2, $3, $4, $5)`,
-      [habit.id, habit.name, habit.icon, habit.targetFrequency, habit.createdAt]
+      [habit.id, habit.name, habit.icon, habit.targetFrequency, habit.createdAt],
     );
   }
 
   async deleteHabit(id: string): Promise<void> {
     if (this.isBrowser) {
-      const habits = this.lsGet<any[]>('habits', []).filter(h => h.id !== id);
+      const habits = this.lsGet<any[]>('habits', []).filter((h) => h.id !== id);
       this.lsSet('habits', habits);
-      const entries = this.lsGet<any[]>('habitEntries', []).filter(e => e.habitId !== id);
+      const entries = this.lsGet<any[]>('habitEntries', []).filter((e) => e.habitId !== id);
       this.lsSet('habitEntries', entries);
       return;
     }
@@ -232,10 +344,13 @@ export class DbService {
 
   async getHabitEntries(habitId: string): Promise<any[]> {
     if (this.isBrowser) {
-      return this.lsGet<any[]>('habitEntries', []).filter(e => e.habitId === habitId);
+      return this.lsGet<any[]>('habitEntries', []).filter((e) => e.habitId === habitId);
     }
-    const rows = await this.query<any>('SELECT * FROM habit_entries WHERE habit_id = $1 ORDER BY completed_at ASC', [habitId]);
-    return rows.map(r => ({ id: r.id, habitId: r.habit_id, completedAt: r.completed_at }));
+    const rows = await this.query<any>(
+      'SELECT * FROM habit_entries WHERE habit_id = $1 ORDER BY completed_at ASC',
+      [habitId],
+    );
+    return rows.map((r) => ({ id: r.id, habitId: r.habit_id, completedAt: r.completed_at }));
   }
 
   async getAllHabitEntries(): Promise<any[]> {
@@ -243,7 +358,7 @@ export class DbService {
       return this.lsGet<any[]>('habitEntries', []);
     }
     const rows = await this.query<any>('SELECT * FROM habit_entries ORDER BY completed_at ASC');
-    return rows.map(r => ({ id: r.id, habitId: r.habit_id, completedAt: r.completed_at }));
+    return rows.map((r) => ({ id: r.id, habitId: r.habit_id, completedAt: r.completed_at }));
   }
 
   async addHabitEntry(entry: { id: string; habitId: string; completedAt: string }): Promise<void> {
@@ -255,13 +370,13 @@ export class DbService {
     }
     await this.execute(
       `INSERT INTO habit_entries (id, habit_id, completed_at) VALUES ($1, $2, $3)`,
-      [entry.id, entry.habitId, entry.completedAt]
+      [entry.id, entry.habitId, entry.completedAt],
     );
   }
 
   async removeHabitEntry(id: string): Promise<void> {
     if (this.isBrowser) {
-      const entries = this.lsGet<any[]>('habitEntries', []).filter(e => e.id !== id);
+      const entries = this.lsGet<any[]>('habitEntries', []).filter((e) => e.id !== id);
       this.lsSet('habitEntries', entries);
       return;
     }
@@ -273,22 +388,42 @@ export class DbService {
   async getJournalEntries(): Promise<any[]> {
     if (this.isBrowser) return this.lsGet<any[]>('journal', []);
     const rows = await this.query<any>('SELECT * FROM journal_entries ORDER BY date DESC');
-    return rows.map(r => ({ id: r.id, date: r.date, content: r.content, createdAt: r.created_at, updatedAt: r.updated_at }));
+    return rows.map((r) => ({
+      id: r.id,
+      date: r.date,
+      content: r.content,
+      createdAt: r.created_at,
+      updatedAt: r.updated_at,
+    }));
   }
 
   async getJournalEntry(date: string): Promise<any> {
     if (this.isBrowser) {
       const entries = this.lsGet<any[]>('journal', []);
-      return entries.find(e => e.date === date) ?? null;
+      return entries.find((e) => e.date === date) ?? null;
     }
     const rows = await this.query<any>('SELECT * FROM journal_entries WHERE date = $1', [date]);
-    return rows.length ? { id: rows[0].id, date: rows[0].date, content: rows[0].content, createdAt: rows[0].created_at, updatedAt: rows[0].updated_at } : null;
+    return rows.length
+      ? {
+          id: rows[0].id,
+          date: rows[0].date,
+          content: rows[0].content,
+          createdAt: rows[0].created_at,
+          updatedAt: rows[0].updated_at,
+        }
+      : null;
   }
 
-  async saveJournalEntry(entry: { id: string; date: string; content: string; createdAt: string; updatedAt: string }): Promise<void> {
+  async saveJournalEntry(entry: {
+    id: string;
+    date: string;
+    content: string;
+    createdAt: string;
+    updatedAt: string;
+  }): Promise<void> {
     if (this.isBrowser) {
       const entries = this.lsGet<any[]>('journal', []);
-      const idx = entries.findIndex(e => e.date === entry.date);
+      const idx = entries.findIndex((e) => e.date === entry.date);
       if (idx >= 0) entries[idx] = entry;
       else entries.push(entry);
       this.lsSet('journal', entries);
@@ -297,13 +432,13 @@ export class DbService {
     await this.execute(
       `INSERT INTO journal_entries (id, date, content, created_at, updated_at) VALUES ($1, $2, $3, $4, $5)
        ON CONFLICT(date) DO UPDATE SET content = $3, updated_at = $5`,
-      [entry.id, entry.date, entry.content, entry.createdAt, entry.updatedAt]
+      [entry.id, entry.date, entry.content, entry.createdAt, entry.updatedAt],
     );
   }
 
   async deleteJournalEntry(date: string): Promise<void> {
     if (this.isBrowser) {
-      const entries = this.lsGet<any[]>('journal', []).filter(e => e.date !== date);
+      const entries = this.lsGet<any[]>('journal', []).filter((e) => e.date !== date);
       this.lsSet('journal', entries);
       return;
     }
@@ -315,13 +450,13 @@ export class DbService {
   async getTasks(): Promise<Task[]> {
     if (this.isBrowser) return this.lsGet<Task[]>('tasks', []);
     const rows = await this.query<any>('SELECT * FROM tasks ORDER BY created_at DESC');
-    return rows.map(r => this.mapTask(r));
+    return rows.map((r) => this.mapTask(r));
   }
 
   async getTaskById(id: string): Promise<Task | null> {
     if (this.isBrowser) {
       const tasks = this.lsGet<Task[]>('tasks', []);
-      return tasks.find(t => t.id === id) ?? null;
+      return tasks.find((t) => t.id === id) ?? null;
     }
     const rows = await this.query<any>('SELECT * FROM tasks WHERE id = $1', [id]);
     return rows.length ? this.mapTask(rows[0]) : null;
@@ -329,28 +464,36 @@ export class DbService {
 
   async getTasksByQuadrant(quadrant: string): Promise<Task[]> {
     if (this.isBrowser) {
-      return this.lsGet<Task[]>('tasks', []).filter(t => t.quadrant === quadrant);
+      return this.lsGet<Task[]>('tasks', []).filter((t) => t.quadrant === quadrant);
     }
-    const rows = await this.query<any>('SELECT * FROM tasks WHERE quadrant = $1 ORDER BY priority ASC', [quadrant]);
-    return rows.map(r => this.mapTask(r));
+    const rows = await this.query<any>(
+      'SELECT * FROM tasks WHERE quadrant = $1 ORDER BY priority ASC',
+      [quadrant],
+    );
+    return rows.map((r) => this.mapTask(r));
   }
 
   async getTasksByStatus(status: string): Promise<Task[]> {
     if (this.isBrowser) {
-      return this.lsGet<Task[]>('tasks', []).filter(t => t.status === status);
+      return this.lsGet<Task[]>('tasks', []).filter((t) => t.status === status);
     }
-    const rows = await this.query<any>('SELECT * FROM tasks WHERE status = $1 ORDER BY created_at DESC', [status]);
-    return rows.map(r => this.mapTask(r));
+    const rows = await this.query<any>(
+      'SELECT * FROM tasks WHERE status = $1 ORDER BY created_at DESC',
+      [status],
+    );
+    return rows.map((r) => this.mapTask(r));
   }
 
   async getTodayTasks(): Promise<Task[]> {
     if (this.isBrowser) {
       return this.lsGet<Task[]>('tasks', [])
-        .filter(t => t.todayOrder !== null)
+        .filter((t) => t.todayOrder !== null)
         .sort((a, b) => (a.todayOrder ?? 0) - (b.todayOrder ?? 0));
     }
-    const rows = await this.query<any>('SELECT * FROM tasks WHERE today_order IS NOT NULL ORDER BY today_order ASC');
-    return rows.map(r => this.mapTask(r));
+    const rows = await this.query<any>(
+      'SELECT * FROM tasks WHERE today_order IS NOT NULL ORDER BY today_order ASC',
+    );
+    return rows.map((r) => this.mapTask(r));
   }
 
   async createTask(task: Task): Promise<void> {
@@ -363,16 +506,28 @@ export class DbService {
     await this.execute(
       `INSERT INTO tasks (id, title, description, priority, status, quadrant, deadline, tags, recurrence, today_order, created_at, completed_at, updated_at)
        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)`,
-      [task.id, task.title, task.description, task.priority, task.status, task.quadrant, task.deadline,
-       JSON.stringify(task.tags), task.recurrence ? JSON.stringify(task.recurrence) : null,
-       task.todayOrder, task.createdAt, task.completedAt, task.updatedAt ?? task.createdAt]
+      [
+        task.id,
+        task.title,
+        task.description,
+        task.priority,
+        task.status,
+        task.quadrant,
+        task.deadline,
+        JSON.stringify(task.tags),
+        task.recurrence ? JSON.stringify(task.recurrence) : null,
+        task.todayOrder,
+        task.createdAt,
+        task.completedAt,
+        task.updatedAt ?? task.createdAt,
+      ],
     );
   }
 
   async updateTask(task: Task): Promise<void> {
     if (this.isBrowser) {
       const tasks = this.lsGet<Task[]>('tasks', []);
-      const idx = tasks.findIndex(t => t.id === task.id);
+      const idx = tasks.findIndex((t) => t.id === task.id);
       if (idx >= 0) tasks[idx] = task;
       this.lsSet('tasks', tasks);
       return;
@@ -380,15 +535,26 @@ export class DbService {
     await this.execute(
       `UPDATE tasks SET title=$1, description=$2, priority=$3, status=$4, quadrant=$5,
        deadline=$6, tags=$7, recurrence=$8, today_order=$9, completed_at=$10, updated_at=$11 WHERE id=$12`,
-      [task.title, task.description, task.priority, task.status, task.quadrant, task.deadline,
-       JSON.stringify(task.tags), task.recurrence ? JSON.stringify(task.recurrence) : null,
-       task.todayOrder, task.completedAt, task.updatedAt ?? task.createdAt, task.id]
+      [
+        task.title,
+        task.description,
+        task.priority,
+        task.status,
+        task.quadrant,
+        task.deadline,
+        JSON.stringify(task.tags),
+        task.recurrence ? JSON.stringify(task.recurrence) : null,
+        task.todayOrder,
+        task.completedAt,
+        task.updatedAt ?? task.createdAt,
+        task.id,
+      ],
     );
   }
 
   async deleteTask(id: string): Promise<void> {
     if (this.isBrowser) {
-      const tasks = this.lsGet<Task[]>('tasks', []).filter(t => t.id !== id);
+      const tasks = this.lsGet<Task[]>('tasks', []).filter((t) => t.id !== id);
       this.lsSet('tasks', tasks);
       return;
     }
@@ -398,15 +564,74 @@ export class DbService {
   async searchTasks(query: string): Promise<Task[]> {
     if (this.isBrowser) {
       const q = query.toLowerCase();
-      return this.lsGet<Task[]>('tasks', []).filter(t =>
-        t.title.toLowerCase().includes(q) || t.description.toLowerCase().includes(q)
+      return this.lsGet<Task[]>('tasks', []).filter(
+        (t) => t.title.toLowerCase().includes(q) || t.description.toLowerCase().includes(q),
       );
     }
     const rows = await this.query<any>(
       'SELECT * FROM tasks WHERE title LIKE $1 OR description LIKE $1 ORDER BY created_at DESC',
-      [`%${query}%`]
+      [`%${query}%`],
     );
-    return rows.map(r => this.mapTask(r));
+    return rows.map((r) => this.mapTask(r));
+  }
+
+  // ==================== WATER METHODS ====================
+
+  /**
+   * Drinks logged at or after `sinceIso`, oldest first.
+   *
+   * Filtered by instant rather than by calendar day so the caller decides what
+   * "today" means — the user's own timezone, not the database's.
+   */
+  async getWaterIntakeSince(sinceIso: string): Promise<WaterEntry[]> {
+    if (this.isBrowser) {
+      return this.readBrowserWater().filter((entry) => entry.loggedAt >= sinceIso);
+    }
+    const rows = await this.query<any>(
+      'SELECT * FROM water_intake WHERE logged_at >= $1 ORDER BY logged_at ASC',
+      [sinceIso],
+    );
+    return rows.map((r) => ({ id: r.id, amountMl: r.amount_ml, loggedAt: r.logged_at }));
+  }
+
+  async addWaterEntry(entry: WaterEntry): Promise<void> {
+    if (this.isBrowser) {
+      this.writeBrowserWater([...this.readBrowserWater(), entry]);
+      return;
+    }
+    await this.execute('INSERT INTO water_intake (id, amount_ml, logged_at) VALUES ($1, $2, $3)', [
+      entry.id,
+      entry.amountMl,
+      entry.loggedAt,
+    ]);
+  }
+
+  async deleteWaterEntry(id: string): Promise<void> {
+    if (this.isBrowser) {
+      this.writeBrowserWater(this.readBrowserWater().filter((entry) => entry.id !== id));
+      return;
+    }
+    await this.execute('DELETE FROM water_intake WHERE id = $1', [id]);
+  }
+
+  /**
+   * Today's drinks in the browser build, dropping earlier days on the way past.
+   *
+   * The desktop build has a real table and keeps the history; a browser tab has
+   * only `localStorage`, so this store is deliberately bounded — without the
+   * rewrite it would grow by one day's rows for every day the app is ever used,
+   * which is exactly the slow leak this feature must not have.
+   */
+  private readBrowserWater(): WaterEntry[] {
+    const since = localDayStart().toISOString();
+    const all = this.lsGet<WaterEntry[]>('waterIntake', []);
+    const today = all.filter((entry) => entry.loggedAt >= since);
+    if (today.length !== all.length) this.writeBrowserWater(today);
+    return today;
+  }
+
+  private writeBrowserWater(entries: WaterEntry[]): void {
+    this.lsSet('waterIntake', entries);
   }
 
   // ==================== APP STATE (non-relational) ====================
@@ -429,7 +654,17 @@ export class DbService {
   // ==================== BACKUP / RESTORE ====================
 
   async exportAll(): Promise<any> {
-    const [sessions, tasks, habits, habitEntries, journal, settings, timerState, scheduleDays, schedulePrefs] = await Promise.all([
+    const [
+      sessions,
+      tasks,
+      habits,
+      habitEntries,
+      journal,
+      settings,
+      timerState,
+      scheduleDays,
+      schedulePrefs,
+    ] = await Promise.all([
       this.getAllSessions(),
       this.getTasks(),
       this.getHabits(),
@@ -471,7 +706,9 @@ export class DbService {
     await this.execute('DELETE FROM sessions');
     await this.execute('DELETE FROM tasks');
     await this.execute('DELETE FROM journal_entries');
-    await this.execute('UPDATE timer_state SET is_running = 0, type = "work", remaining_seconds = 0, task_id = NULL, session_count = 0, started_at = NULL WHERE id = 1');
+    await this.execute(
+      'UPDATE timer_state SET is_running = 0, type = "work", remaining_seconds = 0, task_id = NULL, session_count = 0, started_at = NULL WHERE id = 1',
+    );
   }
 
   async importBackup(data: any): Promise<void> {
@@ -526,7 +763,52 @@ export class DbService {
       todayOrder: r.today_order ?? r.todayOrder ?? null,
       createdAt: r.created_at ?? r.createdAt,
       completedAt: r.completed_at ?? r.completedAt ?? null,
-      updatedAt: r.updated_at ?? r.updatedAt ?? r.completed_at ?? r.created_at ?? r.createdAt ?? null,
+      updatedAt:
+        r.updated_at ?? r.updatedAt ?? r.completed_at ?? r.created_at ?? r.createdAt ?? null,
     };
   }
+}
+
+/**
+ * Repairs the settings that are picked from fixed lists.
+ *
+ * The water cadence, the glass size, the daily target and the alert's shake are
+ * all chosen from lists in the UI, so a stored value outside its list is a store
+ * that was hand-edited or written by an older build. Replacing it with the
+ * default is the honest answer, and it means nothing downstream has to defend
+ * itself against a number that cannot be used — whichever of the two storages
+ * the value came from.
+ */
+function repairSettings(settings: AppSettings): AppSettings {
+  return {
+    ...settings,
+    waterStart:
+      parseTimeOfDay(settings.waterStart) !== null
+        ? settings.waterStart
+        : DEFAULT_SETTINGS.waterStart,
+    waterEnd:
+      parseTimeOfDay(settings.waterEnd) !== null ? settings.waterEnd : DEFAULT_SETTINGS.waterEnd,
+    waterIntervalMinutes: WATER_INTERVAL_OPTIONS.includes(settings.waterIntervalMinutes)
+      ? settings.waterIntervalMinutes
+      : DEFAULT_SETTINGS.waterIntervalMinutes,
+    waterAmountMl: WATER_AMOUNT_OPTIONS.includes(settings.waterAmountMl)
+      ? settings.waterAmountMl
+      : DEFAULT_SETTINGS.waterAmountMl,
+    waterGoalMl: WATER_GOAL_OPTIONS.includes(settings.waterGoalMl)
+      ? settings.waterGoalMl
+      : DEFAULT_SETTINGS.waterGoalMl,
+    waterAutoLogWhenMinimized:
+      typeof settings.waterAutoLogWhenMinimized === 'boolean'
+        ? settings.waterAutoLogWhenMinimized
+        : DEFAULT_SETTINGS.waterAutoLogWhenMinimized,
+    alertShakeMs: ALERT_SHAKE_OPTIONS.includes(settings.alertShakeMs)
+      ? settings.alertShakeMs
+      : DEFAULT_SETTINGS.alertShakeMs,
+    // What happens to a day's unfinished work is the user's call, and only ever
+    // a yes or a no: anything else in the store means the default.
+    carryForwardTasks:
+      typeof settings.carryForwardTasks === 'boolean'
+        ? settings.carryForwardTasks
+        : DEFAULT_SETTINGS.carryForwardTasks,
+  };
 }

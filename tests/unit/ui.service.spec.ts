@@ -40,6 +40,19 @@ describe('UiService (behavior)', () => {
     expect(svc.isMiniMode()).toBe(false);
   });
 
+  it('only calls itself the native widget inside the desktop shell', () => {
+    // In the browser the mini mode is a floating panel over the running app, so
+    // the app shell must keep rendering.
+    expect(svc.isNativeWidget()).toBe(false);
+    svc.isMiniMode.set(true);
+    expect(svc.isNativeWidget()).toBe(false);
+  });
+
+  it('init() is inert outside the desktop shell', async () => {
+    await svc.init();
+    expect(svc.isMiniMode()).toBe(false);
+  });
+
   it('enterMiniMode flips the mini flag even without a desktop shell', async () => {
     // jsdom has no __TAURI_INTERNALS__, so this exercises the browser path:
     // the UI still switches to the floating-clock rendering.
@@ -59,6 +72,25 @@ describe('UiService (behavior)', () => {
     // always-on-top preference must not be reapplied against a missing window.
     await svc.enterMiniMode();
     await svc.exitMiniMode();
+    expect(mockPrefs.reapplyAlwaysOnTop).not.toHaveBeenCalled();
+  });
+
+  it('brings the full window back before a water nudge is asked', async () => {
+    // The nudge is a question, and the widget has no room for one: the widget is
+    // left first, whether or not there is a native window to raise.
+    svc.isMiniMode.set(true);
+
+    await svc.surfaceForNudge();
+
+    expect(svc.isMiniMode()).toBe(false);
+    expect(mockPrefs.reapplyAlwaysOnTop).not.toHaveBeenCalled();
+  });
+
+  it('leaves the window alone when there is no desktop shell to raise', async () => {
+    await svc.surfaceForNudge();
+    await svc.releaseNudgeSurface();
+
+    expect(svc.isMiniMode()).toBe(false);
     expect(mockPrefs.reapplyAlwaysOnTop).not.toHaveBeenCalled();
   });
 });

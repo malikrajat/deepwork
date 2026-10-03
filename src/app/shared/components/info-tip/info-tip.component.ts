@@ -81,15 +81,15 @@ import {
       cursor: default;
     }
     .info-popover-title {
-      font-size: 0.78rem; font-weight: 700; letter-spacing: 0.01em;
+      font-size: 12px; font-weight: 700; letter-spacing: 0.01em;
       color: var(--color-text-primary, #f4f4f5); margin-bottom: 6px;
     }
     .info-popover-body {
-      margin: 0; font-size: 0.75rem; line-height: 1.5;
+      margin: 0; font-size: 12px; line-height: 1.5;
       color: var(--color-text-secondary, #d4d4d8);
     }
     .info-popover-hint {
-      margin: 8px 0 0; font-size: 0.7rem; line-height: 1.45;
+      margin: 8px 0 0; font-size: 11px; line-height: 1.45;
       color: var(--color-accent-primary, #a78bfa);
     }
   `],

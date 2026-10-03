@@ -101,6 +101,9 @@ const XML_ENTITIES: Record<string, string> = {
   apos: "'",
 };
 
+// Kept, though nothing calls it yet: an .xlsx written by another tool can carry
+// `&amp;`-style entities where a cell is expected to hold text.
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 function decodeXmlEntities(text: string): string {
   return text.replace(/&(#x?[0-9a-fA-F]+|[a-zA-Z]+);/g, (match, entity: string) => {
     if (entity.startsWith('#x') || entity.startsWith('#X')) {
@@ -116,14 +119,17 @@ function decodeXmlEntities(text: string): string {
 }
 
 export function escapeXml(text: string): string {
-  return text
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;')
-    .replace(/'/g, '&apos;')
-    // Strip control characters that are illegal in XML 1.0.
-    .replace(/[\u0000-\u0008\u000b\u000c\u000e-\u001f]/g, '');
+  return (
+    text
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&apos;')
+      // Strip control characters that are illegal in XML 1.0.
+      // eslint-disable-next-line no-control-regex -- control characters are illegal in XML 1.0
+      .replace(/[\u0000-\u0008\u000b\u000c\u000e-\u001f]/g, '')
+  );
 }
 
 function parseXml(bytes: Uint8Array): Document {
@@ -169,7 +175,7 @@ function descendants(root: Document | Element, localName: string): Element[] {
 function richText(element: Element): string {
   const runs = descendants(element, 't');
   if (runs.length === 0) return element.textContent ?? '';
-  return runs.map(run => run.textContent ?? '').join('');
+  return runs.map((run) => run.textContent ?? '').join('');
 }
 
 /** Converts a cell reference such as `AB12` into a zero-based column index. */
@@ -203,7 +209,7 @@ function readSharedStrings(files: Map<string, Uint8Array>): string[] {
   const part = files.get('xl/sharedStrings.xml');
   if (!part) return [];
   const doc = parseXml(part);
-  return descendants(doc, 'si').map(item => richText(item));
+  return descendants(doc, 'si').map((item) => richText(item));
 }
 
 interface SheetReference {
@@ -251,7 +257,7 @@ function readSheetReferences(files: Map<string, Uint8Array>): SheetReference[] {
 
   if (references.length === 0) {
     const worksheetNames = [...files.keys()]
-      .filter(name => /^xl\/worksheets\/sheet\d*\.xml$/i.test(name))
+      .filter((name) => /^xl\/worksheets\/sheet\d*\.xml$/i.test(name))
       .sort((a, b) => a.localeCompare(b, undefined, { numeric: true }));
     for (const path of worksheetNames) {
       const name = path.replace(/^xl\/worksheets\//, '').replace(/\.xml$/i, '');
@@ -262,7 +268,11 @@ function readSheetReferences(files: Map<string, Uint8Array>): SheetReference[] {
   return references;
 }
 
-function readSheet(files: Map<string, Uint8Array>, reference: SheetReference, sharedStrings: string[]): XlsxSheet {
+function readSheet(
+  files: Map<string, Uint8Array>,
+  reference: SheetReference,
+  sharedStrings: string[],
+): XlsxSheet {
   const part = files.get(reference.path);
   if (!part) return { name: reference.name, rows: [] };
 
@@ -275,7 +285,7 @@ function readSheet(files: Map<string, Uint8Array>, reference: SheetReference, sh
 
   for (const rowElement of childElements(sheetData, 'row')) {
     const rowRef = Number(rowElement.getAttribute('r') ?? '');
-    let rowIndex = Number.isFinite(rowRef) && rowRef > 0 ? rowRef - 1 : lastRowIndex + 1;
+    const rowIndex = Number.isFinite(rowRef) && rowRef > 0 ? rowRef - 1 : lastRowIndex + 1;
     if (rowIndex > MAX_ROWS) break;
     lastRowIndex = rowIndex;
 
@@ -301,7 +311,7 @@ function readSheet(files: Map<string, Uint8Array>, reference: SheetReference, sh
       if (!row[i]) row[i] = { text: '', numeric: null };
     }
   }
-  while (rows.length > 0 && rows[rows.length - 1].every(cell => !cell || cell.text === '')) {
+  while (rows.length > 0 && rows[rows.length - 1].every((cell) => !cell || cell.text === '')) {
     rows.pop();
   }
 
@@ -356,13 +366,16 @@ function readCell(cellElement: Element, sharedStrings: string[]): XlsxCell {
 /** Reads every sheet of an `.xlsx` workbook (macros/`.xlsm` included). */
 export function parseXlsxWorkbook(buffer: Uint8Array): ParsedWorkbook {
   const files = unzip(buffer);
-  if (!files.has('xl/workbook.xml') && ![...files.keys()].some(key => key.startsWith('xl/worksheets/'))) {
+  if (
+    !files.has('xl/workbook.xml') &&
+    ![...files.keys()].some((key) => key.startsWith('xl/worksheets/'))
+  ) {
     throw new XlsxError('This file is not an Excel workbook (.xlsx)');
   }
 
   const sharedStrings = readSharedStrings(files);
   const references = readSheetReferences(files);
-  const sheets = references.map(reference => readSheet(files, reference, sharedStrings));
+  const sheets = references.map((reference) => readSheet(files, reference, sharedStrings));
   if (sheets.length === 0) throw new XlsxError('The workbook does not contain any sheets');
 
   return { sheets };
@@ -371,7 +384,8 @@ export function parseXlsxWorkbook(buffer: Uint8Array): ParsedWorkbook {
 /** Picks the sheet that should be imported: a sheet named "tasks", else the first. */
 export function pickTaskSheet(workbook: ParsedWorkbook): XlsxSheet {
   const named = workbook.sheets.find(
-    sheet => sheet.name.trim().toLowerCase() === 'tasks' || sheet.name.trim().toLowerCase() === 'task'
+    (sheet) =>
+      sheet.name.trim().toLowerCase() === 'tasks' || sheet.name.trim().toLowerCase() === 'task',
   );
   return named ?? workbook.sheets[0];
 }
@@ -406,13 +420,18 @@ export function isoDateToExcelSerial(value: string): number | null {
   const day = Number(match[3]);
   const utc = Date.UTC(year, month - 1, day);
   const check = new Date(utc);
-  if (check.getUTCFullYear() !== year || check.getUTCMonth() !== month - 1 || check.getUTCDate() !== day) {
+  if (
+    check.getUTCFullYear() !== year ||
+    check.getUTCMonth() !== month - 1 ||
+    check.getUTCDate() !== day
+  ) {
     return null;
   }
   const serial = Math.round((utc - Date.UTC(1899, 11, 30)) / 86400000);
   return serial > 0 ? serial : null;
 }
 
+/* eslint-disable no-useless-escape -- Excel's own date format code escapes the dash */
 const STYLES_XML = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 <styleSheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">
   <numFmts count="1"><numFmt numFmtId="${DATE_FORMAT_ID}" formatCode="yyyy\-mm\-dd"/></numFmts>
@@ -449,6 +468,7 @@ const STYLES_XML = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
   </cellXfs>
   <cellStyles count="1"><cellStyle name="Normal" xfId="0" builtinId="0"/></cellStyles>
 </styleSheet>`;
+/* eslint-enable no-useless-escape */
 
 function buildSheetXml(spec: XlsxSheetSpec): string {
   const columnCount = Math.max(spec.columns.length, 1);
@@ -457,10 +477,9 @@ function buildSheetXml(spec: XlsxSheetSpec): string {
 
   for (const row of spec.rows ?? []) dataRows.push(row);
   for (let i = 0; i < defaultRowCount; i++) {
-    dataRows.push(spec.columns.map(column => column.defaultValue ?? ''));
+    dataRows.push(spec.columns.map((column) => column.defaultValue ?? ''));
   }
 
-  const notes: string[] = [];
   const lastRow = Math.max(dataRows.length + 1, 1);
   const dimension = `A1:${columnLetter(columnCount - 1)}${Math.max(lastRow, 1)}`;
   const validationRows = spec.validationRows ?? 500;
@@ -468,7 +487,7 @@ function buildSheetXml(spec: XlsxSheetSpec): string {
   const parts: string[] = [];
   parts.push('<?xml version="1.0" encoding="UTF-8" standalone="yes"?>');
   parts.push(
-    '<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships">'
+    '<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships">',
   );
   parts.push(`<dimension ref="${dimension}"/>`);
 
@@ -493,8 +512,8 @@ function buildSheetXml(spec: XlsxSheetSpec): string {
   spec.columns.forEach((column, index) => {
     parts.push(
       `<c r="${columnLetter(index)}1" s="${STYLE.header}" t="inlineStr"><is><t xml:space="preserve">${escapeXml(
-        column.header
-      )}</t></is></c>`
+        column.header,
+      )}</t></is></c>`,
     );
   });
   parts.push('</row>');
@@ -502,7 +521,7 @@ function buildSheetXml(spec: XlsxSheetSpec): string {
   // Data rows
   dataRows.forEach((row, rowIndex) => {
     const rowNumber = rowIndex + 2;
-    const isBlankRow = row.every(value => (value ?? '').toString().trim() === '');
+    const isBlankRow = row.every((value) => (value ?? '').toString().trim() === '');
     const cells: string[] = [];
     spec.columns.forEach((column, columnIndex) => {
       const value = row[columnIndex];
@@ -514,26 +533,29 @@ function buildSheetXml(spec: XlsxSheetSpec): string {
       if (column.date) {
         const serial = isoDateToExcelSerial(text);
         if (serial !== null) {
-          cells.push(`<c r="${columnLetter(columnIndex)}${rowNumber}" s="${STYLE.date}"><v>${serial}</v></c>`);
+          cells.push(
+            `<c r="${columnLetter(columnIndex)}${rowNumber}" s="${STYLE.date}"><v>${serial}</v></c>`,
+          );
           return;
         }
       }
 
-      const style = column.align === 'center'
-        ? STYLE.bodyCenter
-        : column.muted
-          ? STYLE.mutedWrap
-          : column.wrap
-            ? STYLE.bodyWrap
-            : STYLE.body;
+      const style =
+        column.align === 'center'
+          ? STYLE.bodyCenter
+          : column.muted
+            ? STYLE.mutedWrap
+            : column.wrap
+              ? STYLE.bodyWrap
+              : STYLE.body;
       cells.push(
         `<c r="${columnLetter(columnIndex)}${rowNumber}" s="${style}" t="inlineStr"><is><t xml:space="preserve">${escapeXml(
-          text
-        )}</t></is></c>`
+          text,
+        )}</t></is></c>`,
       );
     });
     parts.push(
-      `<row r="${rowNumber}"${isBlankRow ? ' ht="15" customHeight="1"' : ''}>${cells.join('')}</row>`
+      `<row r="${rowNumber}"${isBlankRow ? ' ht="15" customHeight="1"' : ''}>${cells.join('')}</row>`,
     );
   });
 
@@ -562,31 +584,36 @@ function buildSheetXml(spec: XlsxSheetSpec): string {
         parts.push(
           `<dataValidation type="list" ${base} errorTitle="Invalid value" ` +
             `error="Choose one of the values from the dropdown list.">` +
-            `<formula1>&quot;${escapeXml(column.values.join(','))}&quot;</formula1></dataValidation>`
+            `<formula1>&quot;${escapeXml(column.values.join(','))}&quot;</formula1></dataValidation>`,
         );
       } else if (column.date) {
         parts.push(
           `<dataValidation type="date" operator="greaterThanOrEqual" formula1="DATE(1900,1,1)" ${base} ` +
-            `errorTitle="Invalid date" error="Enter a date as YYYY-MM-DD, or leave the cell blank."/>`
+            `errorTitle="Invalid date" error="Enter a date as YYYY-MM-DD, or leave the cell blank."/>`,
         );
       } else {
         parts.push(
           `<dataValidation type="textLength" operator="lessThanOrEqual" formula1="${column.maxLength}" ${base} ` +
-            `errorTitle="Too long" error="This entry must be ${column.maxLength} characters or fewer."/>`
+            `errorTitle="Too long" error="This entry must be ${column.maxLength} characters or fewer."/>`,
         );
       }
     }
     parts.push('</dataValidations>');
   }
 
-  parts.push('<pageMargins left="0.7" right="0.7" top="0.75" bottom="0.75" header="0.3" footer="0.3"/>');
+  parts.push(
+    '<pageMargins left="0.7" right="0.7" top="0.75" bottom="0.75" header="0.3" footer="0.3"/>',
+  );
   parts.push('</worksheet>');
   return parts.join('');
 }
 
 function buildWorkbookXml(sheets: { name: string }[]): string {
   const entries = sheets
-    .map((sheet, index) => `<sheet name="${escapeXml(sheet.name)}" sheetId="${index + 1}" r:id="rId${index + 1}"/>`)
+    .map(
+      (sheet, index) =>
+        `<sheet name="${escapeXml(sheet.name)}" sheetId="${index + 1}" r:id="rId${index + 1}"/>`,
+    )
     .join('');
   return (
     '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>' +
@@ -680,7 +707,9 @@ export function buildXlsx(spec: XlsxWorkbookSpec, created = new Date()): Uint8Ar
   add('xl/workbook.xml', buildWorkbookXml(spec.sheets));
   add('xl/_rels/workbook.xml.rels', buildWorkbookRels(spec.sheets.length));
   add('xl/styles.xml', STYLES_XML);
-  spec.sheets.forEach((sheet, index) => add(`xl/worksheets/sheet${index + 1}.xml`, buildSheetXml(sheet)));
+  spec.sheets.forEach((sheet, index) =>
+    add(`xl/worksheets/sheet${index + 1}.xml`, buildSheetXml(sheet)),
+  );
 
   return zip(files, created);
 }

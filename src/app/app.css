@@ -6,6 +6,11 @@
   overflow: hidden;
 }
 
+/* The mini widget owns the whole window while it is open. */
+.app-shell.mini-active {
+  display: none;
+}
+
 .app-layout {
   display: flex;
   flex: 1;
@@ -20,10 +25,6 @@
   background: transparent;
   position: relative;
   transition: padding 0.3s ease;
-}
-
-.sidebar-collapsed .main-content {
-  margin-left: 0;
 }
 
 /* Focus Mode */
@@ -48,7 +49,7 @@
   background: var(--glass-bg);
   backdrop-filter: blur(12px);
   color: var(--color-text-muted);
-  font-size: 0.75rem;
+  font-size: 12px;
   font-weight: 500;
   cursor: pointer;
   transition: all 0.2s;

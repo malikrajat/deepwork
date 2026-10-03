@@ -2,6 +2,15 @@ import { Component, input, computed, ChangeDetectionStrategy } from '@angular/co
 import { TimerType } from '../../../core/models/session.model';
 import { TIMER_TYPE_CONFIG } from '../../../core/constants/theme.constants';
 
+/**
+ * The clock face is drawn from strokes, not from blurred copies of itself.
+ *
+ * The arc and the needle used to carry `feGaussianBlur` filters: a 4-unit blur
+ * on the arc and a 2-unit one on the needle. On screen that turned the most
+ * colourful shape in the app into a soft, muddy ring with a haze around it, and
+ * the filter's rectangular region could read as a faint box. A wide, faint
+ * duplicate of the arc gives the same sense of glow while keeping hard edges.
+ */
 @Component({
   selector: 'app-animated-clock',
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -18,21 +27,28 @@ import { TIMER_TYPE_CONFIG } from '../../../core/constants/theme.constants';
             <stop offset="0%" stop-color="#06b6d4"/>
             <stop offset="100%" stop-color="#34d399"/>
           </linearGradient>
-          <filter id="needle-glow">
-            <feGaussianBlur stdDeviation="2" result="blur"/>
-            <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
-          </filter>
-          <filter id="arc-glow">
-            <feGaussianBlur stdDeviation="4" result="blur"/>
-            <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
-          </filter>
         </defs>
 
         <!-- Outer ring -->
-        <circle cx="100" cy="100" r="96" fill="none" stroke="rgba(139,92,246,0.06)" stroke-width="1"/>
+        <circle cx="100" cy="100" r="96" fill="none" stroke="rgba(139,92,246,0.14)" stroke-width="1"/>
 
         <!-- Background track -->
         <circle cx="100" cy="100" r="88" fill="none" stroke="var(--clock-track)" stroke-width="8"/>
+
+        <!-- Halo: the elapsed arc drawn 20 units wide and faint, so the glow has
+             the same hard edge as the arc instead of a blur filter's haze. -->
+        @if (progress() > 0) {
+          <circle
+            class="arc-halo"
+            cx="100" cy="100" r="88"
+            fill="none"
+            [attr.stroke]="arcColor()"
+            stroke-width="20"
+            stroke-linecap="round"
+            [attr.stroke-dasharray]="circumference"
+            [attr.stroke-dashoffset]="elapsedOffset()"
+          />
+        }
 
         <!-- Filled arc (elapsed time) -->
         <circle
@@ -44,7 +60,6 @@ import { TIMER_TYPE_CONFIG } from '../../../core/constants/theme.constants';
           stroke-linecap="round"
           [attr.stroke-dasharray]="circumference"
           [attr.stroke-dashoffset]="elapsedOffset()"
-          [attr.filter]="progress() > 0 ? 'url(#arc-glow)' : null"
         />
 
         <!-- Minute tick marks -->
@@ -55,13 +70,13 @@ import { TIMER_TYPE_CONFIG } from '../../../core/constants/theme.constants';
             [attr.x2]="100 + (tick % 5 === 0 ? 72 : 74) * Math.cos(tick * Math.PI / 30 - Math.PI / 2)"
             [attr.y2]="100 + (tick % 5 === 0 ? 72 : 74) * Math.sin(tick * Math.PI / 30 - Math.PI / 2)"
             [class]="tick % 5 === 0 ? 'tick-major' : 'tick-minor'"
-            [attr.stroke-width]="tick % 5 === 0 ? '1.5' : '0.8'"
+            [attr.stroke-width]="tick % 5 === 0 ? '2' : '1'"
             stroke-linecap="round"
           />
         }
 
         <!-- Needle (rotates based on elapsed progress) -->
-        <g [attr.transform]="'rotate(' + needleAngle() + ' 100 100)'" filter="url(#needle-glow)">
+        <g [attr.transform]="'rotate(' + needleAngle() + ' 100 100)'">
           <line x1="100" y1="100" x2="100" y2="28"
             [attr.stroke]="needleColor()"
             stroke-width="2"
@@ -114,9 +129,6 @@ import { TIMER_TYPE_CONFIG } from '../../../core/constants/theme.constants';
       position: absolute;
       inset: 0;
     }
-    .track-circle {
-      stroke: rgba(255, 255, 255, 0.06);
-    }
     .tick-major {
       stroke: rgba(255, 255, 255, 0.25);
     }
@@ -124,6 +136,14 @@ import { TIMER_TYPE_CONFIG } from '../../../core/constants/theme.constants';
       stroke: rgba(255, 255, 255, 0.08);
     }
     .elapsed-arc {
+      transform: rotate(-90deg);
+      transform-origin: center;
+      transition: stroke-dashoffset 1s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+    /* Drains with the arc; the pair reads as one glowing stroke with two hard
+       edges rather than a blurred one. */
+    .arc-halo {
+      opacity: 0.16;
       transform: rotate(-90deg);
       transform-origin: center;
       transition: stroke-dashoffset 1s cubic-bezier(0.4, 0, 0.2, 1);
@@ -139,14 +159,14 @@ import { TIMER_TYPE_CONFIG } from '../../../core/constants/theme.constants';
     }
     .time-value {
       font-family: var(--font-mono);
-      font-size: clamp(1.2rem, 4vmin, 2rem);
+      font-size: clamp(20px, 4vmin, 32px);
       font-weight: 700;
       color: var(--color-text-primary);
       letter-spacing: -1px;
-      text-shadow: 0 0 20px rgba(139, 92, 246, 0.2);
+      font-variant-numeric: tabular-nums;
     }
     .timer-label {
-      font-size: clamp(0.55rem, 1.5vmin, 0.7rem);
+      font-size: clamp(10px, 1.5vmin, 12px);
       text-transform: uppercase;
       letter-spacing: 0.15em;
       color: var(--color-text-muted);

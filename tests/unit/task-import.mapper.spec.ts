@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import {
+  ADD_TO_TODAY_LABELS,
   IMPORT_DEFAULTS,
   QUADRANT_LABELS,
   excelSerialToIsoDate,
@@ -363,7 +364,11 @@ describe('row parsing', () => {
     const row = parseImportRows(sheetRows, mapHeaders(sheetRows)).rows[0];
     expect(row.status).toBe('ready');
     expect(row.task?.quadrant).toBeNull();
-    expect(row.task?.addToToday).toBe(true);
+    // The deadline is what puts a row on Today; "Add to Today" starts at No so a
+    // row dated for another day stays there. The pre-filled deadline above is
+    // today, which is why this row is still today's work.
+    expect(ADD_TO_TODAY_LABELS).toContain(IMPORT_DEFAULTS.addToToday);
+    expect(row.task?.addToToday).toBe(false);
     expect(row.task?.tags).toEqual(['task']);
     expect(row.task?.deadline).toBe(todayIsoDate());
     expect(QUADRANT_LABELS[0]).toBe('Unassigned');

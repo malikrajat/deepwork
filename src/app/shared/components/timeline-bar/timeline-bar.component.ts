@@ -129,7 +129,7 @@ const UPDATE_INTERVAL_MS = 1000;
     .hour-text {
       width: 36px;
       flex-shrink: 0;
-      font-size: 0.55rem;
+      font-size: 10px;
       font-family: var(--font-mono);
       color: var(--color-text-muted);
       text-align: right;
@@ -227,12 +227,8 @@ const UPDATE_INTERVAL_MS = 1000;
       50% { opacity: 0.82; }
     }
 
-    .pulse-dot {
-      display: none;
-    }
-
     .block-label {
-      font-size: 0.58rem;
+      font-size: 10px;
       font-weight: 600;
       color: var(--color-text-primary);
       white-space: nowrap;
@@ -242,11 +238,7 @@ const UPDATE_INTERVAL_MS = 1000;
       pointer-events: none;
     }
     .block-label.small-label {
-      font-size: 0.42rem;
-      line-height: 1;
-    }
-    .block-label.small-label {
-      font-size: 0.42rem;
+      font-size: 10px;
       line-height: 1;
     }
 

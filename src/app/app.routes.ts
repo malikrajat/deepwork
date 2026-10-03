@@ -3,7 +3,8 @@ import { Routes } from '@angular/router';
 export const routes: Routes = [
   {
     path: '',
-    loadComponent: () => import('./pages/dashboard/dashboard.component').then(m => m.DashboardComponent),
+    loadComponent: () =>
+      import('./pages/dashboard/dashboard.component').then((m) => m.DashboardComponent),
   },
   {
     path: 'dashboard',
@@ -12,39 +13,48 @@ export const routes: Routes = [
   },
   {
     path: 'tasks',
-    loadComponent: () => import('./pages/tasks/tasks.component').then(m => m.TasksComponent),
+    loadComponent: () => import('./pages/tasks/tasks.component').then((m) => m.TasksComponent),
   },
   {
     path: 'matrix',
-    loadComponent: () => import('./pages/matrix/matrix.component').then(m => m.MatrixComponent),
+    loadComponent: () => import('./pages/matrix/matrix.component').then((m) => m.MatrixComponent),
   },
   {
     path: 'calendar',
-    loadComponent: () => import('./pages/calendar/calendar.component').then(m => m.CalendarComponent),
+    loadComponent: () =>
+      import('./pages/calendar/calendar.component').then((m) => m.CalendarComponent),
   },
   {
     path: 'today',
-    loadComponent: () => import('./pages/today/today.component').then(m => m.TodayComponent),
+    loadComponent: () => import('./pages/today/today.component').then((m) => m.TodayComponent),
   },
   {
     path: 'analytics',
-    loadComponent: () => import('./pages/analytics/analytics.component').then(m => m.AnalyticsComponent),
+    loadComponent: () =>
+      import('./pages/analytics/analytics.component').then((m) => m.AnalyticsComponent),
   },
   {
     path: 'habits',
-    loadComponent: () => import('./pages/habits/habits.component').then(m => m.HabitsComponent),
+    loadComponent: () => import('./pages/habits/habits.component').then((m) => m.HabitsComponent),
   },
   {
     path: 'journal',
-    loadComponent: () => import('./pages/journal/journal.component').then(m => m.JournalComponent),
+    loadComponent: () =>
+      import('./pages/journal/journal.component').then((m) => m.JournalComponent),
   },
   {
     path: 'journal/:date',
-    loadComponent: () => import('./pages/journal/journal.component').then(m => m.JournalComponent),
+    loadComponent: () =>
+      import('./pages/journal/journal.component').then((m) => m.JournalComponent),
   },
   {
     path: 'settings',
-    loadComponent: () => import('./pages/settings/settings.component').then(m => m.SettingsComponent),
+    loadComponent: () =>
+      import('./pages/settings/settings.component').then((m) => m.SettingsComponent),
+  },
+  {
+    path: 'about',
+    loadComponent: () => import('./pages/about/about.component').then((m) => m.AboutComponent),
   },
   {
     path: '**',

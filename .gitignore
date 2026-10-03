@@ -29,6 +29,14 @@ yarn-error.log
 !.vscode/mcp.json
 .history/*
 
+# Agent tooling
+# `.agents/skills/` is the canonical, committed copy of the vendored skills. The
+# `skills` CLI also links each skill into every agent directory it detects; on
+# Windows those are junctions to the same files and git follows them, so
+# committing them would duplicate the whole skill tree under absolute local paths.
+# Keep the source of truth, ignore the links.
+.claude/
+
 # Miscellaneous
 /.angular/cache
 .sass-cache/
@@ -46,3 +54,8 @@ Thumbs.db
 # Tauri build artifacts
 src-tauri/target/
 .tmp-verify
+
+# Test output (Vitest coverage, Playwright report and traces)
+/coverage
+/playwright-report
+/test-results

@@ -9,13 +9,20 @@
 //! The Windows value name is `DeepWork`, which is the same name Tauri's NSIS
 //! uninstaller deletes, so uninstalling always removes the startup entry.
 //!
+//! Nothing here runs at install time, and no installer writes the entry: the
+//! Windows one used to, right after the files were copied, and Defender
+//! quarantined the 2.0.12 `-setup.exe` as `Behavior:Win32/Persistence.A!ml` for
+//! it — a per-user `Run` value written by a freshly downloaded, unsigned
+//! installer is the shape heuristics call persistence. The entry is written
+//! here only when the user asks for it, from the app that is already installed.
+//!
 //! Every entry launches the app with [`AUTOSTART_FLAG`] so a login-launched copy
-//! can wait quietly in the system tray instead of opening a window.
+//! knows to open without stealing focus (see `restore_in_background`).
 
 /// Registry value name / launch-item label. Matches the NSIS `${PRODUCTNAME}`.
 pub const APP_LABEL: &str = "DeepWork";
 
-/// Argument telling a login-launched copy to start hidden in the system tray.
+/// Argument telling a login-launched copy to open without stealing focus.
 pub const AUTOSTART_FLAG: &str = "--autostart";
 
 /// True when this process was started by the OS at login.

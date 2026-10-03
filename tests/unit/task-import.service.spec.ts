@@ -2,15 +2,19 @@ import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { TestBed } from '@angular/core/testing';
 import { TaskImportService } from '../../src/app/core/services/task-import.service';
 import { TaskService } from '../../src/app/core/services/task.service';
+import { DownloadService } from '../../src/app/core/services/download.service';
 import { Task } from '../../src/app/core/models/task.model';
-import { parseXlsxWorkbook, pickTaskSheet, isoDateToExcelSerial } from '../../src/app/core/utils/xlsx.util';
+import {
+  parseXlsxWorkbook,
+  pickTaskSheet,
+  isoDateToExcelSerial,
+} from '../../src/app/core/utils/xlsx.util';
 import { unzip, utf8Decode } from '../../src/app/core/utils/zip.util';
-import { todayIsoDate } from '../../src/app/core/utils/task-import.mapper';
+import { IMPORT_DEFAULTS, todayIsoDate } from '../../src/app/core/utils/task-import.mapper';
 
 /** Minimal stand-in for a browser File backed by bytes or text. */
 function fakeFile(name: string, contents: Uint8Array | string): File {
-  const bytes =
-    typeof contents === 'string' ? new TextEncoder().encode(contents) : contents;
+  const bytes = typeof contents === 'string' ? new TextEncoder().encode(contents) : contents;
   return {
     name,
     size: bytes.length,
@@ -26,6 +30,7 @@ describe('TaskImportService', () => {
   let service: TaskImportService;
   let existing: Task[];
   let created: Partial<Task>[];
+  let savedDownloads: { fileName: string; bytes: Uint8Array; mimeType: string; location: string }[];
 
   const makeMockTaskService = () => ({
     tasks: () => existing,
@@ -53,8 +58,20 @@ describe('TaskImportService', () => {
   beforeEach(() => {
     existing = [];
     created = [];
+    savedDownloads = [];
+    const downloadService = {
+      save: vi.fn(async (fileName: string, bytes: Uint8Array, mimeType: string) => {
+        const location = `C:\\Users\\Ada\\Downloads\\${fileName}`;
+        savedDownloads.push({ fileName, bytes, mimeType, location });
+        return { fileName, folder: 'Downloads', location };
+      }),
+    };
     TestBed.configureTestingModule({
-      providers: [TaskImportService, { provide: TaskService, useValue: makeMockTaskService() }],
+      providers: [
+        TaskImportService,
+        { provide: TaskService, useValue: makeMockTaskService() },
+        { provide: DownloadService, useValue: downloadService },
+      ],
     });
     service = TestBed.inject(TaskImportService);
   });
@@ -64,14 +81,28 @@ describe('TaskImportService', () => {
   // ── Template ───────────────────────────────────────────────────────────────
 
   describe('template', () => {
+    it('downloads as a dated .xlsx and reports where it was written', async () => {
+      const saved = await service.downloadTemplate();
+
+      expect(saved.fileName).toBe(`${todayIsoDate()}.xlsx`);
+      expect(savedDownloads).toHaveLength(1);
+      expect(savedDownloads[0].fileName).toBe(`${todayIsoDate()}.xlsx`);
+      // A real xlsx (zip) with Excel's content type, not an empty placeholder.
+      expect(savedDownloads[0].bytes[0]).toBe(0x50);
+      expect(savedDownloads[0].bytes[1]).toBe(0x4b);
+      expect(savedDownloads[0].mimeType).toContain('spreadsheetml');
+      expect(saved.folder).toBe('Downloads');
+      expect(saved.location).toContain('Downloads');
+    });
+
     it('is a parseable xlsx with a Tasks and an Instructions sheet', () => {
       const workbook = parseXlsxWorkbook(service.buildTemplate());
-      expect(workbook.sheets.map(sheet => sheet.name)).toEqual(['Tasks', 'Instructions']);
+      expect(workbook.sheets.map((sheet) => sheet.name)).toEqual(['Tasks', 'Instructions']);
     });
 
     it('has every Add Task field as a column', () => {
       const sheet = pickTaskSheet(parseXlsxWorkbook(service.buildTemplate()));
-      expect(sheet.rows[0].map(cell => cell.text)).toEqual([
+      expect(sheet.rows[0].map((cell) => cell.text)).toEqual([
         'Title',
         'Description',
         'Priority',
@@ -87,16 +118,18 @@ describe('TaskImportService', () => {
     });
 
     it('pre-fills rows with the application defaults', () => {
-      const today = todayIsoDate();
       const sheet = pickTaskSheet(parseXlsxWorkbook(service.buildTemplate()));
-      const firstDefaultRow = sheet.rows[1].map(cell => cell.text);
+      const firstDefaultRow = sheet.rows[1].map((cell) => cell.text);
       expect(firstDefaultRow[0]).toBe(''); // Title is left for the user
       expect(firstDefaultRow[2]).toBe('P3 — Medium');
       expect(firstDefaultRow[3]).toBe('Unassigned');
       expect(firstDefaultRow[5]).toBe('To Do');
       expect(firstDefaultRow[6]).toBe('No repeat');
       expect(firstDefaultRow[9]).toBe('task');
-      expect(firstDefaultRow[10]).toBe('Yes');
+      // "Add to Today" starts at No: the deadline decides the day, and a row
+      // dated for another day must not be pulled onto today by a default.
+      expect(firstDefaultRow[10]).toBe('No');
+      expect(IMPORT_DEFAULTS.addToToday).toBe('No');
       // Template ships 25 blank rows ready to type into.
       expect(sheet.rows.length).toBe(26);
     });
@@ -119,7 +152,9 @@ describe('TaskImportService', () => {
       expect((sheetXml.match(/<dataValidation /g) ?? []).length).toBe(11);
       expect((sheetXml.match(/type="list"/g) ?? []).length).toBe(5);
       expect(sheetXml).toContain('&quot;P1 — Critical,P2 — High,P3 — Medium,P4 — Low&quot;');
-      expect(sheetXml).toContain('&quot;Unassigned,Urgent + Important,Important,Urgent,Neither&quot;');
+      expect(sheetXml).toContain(
+        '&quot;Unassigned,Urgent + Important,Important,Urgent,Neither&quot;',
+      );
       expect(sheetXml).toContain('&quot;To Do,In Progress,Done&quot;');
       expect(sheetXml).toContain('&quot;No repeat,Daily,Weekly,Monthly&quot;');
       expect(sheetXml).toContain('&quot;Yes,No&quot;');
@@ -142,16 +177,16 @@ describe('TaskImportService', () => {
     it('documents each column on the instructions sheet', () => {
       const workbook = parseXlsxWorkbook(service.buildTemplate());
       const instructions = workbook.sheets[1];
-      const labels = instructions.rows.map(row => row[0]?.text);
+      const labels = instructions.rows.map((row) => row[0]?.text);
       expect(labels).toContain('Title');
       expect(labels).toContain('Add to Today');
       expect(labels).toContain('How to use');
-      const priorityRow = instructions.rows.find(row => row[0]?.text === 'Priority');
+      const priorityRow = instructions.rows.find((row) => row[0]?.text === 'Priority');
       expect(priorityRow?.[2].text).toBe('P3 — Medium');
-      const deadlineRow = instructions.rows.find(row => row[0]?.text === 'Deadline');
+      const deadlineRow = instructions.rows.find((row) => row[0]?.text === 'Deadline');
       expect(deadlineRow?.[2].text).toBe(todayIsoDate());
       expect(deadlineRow?.[3].text).toContain('Past dates are allowed');
-      const tagsRow = instructions.rows.find(row => row[0]?.text === 'Tags');
+      const tagsRow = instructions.rows.find((row) => row[0]?.text === 'Tags');
       expect(tagsRow?.[2].text).toBe('task');
     });
   });
@@ -161,11 +196,31 @@ describe('TaskImportService', () => {
   describe('parseFile', () => {
     it('parses an Excel workbook and reports a preview', async () => {
       const sheetRows = [
-        ['Title', 'Description', 'Priority', 'Quadrant', 'Deadline', 'Status', 'Repeat', 'Tags', 'Add to Today'],
-        ['Imported from Excel', 'via upload', 'P1', 'Urgent + Important', '2027-01-15', 'In Progress', 'Daily', 'work', 'Yes'],
+        [
+          'Title',
+          'Description',
+          'Priority',
+          'Quadrant',
+          'Deadline',
+          'Status',
+          'Repeat',
+          'Tags',
+          'Add to Today',
+        ],
+        [
+          'Imported from Excel',
+          'via upload',
+          'P1',
+          'Urgent + Important',
+          '2027-01-15',
+          'In Progress',
+          'Daily',
+          'work',
+          'Yes',
+        ],
         ['Second task', '', 'P4', 'Neither', '', 'To Do', 'No repeat', '', 'No'],
       ];
-      const csv = sheetRows.map(row => row.join(',')).join('\n');
+      const csv = sheetRows.map((row) => row.join(',')).join('\n');
       const preview = await service.parseFile(fakeFile('tasks.csv', csv));
 
       expect(preview.fatalError).toBeNull();
@@ -173,7 +228,7 @@ describe('TaskImportService', () => {
       expect(preview.rowsExamined).toBe(2);
       expect(preview.readyCount).toBe(2);
       expect(preview.importableCount).toBe(2);
-      expect(preview.mapping.map(entry => entry.field)).toContain('title');
+      expect(preview.mapping.map((entry) => entry.field)).toContain('title');
     });
 
     it('parses a generated xlsx workbook', async () => {
@@ -198,9 +253,7 @@ describe('TaskImportService', () => {
     });
 
     it('handles quoted CSV values with commas and newlines', async () => {
-      const csv =
-        'Title,Description,Priority\n' +
-        '"Fix, then ship","Line one\nLine two",P2\n';
+      const csv = 'Title,Description,Priority\n' + '"Fix, then ship","Line one\nLine two",P2\n';
       const preview = await service.parseFile(fakeFile('tasks.csv', csv));
       expect(preview.rows[0].task?.title).toBe('Fix, then ship');
       expect(preview.rows[0].task?.description).toBe('Line one\nLine two');
@@ -232,9 +285,13 @@ describe('TaskImportService', () => {
           completedAt: null,
         },
       ];
-      const preview = await service.parseFile(fakeFile('dupes.csv', 'Title\nAlready here\nFresh task\n'));
+      const preview = await service.parseFile(
+        fakeFile('dupes.csv', 'Title\nAlready here\nFresh task\n'),
+      );
       expect(preview.duplicateCount).toBe(1);
       expect(preview.readyCount).toBe(1);
+      // Duplicates are importable too — the preview just labels them.
+      expect(preview.importableCount).toBe(2);
     });
 
     it('reports a helpful error when there is no Title column', async () => {
@@ -251,7 +308,7 @@ describe('TaskImportService', () => {
 
     it('reports unreadable binary files instead of throwing', async () => {
       const preview = await service.parseFile(
-        fakeFile('broken.xlsx', new Uint8Array([0x50, 0x4b, 0x03, 0x04, 1, 2, 3, 4]))
+        fakeFile('broken.xlsx', new Uint8Array([0x50, 0x4b, 0x03, 0x04, 1, 2, 3, 4])),
       );
       expect(preview.fatalError).toMatch(/Could not read this file|not a valid/i);
     });
@@ -283,18 +340,18 @@ describe('TaskImportService', () => {
       const preview = await previewFrom('Title,Priority\nFirst,P1\nSecond,P2\n');
       const result = await service.importRows(preview);
       expect(result.created).toBe(2);
-      expect(created.map(task => task.title)).toEqual(['First', 'Second']);
+      expect(created.map((task) => task.title)).toEqual(['First', 'Second']);
       expect(created[0].priority).toBe(1);
     });
 
     it('reports progress', async () => {
       const preview = await previewFrom('Title\nA\nB\nC\n');
       const seen: number[] = [];
-      await service.importRows(preview, { onProgress: done => seen.push(done) });
+      await service.importRows(preview, { onProgress: (done) => seen.push(done) });
       expect(seen).toEqual([1, 2, 3]);
     });
 
-    it('skips duplicates by default and imports them when asked', async () => {
+    it('imports a repeated title as a new task by default', async () => {
       existing = [
         {
           id: 'existing',
@@ -312,11 +369,41 @@ describe('TaskImportService', () => {
         },
       ];
       const preview = await previewFrom('Title\nRepeat me\nNew one\n');
-      expect((await service.importRows(preview)).created).toBe(1);
+      const result = await service.importRows(preview);
 
-      created = [];
-      const second = await service.importRows(preview, { skipDuplicates: false });
-      expect(second.created).toBe(2);
+      // Yesterday's title is kept, not removed: both rows become tasks today.
+      expect(result.created).toBe(2);
+      expect(result.skipped).toBe(0);
+      expect(created.map((task) => task.title)).toEqual(['Repeat me', 'New one']);
+      expect(created[0].id).not.toBe('existing');
+      // Yesterday's task is still there, and today's copy sits beside it.
+      expect(existing.filter((task) => task.title === 'Repeat me')).toHaveLength(2);
+      expect(existing).toHaveLength(3);
+    });
+
+    it('leaves repeated titles out only when the user asks for it', async () => {
+      existing = [
+        {
+          id: 'existing',
+          title: 'Repeat me',
+          description: '',
+          priority: 3,
+          status: 'todo',
+          quadrant: null,
+          deadline: null,
+          tags: [],
+          recurrence: null,
+          todayOrder: null,
+          createdAt: new Date().toISOString(),
+          completedAt: null,
+        },
+      ];
+      const preview = await previewFrom('Title\nRepeat me\nNew one\n');
+      const result = await service.importRows(preview, { skipDuplicates: true });
+
+      expect(result.created).toBe(1);
+      expect(result.skipped).toBe(1);
+      expect(created.map((task) => task.title)).toEqual(['New one']);
     });
 
     it('can exclude rows that only produced warnings', async () => {
@@ -352,7 +439,7 @@ describe('TaskImportService', () => {
         },
       ];
       const preview = await previewFrom(
-        'Title,Add to Today\nFirst today,Yes\nNot today,No\nSecond today,Yes\n'
+        'Title,Add to Today\nFirst today,Yes\nNot today,No\nSecond today,Yes\n',
       );
       await service.importRows(preview);
       expect(created[0].todayOrder).toBe(5);
@@ -360,9 +447,29 @@ describe('TaskImportService', () => {
       expect(created[2].todayOrder).toBe(6);
     });
 
+    it('keeps a row dated for another day off today unless it asks to be there', async () => {
+      // The complaint this answers: a sheet dated tomorrow arrived on today's
+      // list, because being imported today was enough to count as today's work.
+      // The date is what decides now — "Add to Today" is the only thing that can
+      // overrule it, and the template no longer answers Yes on the user's behalf.
+      const tomorrow = new Date();
+      tomorrow.setDate(tomorrow.getDate() + 1);
+      const tomorrowIso = todayIsoDate(tomorrow);
+
+      const preview = await previewFrom(
+        `Title,Deadline,Add to Today\nTomorrow's work,${tomorrowIso},\nTomorrow but pinned,${tomorrowIso},Yes\n`,
+      );
+      await service.importRows(preview);
+
+      expect(created[0].deadline).toBe(tomorrowIso);
+      expect(created[0].todayOrder).toBeNull();
+      expect(created[1].deadline).toBe(tomorrowIso);
+      expect(created[1].todayOrder).not.toBeNull();
+    });
+
     it('carries recurrence across', async () => {
       const preview = await previewFrom(
-        'Title,Repeat,Repeat Days,Repeat End Date\nStandup,Weekly,"Mon,Wed,Fri",2027-06-30\n'
+        'Title,Repeat,Repeat Days,Repeat End Date\nStandup,Weekly,"Mon,Wed,Fri",2027-06-30\n',
       );
       await service.importRows(preview);
       expect(created[0].recurrence).toEqual({

@@ -3,16 +3,19 @@ import { DesktopPrefsService } from '../../../core/services/desktop-prefs.servic
 import { InfoTipComponent } from '../info-tip/info-tip.component';
 import {
   ALWAYS_ON_TOP_HELP,
+  CLOSE_TO_TRAY_HELP,
   MINI_WIDGET_HELP,
   START_WITH_SYSTEM_HELP,
 } from '../../../core/constants/desktop-prefs.constants';
 
 /**
- * The two desktop switches — "Start with system" and "Always on top".
+ * The three desktop switches — "Start with system", "Always on top" and
+ * "Keep running in the tray".
  *
  * Deliberately one component shown in several places (Settings, the dashboard,
  * and the first-run dialog) so the wording, the behaviour and the error handling
- * cannot drift apart. The system tray offers the same two toggles from Rust.
+ * cannot drift apart. The system tray offers the first two of them from Rust as
+ * well, and its own **Exit** is what the close behaviour depends on.
  */
 @Component({
   selector: 'app-desktop-prefs-panel',
@@ -75,6 +78,29 @@ import {
           <span class="knob"></span>
         </button>
       </div>
+
+      <div class="pref-row">
+        <span class="pref-label">
+          Keep running in the tray
+          <app-info-tip
+            [heading]="closeHelp.heading"
+            [body]="closeHelp.body"
+            [hint]="closeHelp.hint"
+          />
+        </span>
+        <button
+          type="button"
+          class="switch"
+          role="switch"
+          [class.on]="prefs.closeToTray()"
+          [attr.aria-checked]="prefs.closeToTray()"
+          [attr.aria-label]="closeHelp.heading"
+          [disabled]="disabled()"
+          (click)="toggleCloseToTray()"
+        >
+          <span class="knob"></span>
+        </button>
+      </div>
     </div>
 
     @if (prefs.error(); as message) {
@@ -87,12 +113,12 @@ import {
         [body]="miniHelp.body"
         [hint]="miniHelp.hint"
       />
-      <span>Minimising from the clock card turns DeepWork into a mini widget.</span>
+      <span>Minimising the window turns DeepWork into a mini widget.</span>
     </p>
 
     @if (!prefs.isDesktopApp) {
       <p class="pref-note">
-        These two options control your computer, so they are available in the
+        These options control your computer, so they are available in the
         DeepWork desktop app. Everything else works the same here.
       </p>
     }
@@ -101,7 +127,7 @@ import {
     :host { display: block; }
     .prefs-title {
       display: flex; align-items: center; gap: 8px;
-      font-size: 0.75rem; font-weight: 600; text-transform: uppercase;
+      font-size: 12px; font-weight: 600; text-transform: uppercase;
       letter-spacing: 0.08em; color: var(--color-text-muted);
       margin-bottom: var(--space-md, 16px); padding-bottom: var(--space-sm, 8px);
       border-bottom: 1px solid var(--glass-border, rgba(255, 255, 255, 0.08));
@@ -111,7 +137,7 @@ import {
     .pref-row {
       display: flex; justify-content: space-between; align-items: center;
       gap: 12px; padding: 10px 0;
-      font-size: 0.85rem; color: var(--color-text-secondary);
+      font-size: 14px; color: var(--color-text-secondary);
       border-bottom: 1px solid var(--glass-border, rgba(255, 255, 255, 0.08));
     }
     .pref-row:last-child { border-bottom: none; }
@@ -138,16 +164,16 @@ import {
     .switch:focus-visible { outline: 2px solid rgba(139, 92, 246, 0.8); outline-offset: 2px; }
 
     .pref-error {
-      margin: 10px 0 0; font-size: 0.75rem; line-height: 1.45;
+      margin: 10px 0 0; font-size: 12px; line-height: 1.45;
       color: #fca5a5;
     }
     .pref-footnote {
       display: flex; align-items: center; gap: 7px;
-      margin: 12px 0 0; font-size: 0.72rem; line-height: 1.45;
+      margin: 12px 0 0; font-size: 12px; line-height: 1.45;
       color: var(--color-text-muted, #a1a1aa);
     }
     .pref-note {
-      margin: 10px 0 0; font-size: 0.72rem; line-height: 1.5;
+      margin: 10px 0 0; font-size: 12px; line-height: 1.5;
       color: var(--color-text-muted, #a1a1aa);
     }
   `],
@@ -160,6 +186,7 @@ export class DesktopPrefsPanelComponent {
 
   protected readonly startHelp = START_WITH_SYSTEM_HELP;
   protected readonly onTopHelp = ALWAYS_ON_TOP_HELP;
+  protected readonly closeHelp = CLOSE_TO_TRAY_HELP;
   protected readonly miniHelp = MINI_WIDGET_HELP;
 
   /** Switches are inert without a desktop shell. */
@@ -173,5 +200,9 @@ export class DesktopPrefsPanelComponent {
 
   async toggleAlwaysOnTop(): Promise<void> {
     await this.prefs.setAlwaysOnTop(!this.prefs.alwaysOnTop());
+  }
+
+  async toggleCloseToTray(): Promise<void> {
+    await this.prefs.setCloseToTray(!this.prefs.closeToTray());
   }
 }

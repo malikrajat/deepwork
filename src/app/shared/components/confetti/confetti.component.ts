@@ -54,13 +54,13 @@ import { Component, input, signal, OnDestroy, ChangeDetectionStrategy } from '@a
       box-shadow: 0 0 60px rgba(139,92,246,0.2);
     }
     .emoji {
-      font-size: 3rem;
+      font-size: 48px;
       display: block;
       margin-bottom: 8px;
       animation: bounce 0.6s ease-in-out infinite alternate;
     }
     .congrats-text h2 {
-      font-size: 1.5rem;
+      font-size: 24px;
       font-weight: 800;
       background: linear-gradient(135deg, #8b5cf6, #06b6d4);
       -webkit-background-clip: text;
@@ -69,7 +69,7 @@ import { Component, input, signal, OnDestroy, ChangeDetectionStrategy } from '@a
       margin-bottom: 4px;
     }
     .congrats-text p {
-      font-size: 0.85rem;
+      font-size: 14px;
       color: var(--color-text-secondary);
     }
     .confetti-piece {

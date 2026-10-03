@@ -11,8 +11,19 @@ test.describe('Settings', () => {
   test('all setting groups render', async ({ page }) => {
     await expect(page.locator('.group-header', { hasText: 'Timer' })).toBeVisible();
     await expect(page.locator('.group-header', { hasText: 'Notifications' })).toBeVisible();
+    await expect(page.locator('.group-header', { hasText: 'Microphone' })).toBeVisible();
     await expect(page.locator('.group-header', { hasText: 'Data' })).toBeVisible();
     await expect(page.locator('.group-header', { hasText: 'Keyboard Shortcuts' })).toBeVisible();
+  });
+
+  test('microphone check follows the system default input', async ({ page }) => {
+    const microphoneGroup = page.locator('.setting-group').filter({
+      has: page.locator('.group-header', { hasText: 'Microphone' }),
+    });
+    await expect(microphoneGroup).toBeVisible({ timeout: 5000 });
+    await expect(microphoneGroup.getByRole('button', { name: 'Check microphone' })).toBeVisible();
+    await expect(microphoneGroup).toContainText('Default input');
+    await expect(microphoneGroup).toContainText('set it as the default in your system sound settings');
   });
 
   test('focus duration slider shows value in minutes', async ({ page }) => {

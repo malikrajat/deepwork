@@ -36,7 +36,11 @@ export type ImportRowStatus =
   | 'ready'
   /** Importable, but something deserves attention (past deadline, ambiguous date…). */
   | 'warning'
-  /** A task with the same title already exists (skipped when de-duplicating). */
+  /**
+   * A task with the same title already exists — the same work repeated on a
+   * later day, or the file re-uploaded. Still imported as its own task; only
+   * left out when the user ticks the preview's skip option.
+   */
   | 'duplicate'
   /** Cannot be imported (missing title, unrecognised value…). */
   | 'error';
@@ -97,14 +101,21 @@ export interface ImportPreview {
   warningCount: number;
   duplicateCount: number;
   errorCount: number;
-  /** Rows that can be imported right now (ready + warnings). */
+  /**
+   * Rows that can be imported right now — ready + warnings + duplicates, since
+   * duplicates are imported by default.
+   */
   importableCount: number;
   /** Set when the file as a whole could not be read. */
   fatalError: string | null;
 }
 
 export interface ImportCommitOptions {
-  /** Skip rows whose title already exists (default true). */
+  /**
+   * Leave out rows whose title already exists (default false: a repeated title
+   * is imported as a new task, because the same work often comes back on
+   * another day).
+   */
   skipDuplicates?: boolean;
   /** Import rows that produced warnings (default true). */
   includeWarnings?: boolean;

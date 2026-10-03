@@ -10,6 +10,8 @@ import {
   afterNextRender,
 } from '@angular/core';
 import { TaskImportService } from '../../../core/services/task-import.service';
+import { DownloadService } from '../../../core/services/download.service';
+import { NotificationService } from '../../../core/services/notification.service';
 import {
   ImportCommitResult,
   ImportPreview,
@@ -97,15 +99,21 @@ const MAX_PREVIEW_ROWS = 300;
             class="btn btn-outline"
             type="button"
             [title]="'Download ' + templateFileName"
+            [disabled]="templateBusy()"
             (click)="downloadTemplate()"
           >
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
               <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
               <polyline points="7 10 12 15 17 10" /><line x1="12" y1="15" x2="12" y2="3" />
             </svg>
-            Download template
+            {{ templateBusy() ? 'Preparing…' : 'Download template' }}
           </button>
+
         </div>
+
+        @if (templateMessage(); as saved) {
+          <p class="template-saved" role="status">{{ saved }}</p>
+        }
 
         @if (errorMessage()) {
           <div class="alert" role="alert">
@@ -232,7 +240,10 @@ const MAX_PREVIEW_ROWS = 300;
                       <span class="note warning">{{ message }}</span>
                     }
                     @if (row.status === 'duplicate') {
-                      <span class="note duplicate">A task with this title already exists</span>
+                      <span class="note duplicate">
+                        A task with this title already exists — imported as a new task anyway
+                        (tick “Skip” below to leave it out).
+                      </span>
                     }
                     @if (!row.errors.length && !row.warnings.length && row.status === 'ready') {
                       <span class="note">Ready to import</span>
@@ -257,7 +268,7 @@ const MAX_PREVIEW_ROWS = 300;
           @if (data.duplicateCount) {
             <label class="option skip-duplicates">
               <input type="checkbox" [checked]="skipDuplicates()" (change)="onSkipDuplicates($event)" />
-              Skip {{ data.duplicateCount }} row(s) whose title already exists
+              Skip these {{ data.duplicateCount }} row(s) instead of importing them
             </label>
           }
           @if (data.warningCount) {
@@ -301,7 +312,7 @@ const MAX_PREVIEW_ROWS = 300;
           </div>
           <h3>{{ outcome.created }} task(s) added</h3>
           @if (outcome.skipped) {
-            <p>{{ outcome.skipped }} row(s) were left out (errors or duplicates).</p>
+            <p>{{ outcome.skipped }} row(s) were left out (rows with errors, or rows you chose to skip).</p>
           } @else {
             <p>Every row of {{ fileName() }} was imported.</p>
           }
@@ -358,8 +369,8 @@ const MAX_PREVIEW_ROWS = 300;
         justify-content: space-between;
         gap: 16px;
       }
-      .header-text h2 { font-size: 1.1rem; font-weight: 700; }
-      .header-text p { font-size: 0.74rem; color: var(--color-text-muted); }
+      .header-text h2 { font-size: 18px; font-weight: 700; }
+      .header-text p { font-size: 12px; color: var(--color-text-muted); }
 
       .icon-btn {
         width: 30px; height: 30px; border-radius: 8px; border: none; background: transparent;
@@ -372,7 +383,7 @@ const MAX_PREVIEW_ROWS = 300;
       .dropzone {
         display: flex; flex-direction: column; align-items: center; gap: 8px;
         padding: 26px 20px; text-align: center;
-        background: var(--glass-bg); border: 1.5px dashed rgba(139, 92, 246, 0.3);
+        background: var(--glass-bg); border: 1px dashed rgba(139, 92, 246, 0.42);
         border-radius: var(--glass-radius-sm); transition: all 0.2s;
       }
       .dropzone.active {
@@ -384,8 +395,8 @@ const MAX_PREVIEW_ROWS = 300;
         display: flex; align-items: center; justify-content: center;
         background: rgba(139, 92, 246, 0.12); color: var(--timer-work-color);
       }
-      .dropzone-title { font-size: 0.86rem; font-weight: 600; color: var(--color-text-primary); }
-      .dropzone-or { font-size: 0.68rem; color: var(--color-text-muted); text-transform: uppercase; }
+      .dropzone-title { font-size: 14px; font-weight: 600; color: var(--color-text-primary); }
+      .dropzone-or { font-size: 11px; color: var(--color-text-muted); text-transform: uppercase; }
       .hidden-input { display: none; }
 
       .template-card {
@@ -394,24 +405,30 @@ const MAX_PREVIEW_ROWS = 300;
         background: var(--glass-bg); border: 1px solid var(--glass-border);
       }
       .template-text { display: flex; flex-direction: column; min-width: 0; }
-      .template-title { font-size: 0.8rem; font-weight: 600; color: var(--color-text-primary); }
-      .template-hint { font-size: 0.7rem; color: var(--color-text-muted); }
+      .template-title { font-size: 13px; font-weight: 600; color: var(--color-text-primary); }
+      .template-hint { font-size: 11px; color: var(--color-text-muted); }
+      .template-saved {
+        margin-top: 8px; padding: 10px 12px; border-radius: 10px;
+        font-size: 12px; line-height: 1.45; word-break: break-all;
+        background: rgba(52, 211, 153, 0.1); border: 1px solid rgba(52, 211, 153, 0.28);
+        color: var(--color-text-secondary);
+      }
 
       .alert {
         display: flex; align-items: flex-start; gap: 8px;
-        padding: 12px 14px; border-radius: 10px; font-size: 0.76rem; line-height: 1.45;
+        padding: 12px 14px; border-radius: 10px; font-size: 12px; line-height: 1.45;
         background: rgba(248, 113, 113, 0.1); border: 1px solid rgba(248, 113, 113, 0.3);
         color: var(--priority-p1-color);
       }
       .alert svg { flex-shrink: 0; margin-top: 1px; }
 
       .tips { display: flex; flex-direction: column; gap: 6px; padding-left: 18px; }
-      .tips li { font-size: 0.72rem; color: var(--color-text-muted); line-height: 1.5; }
+      .tips li { font-size: 12px; color: var(--color-text-muted); line-height: 1.5; }
 
       /* Reading / importing */
       .loading-state {
         display: flex; flex-direction: column; align-items: center; gap: 14px;
-        padding: 46px 20px; color: var(--color-text-secondary); font-size: 0.82rem;
+        padding: 46px 20px; color: var(--color-text-secondary); font-size: 13px;
       }
       .spinner {
         width: 32px; height: 32px; border-radius: 50%;
@@ -437,13 +454,13 @@ const MAX_PREVIEW_ROWS = 300;
         display: flex; align-items: center; gap: 8px; min-width: 0;
         padding: 6px 12px; border-radius: 999px;
         background: var(--glass-bg); border: 1px solid var(--glass-border);
-        color: var(--color-text-secondary); font-size: 0.74rem;
+        color: var(--color-text-secondary); font-size: 12px;
       }
       .file-chip svg { flex-shrink: 0; }
       .file-name { max-width: 260px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 600; color: var(--color-text-primary); }
       .stat-chips { display: flex; gap: 6px; }
       .stat {
-        font-size: 0.68rem; padding: 4px 10px; border-radius: 999px;
+        font-size: 11px; padding: 4px 10px; border-radius: 999px;
         border: 1px solid transparent;
       }
       .stat.ready { color: var(--timer-long-break-color); background: rgba(52, 211, 153, 0.1); border-color: rgba(52, 211, 153, 0.25); }
@@ -451,15 +468,15 @@ const MAX_PREVIEW_ROWS = 300;
       .stat.duplicate { color: var(--color-accent-primary); background: rgba(139, 92, 246, 0.12); border-color: rgba(139, 92, 246, 0.3); }
       .stat.error { color: var(--priority-p1-color); background: rgba(248, 113, 113, 0.1); border-color: rgba(248, 113, 113, 0.25); }
 
-      .mapping-line { font-size: 0.7rem; color: var(--color-text-muted); line-height: 1.6; }
+      .mapping-line { font-size: 11px; color: var(--color-text-muted); line-height: 1.6; }
       .mapping-item { display: inline-block; margin-right: 8px; white-space: nowrap; }
       .mapping-item em { font-style: normal; font-family: var(--font-mono); }
 
       .table-toolbar { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
-      .row-count { font-size: 0.7rem; color: var(--color-text-muted); }
+      .row-count { font-size: 11px; color: var(--color-text-muted); }
       .filter-chips { display: flex; gap: 6px; }
       .chip {
-        padding: 4px 12px; font-size: 0.68rem; font-weight: 500;
+        padding: 4px 12px; font-size: 11px; font-weight: 500;
         background: var(--glass-bg); border: 1px solid rgba(139, 92, 246, 0.1);
         border-radius: 20px; color: var(--color-text-muted); cursor: pointer; transition: all 0.2s;
       }
@@ -475,10 +492,10 @@ const MAX_PREVIEW_ROWS = 300;
         border: 1px solid var(--glass-border); border-radius: var(--glass-radius-sm);
         background: var(--control-bg);
       }
-      table { width: 100%; min-width: 900px; border-collapse: collapse; font-size: 0.72rem; }
+      table { width: 100%; min-width: 900px; border-collapse: collapse; font-size: 12px; }
       thead th {
         position: sticky; top: 0; z-index: 1; text-align: left;
-        padding: 9px 10px; font-size: 0.62rem; font-weight: 700;
+        padding: 9px 10px; font-size: 10px; font-weight: 700;
         letter-spacing: 0.06em; text-transform: uppercase; color: var(--color-text-muted);
         background: var(--color-bg-tertiary); border-bottom: 1px solid var(--glass-border);
         white-space: nowrap;
@@ -498,22 +515,23 @@ const MAX_PREVIEW_ROWS = 300;
       .col-status { width: 92px; }
       .col-small { white-space: nowrap; }
       .row-status {
-        display: inline-block; font-size: 0.6rem; font-weight: 700; padding: 2px 8px;
+        display: inline-block; font-size: 10px; font-weight: 700; padding: 2px 8px;
         border-radius: 8px; text-transform: uppercase;
       }
       .row-status.ready { background: rgba(52, 211, 153, 0.12); color: var(--timer-long-break-color); }
       .row-status.warning { background: rgba(251, 191, 36, 0.12); color: var(--status-in-progress-color); }
       .row-status.duplicate { background: rgba(139, 92, 246, 0.14); color: var(--color-accent-primary); }
       .row-status.error { background: rgba(248, 113, 113, 0.12); color: var(--priority-p1-color); }
-      .note { display: block; font-size: 0.68rem; line-height: 1.45; }
+      .note { display: block; font-size: 11px; line-height: 1.45; }
       .note.error { color: var(--priority-p1-color); }
       .note.warning { color: var(--status-in-progress-color); }
+      .note.duplicate { color: var(--color-accent-primary); }
       .empty-cell { padding: 20px; }
 
       .options { display: flex; flex-direction: column; gap: 6px; }
       .option {
         display: flex; align-items: center; gap: 8px;
-        font-size: 0.74rem; color: var(--color-text-secondary); cursor: pointer;
+        font-size: 12px; color: var(--color-text-secondary); cursor: pointer;
       }
 
       .import-footer { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
@@ -527,12 +545,12 @@ const MAX_PREVIEW_ROWS = 300;
         display: flex; align-items: center; justify-content: center;
         background: rgba(52, 211, 153, 0.12); color: var(--timer-long-break-color);
       }
-      .done-state h3 { font-size: 1rem; font-weight: 700; color: var(--color-text-primary); }
-      .done-state p { font-size: 0.76rem; color: var(--color-text-muted); }
+      .done-state h3 { font-size: 16px; font-weight: 700; color: var(--color-text-primary); }
+      .done-state p { font-size: 12px; color: var(--color-text-muted); }
 
       .btn {
         display: inline-flex; align-items: center; gap: 6px;
-        padding: 8px 18px; border-radius: 10px; font-size: 0.78rem; font-weight: 600;
+        padding: 8px 18px; border-radius: 10px; font-size: 12px; font-weight: 600;
         cursor: pointer; border: none; transition: all 0.2s; flex-shrink: 0;
       }
       .btn-primary { background: linear-gradient(135deg, #8b5cf6, #7c3aed); color: white; }
@@ -550,6 +568,8 @@ const MAX_PREVIEW_ROWS = 300;
 })
 export class TaskImportPanelComponent {
   private readonly importService = inject(TaskImportService);
+  private readonly downloads = inject(DownloadService);
+  private readonly notifications = inject(NotificationService);
 
   private readonly fileInput = viewChild<ElementRef<HTMLInputElement>>('fileInput');
   private readonly modal = viewChild<ElementRef<HTMLElement>>('modal');
@@ -565,10 +585,16 @@ export class TaskImportPanelComponent {
   readonly fileName = signal('');
   readonly dragActive = signal(false);
   readonly rowFilter = signal<RowFilter>('all');
-  readonly skipDuplicates = signal(true);
+  readonly skipDuplicates = signal(false);
   readonly includeWarnings = signal(true);
   readonly result = signal<ImportCommitResult | null>(null);
   readonly progress = signal<{ done: number; total: number }>({ done: 0, total: 0 });
+
+  /** True while the template is being built and written. */
+  readonly templateBusy = signal(false);
+
+  /** "Saved in the Downloads folder — C:\Users\…" after a template download. */
+  readonly templateMessage = signal<string | null>(null);
 
   readonly maxPreviewRows = MAX_PREVIEW_ROWS;
 
@@ -675,13 +701,38 @@ export class TaskImportPanelComponent {
 
     this.preview.set(preview);
     this.rowFilter.set('all');
-    this.skipDuplicates.set(true);
+    this.skipDuplicates.set(false);
     this.includeWarnings.set(true);
     this.stage.set('preview');
   }
 
-  downloadTemplate(): void {
-    this.importService.downloadTemplate();
+  /**
+   * Writes the Excel template out and says where it landed.
+   *
+   * The location is shown twice on purpose: inline where the button is (so it is
+   * still there when the user looks back at the panel) and in the app-wide toast
+   * (so it is caught even if they close the panel straight away).
+   */
+  async downloadTemplate(): Promise<void> {
+    if (this.templateBusy()) return;
+    this.templateBusy.set(true);
+    this.templateMessage.set(null);
+    try {
+      const saved = await this.importService.downloadTemplate();
+      const where = this.downloads.describe(saved);
+      this.templateMessage.set(`Template ${saved.fileName} downloaded. ${where}`);
+      this.notifications.showToastMessage(
+        'Task template downloaded',
+        `${saved.fileName} — ${where}`,
+        'work'
+      );
+    } catch (error) {
+      this.errorMessage.set(
+        `Could not download the template: ${error instanceof Error ? error.message : String(error)}`
+      );
+    } finally {
+      this.templateBusy.set(false);
+    }
   }
 
   // ── Options & actions ──────────────────────────────────────────────────────

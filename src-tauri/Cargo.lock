@@ -824,17 +824,18 @@ dependencies = [
 
 [[package]]
 name = "deepwork"
-version = "2.0.0"
+version = "2.0.17"
 dependencies = [
  "log",
- "serde",
- "serde_json",
  "tauri",
  "tauri-build",
  "tauri-plugin-log",
  "tauri-plugin-notification",
  "tauri-plugin-single-instance",
  "tauri-plugin-sql",
+ "webview2-com",
+ "windows",
+ "windows-sys 0.61.2",
  "winreg",
 ]
 

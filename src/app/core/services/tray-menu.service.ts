@@ -2,6 +2,7 @@ import { Injectable, inject, OnDestroy } from '@angular/core';
 import { TimerService } from './timer.service';
 import { NotificationService } from './notification.service';
 import { DesktopPrefsService } from './desktop-prefs.service';
+import { UiService } from './ui.service';
 import type { UnlistenFn } from '@tauri-apps/api/event';
 
 /**
@@ -11,6 +12,8 @@ import type { UnlistenFn } from '@tauri-apps/api/event';
  * - pause:5/10/15/30 -> pauses the timer and auto-resumes after N minutes
  * - autostart:on / autostart:off -> the tray changed the OS startup entry
  * - aot:on / aot:off -> the tray changed always-on-top
+ * - show -> the tray brought the window forward, so a mini widget expands back
+ *   into the full app
  *
  * The desktop-preference events arrive *after* Rust has already changed the real
  * OS/window state, so this only has to store the new preference to keep the
@@ -21,6 +24,7 @@ export class TrayMenuService implements OnDestroy {
   private readonly timer = inject(TimerService);
   private readonly notification = inject(NotificationService);
   private readonly desktopPrefs = inject(DesktopPrefsService);
+  private readonly ui = inject(UiService);
 
   private unlisten: UnlistenFn | null = null;
   private resumeTimeoutId: ReturnType<typeof setTimeout> | null = null;
@@ -44,6 +48,11 @@ export class TrayMenuService implements OnDestroy {
         break;
       case 'mute:false':
         this.notification.muted.set(false);
+        break;
+      case 'show':
+        // Rust already un-minimised and focused the window; if it happens to be
+        // the mini widget, the user asked for the app, not the widget.
+        if (this.ui.isMiniMode()) void this.ui.exitMiniMode();
         break;
       case 'pause':
         this.timer.pause();

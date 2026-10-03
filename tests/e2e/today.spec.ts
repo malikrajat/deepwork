@@ -1,19 +1,8 @@
 import { test, expect } from '@playwright/test';
-
-/** Helper: create a task via the /tasks page and return its title */
-async function createTask(page: any, title: string): Promise<void> {
-  await page.goto('/tasks');
-  await expect(page.locator('.page-title')).toHaveText('Tasks', { timeout: 8000 });
-  await page.getByRole('button', { name: 'Add Task' }).click();
-  await expect(page.locator('.slide-panel')).toBeVisible({ timeout: 3000 });
-  await page.locator('.slide-panel input[placeholder="What needs to be done?"]').fill(title);
-  await page.locator('.slide-panel').getByRole('button', { name: 'Create Task' }).click();
-  await expect(page.locator('.slide-panel')).not.toBeVisible({ timeout: 5000 });
-  await expect(page.locator('.task-row', { hasText: title })).toBeVisible({ timeout: 5000 });
-}
+import { cardIn, dragCardToColumn, createTask } from './board.helpers';
 
 test.describe('Today Page', () => {
-  test('tasks created today automatically appear on the Today list', async ({ page }) => {
+  test('tasks created today automatically appear on the Today board', async ({ page }) => {
     const taskTitle = `Today Task ${Date.now()}`;
     await createTask(page, taskTitle);
 
@@ -21,35 +10,46 @@ test.describe('Today Page', () => {
     await page.goto('/today');
     await expect(page.locator('.page-title')).toHaveText('Today', { timeout: 8000 });
 
-    // Card should be visible since task was created today
-    const card = page.locator('.today-card', { hasText: taskTitle });
-    await expect(card).toBeVisible({ timeout: 5000 });
+    // A brand new task is To Do, so it lands in the first column
+    await expect(cardIn(page, 'todo', taskTitle)).toBeVisible({ timeout: 5000 });
 
     // Progress counter shows correct fraction
     await expect(page.locator('.stat')).toContainText('/');
     await expect(page.locator('.stat')).toContainText('done');
   });
 
-  test('cycling status on Today card updates the status badge', async ({ page }) => {
-    const taskTitle = `Status Cycle Today ${Date.now()}`;
+  test('moving a card between columns changes its status', async ({ page }) => {
+    const taskTitle = `Status Move Today ${Date.now()}`;
+    await createTask(page, taskTitle);
+
+    await page.goto('/today');
+    await expect(page.locator('.page-title')).toHaveText('Today', { timeout: 8000 });
+    await expect(cardIn(page, 'todo', taskTitle)).toBeVisible({ timeout: 5000 });
+
+    // 2 → In Progress: the card leaves To Do and shows up in the middle column
+    await cardIn(page, 'todo', taskTitle).press('2');
+    await expect(cardIn(page, 'in-progress', taskTitle)).toBeVisible({ timeout: 3000 });
+    await expect(cardIn(page, 'todo', taskTitle)).toHaveCount(0);
+
+    // 3 → Done: the card stays on the board (greyed out) instead of vanishing
+    await cardIn(page, 'in-progress', taskTitle).press('3');
+    await expect(cardIn(page, 'done', taskTitle)).toBeVisible({ timeout: 3000 });
+    await expect(page.locator('.stat')).toContainText('1/');
+  });
+
+  test('dragging a card to another column changes its status', async ({ page }) => {
+    const taskTitle = `Drag Status ${Date.now()}`;
     await createTask(page, taskTitle);
 
     await page.goto('/today');
     await expect(page.locator('.page-title')).toHaveText('Today', { timeout: 8000 });
 
-    const card = page.locator('.today-card', { hasText: taskTitle });
+    const card = cardIn(page, 'todo', taskTitle);
     await expect(card).toBeVisible({ timeout: 5000 });
+    await dragCardToColumn(page, card, 'in-progress');
 
-    // Starts as "To Do"
-    await expect(card.locator('.status-tag')).toHaveText('To Do');
-
-    // Toggle → In Progress
-    await card.locator('.status-btn').click();
-    await expect(card.locator('.status-tag')).toContainText('Progress', { timeout: 3000 });
-
-    // Toggle → Done — card disappears (done tasks are filtered from todayTasks)
-    await card.locator('.status-btn').click();
-    await expect(card).not.toBeVisible({ timeout: 5000 });
+    await expect(cardIn(page, 'in-progress', taskTitle)).toBeVisible({ timeout: 5000 });
+    await expect(cardIn(page, 'todo', taskTitle)).toHaveCount(0);
   });
 
   test('today page shows task count in the stat display', async ({ page }) => {
@@ -58,33 +58,53 @@ test.describe('Today Page', () => {
 
     await page.goto('/today');
     await expect(page.locator('.page-title')).toHaveText('Today', { timeout: 8000 });
+    await expect(cardIn(page, 'todo', taskTitle)).toBeVisible({ timeout: 5000 });
 
-    const card = page.locator('.today-card', { hasText: taskTitle });
-    await expect(card).toBeVisible({ timeout: 5000 });
-
-    // Stat displays "X/Y done" format
     await expect(page.locator('.stat')).toContainText('/');
     await expect(page.locator('.stat')).toContainText('done');
   });
 
-  test('remove button is visible and clickable on every today card', async ({ page }) => {
-    const taskTitle = `Remove Btn ${Date.now()}`;
+  test('search filters the Today board and clear restores it', async ({ page }) => {
+    const stamp = Date.now();
+    const match = `Today Search Match ${stamp}`;
+    const other = `Today Search Other ${stamp}`;
+    await createTask(page, match);
+    await createTask(page, other);
+
+    await page.goto('/today');
+    await expect(page.locator('.page-title')).toHaveText('Today', { timeout: 8000 });
+    await expect(cardIn(page, 'todo', match)).toBeVisible({ timeout: 5000 });
+    await expect(cardIn(page, 'todo', other)).toBeVisible({ timeout: 5000 });
+
+    await page.locator('.search-box input').fill(match);
+    await expect(cardIn(page, 'todo', match)).toBeVisible({ timeout: 3000 });
+    await expect(page.locator('.task-card', { hasText: other })).toHaveCount(0);
+
+    await page.locator('.search-box .clear-search').click();
+    await expect(cardIn(page, 'todo', other)).toBeVisible({ timeout: 3000 });
+
+    await page.locator('.task-card', { hasText: match }).locator('button.delete').click();
+    await page.locator('.task-card', { hasText: other }).locator('button.delete').click();
+  });
+
+  test('delete button removes the task from Today', async ({ page }) => {
+    const taskTitle = `Delete Btn ${Date.now()}`;
     await createTask(page, taskTitle);
 
     await page.goto('/today');
     await expect(page.locator('.page-title')).toHaveText('Today', { timeout: 8000 });
 
-    const card = page.locator('.today-card', { hasText: taskTitle });
+    const card = cardIn(page, 'todo', taskTitle);
     await expect(card).toBeVisible({ timeout: 5000 });
 
-    // Remove button should be visible
-    const removeBtn = card.locator('.remove-btn');
-    await expect(removeBtn).toBeVisible();
+    const deleteBtn = card.locator('button.delete');
+    await expect(deleteBtn).toBeVisible();
+    await deleteBtn.click();
 
-    // Click — clears todayOrder; tasks created today remain in the list
-    // because todayTasks() filters by createdAt date, not todayOrder
-    await removeBtn.click();
-    await expect(card).toBeVisible(); // still in list — expected app behaviour
+    // The task is deleted everywhere, not merely detached from today's order.
+    await expect(page.locator('.task-card', { hasText: taskTitle })).toHaveCount(0, { timeout: 5000 });
+    await page.goto('/tasks');
+    await expect(page.locator('.task-card', { hasText: taskTitle })).toHaveCount(0, { timeout: 5000 });
   });
 
   test('focus button navigates to dashboard with task linked', async ({ page }) => {
@@ -94,12 +114,14 @@ test.describe('Today Page', () => {
     await page.goto('/today');
     await expect(page.locator('.page-title')).toHaveText('Today', { timeout: 8000 });
 
-    const card = page.locator('.today-card', { hasText: taskTitle });
+    const card = cardIn(page, 'todo', taskTitle);
     await expect(card).toBeVisible({ timeout: 5000 });
 
     // Click the focus (target/circle) button
     await card.locator('.focus-btn').click();
-    await expect(page).toHaveURL(/\/dashboard/, { timeout: 5000 });
+    // The dashboard is the app's root route — `/dashboard` redirects to `/`
+    await expect(page.locator('.page-title')).toHaveText('Dashboard', { timeout: 5000 });
+    expect(await page.evaluate(() => localStorage.getItem('deepwork_focusTaskId'))).toBeTruthy();
   });
 
   test('empty state shows when there are no tasks for today', async ({ page }) => {
@@ -107,7 +129,7 @@ test.describe('Today Page', () => {
     await page.goto('/today');
     await expect(page.locator('.page-title')).toHaveText('Today', { timeout: 8000 });
 
-    const cards = page.locator('.today-card');
+    const cards = page.locator('.task-card');
     const count = await cards.count();
     if (count === 0) {
       await expect(page.locator('.empty-state h3')).toHaveText('No tasks for today', { timeout: 3000 });

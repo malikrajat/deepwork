@@ -2,8 +2,8 @@
  * Pure helpers for exporting tasks to CSV.
  *
  * Everything here is side-effect free so the export sheet can be inspected and
- * relies on no Angular/DI — the service wires it to the store and the CSV
- * library, the panel renders it.
+ * relies on no Angular/DI — the service wires it to the store and the download
+ * service, the panel renders it.
  */
 
 import { STATUS_CONFIG, PRIORITY_CONFIG, QUADRANT_CONFIG } from '../constants/theme.constants';
@@ -186,6 +186,41 @@ export const TASK_EXPORT_COLUMNS: readonly TaskExportColumn[] = [
   { key: 'onTodayList', label: 'On Today List' },
   { key: 'taskId', label: 'Task ID' },
 ];
+
+/**
+ * Serialises export rows to CSV text.
+ *
+ * The app used to hand the rows to `rm-ng-export-to-csv` and let it trigger the
+ * download, which worked but left the app unable to say where the file went. The
+ * format below is byte-for-byte what that library produced — the header row is
+ * written verbatim (so the UTF-8 BOM carried in the first label survives), every
+ * data cell is quoted with inner quotes doubled, and rows are joined with CRLF —
+ * built here instead so the file can be written by the desktop app.
+ */
+export function buildCsvContent(
+  rows: readonly TaskExportRow[],
+  columns: readonly TaskExportColumn[]
+): string {
+  const header = columns.map(column => column.label).join(',');
+  const body = rows.map(row =>
+    columns
+      .map(column => `"${String(row[column.key] ?? '').replace(/"/g, '""')}"`)
+      .join(',')
+  );
+  return [header, ...body].join('\r\n');
+}
+
+/**
+ * The columns as written into the file: the first header label carries the BOM
+ * that makes Excel read the sheet as UTF-8 (titles, tags and descriptions can
+ * contain non-ASCII text).
+ */
+export function exportColumnsWithBom(): TaskExportColumn[] {
+  return TASK_EXPORT_COLUMNS.map((column, index) => ({
+    ...column,
+    label: index === 0 ? `\uFEFF${column.label}` : column.label,
+  }));
+}
 
 const DATE_FIELD_LABELS: Record<ExportDateField, string> = {
   deadline: 'deadline',

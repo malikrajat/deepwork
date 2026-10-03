@@ -1,4 +1,85 @@
-@import "tailwindcss";
+/* Tailwind brings the preflight reset and nothing else.
+
+   `source(none)` switches off Tailwind's automatic content detection, and that
+   matters more than it sounds: detection scans every file in the project for
+   strings that *look* like a utility class, so the mini widget's SVG — a bare
+   "ring" class name — was silently given Tailwind's own ring utility, a 1px
+   `currentColor` box-shadow, and the countdown circle grew a pale square
+   outline exactly the size of its SVG box. The app writes its own class names
+   and uses no Tailwind utilities, so there is nothing to detect; turning the
+   scan off keeps every one of those names meaning only what this design system
+   says it means. */
+@import "tailwindcss" source(none);
+
+/* ===== Fonts, from this repository rather than from Google =====
+
+   Inter and JetBrains Mono are the two faces the design system asks for, and
+   they used to arrive through a `<link>` to fonts.googleapis.com in `index.html`.
+   That is a third-party request on every start of an app whose whole promise is
+   that the user's machine is the only place anything happens — and in the
+   desktop build it is a request that has to succeed before the app looks like
+   itself, on a machine that may be offline, or behind a proxy, or simply not
+   allowed to talk to Google. Both families are SIL Open Font License 1.1, so
+   they are shipped here instead (`public/fonts`, licences beside them) and the
+   `<link>` is gone.
+
+   The two subsets are the ones Google would have served for this UI: `latin`
+   for the app's own words, `latin-ext` for anything a European user types into
+   a task. Other scripts fall through to the system fonts the stacks in
+   `--font-sans` and `--font-mono` already name, which is what a missing glyph
+   should do. Both files are variable fonts carrying the whole weight range, so
+   "one file per weight" is four files rather than eleven — 172 kB in total, and
+   hashed into the bundle by the build like any other asset.
+
+   The files live in `src/fonts/` rather than `public/` because the build
+   resolves these URLs against this stylesheet while compiling it; the two
+   licences (`public/fonts/LICENSE-Inter.txt`, `LICENSE-JetBrainsMono.txt`) sit
+   in `public/` so that they ship with the app, which is what the SIL Open Font
+   License asks of anyone redistributing the fonts.
+
+   The URLs are relative on purpose: the CSS is emitted at the root of the build,
+   so `fonts/…` resolves under whatever base href the build was given — `/` in
+   the desktop app, `/deepwork/` on GitHub Pages. */
+@font-face {
+  font-family: 'Inter';
+  font-style: normal;
+  font-weight: 300 800;
+  font-display: swap;
+  src: url('fonts/inter-latin.woff2') format('woff2');
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA,
+    U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193,
+    U+2212, U+2215, U+FEFF, U+FFFD;
+}
+@font-face {
+  font-family: 'Inter';
+  font-style: normal;
+  font-weight: 300 800;
+  font-display: swap;
+  src: url('fonts/inter-latin-ext.woff2') format('woff2');
+  unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF,
+    U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020,
+    U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF;
+}
+@font-face {
+  font-family: 'JetBrains Mono';
+  font-style: normal;
+  font-weight: 400 700;
+  font-display: swap;
+  src: url('fonts/jetbrains-mono-latin.woff2') format('woff2');
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA,
+    U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193,
+    U+2212, U+2215, U+FEFF, U+FFFD;
+}
+@font-face {
+  font-family: 'JetBrains Mono';
+  font-style: normal;
+  font-weight: 400 700;
+  font-display: swap;
+  src: url('fonts/jetbrains-mono-latin-ext.woff2') format('woff2');
+  unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF,
+    U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020,
+    U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF;
+}
 
 /* ===== DeepWork Premium Design System ===== */
 
@@ -14,9 +95,14 @@
   --color-accent-tertiary: #ec4899;
   --color-accent-gradient: linear-gradient(135deg, #8b5cf6 0%, #06b6d4 100%);
   --color-accent-glow: rgba(139, 92, 246, 0.4);
-  --color-text-primary: #f0eeff;
-  --color-text-secondary: #a8a4c0;
-  --color-text-muted: #5c5878;
+  /* Text is a shade brighter than the original palette on purpose: on a
+     near-black surface the muted greys were dropping to ~3.4:1, which reads as
+     "washed out" rather than "quiet". The three steps below are 17:1, 9:1 and
+     5.5:1 against the background, so the quietest label is still a crisp,
+     legible line instead of a grey smear. */
+  --color-text-primary: #f2f0ff;
+  --color-text-secondary: #b6b2d0;
+  --color-text-muted: #8b87ab;
   --color-success: #34d399;
   --color-warning: #fbbf24;
   --color-danger: #f87171;
@@ -29,6 +115,14 @@
   --status-in-progress-bg: rgba(245,158,11,0.12);
   --status-done-color: #a78bfa;
   --status-done-bg: rgba(139,92,246,0.12);
+
+  /* ─── Task card colours: one per status, the same on Tasks and Today ─── */
+  --status-todo-card-bg: rgba(107,114,128,0.16);
+  --status-todo-card-border: rgba(107,114,128,0.34);
+  --status-in-progress-card-bg: rgba(245,158,11,0.13);
+  --status-in-progress-card-border: rgba(245,158,11,0.36);
+  --status-done-card-bg: rgba(139,92,246,0.16);
+  --status-done-card-border: rgba(139,92,246,0.38);
 
   /* ─── Priority colors (aligned with quadrants) ─── */
   --priority-p1-color: #f87171;
@@ -64,14 +158,18 @@
   --sidebar-hover-bg: rgba(139, 92, 246, 0.1);
   --sidebar-active-bg: rgba(139, 92, 246, 0.16);
   --sidebar-active-border: rgba(139, 92, 246, 0.35);
-  --input-bg: rgba(255, 255, 255, 0.04);
+  --input-bg: rgba(255, 255, 255, 0.05);
 
-  /* Glassmorphism tokens */
-  --glass-bg: rgba(255, 255, 255, 0.03);
-  --glass-bg-hover: rgba(255, 255, 255, 0.06);
+  /* Glassmorphism tokens.
+     0.03 white on a #080613 background is a 1.5% luminance step: the cards read
+     as smudges rather than surfaces, and their 0.06 borders barely exist. These
+     are the same colours with enough presence to define an edge on a dark
+     screen, which is what makes a card look drawn rather than faded. */
+  --glass-bg: rgba(255, 255, 255, 0.045);
+  --glass-bg-hover: rgba(255, 255, 255, 0.075);
   --glass-bg-active: rgba(139, 92, 246, 0.08);
-  --glass-border: rgba(255, 255, 255, 0.06);
-  --glass-border-accent: rgba(139, 92, 246, 0.3);
+  --glass-border: rgba(255, 255, 255, 0.09);
+  --glass-border-accent: rgba(139, 92, 246, 0.36);
   --glass-blur: 16px;
   --glass-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
   --glass-shadow-glow: 0 0 40px rgba(139, 92, 246, 0.15);
@@ -79,15 +177,19 @@
   --glass-radius-sm: 12px;
 
   /* Themed surfaces & controls */
-  --control-bg: rgba(255, 255, 255, 0.03);
+  --control-bg: rgba(255, 255, 255, 0.05);
   --surface-sidebar: rgba(15, 11, 31, 0.6);
   --surface-float: rgba(15, 11, 31, 0.9);
   --toast-bg: rgba(15, 11, 31, 0.95);
 
   /* Animated clock chart */
-  --clock-track: rgba(255, 255, 255, 0.04);
-  --clock-tick-major: rgba(255, 255, 255, 0.25);
-  --clock-tick-minor: rgba(255, 255, 255, 0.08);
+  /* The clock is the one chart on the Dashboard and its ring is the shape the
+     whole session is drawn against: at 0.04 the track was invisible, so a fresh
+     session looked like a floating pair of hands. The ticks carry the same
+     reasoning a step further down. */
+  --clock-track: rgba(255, 255, 255, 0.09);
+  --clock-tick-major: rgba(255, 255, 255, 0.32);
+  --clock-tick-minor: rgba(255, 255, 255, 0.14);
 
   /* Spacing */
   --space-xs: 4px;
@@ -101,6 +203,48 @@
   /* Typography */
   --font-sans: 'Inter', system-ui, -apple-system, sans-serif;
   --font-mono: 'JetBrains Mono', 'Fira Code', monospace;
+
+  /* ─── Type scale: every step is a whole number of pixels ───
+     Fractional sizes — 0.72rem is 11.52px, 0.62rem is 9.92px — land glyph
+     stems on half pixels, and that is what makes small text on a dark surface
+     look soft and smudged: the renderer has to smear every stem onto the pixel
+     grid. Whole-pixel steps keep titles, labels and numbers crisp at 100%,
+     125% and 150% display scaling alike, and the small end stops at 10px so a
+     caption is still a caption you can read. New code should use these
+     variables; existing components were moved onto the same ladder. */
+  --text-2xs: 10px;
+  --text-xs: 11px;
+  --text-sm: 12px;
+  --text-base: 13px;
+  --text-md: 14px;
+  --text-lg: 15px;
+  --text-xl: 16px;
+  --text-2xl: 18px;
+  --text-3xl: 20px;
+  --text-4xl: 22px;
+  --text-5xl: 24px;
+  --text-6xl: 28px;
+  --text-7xl: 32px;
+
+  /* ─── One radius ladder for every surface ───
+     Cards, buttons, inputs, chips and panels all round on the same curve, so
+     a 12px button inside a 20px card looks like it was designed with it
+     rather than next to it. */
+  --radius-xs: 6px;
+  --radius-sm: 8px;
+  --radius-md: 10px;
+  --radius-lg: 12px;
+  --radius-xl: 16px;
+  --radius-2xl: 20px;
+  --radius-pill: 999px;
+
+  /* ─── Hairlines ───
+     A 1px edge is the only width that renders as one crisp line at every
+     scale factor, so every divider and card outline is 1px — and it carries
+     enough alpha to actually read as an edge instead of a smudge. Both follow
+     the theme through the glass tokens, so the light theme stays lighter. */
+  --hairline: 1px solid var(--glass-border);
+  --hairline-accent: 1px solid var(--glass-border-accent);
 }
 
 html.theme-dark {
@@ -108,7 +252,8 @@ html.theme-dark {
 }
 
 /* ===== Light Theme ===== */
-html.theme-light {
+html.theme-light,
+html[data-theme="light"] {
   color-scheme: light;
 
   --color-bg-primary: #f4f6fb;
@@ -121,7 +266,7 @@ html.theme-light {
   --color-accent-glow: rgba(124, 58, 237, 0.25);
   --color-text-primary: #0f172a;
   --color-text-secondary: #475569;
-  --color-text-muted: #64748b;
+  --color-text-muted: #5b6478;
   --color-success: #059669;
   --color-warning: #d97706;
   --color-danger: #dc2626;
@@ -132,6 +277,13 @@ html.theme-light {
   --status-in-progress-bg: rgba(217, 119, 6, 0.14);
   --status-done-color: #7c3aed;
   --status-done-bg: rgba(124, 58, 237, 0.12);
+
+  --status-todo-card-bg: rgba(100, 116, 139, 0.12);
+  --status-todo-card-border: rgba(100, 116, 139, 0.30);
+  --status-in-progress-card-bg: rgba(217, 119, 6, 0.12);
+  --status-in-progress-card-border: rgba(217, 119, 6, 0.32);
+  --status-done-card-bg: rgba(124, 58, 237, 0.12);
+  --status-done-card-border: rgba(124, 58, 237, 0.32);
 
   --priority-p1-color: #dc2626;
   --priority-p1-bg: rgba(220, 38, 38, 0.12);
@@ -162,12 +314,12 @@ html.theme-light {
   --glass-bg: rgba(255, 255, 255, 0.65);
   --glass-bg-hover: rgba(255, 255, 255, 0.85);
   --glass-bg-active: rgba(124, 58, 237, 0.08);
-  --glass-border: rgba(15, 23, 42, 0.08);
-  --glass-border-accent: rgba(124, 58, 237, 0.35);
+  --glass-border: rgba(15, 23, 42, 0.10);
+  --glass-border-accent: rgba(124, 58, 237, 0.40);
   --glass-shadow: 0 8px 32px rgba(15, 23, 42, 0.08);
   --glass-shadow-glow: 0 0 40px rgba(124, 58, 237, 0.12);
 
-  --control-bg: rgba(15, 23, 42, 0.05);
+  --control-bg: rgba(15, 23, 42, 0.06);
   --sidebar-bg: rgba(255, 255, 255, 0.88);
   --sidebar-hover-bg: rgba(124, 58, 237, 0.1);
   --sidebar-active-bg: rgba(124, 58, 237, 0.16);
@@ -176,15 +328,101 @@ html.theme-light {
   --surface-float: rgba(255, 255, 255, 0.92);
   --toast-bg: rgba(255, 255, 255, 0.95);
 
-  --clock-track: rgba(15, 23, 42, 0.06);
-  --clock-tick-major: rgba(15, 23, 42, 0.28);
-  --clock-tick-minor: rgba(15, 23, 42, 0.12);
+  --clock-track: rgba(15, 23, 42, 0.10);
+  --clock-tick-major: rgba(15, 23, 42, 0.34);
+  --clock-tick-minor: rgba(15, 23, 42, 0.16);
 }
+
+/* "System" theme before Angular resolves it (the inline boot script only sets
+   data-theme), so the task cards never flash the dark tint in a light OS. */
+@media (prefers-color-scheme: light) {
+  html[data-theme="auto"] {
+    --status-todo-card-bg: rgba(100, 116, 139, 0.12);
+    --status-todo-card-border: rgba(100, 116, 139, 0.30);
+    --status-in-progress-card-bg: rgba(217, 119, 6, 0.12);
+    --status-in-progress-card-border: rgba(217, 119, 6, 0.32);
+    --status-done-card-bg: rgba(124, 58, 237, 0.12);
+    --status-done-card-border: rgba(124, 58, 237, 0.32);
+  }
+}
+
+/* ===== Task board cards =====
+   The Tasks board, the Today board and the CDK drag preview all paint from the
+   classes below (STATUS_CONFIG.cardClass), so a card's colour is decided only
+   by its status — dragging it to another column recolours it the same way on
+   both pages. The components' own styles are layout only, which keeps these
+   rules from being overridden by an encapsulated copy. */
+
+.task-card {
+  --card-accent: var(--color-accent-primary);
+  border: var(--hairline);
+  background: var(--glass-bg);
+}
+.task-card.status-todo {
+  --card-accent: var(--status-todo-color);
+  --card-tint: var(--status-todo-card-bg);
+  background: var(--card-tint);
+  border-color: var(--status-todo-card-border);
+}
+.task-card.status-in-progress {
+  --card-accent: var(--status-in-progress-color);
+  --card-tint: var(--status-in-progress-card-bg);
+  background: var(--card-tint);
+  border-color: var(--status-in-progress-card-border);
+}
+.task-card.status-done {
+  --card-accent: var(--status-done-color);
+  --card-tint: var(--status-done-card-bg);
+  background: var(--card-tint);
+  border-color: var(--status-done-card-border);
+}
+.task-card.status-done .card-title {
+  color: var(--color-text-muted);
+  text-decoration: line-through;
+}
+
+/* The preview leaves the column, so it is layered over an opaque surface:
+   the status tint on top, the float colour underneath. Same hue as the card. */
+.task-card.cdk-drag-preview {
+  background-color: var(--surface-float);
+  background-image: linear-gradient(var(--card-tint, transparent), var(--card-tint, transparent));
+  box-shadow: 0 18px 44px rgba(0, 0, 0, 0.5);
+  backdrop-filter: blur(14px);
+}
+
+.board-column.status-todo .column-dot { background: var(--status-todo-color); }
+.board-column.status-in-progress .column-dot { background: var(--status-in-progress-color); }
+.board-column.status-done .column-dot { background: var(--status-done-color); }
+.board-column.status-todo .column-header { color: var(--status-todo-color); }
+.board-column.status-in-progress .column-header { color: var(--status-in-progress-color); }
+.board-column.status-done .column-header { color: var(--status-done-color); }
 
 * {
   margin: 0;
   padding: 0;
   box-sizing: border-box;
+}
+
+/* One keyboard focus ring for the whole app.
+
+   2px and nearly opaque, because the ring is the one outline a user has to be
+   able to see against both the near-black surfaces and the light theme, and
+   offset so it sits outside the control instead of eating into it. Components
+   that draw a ring of their own still win — their rules carry the encapsulation
+   attribute, which outranks this selector. */
+:focus-visible {
+  outline: 2px solid rgba(167, 139, 250, 0.8);
+  outline-offset: 2px;
+}
+
+html {
+  /* Optical sizing asks a variable font for its small-size cut, and
+     text-size-adjust stops the webview from inflating text on its own. Both
+     are about the same thing: text that is drawn at the size it was designed
+     for instead of being re-scaled after the fact. */
+  font-optical-sizing: auto;
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
 }
 
 html, body {
@@ -195,6 +433,16 @@ html, body {
   overflow: hidden;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+  /* Kerning and the font's own ligatures: without them the tight pairs in
+     Inter collide at 11–13px. */
+  text-rendering: optimizeLegibility;
+  /* Timers, counters, stat columns and table figures share one digit grid, so
+     nothing shimmers sideways while a number counts down. */
+  font-variant-numeric: tabular-nums;
+  /* Faux-bold — a weight the loaded font does not ship — is smeared onto the
+     glyph by the renderer. Refusing it lets the browser step down to the
+     nearest real weight, which is the sharper of the two. */
+  font-synthesis: none;
 }
 
 /* Animated mesh gradient background */
@@ -235,35 +483,11 @@ body::after {
   background: transparent;
 }
 ::-webkit-scrollbar-thumb {
-  background: rgba(139, 92, 246, 0.2);
+  background: rgba(139, 92, 246, 0.3);
   border-radius: 10px;
 }
 ::-webkit-scrollbar-thumb:hover {
-  background: rgba(139, 92, 246, 0.4);
-}
-
-/* Glass card utility */
-.glass {
-  background: var(--glass-bg);
-  backdrop-filter: blur(var(--glass-blur));
-  -webkit-backdrop-filter: blur(var(--glass-blur));
-  border: 1px solid var(--glass-border);
-  border-radius: var(--glass-radius);
-  box-shadow: var(--glass-shadow);
-  transition: border-color 0.3s ease, box-shadow 0.3s ease;
-}
-
-.glass:hover {
-  border-color: var(--glass-border-accent);
-  box-shadow: var(--glass-shadow), var(--glass-shadow-glow);
-}
-
-.glass-sm {
-  background: var(--glass-bg);
-  backdrop-filter: blur(var(--glass-blur));
-  -webkit-backdrop-filter: blur(var(--glass-blur));
-  border: 1px solid var(--glass-border);
-  border-radius: var(--glass-radius-sm);
+  background: rgba(139, 92, 246, 0.5);
 }
 
 /* Accent gradient text */
@@ -274,51 +498,10 @@ body::after {
   background-clip: text;
 }
 
-/* Glow effects */
-.glow-sm {
-  box-shadow: 0 0 15px rgba(139, 92, 246, 0.2), inset 0 0 15px rgba(139, 92, 246, 0.05);
-}
-
-.glow-md {
-  box-shadow: 0 0 30px rgba(139, 92, 246, 0.25), inset 0 0 20px rgba(139, 92, 246, 0.05);
-}
-
-/* Transitions */
-.transition-smooth {
-  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-}
-
-/* Noise texture overlay for depth */
-.noise-overlay::before {
-  content: '';
-  position: absolute;
-  inset: 0;
-  border-radius: inherit;
-  opacity: 0.02;
-  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.65' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)'/%3E%3C/svg%3E");
-  pointer-events: none;
-}
-
-/* Animated dot grid pattern */
-.dot-pattern {
-  background-image: radial-gradient(rgba(139, 92, 246, 0.15) 1px, transparent 1px);
-  background-size: 24px 24px;
-}
-
 /* Utility animations */
 @keyframes fade-in-up {
   from { opacity: 0; transform: translateY(12px); }
   to { opacity: 1; transform: translateY(0); }
-}
-
-@keyframes glow-pulse {
-  0%, 100% { box-shadow: 0 0 20px rgba(139, 92, 246, 0.2); }
-  50% { box-shadow: 0 0 40px rgba(139, 92, 246, 0.4); }
-}
-
-@keyframes shimmer {
-  0% { background-position: -200% center; }
-  100% { background-position: 200% center; }
 }
 
 .animate-fade-in {
@@ -333,21 +516,17 @@ body::after {
   animation: fade-in-up 0.4s ease-out 0.2s both;
 }
 
-.animate-fade-in-delay-3 {
-  animation: fade-in-up 0.4s ease-out 0.3s both;
-}
-
 /* Global glassmorphism tooltip */
 .app-tooltip {
   position: fixed;
   z-index: 9999;
   padding: 6px 12px;
-  font-size: 0.72rem;
+  font-size: 12px;
   font-family: var(--font-sans);
   color: var(--color-text-primary);
   background: var(--surface-float);
   backdrop-filter: blur(12px);
-  border: 1px solid rgba(139, 92, 246, 0.2);
+  border: var(--hairline-accent);
   border-radius: 8px;
   box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5), 0 0 12px rgba(139, 92, 246, 0.1);
   pointer-events: none;
@@ -377,20 +556,20 @@ select {
   padding-left: 12px;
   min-height: 36px;
   border-radius: 10px;
-  border: 1px solid rgba(139, 92, 246, 0.2);
+  border: 1px solid rgba(139, 92, 246, 0.28);
   background-color: var(--control-bg);
   color: var(--color-text-primary);
-  font-size: 0.82rem;
+  font-size: 13px;
   font-family: var(--font-sans);
   cursor: pointer;
   transition: border-color 0.2s;
 }
 select:focus {
   outline: none;
-  border-color: rgba(139, 92, 246, 0.5);
+  border-color: rgba(139, 92, 246, 0.7);
 }
 select:hover {
-  border-color: rgba(139, 92, 246, 0.35);
+  border-color: rgba(139, 92, 246, 0.45);
 }
 select option {
   background: var(--color-bg-tertiary);
@@ -422,10 +601,10 @@ textarea {
   padding: 10px 14px;
   min-height: 36px;
   border-radius: 10px;
-  border: 1px solid rgba(139, 92, 246, 0.2);
+  border: 1px solid rgba(139, 92, 246, 0.28);
   background-color: var(--control-bg);
   color: var(--color-text-primary);
-  font-size: 0.82rem;
+  font-size: 13px;
   font-family: var(--font-sans);
   transition: border-color 0.2s;
 }
@@ -443,7 +622,7 @@ input[type="month"]:focus,
 input[type="week"]:focus,
 textarea:focus {
   outline: none;
-  border-color: rgba(139, 92, 246, 0.5);
+  border-color: rgba(139, 92, 246, 0.7);
 }
 input[type="text"]:hover,
 input[type="email"]:hover,
@@ -458,12 +637,73 @@ input[type="datetime-local"]:hover,
 input[type="month"]:hover,
 input[type="week"]:hover,
 textarea:hover {
-  border-color: rgba(139, 92, 246, 0.35);
+  border-color: rgba(139, 92, 246, 0.45);
 }
 input::placeholder,
 textarea::placeholder {
   color: var(--color-text-muted);
   opacity: 0.7;
+}
+
+/* Native controls, tinted rather than redrawn.
+
+   The platform already draws a crisp checkbox and radio at every scale factor,
+   so these only take their colour from the theme. Sliders get a little more:
+   Chromium's default track is a bright grey bar that reads as a different
+   application inside Settings, so it becomes a 4px themed rail with a crisp
+   thumb on top of it. */
+input[type="checkbox"],
+input[type="radio"] {
+  accent-color: var(--color-accent-primary);
+  width: 16px;
+  height: 16px;
+  cursor: pointer;
+}
+
+input[type="range"] {
+  appearance: none;
+  -webkit-appearance: none;
+  width: 100%;
+  height: 18px;
+  background: transparent;
+  cursor: pointer;
+}
+input[type="range"]::-webkit-slider-runnable-track {
+  height: 4px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.16);
+}
+input[type="range"]::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: 14px;
+  height: 14px;
+  /* (4px track − 14px thumb) / 2, so the thumb is centred on the rail. */
+  margin-top: -5px;
+  border-radius: 50%;
+  background: var(--color-accent-primary);
+  border: 1px solid rgba(255, 255, 255, 0.8);
+}
+input[type="range"]:focus-visible {
+  outline-offset: 4px;
+}
+
+/* `theme-light` is the class the theme service toggles; `data-theme` is what the
+   boot script sets before Angular starts, and `auto` is the system preference. */
+html.theme-light input[type="range"]::-webkit-slider-runnable-track,
+html[data-theme="light"] input[type="range"]::-webkit-slider-runnable-track {
+  background: rgba(15, 23, 42, 0.18);
+}
+html.theme-light input[type="range"]::-webkit-slider-thumb,
+html[data-theme="light"] input[type="range"]::-webkit-slider-thumb {
+  border-color: rgba(255, 255, 255, 0.95);
+}
+@media (prefers-color-scheme: light) {
+  html[data-theme="auto"] input[type="range"]::-webkit-slider-runnable-track {
+    background: rgba(15, 23, 42, 0.18);
+  }
+  html[data-theme="auto"] input[type="range"]::-webkit-slider-thumb {
+    border-color: rgba(255, 255, 255, 0.95);
+  }
 }
 
 /* Date/calendar input icon styling */
@@ -485,12 +725,10 @@ html[data-theme="light"] input[type="datetime-local"]::-webkit-calendar-picker-i
    Component .class[_ngcontent] = specificity (0,2,0)
    Global wins — no !important needed                    */
 
-html[data-theme="light"] .stat-card,
 html[data-theme="light"] .chart-card,
 html[data-theme="light"] .habit-card,
 html[data-theme="light"] .editor-card,
 html[data-theme="light"] .entries-sidebar,
-html[data-theme="light"] .today-card,
 html[data-theme="light"] .quadrant,
 html[data-theme="light"] .timer-card-inner,
 html[data-theme="light"] .timeline-panel-inner,
@@ -510,14 +748,6 @@ html[data-theme="light"] .meta-badge {
   border-color: rgba(139, 92, 246, 0.18);
 }
 
-html[data-theme="light"] .task-row {
-  background: rgba(228, 224, 244, 0.80);
-  border-color: rgba(139, 92, 246, 0.12);
-}
-html[data-theme="light"] .task-row:hover {
-  background: rgba(139, 92, 246, 0.06);
-  border-color: rgba(139, 92, 246, 0.25);
-}
 html[data-theme="light"] .panel-header {
   border-bottom-color: rgba(139, 92, 246, 0.12);
 }
@@ -546,12 +776,10 @@ html[data-theme="light"] .form-group select {
 }
 
 @media (prefers-color-scheme: light) {
-  html[data-theme="auto"] .stat-card,
   html[data-theme="auto"] .chart-card,
   html[data-theme="auto"] .habit-card,
   html[data-theme="auto"] .editor-card,
   html[data-theme="auto"] .entries-sidebar,
-  html[data-theme="auto"] .today-card,
   html[data-theme="auto"] .quadrant,
   html[data-theme="auto"] .timer-card-inner,
   html[data-theme="auto"] .timeline-panel-inner,
@@ -569,14 +797,6 @@ html[data-theme="light"] .form-group select {
     background: rgba(228, 224, 244, 0.80);
     border-color: rgba(139, 92, 246, 0.18);
   }
-  html[data-theme="auto"] .task-row {
-    background: rgba(228, 224, 244, 0.80);
-    border-color: rgba(139, 92, 246, 0.12);
-  }
-  html[data-theme="auto"] .task-row:hover {
-    background: rgba(139, 92, 246, 0.06);
-    border-color: rgba(139, 92, 246, 0.25);
-  }
   html[data-theme="auto"] .panel-header { border-bottom-color: rgba(139, 92, 246, 0.12); }
   html[data-theme="auto"] .setting-item { border-bottom-color: rgba(139, 92, 246, 0.1); }
   html[data-theme="auto"] .session-row { border-bottom-color: rgba(139, 92, 246, 0.1); }
@@ -592,9 +812,6 @@ html[data-theme="light"] .form-group select {
 }
 
 /* ===== Light theme: clock & timeline overrides ===== */
-html[data-theme="light"] .track-circle {
-  stroke: rgba(139, 92, 246, 0.12);
-}
 html[data-theme="light"] .tick-major {
   stroke: rgba(27, 23, 48, 0.3);
 }
@@ -618,13 +835,7 @@ html[data-theme="light"] .action-btn {
   border-color: rgba(139, 92, 246, 0.18);
   color: var(--color-text-secondary);
 }
-html[data-theme="light"] .mini-clock-float {
-  background: rgba(255, 255, 255, 0.95);
-  border-color: rgba(139, 92, 246, 0.25);
-}
-
 @media (prefers-color-scheme: light) {
-  html[data-theme="auto"] .track-circle { stroke: rgba(139, 92, 246, 0.12); }
   html[data-theme="auto"] .tick-major { stroke: rgba(27, 23, 48, 0.3); }
   html[data-theme="auto"] .tick-minor { stroke: rgba(27, 23, 48, 0.12); }
   html[data-theme="auto"] .hour-line { background: rgba(139, 92, 246, 0.12); }
@@ -642,4 +853,28 @@ html[data-theme="light"] .mini-clock-float {
     border-color: rgba(139, 92, 246, 0.18);
     color: var(--color-text-secondary);
   }
+}
+
+/* ===== Mini widget window =====
+   The desktop build now creates its window with `transparent: true` (see
+   `src-tauri/tauri.conf.json`). That is the whole reason the 136x76 widget can
+   be a round-cornered card instead of a square box: its corners are genuinely
+   empty, so the desktop shows through them, exactly like the floating panel in
+   the browser build.
+
+   `UiService` puts `widget-transparent` on <html> for exactly as long as the
+   widget is open. Keeping it a class rather than a blanket rule matters twice
+   over — the app window stays opaque while it is a window, and a platform
+   whose window cannot be made transparent keeps the app's dark background
+   instead of showing white corners. */
+html.widget-transparent,
+html.widget-transparent body {
+  background: transparent;
+}
+
+/* The two mesh-gradient layers cover the whole viewport, so inside the widget
+   they would flood the empty corners with purple and square it off again. */
+html.widget-transparent body::before,
+html.widget-transparent body::after {
+  display: none;
 }

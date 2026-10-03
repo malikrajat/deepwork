@@ -118,15 +118,15 @@ const WINDOW_DAYS = 30;
       margin-bottom: var(--space-lg); display: flex; align-items: flex-start;
       justify-content: space-between; gap: 16px; flex-wrap: wrap;
     }
-    .page-title { font-size: 1.75rem; font-weight: 800; letter-spacing: -0.5px; }
-    .page-subtitle { color: var(--color-text-muted); margin-top: 4px; font-size: 0.85rem; }
+    .page-title { font-size: 28px; font-weight: 800; letter-spacing: -0.5px; }
+    .page-subtitle { color: var(--color-text-muted); margin-top: 4px; font-size: 14px; }
     .header-stats { display: flex; gap: 8px; flex-wrap: wrap; }
     .stat-pill {
       display: flex; flex-direction: column; align-items: center; padding: 6px 14px;
       border-radius: 12px; background: var(--glass-bg); border: 1px solid var(--glass-border);
     }
-    .stat-value { font-size: 0.95rem; font-weight: 800; color: var(--color-text-primary); }
-    .stat-label { font-size: 0.56rem; color: var(--color-text-muted); text-transform: uppercase; letter-spacing: 0.05em; }
+    .stat-value { font-size: 15px; font-weight: 800; color: var(--color-text-primary); }
+    .stat-label { font-size: 10px; color: var(--color-text-muted); text-transform: uppercase; letter-spacing: 0.05em; }
 
     .add-form {
       display: flex; align-items: flex-start; gap: 10px; margin-bottom: var(--space-md);
@@ -137,15 +137,15 @@ const WINDOW_DAYS = 30;
     .icon-input { width: 64px; text-align: center; }
     input {
       background: var(--control-bg); border: 1px solid rgba(139,92,246,0.12);
-      border-radius: 10px; padding: 9px 12px; color: var(--color-text-primary); font-size: 0.85rem; outline: none;
+      border-radius: 10px; padding: 9px 12px; color: var(--color-text-primary); font-size: 14px; outline: none;
     }
     input:focus { border-color: rgba(139,92,246,0.4); }
-    .btn { padding: 9px 18px; border-radius: 10px; font-size: 0.8rem; font-weight: 600; cursor: pointer; border: none; }
+    .btn { padding: 9px 18px; border-radius: 10px; font-size: 13px; font-weight: 600; cursor: pointer; border: none; }
     .btn-primary { background: linear-gradient(135deg, #8b5cf6, #7c3aed); color: white; }
     .btn-primary:disabled { opacity: 0.4; cursor: not-allowed; }
 
     .reading {
-      font-size: 0.74rem; line-height: 1.55; color: var(--color-text-secondary);
+      font-size: 12px; line-height: 1.55; color: var(--color-text-secondary);
       padding: 10px 14px; border-radius: 12px; margin-bottom: var(--space-md);
       background: rgba(139,92,246,0.06); border: 1px solid rgba(139,92,246,0.15);
     }
@@ -159,29 +159,29 @@ const WINDOW_DAYS = 30;
     .habit-card.done-today { border-color: rgba(52,211,153,0.35); }
     .habit-card.slipping { border-color: rgba(251,191,36,0.25); }
     .habit-header { display: flex; align-items: center; gap: 8px; }
-    .habit-icon { font-size: 1.25rem; }
+    .habit-icon { font-size: 20px; }
     .consistency-badge {
-      font-size: 0.6rem; font-weight: 700; padding: 2px 8px; border-radius: 999px;
+      font-size: 10px; font-weight: 700; padding: 2px 8px; border-radius: 999px;
       background: rgba(248,113,113,0.14); color: #fca5a5;
     }
     .consistency-badge.mid { background: rgba(251,191,36,0.14); color: #fbbf24; }
     .consistency-badge.good { background: rgba(52,211,153,0.14); color: #34d399; }
     .delete-btn {
       margin-left: auto; background: none; border: none; color: var(--color-text-muted);
-      font-size: 1.1rem; line-height: 1; cursor: pointer; padding: 0 4px;
+      font-size: 18px; line-height: 1; cursor: pointer; padding: 0 4px;
     }
     .delete-btn:hover { color: #fca5a5; }
     .habit-name {
-      font-size: 0.9rem; font-weight: 700; color: var(--color-text-primary);
+      font-size: 14px; font-weight: 700; color: var(--color-text-primary);
       overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
     }
     .streak-row { display: flex; align-items: baseline; gap: 5px; }
-    .streak-fire { font-size: 0.85rem; }
-    .streak-count { font-size: 1.15rem; font-weight: 800; color: var(--color-text-primary); }
-    .streak-label { font-size: 0.6rem; color: var(--color-text-muted); }
-    .best-streak { margin-left: auto; font-size: 0.6rem; color: var(--color-text-muted); }
+    .streak-fire { font-size: 14px; }
+    .streak-count { font-size: 18px; font-weight: 800; color: var(--color-text-primary); }
+    .streak-label { font-size: 10px; color: var(--color-text-muted); }
+    .best-streak { margin-left: auto; font-size: 10px; color: var(--color-text-muted); }
     .check-btn {
-      padding: 7px; border-radius: 10px; cursor: pointer; font-size: 0.75rem; font-weight: 600;
+      padding: 7px; border-radius: 10px; cursor: pointer; font-size: 12px; font-weight: 600;
       background: rgba(139,92,246,0.14); border: 1px solid rgba(139,92,246,0.3); color: var(--color-text-primary);
       transition: all 0.2s;
     }
@@ -191,15 +191,15 @@ const WINDOW_DAYS = 30;
     .strip-dot { width: 7px; height: 7px; border-radius: 2px; background: rgba(255,255,255,0.07); }
     .strip-dot.done { background: rgba(139,92,246,0.85); }
     .strip-dot.today { box-shadow: 0 0 0 1px rgba(255,255,255,0.35); }
-    .strip-labels { display: flex; justify-content: space-between; font-size: 0.54rem; color: var(--color-text-muted); }
-    .habit-total { font-size: 0.6rem; color: var(--color-text-muted); }
+    .strip-labels { display: flex; justify-content: space-between; font-size: 10px; color: var(--color-text-muted); }
+    .habit-total { font-size: 10px; color: var(--color-text-muted); }
 
     .empty-state {
       display: flex; flex-direction: column; align-items: center; justify-content: center;
       gap: 8px; padding: 60px 0; text-align: center;
     }
-    .empty-title { font-size: 1.1rem; font-weight: 700; color: var(--color-text-secondary); }
-    .empty-desc { font-size: 0.85rem; color: var(--color-text-muted); }
+    .empty-title { font-size: 18px; font-weight: 700; color: var(--color-text-secondary); }
+    .empty-desc { font-size: 14px; color: var(--color-text-muted); }
   `],
 })
 export class HabitsComponent implements OnInit {

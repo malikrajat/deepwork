@@ -1,5 +1,7 @@
 import { Injectable, inject } from '@angular/core';
 import { TaskService } from './task.service';
+import { DownloadService } from './download.service';
+import { SavedDownload } from '../models/download.model';
 import { Task, TaskQuadrant, TaskStatus } from '../models/task.model';
 import {
   ImportCell,
@@ -33,10 +35,14 @@ export const TEMPLATE_VALIDATION_ROWS = 500;
 const MAX_FILE_BYTES = 10 * 1024 * 1024;
 const MAX_ROWS = 5000;
 
+/** Excel rejects an `.xlsx` without its long, official content type. */
+const XLSX_MIME = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
+
 /** Spreadsheet → tasks. Also generates the downloadable Excel template. */
 @Injectable({ providedIn: 'root' })
 export class TaskImportService {
   private readonly taskService = inject(TaskService);
+  private readonly downloads = inject(DownloadService);
 
   // ───────────────────────────────────────────────────────────────────────────
   // Template
@@ -61,18 +67,14 @@ export class TaskImportService {
     return `${todayIsoDate()}.xlsx`;
   }
 
-  /** Triggers a browser/Tauri download of the template. */
-  downloadTemplate(): void {
-    const bytes = this.buildTemplate();
-    const blob = new Blob([bytes as BlobPart], {
-      type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-    });
-    const url = URL.createObjectURL(blob);
-    const anchor = document.createElement('a');
-    anchor.href = url;
-    anchor.download = this.templateFileName();
-    anchor.click();
-    URL.revokeObjectURL(url);
+  /**
+   * Writes the template out and reports where it landed.
+   *
+   * The caller shows that location to the user — downloading a file and not
+   * saying where it went is how a template gets "lost" on the way to Excel.
+   */
+  async downloadTemplate(): Promise<SavedDownload> {
+    return this.downloads.save(this.templateFileName(), this.buildTemplate(), XLSX_MIME);
   }
 
   private templateTasksSheet(): XlsxSheetSpec {
@@ -116,7 +118,7 @@ export class TaskImportService {
           width: 20,
           date: true,
           defaultValue: today,
-          hint: `A date, typed as YYYY-MM-DD or picked from the calendar. Past dates are allowed — they import and are marked overdue. Pre-filled with today (${today}).`,
+          hint: `A date, typed as YYYY-MM-DD or picked from the calendar. Past dates are allowed — they import and are marked overdue. A later date keeps the task for that day, not for today. Pre-filled with today (${today}).`,
         },
         {
           header: 'Status',
@@ -160,7 +162,7 @@ export class TaskImportService {
           defaultValue: IMPORT_DEFAULTS.addToToday,
           align: 'center',
           width: 18,
-          hint: 'Yes also puts the task on your Today list. Default: Yes.',
+          hint: 'Yes also puts the task on your Today list, even when it is dated for another day. Default: No — the deadline decides the day.',
         },
       ],
     };
@@ -185,13 +187,13 @@ export class TaskImportService {
       description: 'Free text, up to 2000 characters.',
       priority: `${PRIORITY_LABELS.join(' | ')} — you may also use 1-4, or words such as high/medium/low.`,
       quadrant: `${QUADRANT_LABELS.join(' | ')} — Eisenhower matrix placement.`,
-      deadline: `A date, typed as YYYY-MM-DD (e.g. ${example}) or picked from the calendar. Past dates are allowed: they import normally and are marked overdue in the preview. Pre-filled with today (${today}).`,
+      deadline: `A date, typed as YYYY-MM-DD (e.g. ${example}) or picked from the calendar. The date decides the day the task belongs to: one dated for tomorrow is filed under Tomorrow, not on Today. Past dates are allowed and are marked overdue in the preview. Pre-filled with today (${today}).`,
       status: `${STATUS_LABELS.join(' | ')}.`,
       repeat: `${REPEAT_LABELS.join(' | ')}.`,
       repeatDays: 'Only for Weekly: e.g. Mon,Wed,Fri — or weekdays such as Monday Wednesday.',
       repeatEndDate: `Last day the repeat may still create a task (YYYY-MM-DD). Leave blank to repeat forever. Pre-filled with today (${today}).`,
       tags: 'Comma separated labels, e.g. task, work, urgent. Pre-filled with "task".',
-      addToToday: 'Yes | No — Yes also adds the task to your Today list.',
+      addToToday: `Yes | No — Yes also adds the task to your Today list, even when the deadline is another day (default: ${IMPORT_DEFAULTS.addToToday}).`,
     };
 
     const rows = IMPORT_FIELDS.map(field => {
@@ -237,13 +239,13 @@ export class TaskImportService {
       '',
       '',
       '',
-      'Importing the same file twice creates duplicates — DeepWork warns you and can skip them automatically.',
+      'A title that already exists is labelled Duplicate in the preview and still imported — the same task often comes back on another day. Tick "Skip" in the preview if you would rather leave those rows out.',
     ]);
     rows.push([
       '',
       '',
       '',
-      `Dates: any deadline is accepted, past or future. Today is ${today}.`,
+      `Dates: any deadline is accepted, past or future. The date decides where the task lands — a row dated for tomorrow waits under Tomorrow, and only "Add to Today" = Yes also puts it on today's list. Today is ${today}.`,
     ]);
 
     return {
@@ -368,7 +370,7 @@ export class TaskImportService {
         warningCount,
         duplicateCount,
         errorCount,
-        importableCount: readyCount + warningCount,
+        importableCount: readyCount + warningCount + duplicateCount,
       };
     } catch (error) {
       return fatal(this.readableError(error));
@@ -400,9 +402,15 @@ export class TaskImportService {
   // Writing
   // ───────────────────────────────────────────────────────────────────────────
 
-  /** Persists the confirmed rows, returning how many tasks were created. */
+  /**
+   * Persists the confirmed rows, returning how many tasks were created.
+   *
+   * Repeating a title is not treated as an accident: the same task often comes
+   * back the next day, so duplicates are written by default and only left out
+   * when the user asks for it (`skipDuplicates`).
+   */
   async importRows(preview: ImportPreview, options: ImportCommitOptions = {}): Promise<ImportCommitResult> {
-    const skipDuplicates = options.skipDuplicates ?? true;
+    const skipDuplicates = options.skipDuplicates ?? false;
     const includeWarnings = options.includeWarnings ?? true;
 
     const selected = preview.rows.filter(row =>

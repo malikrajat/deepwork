@@ -162,7 +162,8 @@ export function inflateRaw(input: Uint8Array, maxOutputBytes = 64 * 1024 * 1024)
     output = grown;
   };
 
-  let isFinalBlock = false;
+  // Assigned at the top of every iteration; read only by the loop condition.
+  let isFinalBlock: boolean;
 
   do {
     isFinalBlock = readBits(1) === 1;

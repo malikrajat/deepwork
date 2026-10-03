@@ -41,7 +41,7 @@ export interface PomodoroConfig {
 export function buildDaySchedule(
   items: ScheduleItem[],
   prefs: SchedulePrefs,
-  config: PomodoroConfig
+  config: PomodoroConfig,
 ): DaySchedule {
   const focus = Math.max(1, Math.round(config.focusMinutes));
   const shortBreak = Math.max(1, Math.round(config.shortBreakMinutes));
@@ -58,7 +58,10 @@ export function buildDaySchedule(
   let cursor = dayStart;
 
   const pomodorosOf = (item: ScheduleItem) =>
-    Math.max(MIN_POMODOROS, Math.min(MAX_POMODOROS, Math.round(item.entry?.pomodoros ?? MIN_POMODOROS)));
+    Math.max(
+      MIN_POMODOROS,
+      Math.min(MAX_POMODOROS, Math.round(item.entry?.pomodoros ?? MIN_POMODOROS)),
+    );
 
   const nextBreakKind = (): BreakKind => (focusCount % every === 0 ? 'long-break' : 'short-break');
   const breakLength = (kind: BreakKind) => (kind === 'long-break' ? longBreak : shortBreak);
@@ -81,7 +84,7 @@ export function buildDaySchedule(
 
   // ── 1. Fixed placements reserve their range first ────────────────────────
   const pinned = items
-    .filter(item => item.entry?.slotStart !== null && item.entry?.slotStart !== undefined)
+    .filter((item) => item.entry?.slotStart !== null && item.entry?.slotStart !== undefined)
     .sort((a, b) => a.entry!.slotStart! - b.entry!.slotStart! || a.index - b.index);
 
   for (const item of pinned) {
@@ -134,7 +137,9 @@ export function buildDaySchedule(
   }
 
   // ── 2. Automatic flow, in quadrant → task order ──────────────────────────
-  const auto = items.filter(item => item.entry?.slotStart === null || item.entry?.slotStart === undefined);
+  const auto = items.filter(
+    (item) => item.entry?.slotStart === null || item.entry?.slotStart === undefined,
+  );
 
   for (const [position, item] of auto.entries()) {
     const count = pomodorosOf(item);
@@ -232,7 +237,16 @@ export function buildDaySchedule(
   }
 
   // ── 3. Chronological order, merging slots that share a range ─────────────
-  blocks.sort((a, b) => a.startMin - b.startMin || a.endMin - b.endMin || (a.kind === 'focus' ? -1 : 1));
+  // Chronological, and for an identical range a focus block comes before the
+  // rest that follows it. Two focus blocks that share a range keep the order
+  // they were built in — two tasks dropped on the same slot have to come back
+  // as the one that owns the slot first, not as whichever the sort visited.
+  blocks.sort((a, b) => {
+    if (a.startMin !== b.startMin) return a.startMin - b.startMin;
+    if (a.endMin !== b.endMin) return a.endMin - b.endMin;
+    if (a.kind === b.kind) return 0;
+    return a.kind === 'focus' ? -1 : 1;
+  });
 
   const merged: ScheduleBlock[] = [];
   const remap = new Map<string, string>();
@@ -265,21 +279,21 @@ export function buildDaySchedule(
     if (block.kind === 'focus') {
       block.index = ++focusIndex;
     } else {
-      const after = merged.find(candidate => candidate.id === block.afterId);
+      const after = merged.find((candidate) => candidate.id === block.afterId);
       block.index = after && after.kind === 'focus' ? after.index : focusIndex;
     }
   }
 
-  const fixedPlacements: PlacedTask[] = placements.map(placement => ({
+  const fixedPlacements: PlacedTask[] = placements.map((placement) => ({
     ...placement,
-    blockIds: [...new Set(placement.blockIds.map(id => remap.get(id) ?? id))],
+    blockIds: [...new Set(placement.blockIds.map((id) => remap.get(id) ?? id))],
   }));
 
   const startBound = fixedPlacements.length
-    ? Math.min(dayStart, ...fixedPlacements.map(placement => placement.startMin))
+    ? Math.min(dayStart, ...fixedPlacements.map((placement) => placement.startMin))
     : dayStart;
   const endBound = fixedPlacements.length
-    ? Math.max(dayEnd, ...fixedPlacements.map(placement => placement.endMin))
+    ? Math.max(dayEnd, ...fixedPlacements.map((placement) => placement.endMin))
     : dayEnd;
 
   const focusBlocks = merged.filter((block): block is FocusBlock => block.kind === 'focus');

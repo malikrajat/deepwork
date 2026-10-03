@@ -1,8 +1,7 @@
-/**
- * Types for the task export (CSV via `rm-ng-export-to-csv`).
- */
+/** Types for the task export (a CSV written by the app itself). */
 
 import { TaskStatus } from './task.model';
+import { SavedDownload } from './download.model';
 
 /** Quick date-range choices offered in the export panel. */
 export type ExportRangeKey =
@@ -79,4 +78,6 @@ export interface TaskExportPlan {
 export interface TaskExportResult {
   rowCount: number;
   fileName: string;
+  /** Where the CSV was written, so the panel can tell the user. */
+  download: SavedDownload;
 }

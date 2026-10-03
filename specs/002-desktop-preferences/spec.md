@@ -1,4 +1,4 @@
-# Feature Specification: Desktop Preferences (start with system, always on top, mini widget)
+# Feature Specification: Desktop Preferences (start with system, always on top, close to tray, mini widget)
 
 **Feature branch**: `002-desktop-preferences`
 **Status**: Implemented
@@ -8,31 +8,41 @@
 
 Give the user control over how DeepWork sits on their desktop — whether it starts
 with the computer, whether its window floats above other windows, and what happens
-when it shrinks into the mini widget — and make the whole thing discoverable and
-explainable, because "always on top" and "start with system" are not concepts most
-people can be expected to already understand.
+when it shrinks into the mini widget or is closed outright — and make the whole
+thing discoverable and explainable, because "always on top" and "start with system"
+are not concepts most people can be expected to already understand.
 
 ## User Scenarios & Testing
 
 ### Primary stories
 
-1. **Choose at install time (Windows).** While installing, the user is asked
-   whether DeepWork should start with Windows. Accepting creates the startup entry.
+1. ~~**Choose at install time (Windows).**~~ *Retired in 2.0.13.* The installer no
+   longer asks and no longer writes the entry: a per-user `Run` value written by a
+   freshly downloaded, unsigned installer is what Defender scored as
+   `Behavior:Win32/Persistence.A!ml` when it quarantined 2.0.12. Story 2 is now the
+   only place the offer is made, on every platform alike.
 2. **Choose on first launch (all platforms).** The first time the desktop app runs,
-   a dialog offers both options and explains the mini widget before the user
+   a dialog offers the options and explains the mini widget before the user
    discovers it by surprise.
-3. **Change it later, from anywhere.** The two options are available in three
-   places — the system tray menu, Settings, and the dashboard — and always agree
-   with each other and with the real OS state.
+3. **Change it later, from anywhere.** The options are available in three places —
+   the system tray menu (for the two it can act on itself), Settings, and the
+   dashboard — and always agree with each other and with the real OS state.
 4. **Understand what a setting does.** An ⓘ button next to each option explains it
    in plain language.
 5. **Use the mini widget.** Minimising from the clock card produces a small,
    draggable, always-on-top widget; restoring returns the window to its original
    size and position and to the user's own always-on-top choice.
+6. **Close the window without losing the session.** Pressing the X hides DeepWork
+   next to the clock: the timer, the water reminder and the tray icon all carry on,
+   one click on the tray icon brings the window back, and the tray menu's **Exit**
+   is what quits. Anyone who would rather the X quit can turn the switch off.
 
 ### Acceptance criteria
 
-- **AC-1** Both preferences default to **off**; nothing changes without consent.
+- **AC-1** *Start with system* and *Always on top* default to **off**; nothing
+  changes without consent. *Keep running in the tray* defaults to **on**, because
+  the alternative is an accidental click ending a running session (`008_close_to_tray.sql`
+  moves the old default).
 - **AC-2** Enabling *Start with system* creates a per-user autostart entry on
   Windows, Linux and macOS; disabling it removes it.
 - **AC-3** The real OS state is authoritative. If the installer enabled startup, or
@@ -53,11 +63,23 @@ people can be expected to already understand.
 - **AC-11** Silent/passive installs never block on a prompt.
 - **AC-12** The browser/PWA build renders the panel inert with an explanation,
   never shows the desktop onboarding dialog, and never throws.
+- **AC-13** Closing the window while *Keep running in the tray* is on hides it and
+  leaves the process alive — the timer, the water reminder and the tray icon all
+  keep working — with no request to close reaching the OS.
+- **AC-14** The tray menu's **Exit** quits completely, whatever the close
+  behaviour is, so a window that hides is never a window that cannot be closed.
+- **AC-15** With the switch off the X quits as it always did, and a failed change
+  rolls the switch back rather than leaving the window hiding when the user asked
+  it to quit.
+- **AC-16** The browser/PWA build records the preference as off, since a tab has no
+  tray to hide into.
 
 ### Out of scope
 
 - A per-platform custom installer page (NSIS `template`) — the stock Tauri template
-  plus `installerHooks` covers the requirement without forking the installer.
+  covers the requirement without forking the installer. (2.0.13 dropped the
+  `installerHooks` use with the install-time prompt, so the stock template is now
+  used untouched.)
 - Populating the OS "Open at login" list on macOS via `launchctl` — the LaunchAgent
   is picked up at next sign-in.
 
@@ -67,13 +89,16 @@ people can be expected to already understand.
 |----|-------------|
 | FR-1 | `AppSettings` gains `startWithSystem`, `alwaysOnTop`, `desktopPrefsPrompted` (migration `005_add_desktop_prefs.sql`). |
 | FR-2 | Rust `autostart` module writes/removes the per-user startup entry. Value name `DeepWork` matches the NSIS `${PRODUCTNAME}` the uninstaller deletes. |
-| FR-3 | Rust commands: `autostart_is_enabled`, `autostart_set_enabled`, `window_set_always_on_top`, `window_is_always_on_top`. |
+| FR-3 | Rust commands: `autostart_is_enabled`, `autostart_set_enabled`, `window_set_always_on_top`, `window_is_always_on_top`, `window_set_close_behavior`. |
 | FR-4 | The tray menu gains checkable *Start with system* and *Always on top*; Rust flips the real state, then emits `autostart:on/off` / `aot:on/off` so the app can persist it. |
-| FR-5 | A login-launched copy (`--autostart`) starts hidden in the system tray. |
-| FR-6 | `DesktopPrefsService` is the single source of truth for both signals; every UI surface reads and writes through it. |
+| FR-5 | A login-launched copy (`--autostart`) opens the normal main window — at its usual size and without stealing focus (see `specs/003-mini-widget-window`). |
+| FR-6 | `DesktopPrefsService` is the single source of truth for those signals; every UI surface reads and writes through it. |
 | FR-7 | The mini widget is always on top while open and hands the window back with the user's preference re-applied. |
 | FR-8 | The widget relaxes and then restores the window minimum size (the configured 800×600 would otherwise clamp it). |
-| FR-9 | `nsis/hooks.nsh` asks the startup question in `NSIS_HOOK_POSTINSTALL` for GUI installs only. |
+| FR-9 | *Retired in 2.0.13.* `nsis/hooks.nsh` asked the startup question in `NSIS_HOOK_POSTINSTALL` for GUI installs only; the hook, the entry it wrote and the file are gone, and the first-run dialog is the only offer (see `CHANGELOG.md`). |
+| FR-14 | `trayBehavior` (`minimize` \| `quit`) becomes the stored preference behind the close button, defaulting to `minimize` (migration `008_close_to_tray.sql`). |
+| FR-15 | Rust holds the close behaviour in `CloseInTray` (an `AtomicBool`, default *keep running*), and `WindowEvent::CloseRequested` either `prevent_close()` + `hide()` or quits, according to it. |
+| FR-16 | `DesktopPrefsService.closeToTray` mirrors the preference, pushes it to Rust when settings load and whenever the **Keep running in the tray** switch is flipped, and rolls back on failure. |
 
 ## Key entities
 
@@ -86,14 +111,15 @@ people can be expected to already understand.
 - All existing and new unit tests pass (386 tests / 32 files).
 - `cargo check` is clean with no warnings.
 - `tauri.conf.json` validates against the Tauri CLI schema.
-- The NSIS hook compiles with `makensis`.
-- The Windows installer builds and installs the startup prompt.
+- The Windows installer builds, installs, and writes no startup entry of its own
+  (2.0.13 — `src-tauri/nsis/hooks.nsh` is gone; see `CHANGELOG.md`).
 
 ## Assumptions
 
 - Both preferences are opt-in and reversible at any time.
-- The app keeps its existing "system minimise goes to the tray" behaviour; the mini
-  widget remains an explicit action from the clock card.
+- System minimise was updated by `specs/003-mini-widget-window`: pressing the
+  window's minimise button now produces the mini widget, from any page. The tray
+  icon and its *Show* item are unchanged.
 - Per-user (not machine-wide) startup is the correct scope, matching
   `installMode: currentUser`.
 

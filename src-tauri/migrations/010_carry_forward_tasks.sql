@@ -1,0 +1,15 @@
+-- DeepWork: what happens to work that was not finished on the day it was for.
+--
+-- Carrying yesterday's unfinished work forward is the behaviour DeepWork has
+-- always had, and plenty of people want it: a task you did not get to is still
+-- on your plate, and closing it silently would be the app throwing work away.
+-- But carrying it forward means the backlog only ever grows, and the day the
+-- task was written for stops meaning anything — which is the opposite of what
+-- a planner is for.
+--
+-- So it is a choice now (`Carry forward unfinished tasks` in Settings, under
+-- Tasks). On — the default, and the behaviour that existed before this column —
+-- an unfinished task keeps its place and stays open. Off — an unfinished task
+-- whose own day has passed (its deadline when it has one, otherwise the day it
+-- was written) is closed automatically, and today starts clean.
+ALTER TABLE settings ADD COLUMN carry_forward_tasks INTEGER NOT NULL DEFAULT 1;

@@ -10,6 +10,8 @@ import {
   afterNextRender,
 } from '@angular/core';
 import { TaskExportService } from '../../../core/services/task-export.service';
+import { DownloadService } from '../../../core/services/download.service';
+import { NotificationService } from '../../../core/services/notification.service';
 import {
   ExportDateField,
   ExportPriorityFilter,
@@ -25,7 +27,7 @@ import { EXPORT_RANGE_PRESETS } from '../../../core/utils/task-export.util';
 const PREVIEW_ROWS = 8;
 
 /**
- * Modal that exports the task list to CSV through `rm-ng-export-to-csv`.
+ * Modal that exports the task list to CSV.
  *
  * The user picks a quick date range (today, yesterday, this week, this month,
  * a custom span, …), which date the range applies to, and optional filters; the
@@ -55,7 +57,7 @@ const PREVIEW_ROWS = 8;
       </header>
 
       <!-- Date range -->
-      <section class="block">
+      <section class="export-block">
         <div class="block-head">
           <span class="block-title">Date range</span>
           @if (activeRange(); as range) {
@@ -91,7 +93,7 @@ const PREVIEW_ROWS = 8;
       </section>
 
       <!-- Filters -->
-      <section class="block">
+      <section class="export-block">
         <div class="block-head">
           <span class="block-title">What to include</span>
         </div>
@@ -139,7 +141,7 @@ const PREVIEW_ROWS = 8;
 
       <!-- Preview -->
       @if (plan(); as current) {
-        <section class="block preview">
+        <section class="export-block preview">
           <div class="block-head">
             <span class="block-title">
               {{ current.rowCount }} task(s) will be exported
@@ -225,8 +227,8 @@ const PREVIEW_ROWS = 8;
         overflow: auto; outline: none;
       }
       .export-header { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; }
-      .export-header h2 { font-size: 1.1rem; font-weight: 700; }
-      .export-header p { margin-top: 2px; font-size: 0.74rem; color: var(--color-text-muted); }
+      .export-header h2 { font-size: 18px; font-weight: 700; }
+      .export-header p { margin-top: 2px; font-size: 12px; color: var(--color-text-muted); }
       .icon-btn {
         width: 30px; height: 30px; border-radius: 8px; border: none; background: transparent;
         display: flex; align-items: center; justify-content: center; flex-shrink: 0;
@@ -234,14 +236,16 @@ const PREVIEW_ROWS = 8;
       }
       .icon-btn:hover { background: var(--glass-bg-hover); color: var(--color-text-primary); }
 
-      .block { display: flex; flex-direction: column; gap: 8px; }
+      /* Not "block": Tailwind reads bare class names out of the source, and that
+         one is its own display utility. */
+      .export-block { display: flex; flex-direction: column; gap: 8px; }
       .block-head { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; }
-      .block-title { font-size: 0.72rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; color: var(--color-text-muted); }
-      .block-hint { font-size: 0.7rem; color: var(--color-text-muted); }
+      .block-title { font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; color: var(--color-text-muted); }
+      .block-hint { font-size: 11px; color: var(--color-text-muted); }
 
       .chips { display: flex; gap: 6px; flex-wrap: wrap; }
       .chip {
-        padding: 5px 12px; font-size: 0.7rem; font-weight: 500;
+        padding: 5px 12px; font-size: 11px; font-weight: 500;
         background: var(--glass-bg); border: 1px solid rgba(139, 92, 246, 0.1);
         border-radius: 20px; color: var(--color-text-muted); cursor: pointer; transition: all 0.2s;
       }
@@ -252,29 +256,29 @@ const PREVIEW_ROWS = 8;
       }
 
       .custom-range { display: flex; align-items: flex-end; gap: 10px; }
-      .custom-range label { display: flex; flex-direction: column; gap: 4px; font-size: 0.68rem; color: var(--color-text-muted); }
+      .custom-range label { display: flex; flex-direction: column; gap: 4px; font-size: 11px; color: var(--color-text-muted); }
       .custom-range input {
         background: var(--control-bg); border: 1px solid rgba(139, 92, 246, 0.12);
-        border-radius: 8px; padding: 7px 10px; color: var(--color-text-primary); font: inherit; font-size: 0.76rem;
+        border-radius: 8px; padding: 7px 10px; color: var(--color-text-primary); font: inherit; font-size: 12px;
       }
       .range-dash { color: var(--color-text-muted); padding-bottom: 8px; }
 
       .field-row { display: flex; gap: 10px; flex-wrap: wrap; }
       .field { display: flex; flex-direction: column; gap: 4px; flex: 1; min-width: 170px; }
-      .field span { font-size: 0.68rem; color: var(--color-text-muted); }
+      .field span { font-size: 11px; color: var(--color-text-muted); }
       .field select {
         background: var(--control-bg); border: 1px solid rgba(139, 92, 246, 0.12);
-        border-radius: 8px; padding: 7px 10px; color: var(--color-text-secondary); font: inherit; font-size: 0.76rem; cursor: pointer;
+        border-radius: 8px; padding: 7px 10px; color: var(--color-text-secondary); font: inherit; font-size: 12px; cursor: pointer;
       }
       .options { display: flex; flex-direction: column; gap: 6px; }
-      .option { display: flex; align-items: center; gap: 8px; font-size: 0.74rem; color: var(--color-text-secondary); cursor: pointer; }
+      .option { display: flex; align-items: center; gap: 8px; font-size: 12px; color: var(--color-text-secondary); cursor: pointer; }
 
       .preview { border-top: 1px solid var(--glass-border); padding-top: 12px; }
       .table-wrap { max-height: 240px; overflow: auto; border: 1px solid var(--glass-border); border-radius: 10px; background: var(--control-bg); }
-      table { width: 100%; min-width: 700px; border-collapse: collapse; font-size: 0.7rem; }
+      table { width: 100%; min-width: 700px; border-collapse: collapse; font-size: 11px; }
       thead th {
         position: sticky; top: 0; z-index: 1; text-align: left; padding: 7px 9px;
-        font-size: 0.6rem; font-weight: 700; letter-spacing: 0.05em; text-transform: uppercase;
+        font-size: 10px; font-weight: 700; letter-spacing: 0.05em; text-transform: uppercase;
         color: var(--color-text-muted); background: var(--color-bg-tertiary);
         border-bottom: 1px solid var(--glass-border); white-space: nowrap;
       }
@@ -283,13 +287,13 @@ const PREVIEW_ROWS = 8;
         color: var(--color-text-secondary); white-space: nowrap;
         max-width: 220px; overflow: hidden; text-overflow: ellipsis;
       }
-      .more-note, .empty-note { font-size: 0.7rem; color: var(--color-text-muted); line-height: 1.6; }
-      .status-line { font-size: 0.74rem; color: var(--timer-long-break-color); }
+      .more-note, .empty-note { font-size: 11px; color: var(--color-text-muted); line-height: 1.6; }
+      .status-line { font-size: 12px; color: var(--timer-long-break-color); }
 
       .export-footer { display: flex; align-items: center; justify-content: flex-end; gap: 10px; }
       .btn {
         display: inline-flex; align-items: center; gap: 6px;
-        padding: 8px 18px; border-radius: 10px; font-size: 0.78rem; font-weight: 600;
+        padding: 8px 18px; border-radius: 10px; font-size: 12px; font-weight: 600;
         cursor: pointer; border: none; transition: all 0.2s;
       }
       .btn-primary { background: linear-gradient(135deg, #8b5cf6, #7c3aed); color: white; }
@@ -302,6 +306,8 @@ const PREVIEW_ROWS = 8;
 })
 export class TaskExportPanelComponent {
   private readonly exportService = inject(TaskExportService);
+  private readonly downloads = inject(DownloadService);
+  private readonly notifications = inject(NotificationService);
   private readonly modal = viewChild<ElementRef<HTMLElement>>('modal');
 
   /** Emitted when the user dismisses the panel. */
@@ -412,10 +418,20 @@ export class TaskExportPanelComponent {
     this.message.set(null);
     try {
       const result = await this.exportService.exportTasks(this.options());
-      this.message.set(
-        result
-          ? `Exported ${result.rowCount} task(s) to ${result.fileName}`
-          : 'Nothing to export for this range.'
+      if (!result) {
+        this.message.set('Nothing to export for this range.');
+        return;
+      }
+
+      const where = this.downloads.describe(result.download);
+      this.message.set(`Exported ${result.rowCount} task(s) to ${result.fileName}. ${where}`);
+      // The panel is usually closed the second the export finishes, so the
+      // location also goes to the app-wide toast: a downloaded file the user
+      // cannot find again is the same as no export at all.
+      this.notifications.showToastMessage(
+        'Tasks exported',
+        `${result.fileName} — ${where}`,
+        'work'
       );
     } catch (error) {
       this.message.set(`Export failed: ${error instanceof Error ? error.message : String(error)}`);

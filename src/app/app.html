@@ -1,7 +1,26 @@
-<app-install-banner />
-<app-toast />
-<app-welcome-prefs-dialog />
-<div class="app-shell">
+<!--
+  The mini widget replaces the window, so nothing else may share it: banners,
+  toasts and the first-run dialog would be clipped into a 136x76 frame. The
+  completion alert is the exception that proves the rule — the widget answers it
+  itself, out of its own controls, because nothing else is there to do it.
+-->
+@if (!ui.isNativeWidget()) {
+  <app-install-banner />
+  <app-toast />
+  <app-update-prompt />
+  <app-welcome-prefs-dialog />
+}
+
+<!-- The water nudge renders even while the window is the mini widget, because it
+     is what asks the window to come back: it hides itself for the one frame the
+     widget is still on screen, and puts the question up once it is not. -->
+<app-water-nudge />
+
+@if (ui.isMiniMode()) {
+  <app-mini-widget />
+}
+
+<div class="app-shell" [class.mini-active]="ui.isNativeWidget()">
   <div class="app-layout" [class.sidebar-collapsed]="sidebarCollapsed()" [class.focus-mode]="ui.focusMode()">
     @if (!ui.focusMode()) {
       <app-sidebar
@@ -19,4 +38,8 @@
       <router-outlet />
     </main>
   </div>
+
+  <!-- Add a task for today from any page: type it, or say it in English.
+       The shortcut (Ctrl+N) lives with the component so the two never fight. -->
+  <app-quick-add />
 </div>

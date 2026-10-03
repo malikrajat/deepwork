@@ -7,15 +7,23 @@ import { DesktopPrefsPanelComponent } from '../../src/app/shared/components/desk
 import { DesktopPrefsService } from '../../src/app/core/services/desktop-prefs.service';
 
 const makeMockPrefs = (
-  options: { desktop?: boolean; start?: boolean; onTop?: boolean; busy?: boolean } = {}
+  options: {
+    desktop?: boolean;
+    start?: boolean;
+    onTop?: boolean;
+    closeToTray?: boolean;
+    busy?: boolean;
+  } = {}
 ) => ({
   isDesktopApp: options.desktop ?? true,
   startWithSystem: signal(options.start ?? false),
   alwaysOnTop: signal(options.onTop ?? false),
+  closeToTray: signal(options.closeToTray ?? true),
   error: signal<string | null>(null),
   busy: signal(options.busy ?? false),
   setStartWithSystem: vi.fn().mockResolvedValue(undefined),
   setAlwaysOnTop: vi.fn().mockResolvedValue(undefined),
+  setCloseToTray: vi.fn().mockResolvedValue(undefined),
 });
 
 const SOURCE = resolve(
@@ -80,6 +88,17 @@ describe('DesktopPrefsPanelComponent', () => {
     expect(prefs.setStartWithSystem).not.toHaveBeenCalled();
   });
 
+  it('turns keeping-the-window-in-the-tray off when it is currently on', async () => {
+    await panel.toggleCloseToTray();
+    expect(prefs.setCloseToTray).toHaveBeenCalledWith(false);
+  });
+
+  it('turns keeping-the-window-in-the-tray back on when it is off', async () => {
+    setup({ closeToTray: false });
+    await panel.toggleCloseToTray();
+    expect(prefs.setCloseToTray).toHaveBeenCalledWith(true);
+  });
+
   it('disables the switches outside the desktop app', () => {
     setup({ desktop: false });
     expect(panel.disabled()).toBe(true);
@@ -98,23 +117,37 @@ describe('DesktopPrefsPanelComponent', () => {
   // Guards the affordances this feature exists to provide, so a later refactor
   // cannot quietly drop the switches or the user education.
 
-  it('renders both preference switches bound to the service', () => {
+  it('renders all three preference switches bound to the service', () => {
     const src = readFileSync(SOURCE, 'utf8');
     expect(src).toContain('role="switch"');
-    expect((src.match(/role="switch"/g) ?? []).length).toBe(2);
+    expect((src.match(/role="switch"/g) ?? []).length).toBe(3);
     expect(src).toContain('prefs.startWithSystem()');
     expect(src).toContain('prefs.alwaysOnTop()');
+    expect(src).toContain('prefs.closeToTray()');
     expect(src).toContain('[attr.aria-checked]');
   });
 
   it('explains each switch and the mini widget', () => {
     const src = readFileSync(SOURCE, 'utf8');
-    // Three <app-info-tip> explainers: start-with-system, always-on-top, widget.
-    expect((src.match(/<app-info-tip/g) ?? []).length).toBe(3);
+    // Four <app-info-tip> explainers: start-with-system, always-on-top, keeping
+    // the window in the tray, and the widget.
+    expect((src.match(/<app-info-tip/g) ?? []).length).toBe(4);
     expect(src).toContain('startHelp');
     expect(src).toContain('onTopHelp');
+    expect(src).toContain('closeHelp');
     expect(src).toContain('miniHelp');
     expect(src).toContain('mini widget');
+  });
+
+  it('tells the user where the real Exit lives', () => {
+    // The switch hides the window; the way out of a hidden window is the tray
+    // menu, and the copy has to say so or the app looks impossible to close.
+    const copy = readFileSync(
+      resolve(__dirname, '../../src/app/core/constants/desktop-prefs.constants.ts'),
+      'utf8'
+    );
+    expect(copy).toContain('CLOSE_TO_TRAY_HELP');
+    expect(copy).toContain('choose Exit');
   });
 
   it('surfaces failures and the browser fallback message', () => {
