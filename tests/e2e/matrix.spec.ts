@@ -12,7 +12,14 @@ async function createMatrixTask(page: Page, title: string): Promise<void> {
 }
 
 test.describe('Eisenhower Matrix', () => {
+  /**
+   * The matrix only draws its quadrants when there is a task to sort: with none,
+   * the page is an empty state pointing at the Tasks page (covered below). So
+   * every test here starts with one task on the board, created the way a user
+   * would — through the slide panel.
+   */
   test.beforeEach(async ({ page }) => {
+    await createMatrixTask(page, `Seed ${Date.now()}`);
     await page.goto('/matrix');
     await expect(page.locator('.page-title')).toHaveText('Eisenhower Matrix', { timeout: 8000 });
     await page.waitForTimeout(400); // allow async init
@@ -56,7 +63,9 @@ test.describe('Eisenhower Matrix', () => {
     await expect(page.locator('.slide-panel')).toBeVisible();
 
     await page.locator('.slide-panel input[placeholder="What needs to be done?"]').fill(taskTitle);
-    // Slide panel select order: 0=Priority, 1=Quadrant, 2=Repeat
+    // Priority and quadrant live behind "Advanced options", and the quadrant is
+    // the second select in there: 0=Priority, 1=Quadrant, 2=Repeat.
+    await page.locator('.slide-panel').getByRole('button', { name: 'Advanced options' }).click();
     await page.locator('.slide-panel select').nth(1).selectOption('urgent-important');
     await page.locator('.slide-panel').getByRole('button', { name: 'Create Task' }).click();
     await expect(page.locator('.slide-panel')).not.toBeVisible({ timeout: 5000 });
@@ -91,7 +100,9 @@ test.describe('Eisenhower Matrix', () => {
 
     // Should appear in the unassigned panel
     const panel = page.locator('.unassigned-panel');
-    await expect(panel.locator('.card-title', { hasText: taskTitle })).toBeVisible({ timeout: 5000 });
+    await expect(panel.locator('.card-title', { hasText: taskTitle })).toBeVisible({
+      timeout: 5000,
+    });
   });
 
   test('cards use a one-click status switch instead of a completion checkbox', async ({ page }) => {
@@ -108,17 +119,24 @@ test.describe('Eisenhower Matrix', () => {
 
     const statusSwitch = card.locator('.status-switch');
     await expect(statusSwitch).toBeVisible();
-    await expect(statusSwitch.getByRole('button', { name: 'To Do' })).toHaveAttribute('aria-pressed', 'true');
+    await expect(statusSwitch.getByRole('button', { name: 'To Do' })).toHaveAttribute(
+      'aria-pressed',
+      'true',
+    );
 
     await statusSwitch.getByRole('button', { name: 'Doing' }).click();
-    await expect(statusSwitch.getByRole('button', { name: 'Doing' })).toHaveAttribute('aria-pressed', 'true');
+    await expect(statusSwitch.getByRole('button', { name: 'Doing' })).toHaveAttribute(
+      'aria-pressed',
+      'true',
+    );
 
     // The status write is persisted, not just a temporary UI state.
     await page.reload();
     await page.waitForTimeout(600);
     const reloadedCard = page.locator('.unassigned-panel .matrix-card', { hasText: taskTitle });
-    await expect(reloadedCard.locator('.status-switch').getByRole('button', { name: 'Doing' }))
-      .toHaveAttribute('aria-pressed', 'true', { timeout: 5000 });
+    await expect(
+      reloadedCard.locator('.status-switch').getByRole('button', { name: 'Doing' }),
+    ).toHaveAttribute('aria-pressed', 'true', { timeout: 5000 });
   });
 
   test('right-click menu moves a card and changes its status', async ({ page }) => {
@@ -150,12 +168,34 @@ test.describe('Eisenhower Matrix', () => {
 
     await movedCard.click({ button: 'right' });
     await page.locator('.matrix-menu .menu-option', { hasText: 'In Progress' }).click();
-    await expect(movedCard.locator('.status-switch').getByRole('button', { name: 'Doing' }))
-      .toHaveAttribute('aria-pressed', 'true');
+    await expect(
+      movedCard.locator('.status-switch').getByRole('button', { name: 'Doing' }),
+    ).toHaveAttribute('aria-pressed', 'true');
 
     await movedCard.click({ button: 'right' });
     await page.locator('.matrix-menu .menu-option', { hasText: 'Done' }).click();
     // Done tasks leave the matrix; they are still available on the Tasks/Today boards.
-    await expect(page.locator('.matrix-card', { hasText: taskTitle })).toHaveCount(0, { timeout: 5000 });
+    await expect(page.locator('.matrix-card', { hasText: taskTitle })).toHaveCount(0, {
+      timeout: 5000,
+    });
+  });
+});
+
+/**
+ * The other half of the page: four empty quadrants say nothing, so with nothing
+ * to sort the matrix offers the one action worth taking instead.
+ */
+test.describe('Eisenhower Matrix with nothing to sort', () => {
+  test('points at the Tasks page instead of drawing empty quadrants', async ({ page }) => {
+    await page.goto('/matrix');
+    await expect(page.locator('.page-title')).toHaveText('Eisenhower Matrix', { timeout: 8000 });
+    await page.waitForTimeout(400);
+
+    await expect(page.locator('.empty-state')).toBeVisible();
+    await expect(page.locator('.empty-state h3')).toHaveText('No tasks for today yet');
+    await expect(page.locator('.quadrant')).toHaveCount(0);
+
+    await page.locator('.empty-cta').click();
+    await expect(page.locator('.page-title')).toHaveText('Tasks', { timeout: 8000 });
   });
 });

@@ -1,9 +1,17 @@
-import { ChangeDetectionStrategy, Component, OnInit, computed, inject, signal } from '@angular/core';
-import { form, FormField, submit } from '@angular/forms/signals';
+import {
+  ChangeDetectionStrategy,
+  Component,
+  OnInit,
+  computed,
+  inject,
+  signal,
+} from '@angular/core';
+import { form, FormField, submit, required, validate } from '@angular/forms/signals';
 import { DbService } from '../../core/services/db.service';
 import { FormFieldWrapperComponent } from '../../shared/components/form-field/form-field-wrapper.component';
 import { TooltipDirective } from '../../shared/directives/tooltip.directive';
 import { HabitFormModel, createHabitFormDefaults } from '../../shared/models/form.models';
+import { noXss, trimmedRequired } from '../../shared/validators/form-validators';
 import { buildHabitStats, dayOfIso, localDay } from '../../core/utils/insights.util';
 
 interface Habit {
@@ -39,7 +47,10 @@ const WINDOW_DAYS = 30;
       </div>
       @if (summary().tracked) {
         <div class="header-stats">
-          <div class="stat-pill" appTooltip="Average of every habit's completion rate over the last 30 days">
+          <div
+            class="stat-pill"
+            appTooltip="Average of every habit's completion rate over the last 30 days"
+          >
             <span class="stat-value">{{ summary().average }}%</span>
             <span class="stat-label">30-day consistency</span>
           </div>
@@ -47,7 +58,10 @@ const WINDOW_DAYS = 30;
             <span class="stat-value">{{ summary().bestStreak }}d</span>
             <span class="stat-label">best active streak</span>
           </div>
-          <div class="stat-pill" appTooltip="Check-ins recorded in the last 30 days across all habits">
+          <div
+            class="stat-pill"
+            appTooltip="Check-ins recorded in the last 30 days across all habits"
+          >
             <span class="stat-value">{{ summary().checkIns }}</span>
             <span class="stat-label">check-ins · 30d</span>
           </div>
@@ -58,12 +72,23 @@ const WINDOW_DAYS = 30;
     <!-- Add Habit Form -->
     <div class="add-form animate-fade-in-delay-1">
       <app-form-field [fieldState]="habitForm.name()">
-        <input type="text" [formField]="habitForm.name" placeholder="New habit name..." class="habit-input" />
+        <input
+          type="text"
+          [formField]="habitForm.name"
+          placeholder="New habit name..."
+          class="habit-input"
+        />
       </app-form-field>
       <app-form-field [fieldState]="habitForm.icon()">
         <input type="text" [formField]="habitForm.icon" placeholder="✓" class="icon-input" />
       </app-form-field>
-      <button class="btn btn-primary btn-sm" (click)="addHabit()" [disabled]="habitForm().invalid()">Add</button>
+      <button
+        class="btn btn-primary btn-sm"
+        (click)="addHabit()"
+        [disabled]="habitForm().invalid()"
+      >
+        Add
+      </button>
     </div>
 
     @if (summary().tracked) {
@@ -74,13 +99,25 @@ const WINDOW_DAYS = 30;
     @if (cards().length > 0) {
       <div class="habits-grid animate-fade-in-delay-1">
         @for (habit of cards(); track habit.id) {
-          <div class="habit-card" [class.done-today]="habit.doneToday" [class.slipping]="habit.stat.completionPercent < 40">
+          <div
+            class="habit-card"
+            [class.done-today]="habit.doneToday"
+            [class.slipping]="habit.stat.completionPercent < 40"
+          >
             <div class="habit-header">
               <span class="habit-icon">{{ habit.icon }}</span>
-              <span class="consistency-badge" [class.good]="habit.stat.completionPercent >= 70" [class.mid]="habit.stat.completionPercent >= 40 && habit.stat.completionPercent < 70">
+              <span
+                class="consistency-badge"
+                [class.good]="habit.stat.completionPercent >= 70"
+                [class.mid]="
+                  habit.stat.completionPercent >= 40 && habit.stat.completionPercent < 70
+                "
+              >
                 {{ habit.stat.completionPercent }}%
               </span>
-              <button class="delete-btn" (click)="deleteHabit(habit.id)" aria-label="Delete habit">×</button>
+              <button class="delete-btn" (click)="deleteHabit(habit.id)" aria-label="Delete habit">
+                ×
+              </button>
             </div>
             <div class="habit-name" [appTooltip]="habit.name">{{ habit.name }}</div>
 
@@ -88,16 +125,35 @@ const WINDOW_DAYS = 30;
               <span class="streak-fire">🔥</span>
               <span class="streak-count">{{ habit.stat.currentStreak }}</span>
               <span class="streak-label">day streak</span>
-              <span class="best-streak" appTooltip="Your longest run for this habit">best {{ habit.stat.bestStreak }}d</span>
+              <span class="best-streak" appTooltip="Your longest run for this habit"
+                >best {{ habit.stat.bestStreak }}d</span
+              >
             </div>
 
-            <button class="check-btn" [class.checked]="habit.doneToday" (click)="toggleToday(habit)">
+            <button
+              class="check-btn"
+              [class.checked]="habit.doneToday"
+              (click)="toggleToday(habit)"
+            >
               {{ habit.doneToday ? '✓ Done today' : 'Check in' }}
             </button>
 
-            <div class="strip" [appTooltip]="'Last ' + windowDays + ' days · ' + habit.stat.days.filter(truthy).length + ' completed'">
+            <div
+              class="strip"
+              [appTooltip]="
+                'Last ' +
+                windowDays +
+                ' days · ' +
+                habit.stat.days.filter(truthy).length +
+                ' completed'
+              "
+            >
               @for (done of habit.stat.days; track $index) {
-                <span class="strip-dot" [class.done]="done" [class.today]="$index === habit.stat.days.length - 1"></span>
+                <span
+                  class="strip-dot"
+                  [class.done]="done"
+                  [class.today]="$index === habit.stat.days.length - 1"
+                ></span>
               }
             </div>
             <div class="strip-labels"><span>30 days ago</span><span>today</span></div>
@@ -112,95 +168,269 @@ const WINDOW_DAYS = 30;
       </div>
     }
   `,
-  styles: [`
-    :host { display: block; }
-    .page-header {
-      margin-bottom: var(--space-lg); display: flex; align-items: flex-start;
-      justify-content: space-between; gap: 16px; flex-wrap: wrap;
-    }
-    .page-title { font-size: 28px; font-weight: 800; letter-spacing: -0.5px; }
-    .page-subtitle { color: var(--color-text-muted); margin-top: 4px; font-size: 14px; }
-    .header-stats { display: flex; gap: 8px; flex-wrap: wrap; }
-    .stat-pill {
-      display: flex; flex-direction: column; align-items: center; padding: 6px 14px;
-      border-radius: 12px; background: var(--glass-bg); border: 1px solid var(--glass-border);
-    }
-    .stat-value { font-size: 15px; font-weight: 800; color: var(--color-text-primary); }
-    .stat-label { font-size: 10px; color: var(--color-text-muted); text-transform: uppercase; letter-spacing: 0.05em; }
+  styles: [
+    `
+      :host {
+        display: block;
+      }
+      .page-header {
+        margin-bottom: var(--space-lg);
+        display: flex;
+        align-items: flex-start;
+        justify-content: space-between;
+        gap: 16px;
+        flex-wrap: wrap;
+      }
+      .page-title {
+        font-size: 28px;
+        font-weight: 800;
+        letter-spacing: -0.5px;
+      }
+      .page-subtitle {
+        color: var(--color-text-muted);
+        margin-top: 4px;
+        font-size: 14px;
+      }
+      .header-stats {
+        display: flex;
+        gap: 8px;
+        flex-wrap: wrap;
+      }
+      .stat-pill {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        padding: 6px 14px;
+        border-radius: 12px;
+        background: var(--glass-bg);
+        border: 1px solid var(--glass-border);
+      }
+      .stat-value {
+        font-size: 15px;
+        font-weight: 800;
+        color: var(--color-text-primary);
+      }
+      .stat-label {
+        font-size: 10px;
+        color: var(--color-text-muted);
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+      }
 
-    .add-form {
-      display: flex; align-items: flex-start; gap: 10px; margin-bottom: var(--space-md);
-      padding: var(--space-md); border-radius: 14px;
-      background: var(--glass-bg); border: 1px solid rgba(139,92,246,0.08);
-    }
-    .habit-input { flex: 1; min-width: 180px; }
-    .icon-input { width: 64px; text-align: center; }
-    input {
-      background: var(--control-bg); border: 1px solid rgba(139,92,246,0.12);
-      border-radius: 10px; padding: 9px 12px; color: var(--color-text-primary); font-size: 14px; outline: none;
-    }
-    input:focus { border-color: rgba(139,92,246,0.4); }
-    .btn { padding: 9px 18px; border-radius: 10px; font-size: 13px; font-weight: 600; cursor: pointer; border: none; }
-    .btn-primary { background: linear-gradient(135deg, #8b5cf6, #7c3aed); color: white; }
-    .btn-primary:disabled { opacity: 0.4; cursor: not-allowed; }
+      .add-form {
+        display: flex;
+        align-items: flex-start;
+        gap: 10px;
+        margin-bottom: var(--space-md);
+        padding: var(--space-md);
+        border-radius: 14px;
+        background: var(--glass-bg);
+        border: 1px solid rgba(139, 92, 246, 0.08);
+      }
+      .habit-input {
+        flex: 1;
+        min-width: 180px;
+      }
+      .icon-input {
+        width: 64px;
+        text-align: center;
+      }
+      input {
+        background: var(--control-bg);
+        border: 1px solid rgba(139, 92, 246, 0.12);
+        border-radius: 10px;
+        padding: 9px 12px;
+        color: var(--color-text-primary);
+        font-size: 14px;
+        outline: none;
+      }
+      input:focus {
+        border-color: rgba(139, 92, 246, 0.4);
+      }
+      .btn {
+        padding: 9px 18px;
+        border-radius: 10px;
+        font-size: 13px;
+        font-weight: 600;
+        cursor: pointer;
+        border: none;
+      }
+      .btn-primary {
+        background: linear-gradient(135deg, #8b5cf6, #7c3aed);
+        color: white;
+      }
+      .btn-primary:disabled {
+        opacity: 0.4;
+        cursor: not-allowed;
+      }
 
-    .reading {
-      font-size: 12px; line-height: 1.55; color: var(--color-text-secondary);
-      padding: 10px 14px; border-radius: 12px; margin-bottom: var(--space-md);
-      background: rgba(139,92,246,0.06); border: 1px solid rgba(139,92,246,0.15);
-    }
+      .reading {
+        font-size: 12px;
+        line-height: 1.55;
+        color: var(--color-text-secondary);
+        padding: 10px 14px;
+        border-radius: 12px;
+        margin-bottom: var(--space-md);
+        background: rgba(139, 92, 246, 0.06);
+        border: 1px solid rgba(139, 92, 246, 0.15);
+      }
 
-    .habits-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(268px, 1fr)); gap: var(--space-md); }
-    .habit-card {
-      display: flex; flex-direction: column; gap: 8px; padding: var(--space-md);
-      border-radius: 16px; background: var(--glass-bg);
-      border: 1px solid rgba(139,92,246,0.1); transition: border-color 0.2s;
-    }
-    .habit-card.done-today { border-color: rgba(52,211,153,0.35); }
-    .habit-card.slipping { border-color: rgba(251,191,36,0.25); }
-    .habit-header { display: flex; align-items: center; gap: 8px; }
-    .habit-icon { font-size: 20px; }
-    .consistency-badge {
-      font-size: 10px; font-weight: 700; padding: 2px 8px; border-radius: 999px;
-      background: rgba(248,113,113,0.14); color: #fca5a5;
-    }
-    .consistency-badge.mid { background: rgba(251,191,36,0.14); color: #fbbf24; }
-    .consistency-badge.good { background: rgba(52,211,153,0.14); color: #34d399; }
-    .delete-btn {
-      margin-left: auto; background: none; border: none; color: var(--color-text-muted);
-      font-size: 18px; line-height: 1; cursor: pointer; padding: 0 4px;
-    }
-    .delete-btn:hover { color: #fca5a5; }
-    .habit-name {
-      font-size: 14px; font-weight: 700; color: var(--color-text-primary);
-      overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
-    }
-    .streak-row { display: flex; align-items: baseline; gap: 5px; }
-    .streak-fire { font-size: 14px; }
-    .streak-count { font-size: 18px; font-weight: 800; color: var(--color-text-primary); }
-    .streak-label { font-size: 10px; color: var(--color-text-muted); }
-    .best-streak { margin-left: auto; font-size: 10px; color: var(--color-text-muted); }
-    .check-btn {
-      padding: 7px; border-radius: 10px; cursor: pointer; font-size: 12px; font-weight: 600;
-      background: rgba(139,92,246,0.14); border: 1px solid rgba(139,92,246,0.3); color: var(--color-text-primary);
-      transition: all 0.2s;
-    }
-    .check-btn:hover { background: rgba(139,92,246,0.24); }
-    .check-btn.checked { background: rgba(52,211,153,0.16); border-color: rgba(52,211,153,0.4); color: #6ee7b7; }
-    .strip { display: flex; gap: 2px; flex-wrap: wrap; margin-top: 2px; }
-    .strip-dot { width: 7px; height: 7px; border-radius: 2px; background: rgba(255,255,255,0.07); }
-    .strip-dot.done { background: rgba(139,92,246,0.85); }
-    .strip-dot.today { box-shadow: 0 0 0 1px rgba(255,255,255,0.35); }
-    .strip-labels { display: flex; justify-content: space-between; font-size: 10px; color: var(--color-text-muted); }
-    .habit-total { font-size: 10px; color: var(--color-text-muted); }
+      .habits-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(268px, 1fr));
+        gap: var(--space-md);
+      }
+      .habit-card {
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+        padding: var(--space-md);
+        border-radius: 16px;
+        background: var(--glass-bg);
+        border: 1px solid rgba(139, 92, 246, 0.1);
+        transition: border-color 0.2s;
+      }
+      .habit-card.done-today {
+        border-color: rgba(52, 211, 153, 0.35);
+      }
+      .habit-card.slipping {
+        border-color: rgba(251, 191, 36, 0.25);
+      }
+      .habit-header {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+      }
+      .habit-icon {
+        font-size: 20px;
+      }
+      .consistency-badge {
+        font-size: 10px;
+        font-weight: 700;
+        padding: 2px 8px;
+        border-radius: 999px;
+        background: rgba(248, 113, 113, 0.14);
+        color: #fca5a5;
+      }
+      .consistency-badge.mid {
+        background: rgba(251, 191, 36, 0.14);
+        color: #fbbf24;
+      }
+      .consistency-badge.good {
+        background: rgba(52, 211, 153, 0.14);
+        color: #34d399;
+      }
+      .delete-btn {
+        margin-left: auto;
+        background: none;
+        border: none;
+        color: var(--color-text-muted);
+        font-size: 18px;
+        line-height: 1;
+        cursor: pointer;
+        padding: 0 4px;
+      }
+      .delete-btn:hover {
+        color: #fca5a5;
+      }
+      .habit-name {
+        font-size: 14px;
+        font-weight: 700;
+        color: var(--color-text-primary);
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+      .streak-row {
+        display: flex;
+        align-items: baseline;
+        gap: 5px;
+      }
+      .streak-fire {
+        font-size: 14px;
+      }
+      .streak-count {
+        font-size: 18px;
+        font-weight: 800;
+        color: var(--color-text-primary);
+      }
+      .streak-label {
+        font-size: 10px;
+        color: var(--color-text-muted);
+      }
+      .best-streak {
+        margin-left: auto;
+        font-size: 10px;
+        color: var(--color-text-muted);
+      }
+      .check-btn {
+        padding: 7px;
+        border-radius: 10px;
+        cursor: pointer;
+        font-size: 12px;
+        font-weight: 600;
+        background: rgba(139, 92, 246, 0.14);
+        border: 1px solid rgba(139, 92, 246, 0.3);
+        color: var(--color-text-primary);
+        transition: all 0.2s;
+      }
+      .check-btn:hover {
+        background: rgba(139, 92, 246, 0.24);
+      }
+      .check-btn.checked {
+        background: rgba(52, 211, 153, 0.16);
+        border-color: rgba(52, 211, 153, 0.4);
+        color: #6ee7b7;
+      }
+      .strip {
+        display: flex;
+        gap: 2px;
+        flex-wrap: wrap;
+        margin-top: 2px;
+      }
+      .strip-dot {
+        width: 7px;
+        height: 7px;
+        border-radius: 2px;
+        background: rgba(255, 255, 255, 0.07);
+      }
+      .strip-dot.done {
+        background: rgba(139, 92, 246, 0.85);
+      }
+      .strip-dot.today {
+        box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.35);
+      }
+      .strip-labels {
+        display: flex;
+        justify-content: space-between;
+        font-size: 10px;
+        color: var(--color-text-muted);
+      }
+      .habit-total {
+        font-size: 10px;
+        color: var(--color-text-muted);
+      }
 
-    .empty-state {
-      display: flex; flex-direction: column; align-items: center; justify-content: center;
-      gap: 8px; padding: 60px 0; text-align: center;
-    }
-    .empty-title { font-size: 18px; font-weight: 700; color: var(--color-text-secondary); }
-    .empty-desc { font-size: 14px; color: var(--color-text-muted); }
-  `],
+      .empty-state {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: 8px;
+        padding: 60px 0;
+        text-align: center;
+      }
+      .empty-title {
+        font-size: 18px;
+        font-weight: 700;
+        color: var(--color-text-secondary);
+      }
+      .empty-desc {
+        font-size: 14px;
+        color: var(--color-text-muted);
+      }
+    `,
+  ],
 })
 export class HabitsComponent implements OnInit {
   private readonly db = inject(DbService);
@@ -210,22 +440,32 @@ export class HabitsComponent implements OnInit {
   protected readonly windowDays = WINDOW_DAYS;
 
   readonly habitFormModel = signal<HabitFormModel>(createHabitFormDefaults());
-  readonly habitForm = form(this.habitFormModel);
+  /**
+   * The name is what the habit is: an empty one would land in the list as a
+   * blank card with nothing to check in on. The Add button is bound to the
+   * form's validity, so this is also what keeps it disabled until the name is
+   * worth saving.
+   */
+  readonly habitForm = form(this.habitFormModel, (s) => {
+    required(s.name, { message: 'A habit needs a name' });
+    validate(s.name, trimmedRequired);
+    validate(s.name, noXss);
+  });
 
   /** Shared engine, so these numbers match the Analytics page exactly. */
   private readonly stats = computed(() =>
-    buildHabitStats(this.habits(), this.entries(), new Date(), WINDOW_DAYS)
+    buildHabitStats(this.habits(), this.entries(), new Date(), WINDOW_DAYS),
   );
 
   readonly cards = computed(() => {
-    const byId = new Map(this.stats().map(stat => [stat.id, stat]));
+    const byId = new Map(this.stats().map((stat) => [stat.id, stat]));
     const todayKey = localDay(new Date());
     const doneToday = new Set(
       this.entries()
-        .filter(entry => dayOfIso(entry.completedAt) === todayKey)
-        .map(entry => entry.habitId)
+        .filter((entry) => dayOfIso(entry.completedAt) === todayKey)
+        .map((entry) => entry.habitId),
     );
-    return this.habits().map(habit => ({
+    return this.habits().map((habit) => ({
       ...habit,
       doneToday: doneToday.has(habit.id),
       stat: byId.get(habit.id) ?? {
@@ -247,13 +487,10 @@ export class HabitsComponent implements OnInit {
       return { tracked: 0, average: 0, bestStreak: 0, checkIns: 0, reading: '' };
     }
     const average = Math.round(
-      stats.reduce((sum, stat) => sum + stat.completionPercent, 0) / stats.length
+      stats.reduce((sum, stat) => sum + stat.completionPercent, 0) / stats.length,
     );
-    const checkIns = stats.reduce(
-      (sum, stat) => sum + stat.days.filter(Boolean).length,
-      0
-    );
-    const bestStreak = Math.max(...stats.map(stat => stat.currentStreak));
+    const checkIns = stats.reduce((sum, stat) => sum + stat.days.filter(Boolean).length, 0);
+    const bestStreak = Math.max(...stats.map((stat) => stat.currentStreak));
     const strongest = stats[0];
     const weakest = stats[stats.length - 1];
 
@@ -265,7 +502,7 @@ export class HabitsComponent implements OnInit {
     }
     if (weakest !== strongest && weakest.completionPercent < 50) {
       parts.push(
-        `${weakest.name} sits at ${weakest.completionPercent}% — shrink the target before you lose the streak.`
+        `${weakest.name} sits at ${weakest.completionPercent}% — shrink the target before you lose the streak.`,
       );
     }
     if (bestStreak >= 3) {
@@ -316,7 +553,7 @@ export class HabitsComponent implements OnInit {
   async toggleToday(habit: { id: string; doneToday: boolean }): Promise<void> {
     const todayKey = localDay(new Date());
     const existing = this.entries().find(
-      entry => entry.habitId === habit.id && dayOfIso(entry.completedAt) === todayKey
+      (entry) => entry.habitId === habit.id && dayOfIso(entry.completedAt) === todayKey,
     );
 
     if (existing) {

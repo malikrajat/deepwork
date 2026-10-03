@@ -7,6 +7,63 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+### Added
+
+- **The installers a run builds are now downloadable — and a version tag turns
+  them into a release.** The installer job used to compile a Windows, a Linux and
+  a macOS bundle, print that it had, and let the runner take the files with it:
+  the only way to get a `.dmg` out of CI was to build one locally. Each platform's
+  installers are now uploaded as a named artifact, so a run can be downloaded
+  from, and pushing a `v`-tag attaches all of them to the GitHub release — which
+  is where the app's own "get DeepWork" links have always looked for them. The
+  artifacts are kept for two days: long enough to fetch an installer from the run
+  that built it, and then GitHub deletes them, which costs nothing because the
+  release carries the same files for good.
+
+- **macOS ships two installers, one per chip.** A Mac is either Intel or Apple
+  Silicon, and a build compiled for one is not the build for the other. The
+  matrix now has an entry for each: `aarch64-apple-darwin` on GitHub's
+  Apple Silicon runner, and `x86_64-apple-darwin` on the explicitly-labelled
+  Intel one (`macos-13` used to be that runner; GitHub retired it). Each has its
+  own artifact, its own release file and its own Rust build cache, so the two
+  never overwrite each other.
+
+### Changed
+
+- **Markdown is no longer formatted by Prettier.** Documentation, agent
+  instructions and the skill packages under `.agents` are prose: Prettier reflows
+  them to `printWidth`, which rewrites whole paragraphs and tables on files nobody
+  meant to reformat — and the installed skills are checked against a hash, so any
+  reformatting there is undone by the next install. The exclusion is by extension
+  (`*.md`, `*.markdown`, `*.mdx`), so it also covers the files that arrive later.
+
+- **The end-to-end suite blocks the build instead of reporting on it.** It ran
+  with `continue-on-error`, because a third of its expectations still described
+  the pages before the current refactor. Those have been rewritten against the
+  pages as they are, so the suite is green and every job that builds something now
+  waits for it — an installer is only worth packaging for a commit that passes.
+
+### Fixed
+
+- **A task's Cancel and Create/Save buttons no longer fall below the window when
+  the form is long.** The slide panel is exactly one window tall and the form
+  inside it had no way to scroll, so with *Advanced options* open — which is how
+  the edit panel always opens — the buttons ended up past the bottom of the
+  screen with no way to reach them. The fields scroll inside the panel now, and
+  the two buttons stay pinned to the bottom of it.
+
+- **The install banner no longer covers the sidebar's collapse button.** The
+  banner is fixed to the top of the window, and the app shell started underneath
+  it: on a first visit, clicking the collapse chevron did nothing because the
+  banner was on top of it. The shell now leaves the banner's height free, from one
+  shared value, so the two cannot drift apart.
+
+- **A habit can no longer be added without a name.** The Add button was bound to
+  the form's validity, but the name field had no validator, so it was never
+  invalid — the button stayed enabled and an empty one landed in the list as a
+  blank card. The name is required (and must be more than whitespace), which is
+  what the button was always reading.
+
 ---
 
 ## [2.0.17] – 2026-10-01

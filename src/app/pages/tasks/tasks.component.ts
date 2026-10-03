@@ -706,6 +706,10 @@ const PRIORITY_LABELS: Record<string, string> = {
         flex-direction: column;
         padding: 24px;
         animation: slide-in 0.2s ease-out;
+        /* Editing opens every field, and the full form is taller than a short
+           window. The panel is exactly one window tall, so nothing may spill out
+           of it: the fields scroll inside instead (see .panel-form). */
+        overflow: hidden;
       }
       @keyframes slide-in {
         from {
@@ -730,6 +734,13 @@ const PRIORITY_LABELS: Record<string, string> = {
         flex-direction: column;
         gap: 18px;
         flex: 1;
+        /* A flex child refuses to shrink below its content unless this is set, and
+           without it the form grew past the bottom of the window and took the
+           Cancel / Create Task buttons with it — out of reach at 720px tall,
+           which is exactly the height the edit panel is tallest at. */
+        min-height: 0;
+        overflow-y: auto;
+        scrollbar-width: thin;
       }
       .form-group {
         display: flex;
@@ -781,6 +792,12 @@ const PRIORITY_LABELS: Record<string, string> = {
         justify-content: flex-end;
         margin-top: auto;
         padding-top: 16px;
+        /* Pinned to the bottom of the scrolling form: the two buttons that finish
+           it stay on screen while the fields above them scroll. */
+        position: sticky;
+        bottom: 0;
+        background: var(--color-bg-secondary);
+        border-top: 1px solid rgba(139, 92, 246, 0.12);
       }
 
       .btn {

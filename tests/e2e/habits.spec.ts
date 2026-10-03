@@ -1,4 +1,4 @@
-import { test, expect } from '@playwright/test';
+import { test, expect, type Page } from '@playwright/test';
 
 test.describe('Habits', () => {
   test.beforeEach(async ({ page }) => {
@@ -6,12 +6,20 @@ test.describe('Habits', () => {
     await expect(page.locator('.page-title')).toHaveText('Habits', { timeout: 8000 });
   });
 
+  /**
+   * The Add button of the habit form — not the quick-add button that every page
+   * carries, whose accessible name ("Add a task for today") also contains "Add".
+   */
+  const addButton = (page: Page) => page.locator('.add-form').getByRole('button', { name: 'Add' });
+
+  const nameInput = (page: Page) => page.locator('input[placeholder="New habit name..."]');
+
   test('add a habit, check in, and delete', async ({ page }) => {
     const habitName = `E2E Habit ${Date.now()}`;
 
     // Add the habit
-    await page.locator('input[placeholder="New habit name..."]').fill(habitName);
-    await page.getByRole('button', { name: 'Add' }).click();
+    await nameInput(page).fill(habitName);
+    await addButton(page).click();
 
     // Verify habit card appears
     const habitCard = page.locator('.habit-card', { hasText: habitName });
@@ -29,6 +37,9 @@ test.describe('Habits', () => {
 
     // Streak increments to 1
     await expect(habitCard.locator('.streak-count')).toHaveText('1', { timeout: 3000 });
+
+    // The form is cleared and ready for the next one.
+    await expect(nameInput(page)).toHaveValue('');
 
     // Uncheck (toggle off)
     await habitCard.locator('.check-btn').click();
@@ -54,31 +65,38 @@ test.describe('Habits', () => {
   });
 
   test('add button is disabled when habit name is empty', async ({ page }) => {
-    const addBtn = page.getByRole('button', { name: 'Add' });
-
     // Input is empty — button should be disabled
-    await expect(addBtn).toBeDisabled({ timeout: 3000 });
+    await expect(addButton(page)).toBeDisabled({ timeout: 3000 });
 
     // Type something — button should become enabled
-    await page.locator('input[placeholder="New habit name..."]').fill('x');
-    await expect(addBtn).toBeEnabled({ timeout: 3000 });
+    await nameInput(page).fill('x');
+    await expect(addButton(page)).toBeEnabled({ timeout: 3000 });
 
     // Clear — button should be disabled again
-    await page.locator('input[placeholder="New habit name..."]').fill('');
-    await expect(addBtn).toBeDisabled({ timeout: 3000 });
+    await nameInput(page).fill('');
+    await expect(addButton(page)).toBeDisabled({ timeout: 3000 });
+
+    // Whitespace is not a name either.
+    await nameInput(page).fill('   ');
+    await expect(addButton(page)).toBeDisabled({ timeout: 3000 });
   });
 
-  test('mini calendar renders 7 dots per habit', async ({ page }) => {
-    const habitName = `Cal Test ${Date.now()}`;
+  test('the check-in strip covers the last 30 days', async ({ page }) => {
+    const habitName = `Strip Test ${Date.now()}`;
 
-    await page.locator('input[placeholder="New habit name..."]').fill(habitName);
-    await page.getByRole('button', { name: 'Add' }).click();
+    await nameInput(page).fill(habitName);
+    await addButton(page).click();
 
     const habitCard = page.locator('.habit-card', { hasText: habitName });
     await expect(habitCard).toBeVisible({ timeout: 5000 });
 
-    // Mini calendar should have 7 day-dots
-    await expect(habitCard.locator('.cal-dot')).toHaveCount(7, { timeout: 3000 });
+    // One dot per day of the window, ending on today.
+    await expect(habitCard.locator('.strip-dot')).toHaveCount(30, { timeout: 3000 });
+    await expect(habitCard.locator('.strip-dot.today')).toHaveCount(1);
+    await expect(habitCard.locator('.strip-labels')).toContainText('30 days ago');
+
+    // A fresh habit has nothing checked in yet.
+    await expect(habitCard.locator('.strip-dot.done')).toHaveCount(0);
 
     // Cleanup
     await habitCard.locator('.delete-btn').click();

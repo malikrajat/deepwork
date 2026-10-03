@@ -9,21 +9,41 @@ test.describe('Settings', () => {
   });
 
   test('all setting groups render', async ({ page }) => {
-    await expect(page.locator('.group-header', { hasText: 'Timer' })).toBeVisible();
-    await expect(page.locator('.group-header', { hasText: 'Notifications' })).toBeVisible();
-    await expect(page.locator('.group-header', { hasText: 'Microphone' })).toBeVisible();
-    await expect(page.locator('.group-header', { hasText: 'Data' })).toBeVisible();
-    await expect(page.locator('.group-header', { hasText: 'Keyboard Shortcuts' })).toBeVisible();
+    for (const group of [
+      'Timer',
+      'Tasks',
+      'Notifications',
+      'Water Reminder',
+      'Appearance',
+      'Data',
+      'Keyboard Shortcuts',
+    ]) {
+      await expect(page.locator('.group-header', { hasText: group })).toBeVisible();
+    }
   });
 
-  test('microphone check follows the system default input', async ({ page }) => {
-    const microphoneGroup = page.locator('.setting-group').filter({
-      has: page.locator('.group-header', { hasText: 'Microphone' }),
+  test('the water reminder group follows its own switch', async ({ page }) => {
+    const waterGroup = page.locator('.setting-group').filter({
+      has: page.locator('.group-header', { hasText: 'Water Reminder' }),
     });
-    await expect(microphoneGroup).toBeVisible({ timeout: 5000 });
-    await expect(microphoneGroup.getByRole('button', { name: 'Check microphone' })).toBeVisible();
-    await expect(microphoneGroup).toContainText('Default input');
-    await expect(microphoneGroup).toContainText('set it as the default in your system sound settings');
+    await expect(waterGroup).toBeVisible({ timeout: 5000 });
+
+    const reminder = waterGroup.locator('.setting-item', { hasText: 'Remind me to drink' });
+    const reminderSwitch = reminder.getByRole('switch');
+
+    // Reminders start off, so the working hours they would run in are not
+    // editable yet …
+    await expect(reminderSwitch).toHaveAttribute('aria-checked', 'false');
+    await expect(waterGroup.locator('input[type="time"]')).toHaveCount(2);
+    await expect(waterGroup.locator('input[type="time"]').first()).toBeDisabled();
+
+    // … and the nudge can be fired on demand without waiting for the clock.
+    await expect(reminder.getByRole('button', { name: 'Test' })).toBeVisible();
+
+    // Turning it on is what opens the working hours up.
+    await reminderSwitch.click();
+    await expect(reminderSwitch).toHaveAttribute('aria-checked', 'true');
+    await expect(waterGroup.locator('input[type="time"]').first()).toBeEnabled();
   });
 
   test('focus duration slider shows value in minutes', async ({ page }) => {

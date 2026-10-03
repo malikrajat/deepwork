@@ -142,7 +142,9 @@ describe('No square box around the widget', () => {
   });
 
   it('switches Tailwind content detection off, so custom names stay custom', () => {
-    expect(styles).toContain('@import "tailwindcss" source(none);');
+    // Which quote the import wears is Prettier's to decide (`.prettierrc` asks
+    // for single); what this pins is the import and `source(none)` on it.
+    expect(styles).toMatch(/@import ['"]tailwindcss['"] source\(none\);/);
   });
 
   it('rounds the widget frame itself, in both builds', () => {
@@ -220,7 +222,8 @@ describe('Edges and text are legible on the dark surfaces', () => {
   });
 
   it('themes the platform sliders and checkboxes instead of leaving them default', () => {
-    expect(styles).toContain('input[type="range"]::-webkit-slider-runnable-track');
+    // The attribute selector's quotes are Prettier's; the rule is the assertion.
+    expect(styles).toMatch(/input\[type=['"]range['"]\]::-webkit-slider-runnable-track/);
     expect(styles).toContain('accent-color: var(--color-accent-primary)');
   });
 });

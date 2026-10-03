@@ -4,13 +4,18 @@ name: CI
 # be formatted, pass the unit tests, and compile. Runs on every pull request, on
 # every push to main, and on demand.
 #
-# Nothing is uploaded as an artifact: what a run leaves behind is its pass/fail
-# and its logs. Coverage, reports and installers are printed or discarded rather
-# than stored.
+# Every run leaves its logs and its pass/fail behind; the installer job goes
+# further and uploads what it built, so a run can be downloaded from instead of
+# only being read. A version tag is what turns those files into a release
+# anyone can install from.
 on:
   push:
     branches:
       - main
+    # Releases are cut by pushing a `v`-tag. Without this the tag would start no
+    # run at all, and the installers it is meant to publish would never be built.
+    tags:
+      - 'v*'
   pull_request:
   workflow_dispatch:
 
@@ -71,6 +76,10 @@ jobs:
       # repository: the app predates Prettier, and a gate that fails on code
       # nobody edited would block every branch. `npm run format` formats
       # everything when you are ready to pay off the rest.
+      #
+      # Markdown is left out for the same reason it is in `.prettierignore`:
+      # prose is reflowed rather than formatted, so a documentation edit would
+      # fail a gate about code style. Both lists have to say the same thing.
       - name: Check the formatting of changed files
         run: |
           set -euo pipefail
@@ -85,7 +94,8 @@ jobs:
           fi
 
           CHANGED=$(git diff --name-only --diff-filter=ACMR "$BASE" HEAD -- . \
-            ':(exclude)src-tauri' ':(exclude)package-lock.json' || true)
+            ':(exclude)src-tauri' ':(exclude)package-lock.json' \
+            ':(exclude)*.md' ':(exclude)*.markdown' ':(exclude)*.mdx' || true)
 
           if [ -z "$CHANGED" ]; then
             echo "No changed files to check."
@@ -142,15 +152,18 @@ jobs:
         run: npm run build
 
   e2e:
-    name: E2E (Playwright) — advisory
+    name: E2E (Playwright)
     runs-on: ubuntu-latest
     # Playwright drives the real app in a browser: every screen, every click, the
-    # whole stack. The suite is not blocking yet because 19 of its expectations
-    # still describe the pages before the current refactor (the removed dictation
-    # panel, the old analytics cards, the matrix panels, the habits calendar and
-    # the sidebar labels). They are reported on every run instead of hidden —
-    # delete the two `continue-on-error` lines the day the suite is green.
-    continue-on-error: true
+    # whole stack. The suite is blocking now that it describes the app as it is —
+    # it used to run with `continue-on-error`, because a third of its
+    # expectations still described the pages before the refactor (the removed
+    # dictation panel, the old analytics cards, the matrix panels, the habits
+    # calendar, the sidebar labels). Those have been rewritten against the
+    # current pages, and three real bugs they were hiding with them: a task panel
+    # whose buttons fell below the window when editing, an install banner that
+    # covered the sidebar's collapse button, and a habit form that would have
+    # accepted an empty name.
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -172,7 +185,7 @@ jobs:
         run: npm run e2e
 
   installers:
-    name: Installer (${{ matrix.label }})
+    name: Installer — ${{ matrix.label }}
     # Building an installer takes 15–25 minutes per OS, so it runs where it is
     # useful — every push to main, every tag, and on demand — and PRs stay fast.
     # Delete this `if:` to build installers on pull requests too.
@@ -181,16 +194,48 @@ jobs:
       - lint
       - test
       - build
+      # The desktop app is the same front end in a webview, so an installer is
+      # only worth building for a commit that already passes the browser suite.
+      - e2e
     strategy:
       fail-fast: false
       matrix:
+        # One entry per installer that is published, which is one per platform
+        # *and* architecture: a Mac is either Intel or Apple Silicon, and the two
+        # need different builds. macOS is therefore two runs, not one — the
+        # `target` is what the bundle is compiled for, and the `installers` are
+        # the files the run hands back.
         include:
-          - label: Windows
+          - label: Windows (x64)
             os: windows-latest
-          - label: Linux
+            target: x86_64-pc-windows-msvc
+            artifact: deepwork-windows-x64
+            installers: |
+              src-tauri/target/x86_64-pc-windows-msvc/release/bundle/nsis/*.exe
+              src-tauri/target/x86_64-pc-windows-msvc/release/bundle/msi/*.msi
+          - label: Linux (x64)
             os: ubuntu-latest
-          - label: macOS
+            target: x86_64-unknown-linux-gnu
+            artifact: deepwork-linux-x64
+            installers: |
+              src-tauri/target/x86_64-unknown-linux-gnu/release/bundle/appimage/*.AppImage
+              src-tauri/target/x86_64-unknown-linux-gnu/release/bundle/deb/*.deb
+              src-tauri/target/x86_64-unknown-linux-gnu/release/bundle/rpm/*.rpm
+          # `macos-latest` is Apple Silicon: GitHub's `-latest` macOS image is
+          # arm64, so the Intel build needs the explicitly-labelled Intel runner.
+          # `macos-13` used to be that runner; it has been retired.
+          - label: macOS (Apple Silicon / arm64)
             os: macos-latest
+            target: aarch64-apple-darwin
+            artifact: deepwork-macos-arm64
+            installers: |
+              src-tauri/target/aarch64-apple-darwin/release/bundle/dmg/*.dmg
+          - label: macOS (Intel / x64)
+            os: macos-15-intel
+            target: x86_64-apple-darwin
+            artifact: deepwork-macos-x64
+            installers: |
+              src-tauri/target/x86_64-apple-darwin/release/bundle/dmg/*.dmg
     runs-on: ${{ matrix.os }}
     steps:
       - name: Checkout
@@ -220,20 +265,87 @@ jobs:
 
       - name: Setup Rust
         uses: dtolnay/rust-toolchain@stable
+        with:
+          # A runner can be asked for a triple it does not have by default; the
+          # host triple is already installed and this is a no-op for it.
+          targets: ${{ matrix.target }}
 
       - name: Cache the Rust build
         uses: Swatinem/rust-cache@v2
         with:
           workspaces: src-tauri
+          # One cache per platform and architecture: a bundle built for Intel is
+          # not the same compilation as one built for Apple Silicon.
+          key: ${{ matrix.target }}
 
       - name: Install dependencies
         run: npm ci
 
       # `tauri build` runs `npm run build` first (see `beforeBuildCommand`), then
-      # produces this platform's bundles: .msi/.exe on Windows, .deb/.rpm/.AppImage
-      # on Linux, .dmg/.app on macOS.
+      # produces this target's bundles: the NSIS installer on Windows, the
+      # AppImage/.deb/.rpm on Linux, the .dmg on macOS.
       - name: Build the installer
-        run: npm run tauri:build
+        run: npm run tauri:build -- --target ${{ matrix.target }}
+
+      # This is the part that makes an installer downloadable: without it a run
+      # only reports that it built something, and the file itself is gone with
+      # the runner. The artifact keeps each platform's installers together under
+      # a name that says which machine they are for.
+      - name: Upload the installer
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.artifact }}
+          path: ${{ matrix.installers }}
+          if-no-files-found: error
+          # Two days: long enough to pick the installer up from the run that built
+          # it, short enough that a stack of forgotten builds is not left sitting
+          # in storage. GitHub deletes them on its own when the window closes —
+          # and nothing is lost by that, because a tag is what keeps a build for
+          # good: the release job below attaches the same files to a release,
+          # where they stay.
+          retention-days: 2
+
+  # A tag is what makes the installers a release: the files land on the release
+  # page, which is where the app's own "get DeepWork" links look for them. A run
+  # on `main` on its own only leaves the artifacts above, which GitHub keeps to
+  # the people who can open the run.
+  release:
+    name: Publish the installers
+    if: startsWith(github.ref, 'refs/tags/v')
+    needs:
+      - installers
+    runs-on: ubuntu-latest
+    permissions:
+      # The only job that writes anything: attaching files to a release.
+      contents: write
+    steps:
+      - name: Collect every installer
+        uses: actions/download-artifact@v4
+        with:
+          path: installers
+          # One flat folder, so the release gets `DeepWork_2.0.17_x64.dmg` rather
+          # than a directory per platform.
+          merge-multiple: true
+
+      - name: Attach them to the release
+        env:
+          # `gh` reads the repository from `GH_REPO`; there is no checkout here
+          # to read a git remote from.
+          GH_REPO: ${{ github.repository }}
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ github.ref_name }}
+        run: |
+          set -euo pipefail
+
+          gh release view "$TAG" >/dev/null 2>&1 \
+            || gh release create "$TAG" --title "$TAG" --generate-notes
+
+          # `--clobber` so re-running a tagged build replaces the files it
+          # already published instead of failing on the name collision.
+          gh release upload "$TAG" installers/* --clobber
+
+          echo "Attached to $TAG:"
+          ls -lh installers
 
   desktop-format:
     name: Desktop format (cargo fmt)

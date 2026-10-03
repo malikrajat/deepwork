@@ -6,6 +6,14 @@
   overflow: hidden;
 }
 
+/* The install banner owns the top of the window while it is shown, so the shell
+   starts below it. Without this the banner — which is fixed, with a higher
+   z-index — sat on top of the sidebar's collapse button, and the first click on
+   it did nothing. */
+.app-shell.banner-open {
+  padding-top: var(--install-banner-height);
+}
+
 /* The mini widget owns the whole window while it is open. */
 .app-shell.mini-active {
   display: none;

@@ -13,3 +13,19 @@ package-lock.json
 
 # Separate checkouts kept inside the project folder by the Kilo Code tool.
 /.kilo
+
+# Documentation, agent instructions and notes — everything written as prose.
+# Markdown is not source code: Prettier reflows it to `printWidth`, which
+# rewrites whole paragraphs and tables on files nobody meant to reformat. The
+# exclusion is by extension so it also covers the files that arrive later —
+# the skill packages under `.agents` pinned by `skills-lock.json`, which are
+# downloaded from other repositories and verified against a hash, so any
+# reformatting here would be undone by the next install.
+*.md
+*.markdown
+*.mdx
+
+# The installed skill packages (`.agents/skills`, pinned by `skills-lock.json`).
+# They are downloaded from other repositories and checked against a hash, not
+# written here, so reformatting them would only be undone by the next install.
+/.agents/skills
