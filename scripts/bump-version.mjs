@@ -78,9 +78,17 @@ const targets = [
   {
     file: 'src-tauri/Cargo.lock',
     // The crate's own package block, and only that one.
-    read: (src) => [src.match(/name = "deepwork"\nversion = "([^"]+)"/)[1]],
+    //
+    // The line break is matched as `\r?\n` and written back untouched: a Windows
+    // checkout with `core.autocrlf=true` hands this script CRLF, and a pattern
+    // that insisted on `\n` made `version:check` crash on that machine instead of
+    // reporting the versions it found.
+    read: (src) => [src.match(/name = "deepwork"\r?\nversion = "([^"]+)"/)[1]],
     write: (src, from, to) =>
-      src.replace(`name = "deepwork"\nversion = "${from}"`, `name = "deepwork"\nversion = "${to}"`),
+      src.replace(
+        /(name = "deepwork"\r?\nversion = ")([^"]+)(")/,
+        (_match, head, _version, tail) => `${head}${to}${tail}`,
+      ),
   },
   {
     file: 'src-tauri/tauri.conf.json',
