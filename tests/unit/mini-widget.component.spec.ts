@@ -23,10 +23,11 @@ const makeMockTimer = () => {
     totalDuration: total,
     isRunning: running,
     timerType: type,
-    displayTime: computed(() =>
-      `${Math.floor(remaining() / 60).toString().padStart(2, '0')}:${(remaining() % 60)
-        .toString()
-        .padStart(2, '0')}`
+    displayTime: computed(
+      () =>
+        `${Math.floor(remaining() / 60)
+          .toString()
+          .padStart(2, '0')}:${(remaining() % 60).toString().padStart(2, '0')}`,
     ),
     // Mirrors TimerService.progress: 0 at the start, 1 when time is up. The
     // widget reads the same value the Dashboard clock does, so the two cannot
@@ -57,14 +58,14 @@ const makeMockNotifications = () => {
     /** How long the shake lasts, from Settings. */
     alertShakeMs: signal(2200),
     /** One more tone — the alert re-announcing itself, as the service does it. */
-    pulse: () => alertPulse.update(pulse => pulse + 1),
+    pulse: () => alertPulse.update((pulse) => pulse + 1),
     dismiss: vi.fn(() => ringing.set(false)),
   };
 };
 
 const SOURCE = resolve(
   __dirname,
-  '../../src/app/shared/components/mini-widget/mini-widget.component.ts'
+  '../../src/app/shared/components/mini-widget/mini-widget.component.ts',
 );
 
 /**
@@ -339,7 +340,9 @@ describe('MiniWidgetComponent (template affordances)', () => {
     expect(src).toContain('[class.alerting]="ringing()"');
     expect(src).toContain('[style]="alertVars()"');
     expect(src).toMatch(/\.mini-widget\.alerting \{[\s\S]*?background: var\(--alert-surface\);/);
-    expect(src).toMatch(/\.mini-widget \{[\s\S]*?transition: background-color 450ms ease/);
+    // The value is what matters, not where Prettier wrapped it: the transition
+    // is written across lines the moment the file is formatted.
+    expect(src).toMatch(/\.mini-widget \{[\s\S]*?transition:\s*background-color 450ms ease/);
   });
 
   it('shakes the whole widget once per tone, and stops asking for less motion', () => {
@@ -358,16 +361,23 @@ describe('MiniWidgetComponent (template affordances)', () => {
     // custom properties, with the 2.2s default divided the same way as the
     // fallback.
     expect(src).toMatch(
-      /\.mini-widget\.alerting\.shake-a \{\s*animation: alert-shake-a var\(--alert-shake-swing-ms, 122ms\) ease-in-out\s*var\(--alert-shake-swings, 18\)/
+      /\.mini-widget\.alerting\.shake-a \{\s*animation: alert-shake-a var\(--alert-shake-swing-ms, 122ms\) ease-in-out\s*var\(--alert-shake-swings, 18\)/,
     );
     expect(src).toMatch(
-      /\.mini-widget\.alerting\.shake-b \{\s*animation: alert-shake-b var\(--alert-shake-swing-ms, 122ms\) ease-in-out\s*var\(--alert-shake-swings, 18\)/
+      /\.mini-widget\.alerting\.shake-b \{\s*animation: alert-shake-b var\(--alert-shake-swing-ms, 122ms\) ease-in-out\s*var\(--alert-shake-swings, 18\)/,
     );
     // Two keyframe sets, identical in everything but their name: the name is
     // what restarts the animation, the motion is deliberately the same shake.
+    //
+    // The block is found by its own closing brace — the one at the same depth as
+    // the rule — rather than by a fixed number of spaces: Prettier owns the
+    // indentation, and the inner rules close at a deeper one.
     const keyframesBlock = (name: string): string => {
       const start = src.indexOf(`@keyframes ${name} {`);
-      return src.slice(start, src.indexOf('\n    }', start));
+      if (start === -1) return '';
+      const indent = src.slice(src.lastIndexOf('\n', start) + 1, start);
+      const end = src.indexOf(`\n${indent}}`, start);
+      return end === -1 ? '' : src.slice(start, end);
     };
     const shakeA = keyframesBlock('alert-shake-a');
     const shakeB = keyframesBlock('alert-shake-b');
@@ -380,7 +390,7 @@ describe('MiniWidgetComponent (template affordances)', () => {
       expect(keyframes).not.toContain('scale(');
     }
     expect(src).toMatch(
-      /@media \(prefers-reduced-motion: reduce\) \{[\s\S]*?\.mini-widget\.alerting\.shake-a,[\s\S]*?animation: none;/
+      /@media \(prefers-reduced-motion: reduce\) \{[\s\S]*?\.mini-widget\.alerting\.shake-a,[\s\S]*?animation: none;/,
     );
   });
 

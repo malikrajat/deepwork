@@ -1,4 +1,5 @@
 import { Injectable, computed, signal } from '@angular/core';
+import { installSupport } from '../utils/install-support.util';
 
 const DISMISS_KEY = 'deepwork_install_dismissed';
 
@@ -33,6 +34,20 @@ export class InstallService {
 
   /** True when user dismissed the install banner — stored in localStorage */
   readonly isDismissed = signal(readDismissed());
+
+  /**
+   * How this browser installs a web app, and what to say if it will not.
+   *
+   * Read once: a browser does not change under a running page. It exists
+   * because the icon in the address bar is a Chromium feature — Safari installs
+   * from the File menu and has no icon, and Firefox cannot install at all — so
+   * one instruction for all three sends two kinds of reader looking for
+   * something that is not there.
+   */
+  readonly support = installSupport(globalThis.navigator?.userAgent ?? '');
+
+  /** The one sentence to show when the browser is not offering its own button. */
+  readonly hint = this.support.hint;
 
   /**
    * True when the banner is on screen.

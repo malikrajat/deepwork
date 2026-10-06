@@ -3,8 +3,7 @@ import { DbService } from './db.service';
 import { SettingsService } from './settings.service';
 
 /** True when running inside the packaged desktop app (Tauri). */
-const IN_TAURI =
-  typeof globalThis !== 'undefined' && '__TAURI_INTERNALS__' in globalThis;
+const IN_TAURI = typeof globalThis !== 'undefined' && '__TAURI_INTERNALS__' in globalThis;
 
 /** Lazily resolves Tauri's `invoke` so browser builds never import it. */
 async function invokeCmd<T>(cmd: string, args?: Record<string, unknown>): Promise<T> {
@@ -47,6 +46,16 @@ export class DesktopPrefsService {
 
   /** Mirrors the main window's always-on-top flag. */
   readonly alwaysOnTop = signal(false);
+
+  /**
+   * Whether this desktop lets an app put its own window above the others.
+   *
+   * False on Wayland, where no client may raise itself — the compositor decides
+   * the stacking order — so the switch is disabled with that as the reason
+   * instead of being left to accept a change nothing will honour. Asked of the
+   * desktop layer once, at startup.
+   */
+  readonly alwaysOnTopSupported = signal(true);
 
   /**
    * True while closing the window leaves DeepWork running in the system tray.
@@ -111,9 +120,13 @@ export class DesktopPrefsService {
     // Always-on-top is ours to apply; push the stored preference to the window.
     // A window failure must never reject — this runs from an APP_INITIALIZER, so
     // throwing here would stop the whole app from starting.
+    this.alwaysOnTopSupported.set(await this.readAlwaysOnTopSupported());
     this.alwaysOnTop.set(stored.alwaysOnTop);
     try {
-      await this.applyAlwaysOnTop(stored.alwaysOnTop);
+      // What the window reports, not what was asked for: a desktop that accepts
+      // the call and does nothing (Wayland) must not leave the switch saying
+      // "on" about a window that is not.
+      this.alwaysOnTop.set(await this.applyAlwaysOnTop(stored.alwaysOnTop));
     } catch (err) {
       this.error.set(this.describe(err, 'Could not apply always-on-top.'));
     }
@@ -161,9 +174,17 @@ export class DesktopPrefsService {
     this.busy.set(true);
     this.error.set(null);
     try {
-      await this.applyAlwaysOnTop(enabled);
-      this.alwaysOnTop.set(enabled);
-      await this.persist({ alwaysOnTop: enabled });
+      const applied = await this.applyAlwaysOnTop(enabled);
+      this.alwaysOnTop.set(applied);
+
+      if (applied === enabled) {
+        await this.persist({ alwaysOnTop: enabled });
+      } else {
+        // The call was accepted and the window did not change. Storing a
+        // preference the desktop is not honouring would only make the next
+        // startup lie in the same way, so the switch goes back and says why.
+        this.error.set(this.refusedText());
+      }
     } catch (err) {
       this.alwaysOnTop.set(previous);
       this.error.set(this.describe(err, 'Could not change always-on-top.'));
@@ -175,13 +196,15 @@ export class DesktopPrefsService {
   /**
    * Re-applies the current always-on-top preference to the window.
    *
-   * Used when leaving the mini widget, which forces always-on-top while it is
-   * open and must hand the window back in the state the user chose.
+   * Used when leaving the mini widget, which holds the window on top while it is
+   * open and must hand it back in the state the user chose — and which may have
+   * been changed, or refused, in the meantime, so the switch follows the window's
+   * own answer.
    */
   async reapplyAlwaysOnTop(): Promise<void> {
     if (!IN_TAURI) return;
     try {
-      await this.applyAlwaysOnTop(this.alwaysOnTop());
+      this.alwaysOnTop.set(await this.applyAlwaysOnTop(this.alwaysOnTop()));
     } catch (err) {
       this.error.set(this.describe(err, 'Could not restore always-on-top.'));
     }
@@ -247,8 +270,46 @@ export class DesktopPrefsService {
     }
   }
 
-  private async applyAlwaysOnTop(enabled: boolean): Promise<void> {
+  /**
+   * Applies the flag and returns what the window actually reports.
+   *
+   * The read-back is the point rather than a nicety: `set_always_on_top`
+   * *succeeds* on a desktop that cannot honour it — Wayland has no protocol for
+   * a client to raise itself above the others — so success is not the same
+   * answer as "it is on top". `window_is_always_on_top` is asked straight
+   * afterwards, and its answer is what the switch and the stored preference
+   * follow.
+   */
+  private async applyAlwaysOnTop(enabled: boolean): Promise<boolean> {
     await invokeCmd('window_set_always_on_top', { enabled });
+    try {
+      const reported = await invokeCmd<boolean>('window_is_always_on_top');
+      // Anything that is not an answer is no answer: the signal stays a boolean
+      // whatever the desktop layer hands back.
+      return typeof reported === 'boolean' ? reported : enabled;
+    } catch {
+      // No read-back to be had: the request is the best information there is.
+      return enabled;
+    }
+  }
+
+  /** Asks the desktop layer whether always-on-top can work on this desktop. */
+  private async readAlwaysOnTopSupported(): Promise<boolean> {
+    try {
+      return await invokeCmd<boolean>('window_always_on_top_supported');
+    } catch {
+      // A desktop layer that does not know the question: assume it can, which
+      // is what every platform except Wayland answers.
+      return true;
+    }
+  }
+
+  /** One sentence for a desktop that took the call and ignored it. */
+  private refusedText(): string {
+    if (this.alwaysOnTopSupported()) {
+      return 'The window would not stay on top — the desktop refused the change.';
+    }
+    return 'This desktop does not let an app stay above other windows: Wayland leaves the stacking order to the compositor. Starting DeepWork through X11 (run it with WAYLAND_DISPLAY= ) makes it work.';
   }
 
   private async applyCloseBehavior(keepInTray: boolean): Promise<void> {

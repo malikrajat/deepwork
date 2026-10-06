@@ -453,7 +453,11 @@ interface DownloadRow extends DownloadTarget {
               {{ updates.checking() ? 'Checking…' : 'Check for updates' }}
             </button>
 
-            @if (updates.hasUpdate() && platformAsset(); as asset) {
+            <!-- Update only exists when the release carries something the app can
+                 actually run for this machine. A portable build offers Download
+                 instead, because starting a .zip is Windows' "not a valid Win32
+                 application" rather than an update. -->
+            @if (updates.hasUpdate() && prompt.installAsset(); as asset) {
               @if (prompt.isDesktopApp) {
                 <button
                   type="button"
@@ -464,6 +468,9 @@ interface DownloadRow extends DownloadTarget {
                   {{ installLabel() }}
                 </button>
               }
+            }
+
+            @if (updates.hasUpdate() && prompt.downloadAsset(); as asset) {
               <a
                 class="btn primary download"
                 appExternalLink
@@ -471,7 +478,7 @@ interface DownloadRow extends DownloadTarget {
                 target="_blank"
                 rel="noopener noreferrer"
               >
-                Download {{ asset.name }} ({{ assetSize() }})
+                Download {{ asset.name }} ({{ formatSize(asset.size) }})
               </a>
             }
 
@@ -1176,8 +1183,8 @@ export class AboutComponent implements OnInit {
     return release.assets.filter((asset) => asset.downloadUrl !== primary?.downloadUrl);
   });
 
-  /** The size of the matched installer, as text. */
-  readonly assetSize = computed(() => formatBytes(this.platformAsset()?.size ?? 0));
+  /** The size of the file the primary download button points at, as text. */
+  readonly assetSize = computed(() => formatBytes(this.prompt.downloadAsset()?.size ?? 0));
 
   /**
    * Everywhere else DeepWork runs, with each link resolved against the release
@@ -1253,9 +1260,13 @@ export class AboutComponent implements OnInit {
         : 'This build is newer than anything published.';
     }
     if (status === 'update-available') {
-      const asset = this.platformAsset();
-      return asset
-        ? `Installed: ${this.currentVersionLabel}. Download ${asset.name} below, or read the release notes first.`
+      const install = this.prompt.installAsset();
+      if (install) {
+        return `Installed: ${this.currentVersionLabel}. Update installs ${install.name}, or download it below.`;
+      }
+      const download = this.prompt.downloadAsset();
+      return download
+        ? `Installed: ${this.currentVersionLabel}. This release has no installer for your system — download ${download.name} and unpack it.`
         : `Installed: ${this.currentVersionLabel}. Open the release page to pick your installer.`;
     }
     return 'Press "Check for updates" to ask GitHub for the latest release.';

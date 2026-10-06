@@ -43,8 +43,10 @@ inside the webview actually open a browser.
    Pressing it downloads this machine's installer — reporting how far it has got —
    and starts it: the Windows setup runs (the app closing behind it), the macOS
    disk image is opened, a Linux package goes to the desktop's installer, or an
-   AppImage is made runnable and started. Pressing **Later** remembers the version
-   so the next launch is quiet, while the sidebar pill still shows the update.
+   AppImage is made runnable and started. Pressing **Remind me later** snoozes the
+   card for twelve hours, while the sidebar pill still shows the update; a release
+   that carries only a portable build gets a **Download** button instead, because
+   there is nothing in it the app can install for the user.
 
 ### Acceptance criteria
 
@@ -95,31 +97,46 @@ inside the webview actually open a browser.
   row for the platform the app is running on is marked **This device**.
 - **AC-16** A newer release is announced once per version: one system
   notification, sent on the launch that reads the release, and a card
-  (`app-update-prompt`) offering **Update** and **Later**. The version is
-  remembered in `localStorage` under `deepwork.update.prompt.v1`, so a second
-  launch of the same version says nothing, a dismissal is not repeated, and a
-  _newer_ release is announced again.
+  (`app-update-prompt`) offering **Update** and **Remind me later**. The version
+  and the *time* are remembered in `localStorage` under
+  `deepwork.update.prompt.v1`, so a second launch of the same version does not
+  repeat the notification, and the card comes back twelve hours after it is
+  waved away rather than never; a dismissal stored without a time — one an older
+  build wrote — counts as already expired, and a _newer_ release is announced
+  again at once.
 - **AC-17** The card is honest about what it will do: it names the version, shows
   how far the download has got as a percentage and a bar, says what the OS did
   with the installer, and reports a failure in a sentence while the app keeps
   working. A release with no file for this machine says so and offers the release
-  page.
+  page; a release with only a portable build says the app cannot install it and
+  offers that file as a download instead.
 - **AC-18** **Update** downloads the asset `pickInstallAssetFor` chooses for this
-  machine — the package the system's own installer can replace, ahead of a
-  portable file — and starts it. Nothing is downloaded until the button is
-  pressed, and pressing it twice does not start two downloads.
+  machine — a file the platform's own installer can run, which is the only kind
+  that replaces the copy the user already has — and starts it. Nothing is
+  downloaded until the button is pressed, and pressing it twice does not start
+  two downloads. A portable archive is never offered as an install: on Windows
+  the app offers to download it and says why, because starting a `.zip` is
+  `os error 193` rather than an update.
 - **AC-19** The download is done by the desktop app, never by the webview: a
   release asset refuses a browser request, so `update_download`
   (`src-tauri/src/updates.rs`) fetches it into a folder of its own under the
   system temp directory, reports `[bytesWritten, totalBytes]` on
   `deepwork:update-progress`, and `update_install` hands the finished file to the
   OS. Only `https` links to `github.com` are accepted, the file name is
-  sanitised like an export's, and only a file that folder contains can be started.
+  sanitised like an export's, only a file that folder contains can be started,
+  and only a file this platform can actually run is started at all — a portable
+  archive is refused with a sentence naming it and pointing at the release page.
 - **AC-20** What "installing" means is the platform's own: Windows runs the setup
   and quits so its files can be replaced, macOS opens the disk image, Linux gives
   a package to the desktop's installer or makes an AppImage runnable and starts
   it. In the browser build there is no installer, so the same button hands the
   download to the browser.
+- **AC-21** The picker never offers one platform another platform's file. A
+  release's portable archives share an extension, so the platform named in the
+  file decides before the extension does, and a file labelled for a second
+  platform is not a candidate for the first. Between two candidates of the same
+  kind the `x64` build wins, because the user agent does not report whether the
+  machine is ARM.
 
 ### Out of scope
 

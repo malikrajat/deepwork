@@ -9,7 +9,7 @@ the release page.
 As things stand the installers are **unsigned**, and Windows says so:
 
 ```powershell
-Get-AuthenticodeSignature .\DeepWork_2.0.17_x64-setup.exe | Select-Object Status
+Get-AuthenticodeSignature .\DeepWork_2.0.19_x64-setup.exe | Select-Object Status
 # Status
 # ------
 # NotSigned
@@ -135,14 +135,14 @@ TAURI_CONFIG='{"bundle":{"windows":{"signCommand":"trusted-signing-cli … %1"}}
 
 ```powershell
 # 1. Is it signed, and by the name you expect?
-Get-AuthenticodeSignature .\DeepWork_2.0.17_x64-setup.exe |
+Get-AuthenticodeSignature .\DeepWork_2.0.19_x64-setup.exe |
   Format-List Status, SignerCertificate
 
 # 2. Does the signature actually validate, chain included?
-signtool verify /pa /v .\DeepWork_2.0.17_x64-setup.exe
+signtool verify /pa /v .\DeepWork_2.0.19_x64-setup.exe
 
 # 3. What will the user's "Publisher" line and Apps & Features say?
-(Get-Item .\DeepWork_2.0.17_x64-setup.exe).VersionInfo |
+(Get-Item .\DeepWork_2.0.19_x64-setup.exe).VersionInfo |
   Format-List CompanyName, ProductName, FileVersion, LegalCopyright
 ```
 
@@ -160,13 +160,13 @@ worth doing permanently:
   confirm the file they downloaded is the file that was built:
 
   ```powershell
-  Get-FileHash .\DeepWork_2.0.17_x64-setup.exe -Algorithm SHA256
+  Get-FileHash .\DeepWork_2.0.19_x64-setup.exe -Algorithm SHA256
   # or, on Linux/macOS:
-  sha256sum DeepWork_2.0.17_amd64.AppImage
+  sha256sum DeepWork_2.0.19_amd64.AppImage
   ```
 
 - **Say where the source is.** The repository, the tag and the build instructions
-  are already public; a release note that points at them ("built from tag v2.0.17 by
+  are already public; a release note that points at them ("built from tag v2.0.19 by
   the GitHub Actions run linked below") gives a suspicious user something to check
   that does not depend on trusting a signature.
 
@@ -194,7 +194,7 @@ what you saw was one of the other two:
 
 ```powershell
 # Nothing printed means the file never came from the internet, so SmartScreen is out.
-Get-Item .\DeepWork_2.0.17_x64-setup.exe -Stream * | Select-Object Stream
+Get-Item .\DeepWork_2.0.19_x64-setup.exe -Stream * | Select-Object Stream
 ```
 
 ### If the antivirus engine flagged it
@@ -315,7 +315,7 @@ Until then, whoever is installing can insist: **More info → Run anyway**, or, 
 the file, right-click → Properties → **Unblock**, or
 
 ```powershell
-Unblock-File .\DeepWork_2.0.17_x64-setup.exe
+Unblock-File .\DeepWork_2.0.19_x64-setup.exe
 ```
 
 ### What the build does to look less like something to block

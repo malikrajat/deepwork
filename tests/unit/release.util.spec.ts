@@ -46,15 +46,54 @@ describe('pickAssetFor', () => {
     expect(pickAssetFor(releaseAssets, 'macos')?.name).toBe('DeepWork_1.0.0_x64.dmg');
   });
 
-  it('finds a Linux package by its extension', () => {
+  it('offers the package rather than the portable file on Linux', () => {
     const linux = [asset('DeepWork_1.0.0_amd64.deb'), asset('DeepWork_1.0.0_x64.AppImage')];
-    expect(pickAssetFor(linux, 'linux')?.name).toBe('DeepWork_1.0.0_x64.AppImage');
+    expect(pickAssetFor(linux, 'linux')?.name).toBe('DeepWork_1.0.0_amd64.deb');
   });
 
   it('returns nothing rather than a wrong file', () => {
     expect(pickAssetFor(releaseAssets, 'linux')).toBeNull();
     expect(pickAssetFor(releaseAssets, 'unknown')).toBeNull();
     expect(pickAssetFor([], 'windows')).toBeNull();
+  });
+
+  /**
+   * The release that produced "DeepWork - windows - x64.zip is not a valid
+   * Win32 application": three portable archives with the same extension, and
+   * the only thing telling them apart is the word in the middle of the name.
+   */
+  const portableRelease = [
+    asset('deepwork-linux-x64.zip'),
+    asset('deepwork-macos-arm64.zip'),
+    asset('deepwork-macos-x64.zip'),
+    asset('deepwork-windows-x64.zip'),
+    asset('DeepWork_2.0.17_aarch64.dmg'),
+    asset('DeepWork_2.0.17_x64.dmg'),
+  ];
+
+  it('gives each platform its own portable archive', () => {
+    expect(pickAssetFor(portableRelease, 'windows')?.name).toBe('deepwork-windows-x64.zip');
+    expect(pickAssetFor(portableRelease, 'linux')?.name).toBe('deepwork-linux-x64.zip');
+    expect(pickAssetFor(portableRelease, 'macos')?.name).toBe('DeepWork_2.0.17_x64.dmg');
+  });
+
+  it('never offers a portable archive as an installer', () => {
+    expect(pickInstallAssetFor(portableRelease, 'windows')).toBeNull();
+    expect(pickInstallAssetFor(portableRelease, 'linux')).toBeNull();
+  });
+
+  it('finds the 32-bit installer when a release carries one', () => {
+    // Both architectures published at once: each machine gets its own, and the
+    // two do not collide because the name says which is which.
+    const both = [
+      asset('DeepWork_2.0.19_x64-setup.exe'),
+      asset('DeepWork_2.0.19_x86-setup.exe'),
+      asset('DeepWork_2.0.19_x64_en-US.msi'),
+      asset('DeepWork_2.0.19_x86_en-US.msi'),
+    ];
+
+    expect(pickInstallAssetFor(both, 'windows')?.name).toBe('DeepWork_2.0.19_x64-setup.exe');
+    expect(pickAssetFor(both, 'windows')?.name).toBe('DeepWork_2.0.19_x64-setup.exe');
   });
 });
 
@@ -67,12 +106,24 @@ describe('pickInstallAssetFor', () => {
     expect(pickInstallAssetFor(windows, 'windows')?.name).toBe('DeepWork_2.1.0_x64-setup.exe');
   });
 
-  it('still finds a portable build when that is all there is', () => {
+  it('still installs a portable file the OS itself can run', () => {
+    // An AppImage is both: it is the whole app in one file, and starting it is
+    // how the user runs it. Linux has no setup to hand over instead.
     const linux = [asset('DeepWork_2.1.0_x64.AppImage')];
     expect(pickInstallAssetFor(linux, 'linux')?.name).toBe('DeepWork_2.1.0_x64.AppImage');
+  });
 
+  it('treats a disk image as an installer, because that is all macOS has', () => {
     const macos = [asset('DeepWork_2.1.0_aarch64.dmg')];
     expect(pickInstallAssetFor(macos, 'macos')?.name).toBe('DeepWork_2.1.0_aarch64.dmg');
+  });
+
+  it('refuses a bare executable, which would replace nothing', () => {
+    // An `.exe` without `setup` in its name is a portable build: running it
+    // opens a second copy instead of updating the installed one.
+    const portable = [asset('DeepWork.exe')];
+    expect(pickInstallAssetFor(portable, 'windows')).toBeNull();
+    expect(pickAssetFor(portable, 'windows')?.name).toBe('DeepWork.exe');
   });
 
   it('returns nothing when the release carries nothing for this platform', () => {

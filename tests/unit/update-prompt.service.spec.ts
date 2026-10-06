@@ -81,7 +81,12 @@ describe('UpdatePromptService', () => {
   let service: UpdatePromptService;
 
   function build(platform = 'windows', status: UpdateStatus = 'update-available') {
-    updates = fakeUpdates(platform, status);
+    return buildWith(fakeUpdates(platform, status));
+  }
+
+  /** The same, for a test that needs to hand the service a release of its own. */
+  function buildWith(updatesFor: ReturnType<typeof fakeUpdates>) {
+    updates = updatesFor;
     notifications = fakeNotifications();
     TestBed.resetTestingModule();
     TestBed.configureTestingModule({
@@ -165,7 +170,7 @@ describe('UpdatePromptService', () => {
       expect(prompt.version()).toBe('v2.1.0');
     });
 
-    it('stays out of the way once the user has waved this version away', () => {
+    it('stays out of the way once the user has asked to be reminded later', () => {
       const prompt = build();
 
       prompt.dismiss();
@@ -176,11 +181,34 @@ describe('UpdatePromptService', () => {
       expect(prompt.visible()).toBe(true);
     });
 
-    it('remembers a dismissal across launches', () => {
+    it('remembers a snooze across launches while it is still running', () => {
       build().dismiss();
 
       const relaunched = build();
       expect(relaunched.visible()).toBe(false);
+    });
+
+    it('brings the prompt back once the snooze has run out', () => {
+      build().dismiss();
+
+      // The same version, half a day later: the card is worth showing again,
+      // because the sidebar pill has been sitting there unexplained since.
+      const stored = JSON.parse(localStorage.getItem('deepwork.update.prompt.v1') ?? '{}');
+      stored.dismissedAt = new Date(Date.now() - 13 * 60 * 60 * 1000).toISOString();
+      localStorage.setItem('deepwork.update.prompt.v1', JSON.stringify(stored));
+
+      expect(build().visible()).toBe(true);
+    });
+
+    it('treats a dismissal an older build wrote as already expired', () => {
+      // No `dismissedAt` at all: the version was stored by a build that meant
+      // "never ask again", and the user it silenced is the one who needs it.
+      localStorage.setItem(
+        'deepwork.update.prompt.v1',
+        JSON.stringify({ announced: null, dismissed: '2.1.0' }),
+      );
+
+      expect(build().visible()).toBe(true);
     });
 
     it('survives an unreadable history', () => {
@@ -191,18 +219,109 @@ describe('UpdatePromptService', () => {
     });
   });
 
-  describe('the installer it would fetch', () => {
+  describe('the file it would fetch', () => {
     it('picks the setup the platform can actually install', () => {
-      expect(build('windows').asset()?.name).toBe('DeepWork_2.1.0_x64-setup.exe');
+      expect(build('windows').installAsset()?.name).toBe('DeepWork_2.1.0_x64-setup.exe');
     });
 
     it('prefers a package over a portable file on Linux', () => {
-      expect(build('linux').asset()?.name).toBe('DeepWork_2.1.0_amd64.deb');
+      expect(build('linux').installAsset()?.name).toBe('DeepWork_2.1.0_amd64.deb');
     });
 
-    it('offers nothing when the release carries nothing for this machine', () => {
+    it('offers nothing to install when the release carries nothing for this machine', () => {
       const prompt = build('macos');
-      expect(prompt.asset()).toBeNull();
+      expect(prompt.installAsset()).toBeNull();
+    });
+
+    it('offers a portable build as a download, and never as an install', () => {
+      // A release with no setup in it: the Windows file is a `.zip`, which is a
+      // real download and not something the OS can be asked to run.
+      const portable = release({
+        assets: [
+          {
+            name: 'deepwork-windows-x64.zip',
+            size: 9_341_896,
+            downloadUrl:
+              'https://github.com/malikrajat/deepwork/releases/download/v2.1.0/deepwork-windows-x64.zip',
+          },
+        ],
+      });
+
+      const updates = fakeUpdates('windows', 'update-available');
+      updates.latest.set(portable);
+      const prompt = buildWith(updates);
+
+      expect(prompt.installAsset()).toBeNull();
+      expect(prompt.downloadAsset()?.name).toBe('deepwork-windows-x64.zip');
+    });
+
+    it('refuses a zip even when the release also carries other platforms', () => {
+      // The real v2.0.17 release, in miniature: three portable archives and the
+      // two macOS disk images. Windows has no installer among them.
+      const mixed = release({
+        assets: [
+          {
+            name: 'deepwork-linux-x64.zip',
+            size: 89_016_521,
+            downloadUrl: 'https://example.com/deepwork-linux-x64.zip',
+          },
+          {
+            name: 'deepwork-macos-arm64.zip',
+            size: 3_819_619,
+            downloadUrl: 'https://example.com/deepwork-macos-arm64.zip',
+          },
+          {
+            name: 'deepwork-macos-x64.zip',
+            size: 3_959_196,
+            downloadUrl: 'https://example.com/deepwork-macos-x64.zip',
+          },
+          {
+            name: 'deepwork-windows-x64.zip',
+            size: 9_341_896,
+            downloadUrl: 'https://example.com/deepwork-windows-x64.zip',
+          },
+          {
+            name: 'DeepWork_2.1.0_aarch64.dmg',
+            size: 3_828_837,
+            downloadUrl: 'https://example.com/aarch64.dmg',
+          },
+          {
+            name: 'DeepWork_2.1.0_x64.dmg',
+            size: 3_967_742,
+            downloadUrl: 'https://example.com/x64.dmg',
+          },
+        ],
+      });
+
+      const windows = fakeUpdates('windows', 'update-available');
+      windows.latest.set(mixed);
+      const prompt = buildWith(windows);
+
+      // Not the Linux archive, not a Mac one, and not an Update button.
+      expect(prompt.downloadAsset()?.name).toBe('deepwork-windows-x64.zip');
+      expect(prompt.installAsset()).toBeNull();
+    });
+
+    it('explains itself instead of starting a file the OS cannot run', async () => {
+      asDesktop();
+      const portable = release({
+        assets: [
+          {
+            name: 'deepwork-windows-x64.zip',
+            size: 9_341_896,
+            downloadUrl: 'https://example.com/deepwork-windows-x64.zip',
+          },
+        ],
+      });
+      const updates = fakeUpdates('windows', 'update-available');
+      updates.latest.set(portable);
+      const prompt = buildWith(updates);
+
+      await prompt.install();
+
+      expect(prompt.state()).toBe('error');
+      expect(prompt.error()).toContain('no installer');
+      expect(invoke).not.toHaveBeenCalled();
     });
   });
 

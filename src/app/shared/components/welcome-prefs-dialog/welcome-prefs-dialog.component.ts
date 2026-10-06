@@ -37,9 +37,8 @@ import { MINI_WIDGET_HELP } from '../../../core/constants/desktop-prefs.constant
             Make DeepWork work your way
           </h2>
           <p class="dialog-subtitle">
-            Three settings, changeable now or any time later. The first two stay
-            off until you choose them; the third keeps DeepWork running in the
-            tray when you close the window.
+            Three settings, changeable now or any time later. The first two stay off until you
+            choose them; the third keeps DeepWork running in the tray when you close the window.
           </p>
 
           <div class="dialog-body">
@@ -48,7 +47,14 @@ import { MINI_WIDGET_HELP } from '../../../core/constants/desktop-prefs.constant
 
           <div class="widget-tip">
             <span class="widget-tip-icon" aria-hidden="true">
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <svg
+                width="14"
+                height="14"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+              >
                 <rect x="3" y="3" width="18" height="18" rx="2" />
                 <line x1="9" y1="12" x2="15" y2="12" />
               </svg>
@@ -68,75 +74,141 @@ import { MINI_WIDGET_HELP } from '../../../core/constants/desktop-prefs.constant
       </div>
     }
   `,
-  styles: [`
-    .dialog-backdrop {
-      position: fixed; inset: 0; z-index: 200;
-      display: flex; align-items: center; justify-content: center;
-      padding: 24px;
-      background: rgba(8, 6, 16, 0.66);
-      backdrop-filter: blur(6px);
-      animation: dialog-fade 0.2s ease-out;
-    }
-    .dialog-card {
-      width: 100%; max-width: 460px;
-      padding: 26px 26px 20px;
-      border-radius: 20px;
-      background: var(--glass-bg, rgba(24, 20, 38, 0.9));
-      backdrop-filter: blur(22px);
-      border: 1px solid rgba(139, 92, 246, 0.28);
-      box-shadow: 0 26px 60px rgba(0, 0, 0, 0.5);
-      animation: dialog-rise 0.24s ease-out;
-    }
-    .dialog-title { font-size: 20px; font-weight: 800; letter-spacing: -0.3px; margin: 0; }
-    .dialog-subtitle {
-      margin: 6px 0 0; font-size: 13px; line-height: 1.5;
-      color: var(--color-text-muted, #a1a1aa);
-    }
-    .dialog-body { margin-top: 18px; }
+  styles: [
+    `
+      .dialog-backdrop {
+        position: fixed;
+        inset: 0;
+        z-index: 200;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 24px;
+        background: rgba(8, 6, 16, 0.66);
+        backdrop-filter: blur(6px);
+        animation: dialog-fade 0.2s ease-out;
+      }
+      .dialog-card {
+        width: 100%;
+        max-width: 460px;
+        padding: 26px 26px 20px;
+        border-radius: 20px;
+        /* --surface-float, not --glass-bg: the latter is a 4.5% white film meant
+         for a panel sitting inside a card, and a dialog is the one surface with
+         nothing behind it to sit on. See visitor-stats-dialog for the same fix —
+         on the glass token this card was see-through over the app. */
+        background: var(--surface-float, rgba(15, 11, 31, 0.94));
+        backdrop-filter: blur(22px);
+        border: 1px solid rgba(139, 92, 246, 0.28);
+        box-shadow: 0 26px 60px rgba(0, 0, 0, 0.5);
+        animation: dialog-rise 0.24s ease-out;
+      }
+      .dialog-title {
+        font-size: 20px;
+        font-weight: 800;
+        letter-spacing: -0.3px;
+        margin: 0;
+      }
+      .dialog-subtitle {
+        margin: 6px 0 0;
+        font-size: 13px;
+        line-height: 1.5;
+        color: var(--color-text-muted, #a1a1aa);
+      }
+      .dialog-body {
+        margin-top: 18px;
+      }
 
-    .widget-tip {
-      display: flex; gap: 10px; margin-top: 16px; padding: 12px 14px;
-      border-radius: 12px;
-      background: rgba(139, 92, 246, 0.08);
-      border: 1px solid rgba(139, 92, 246, 0.2);
-      font-size: 12px; line-height: 1.5;
-      color: var(--color-text-secondary, #d4d4d8);
-    }
-    .widget-tip-icon {
-      flex: 0 0 auto; display: inline-flex; align-items: center; justify-content: center;
-      width: 24px; height: 24px; border-radius: 6px;
-      background: rgba(139, 92, 246, 0.16);
-      color: var(--color-accent-primary, #a78bfa);
-    }
-    .widget-tip strong { display: block; margin-bottom: 3px; color: var(--color-text-primary, #f4f4f5); }
-    .widget-tip p { margin: 0; }
-    .widget-tip-hint { margin-top: 6px !important; color: var(--color-accent-primary, #a78bfa); }
+      .widget-tip {
+        display: flex;
+        gap: 10px;
+        margin-top: 16px;
+        padding: 12px 14px;
+        border-radius: 12px;
+        background: rgba(139, 92, 246, 0.08);
+        border: 1px solid rgba(139, 92, 246, 0.2);
+        font-size: 12px;
+        line-height: 1.5;
+        color: var(--color-text-secondary, #d4d4d8);
+      }
+      .widget-tip-icon {
+        flex: 0 0 auto;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 24px;
+        height: 24px;
+        border-radius: 6px;
+        background: rgba(139, 92, 246, 0.16);
+        color: var(--color-accent-primary, #a78bfa);
+      }
+      .widget-tip strong {
+        display: block;
+        margin-bottom: 3px;
+        color: var(--color-text-primary, #f4f4f5);
+      }
+      .widget-tip p {
+        margin: 0;
+      }
+      .widget-tip-hint {
+        margin-top: 6px !important;
+        color: var(--color-accent-primary, #a78bfa);
+      }
 
-    .dialog-actions {
-      display: flex; justify-content: flex-end; gap: 8px; margin-top: 22px;
-    }
-    .btn-ghost, .btn-primary {
-      padding: 8px 18px; border-radius: 8px; font-size: 13px; font-weight: 600;
-      cursor: pointer; transition: background 0.2s, border-color 0.2s;
-    }
-    .btn-ghost {
-      background: transparent; color: var(--color-text-secondary, #d4d4d8);
-      border: 1px solid var(--glass-border, rgba(255, 255, 255, 0.12));
-    }
-    .btn-ghost:hover { background: rgba(255, 255, 255, 0.06); }
-    .btn-primary {
-      background: rgba(139, 92, 246, 0.24);
-      border: 1px solid rgba(139, 92, 246, 0.55);
-      color: var(--color-text-primary, #f4f4f5);
-    }
-    .btn-primary:hover { background: rgba(139, 92, 246, 0.36); }
+      .dialog-actions {
+        display: flex;
+        justify-content: flex-end;
+        gap: 8px;
+        margin-top: 22px;
+      }
+      .btn-ghost,
+      .btn-primary {
+        padding: 8px 18px;
+        border-radius: 8px;
+        font-size: 13px;
+        font-weight: 600;
+        cursor: pointer;
+        transition:
+          background 0.2s,
+          border-color 0.2s;
+      }
+      .btn-ghost {
+        background: transparent;
+        color: var(--color-text-secondary, #d4d4d8);
+        border: 1px solid var(--glass-border, rgba(255, 255, 255, 0.12));
+      }
+      .btn-ghost:hover {
+        background: rgba(255, 255, 255, 0.06);
+      }
+      .btn-primary {
+        background: rgba(139, 92, 246, 0.24);
+        border: 1px solid rgba(139, 92, 246, 0.55);
+        color: var(--color-text-primary, #f4f4f5);
+      }
+      .btn-primary:hover {
+        background: rgba(139, 92, 246, 0.36);
+      }
 
-    @keyframes dialog-fade { from { opacity: 0; } to { opacity: 1; } }
-    @keyframes dialog-rise {
-      from { opacity: 0; transform: translateY(10px) scale(0.98); }
-      to { opacity: 1; transform: none; }
-    }
-  `],
+      @keyframes dialog-fade {
+        from {
+          opacity: 0;
+        }
+        to {
+          opacity: 1;
+        }
+      }
+      @keyframes dialog-rise {
+        from {
+          opacity: 0;
+          transform: translateY(10px) scale(0.98);
+        }
+        to {
+          opacity: 1;
+          transform: none;
+        }
+      }
+    `,
+  ],
 })
 export class WelcomePrefsDialogComponent {
   protected readonly prefs = inject(DesktopPrefsService);

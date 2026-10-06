@@ -96,13 +96,17 @@ pub fn download(app: &AppHandle, url: &str, file_name: &str, total: u64) -> Resu
 ///
 /// The file has to be the one [`download`] wrote: a path outside the update
 /// folder is refused, so nothing else on the machine can be talked into running
-/// through this command.
+/// through this command. It also has to be a file this platform can actually
+/// start, so a release that ships nothing but a portable archive is reported as
+/// that rather than as a broken app.
 pub fn install(app: &AppHandle, path: &str) -> Result<String, String> {
     let installer = verify_installer(&download_dir()?, Path::new(path))?;
     let name = installer
         .file_name()
         .map(|file| file.to_string_lossy().into_owned())
         .unwrap_or_else(|| path.to_string());
+
+    ensure_runnable(&installer, &name)?;
 
     let note = platform::start(&installer, name)?;
     log::info!(target: logging::SYSTEM, "update: started {path} — {note}");
@@ -181,6 +185,47 @@ fn verify_installer(dir: &Path, path: &Path) -> Result<PathBuf, String> {
     }
     Ok(resolved)
 }
+
+/// Refuses a file this platform cannot run as an installer, before trying.
+///
+/// The check exists because of what happens without it. A release whose Windows
+/// build is a portable `deepwork-windows-x64.zip` used to be handed straight to
+/// `CreateProcess`, which answers `os error 193` — "not a valid Win32
+/// application" — and the user reads that as a broken app rather than as a
+/// release that simply has no setup in it. The front end already declines to
+/// offer such a file; this is the half that cannot be skipped by a stale window.
+fn ensure_runnable(installer: &Path, name: &str) -> Result<(), String> {
+    let extension = installer
+        .extension()
+        .map(|ext| ext.to_string_lossy().to_ascii_lowercase())
+        .unwrap_or_default();
+
+    if RUNNABLE_EXTENSIONS.contains(&extension.as_str()) {
+        return Ok(());
+    }
+
+    log::warn!(
+        target: logging::SYSTEM,
+        "update: refused to start {name} — {extension:?} is not an installer on this platform"
+    );
+    Err(format!(
+        "{name} is a portable build, not an installer, so DeepWork cannot install it for you. \
+         Download it from the release page and unpack it."
+    ))
+}
+
+/// The extensions this platform's installer can be started from.
+///
+/// A portable archive is deliberately absent: it is a copy to unpack, not
+/// something the OS can run in place of the app it is replacing.
+#[cfg(windows)]
+const RUNNABLE_EXTENSIONS: [&str; 2] = ["exe", "msi"];
+
+#[cfg(target_os = "macos")]
+const RUNNABLE_EXTENSIONS: [&str; 2] = ["dmg", "pkg"];
+
+#[cfg(all(unix, not(target_os = "macos")))]
+const RUNNABLE_EXTENSIONS: [&str; 3] = ["deb", "rpm", "appimage"];
 
 /// The command that fetches `url` into `path`.
 fn downloader(url: &str, path: &Path) -> Command {
@@ -413,5 +458,50 @@ mod tests {
 
         let err = verify_installer(&dir, &folder).expect_err("a directory");
         assert!(err.contains("outside"), "{err}");
+    }
+
+    #[test]
+    fn a_real_installer_for_this_platform_is_runnable() {
+        #[cfg(windows)]
+        let names = ["DeepWork_2.0.18_x64-setup.exe", "DeepWork_2.0.18_x64.msi"];
+        #[cfg(target_os = "macos")]
+        let names = ["DeepWork_2.0.18_aarch64.dmg"];
+        #[cfg(all(unix, not(target_os = "macos")))]
+        let names = ["DeepWork_2.0.18_amd64.deb", "DeepWork_2.0.18_x64.AppImage"];
+
+        for name in names {
+            assert!(ensure_runnable(Path::new(name), name).is_ok(), "{name}");
+        }
+    }
+
+    #[test]
+    fn a_portable_archive_is_refused_rather_than_started() {
+        // The one that produced "os error 193" on Windows: a `.zip` handed to
+        // the OS as an executable. The message has to name the file and say
+        // what to do instead.
+        let name = "deepwork-windows-x64.zip";
+        let err = ensure_runnable(Path::new(name), name).expect_err("a portable archive");
+
+        assert!(err.contains(name), "{err}");
+        assert!(err.contains("release page"), "{err}");
+    }
+
+    #[test]
+    fn an_installer_for_another_platform_is_refused() {
+        #[cfg(windows)]
+        let foreign = "DeepWork_2.0.18_x64.dmg";
+        #[cfg(target_os = "macos")]
+        let foreign = "DeepWork_2.0.18_x64-setup.exe";
+        #[cfg(all(unix, not(target_os = "macos")))]
+        let foreign = "DeepWork_2.0.18_x64-setup.exe";
+
+        assert!(ensure_runnable(Path::new(foreign), foreign).is_err());
+    }
+
+    #[test]
+    fn a_file_with_no_extension_is_refused() {
+        assert!(
+            ensure_runnable(Path::new("deepwork-mac-portable"), "deepwork-mac-portable").is_err()
+        );
     }
 }

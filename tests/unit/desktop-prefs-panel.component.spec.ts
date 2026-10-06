@@ -11,13 +11,15 @@ const makeMockPrefs = (
     desktop?: boolean;
     start?: boolean;
     onTop?: boolean;
+    onTopSupported?: boolean;
     closeToTray?: boolean;
     busy?: boolean;
-  } = {}
+  } = {},
 ) => ({
   isDesktopApp: options.desktop ?? true,
   startWithSystem: signal(options.start ?? false),
   alwaysOnTop: signal(options.onTop ?? false),
+  alwaysOnTopSupported: signal(options.onTopSupported ?? true),
   closeToTray: signal(options.closeToTray ?? true),
   error: signal<string | null>(null),
   busy: signal(options.busy ?? false),
@@ -28,7 +30,7 @@ const makeMockPrefs = (
 
 const SOURCE = resolve(
   __dirname,
-  '../../src/app/shared/components/desktop-prefs-panel/desktop-prefs-panel.component.ts'
+  '../../src/app/shared/components/desktop-prefs-panel/desktop-prefs-panel.component.ts',
 );
 
 /**
@@ -144,7 +146,7 @@ describe('DesktopPrefsPanelComponent', () => {
     // menu, and the copy has to say so or the app looks impossible to close.
     const copy = readFileSync(
       resolve(__dirname, '../../src/app/core/constants/desktop-prefs.constants.ts'),
-      'utf8'
+      'utf8',
     );
     expect(copy).toContain('CLOSE_TO_TRAY_HELP');
     expect(copy).toContain('choose Exit');
@@ -155,5 +157,15 @@ describe('DesktopPrefsPanelComponent', () => {
     expect(src).toContain('prefs.error()');
     expect(src).toContain('role="alert"');
     expect(src).toContain('!prefs.isDesktopApp');
+  });
+
+  it('turns the always-on-top switch off where the desktop cannot honour it', () => {
+    // Wayland: an app cannot raise itself, so the switch is disabled with the
+    // reason and the way round it, rather than accepting a change that will not
+    // happen.
+    const src = readFileSync(SOURCE, 'utf8');
+    expect(src).toContain('!prefs.alwaysOnTopSupported()');
+    expect(src).toContain('Wayland');
+    expect(src).toContain('WAYLAND_DISPLAY=');
   });
 });

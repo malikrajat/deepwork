@@ -1,6 +1,6 @@
 [package]
 name = "deepwork"
-version = "2.0.17"
+version = "2.0.19"
 description = "DeepWork - Pomodoro & Task Management"
 authors = ["you"]
 license = "MIT"
@@ -43,6 +43,9 @@ windows-sys = { version = "0.61", features = [
     "Win32_Graphics_Dwm",
     # `MARGINS`, which `DwmExtendFrameIntoClientArea` takes.
     "Win32_UI_Controls",
+    # `SetWindowPos` and the topmost styles, for keeping the window above the
+    # others rather than only asking the desktop layer to. See `TopmostKeeper`.
+    "Win32_UI_WindowsAndMessaging",
 ] }
 # WinRT toasts, for the one thing the notification plugin cannot do on Windows:
 # post under a tag, so the alert's repeat re-raises its own notification instead

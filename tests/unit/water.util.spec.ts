@@ -181,11 +181,11 @@ describe('waterPrefsOf', () => {
     });
   });
 
-  it('is off, with a full working day offered, before the user asks for it', () => {
+  it('is on, with a full working day offered, before the user changes anything', () => {
     const prefs = waterPrefsOf(DEFAULT_SETTINGS);
-    expect(prefs.enabled).toBe(false);
+    expect(prefs.enabled).toBe(true);
     expect(prefs.intervalMinutes).toBe(60);
-    expect(prefs.amountMl).toBe(500);
+    expect(prefs.amountMl).toBe(30);
     expect(prefs.goalMl).toBe(2000);
     // A minimised window is left alone unless the user says otherwise.
     expect(prefs.autoLogWhenMinimized).toBe(true);
