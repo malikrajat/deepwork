@@ -207,6 +207,7 @@ regardless of either setting — which is why the feature can stay out.
 | `npm run tauri:dev`                | Dev mode with hot-reload + DevTools                           |
 | `npm run tauri:build:debug`        | Debug build (unoptimized, DevTools available)                 |
 | `npm run build:windows`            | Production release (no DevTools: the cargo feature is absent) |
+| `npm run build:windows32`          | The same, for 32-bit Windows (`rustup target add i686-pc-windows-msvc` once) |
 | `npm run build:windows -- --debug` | Windows debug build (faster compile, DevTools available)      |
 
 ### Quick Debug Workflow
@@ -216,7 +217,7 @@ regardless of either setting — which is why the feature can stay out.
 npm run build:windows -- --debug
 
 # The installer will be at:
-# src-tauri/target/x86_64-pc-windows-msvc/debug/bundle/nsis/DeepWork_2.0.17_x64-setup.exe
+# src-tauri/target/x86_64-pc-windows-msvc/debug/bundle/nsis/DeepWork_2.0.19_x64-setup.exe
 ```
 
 ### Toggle DevTools for Release Builds

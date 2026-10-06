@@ -114,16 +114,16 @@ describe('form model factories', () => {
       expect(a).not.toBe(b);
     });
 
-    it('starts the water reminder off, on a glass and cadence it offers', () => {
+    it('starts the water reminder on, on a drink and cadence it offers', () => {
       const d = createSettingsFormDefaults();
 
-      expect(d.waterReminders).toBe(false);
+      expect(d.waterReminders).toBe(true);
       expect(d.waterStart).toBe('09:00');
       expect(d.waterEnd).toBe('18:00');
       expect(WATER_INTERVAL_OPTIONS).toContain(d.waterIntervalMinutes);
       expect(WATER_AMOUNT_OPTIONS).toContain(d.waterAmountMl);
       expect(WATER_GOAL_OPTIONS).toContain(d.waterGoalMl);
-      expect(d.waterAmountMl).toBe(500);
+      expect(d.waterAmountMl).toBe(30);
       expect(d.waterGoalMl).toBe(2000);
     });
 

@@ -10,6 +10,15 @@ import { ExternalLinkDirective } from '../../directives/external-link.directive'
  * because a desktop notification has no button the app can hear. So the
  * notification brings the user to the app, and this is what they press.
  *
+ * What the primary button *is* depends on the release, and it is a different
+ * button on purpose:
+ *
+ * - **Update** when the release carries an installer for this machine, which
+ *   replaces the copy the user already has.
+ * - **Download** when it carries only a portable build — a `.zip`, say. The app
+ *   cannot start one (Windows answers with `os error 193`), so it says so and
+ *   downloads it instead of pretending.
+ *
  * It stands down entirely in the browser build, where there is nothing to
  * install — there the same button hands the download to the browser.
  */
@@ -77,7 +86,14 @@ import { ExternalLinkDirective } from '../../directives/external-link.directive'
           }
 
           @if (prompt.state() !== 'started') {
-            <button type="button" class="prompt-btn" (click)="prompt.dismiss()">Later</button>
+            <button
+              type="button"
+              class="prompt-btn"
+              title="Remind me later — this card comes back once the snooze runs out"
+              (click)="prompt.dismiss()"
+            >
+              Remind me later
+            </button>
           }
 
           @if (prompt.state() === 'started') {
@@ -257,27 +273,38 @@ export class UpdatePromptComponent {
       case 'error':
         return 'The update could not be installed automatically.';
       default:
-        return this.prompt.asset()
-          ? 'Download and install it now — nothing on this machine is touched until you press Update.'
-          : 'This release has no installer for your system; the release page has every file.';
+        if (this.prompt.installAsset()) {
+          return 'Download and install it now — nothing on this machine is touched until you press Update.';
+        }
+        if (this.prompt.downloadAsset()) {
+          return 'This release has no installer for your system. Download the portable build and unpack it — the release page has every file.';
+        }
+        return 'This release has no file for your system; the release page has every file.';
     }
   });
 
   /** The installer for this machine, downloaded and started by the app. */
   readonly showInstallButton = computed(
     () =>
-      this.prompt.isDesktopApp && this.prompt.asset() !== null && this.prompt.state() !== 'started',
+      this.prompt.isDesktopApp &&
+      this.prompt.installAsset() !== null &&
+      this.prompt.state() !== 'started',
   );
 
   /** The fallback: a plain download, in the browser and anywhere without one. */
   readonly showDownloadLink = computed(
     () =>
       this.prompt.state() !== 'started' &&
-      (!this.prompt.isDesktopApp || this.prompt.asset() === null),
+      (!this.prompt.isDesktopApp || this.prompt.installAsset() === null),
   );
 
-  /** Where the fallback download goes. */
+  /**
+   * Where the fallback download goes.
+   *
+   * The best file for this machine rather than the installer alone: when there
+   * is no installer, the portable build is still the file the user wants.
+   */
   readonly downloadUrl = computed(
-    () => this.prompt.asset()?.downloadUrl ?? this.prompt.releasesUrl,
+    () => this.prompt.downloadAsset()?.downloadUrl ?? this.prompt.releasesUrl,
   );
 }

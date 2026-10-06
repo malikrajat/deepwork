@@ -1,13 +1,19 @@
 name: CI
 
 # Everything a change has to survive before it is worth building: it must lint,
-# be formatted, pass the unit tests, and compile. Runs on every pull request, on
-# every push to main, and on demand.
+# be formatted, pass the unit tests, and compile.
+#
+# This pipeline runs for `main` and nothing else. There is no `pull_request`
+# trigger and no manual trigger, so pushing a feature branch starts no run at
+# all and a pull request shows no checks.
+#
+# A `v`-tag is the one other entry point. A tag is not a branch, and it is not
+# optional: without it nothing would ever publish the installers as a release
+# anyone can install from.
 #
 # Every run leaves its logs and its pass/fail behind; the installer job goes
 # further and uploads what it built, so a run can be downloaded from instead of
-# only being read. A version tag is what turns those files into a release
-# anyone can install from.
+# only being read.
 on:
   push:
     branches:
@@ -16,8 +22,6 @@ on:
     # run at all, and the installers it is meant to publish would never be built.
     tags:
       - 'v*'
-  pull_request:
-  workflow_dispatch:
 
 permissions:
   contents: read
@@ -59,8 +63,8 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
         with:
-          # The commit this push or pull request is compared against has to be
-          # in the checkout for the diff below.
+          # The commit this push is compared against has to be in the checkout
+          # for the diff below.
           fetch-depth: 0
 
       - name: Setup Node
@@ -84,10 +88,11 @@ jobs:
         run: |
           set -euo pipefail
 
-          if [ "${{ github.event_name }}" = "pull_request" ]; then
-            git fetch --no-tags --quiet origin "${{ github.base_ref }}"
-            BASE="origin/${{ github.base_ref }}"
-          elif [ -n "${{ github.event.before }}" ] && ! grep -qE '^0+$' <<< "${{ github.event.before }}"; then
+          # Every run of this workflow is a push, so the comparison point is the
+          # commit the push moved away from. A brand-new branch (or a tag) has an
+          # all-zero "before", and there the parent commit is the only sensible
+          # baseline.
+          if [ -n "${{ github.event.before }}" ] && ! grep -qE '^0+$' <<< "${{ github.event.before }}"; then
             BASE="${{ github.event.before }}"
           else
             BASE="HEAD~1"
@@ -186,10 +191,9 @@ jobs:
 
   installers:
     name: Installer — ${{ matrix.label }}
-    # Building an installer takes 15–25 minutes per OS, so it runs where it is
-    # useful — every push to main, every tag, and on demand — and PRs stay fast.
-    # Delete this `if:` to build installers on pull requests too.
-    if: github.event_name != 'pull_request'
+    # Building an installer takes 15–25 minutes per OS, so it runs for every run
+    # of this workflow — which is a push to `main` or a `v`-tag, never a branch
+    # and never a pull request. Nothing here needs to filter by event again.
     needs:
       - lint
       - test
@@ -199,12 +203,17 @@ jobs:
       - e2e
     strategy:
       fail-fast: false
+      # One entry per installer that is published: one per platform *and*
+      # architecture. A Mac is either Intel or Apple Silicon, a PC is either
+      # 64-bit or 32-bit, and each needs a build of its own — so Windows and
+      # Linux are two entries each, and macOS is two as well.
+      #
+      # `continue-on-error` marks the 32-bit entries and *only* them. The release
+      # job waits on this one, so a job that cannot build must not be allowed to
+      # fail the matrix: the 64-bit installers would lose their release because a
+      # 32-bit runner was missing a package. A failure is still reported in the
+      # run; it just cannot take the other architectures' files down with it.
       matrix:
-        # One entry per installer that is published, which is one per platform
-        # *and* architecture: a Mac is either Intel or Apple Silicon, and the two
-        # need different builds. macOS is therefore two runs, not one — the
-        # `target` is what the bundle is compiled for, and the `installers` are
-        # the files the run hands back.
         include:
           - label: Windows (x64)
             os: windows-latest
@@ -213,6 +222,19 @@ jobs:
             installers: |
               src-tauri/target/x86_64-pc-windows-msvc/release/bundle/nsis/*.exe
               src-tauri/target/x86_64-pc-windows-msvc/release/bundle/msi/*.msi
+          # 32-bit Windows, for a 32-bit PC and for 64-bit Windows running 32-bit
+          # software. Tauri names the installer for the target it was built for —
+          # `…_x86-setup.exe` beside `…_x64-setup.exe` — and the release job
+          # checks that rather than assuming it, because two files with one name
+          # would silently overwrite each other on the release.
+          - label: Windows (x86)
+            os: windows-latest
+            target: i686-pc-windows-msvc
+            artifact: deepwork-windows-x86
+            continue-on-error: true
+            installers: |
+              src-tauri/target/i686-pc-windows-msvc/release/bundle/nsis/*.exe
+              src-tauri/target/i686-pc-windows-msvc/release/bundle/msi/*.msi
           - label: Linux (x64)
             os: ubuntu-latest
             target: x86_64-unknown-linux-gnu
@@ -221,9 +243,27 @@ jobs:
               src-tauri/target/x86_64-unknown-linux-gnu/release/bundle/appimage/*.AppImage
               src-tauri/target/x86_64-unknown-linux-gnu/release/bundle/deb/*.deb
               src-tauri/target/x86_64-unknown-linux-gnu/release/bundle/rpm/*.rpm
+          # 32-bit Linux, and the awkward one: WebKitGTK has to exist for i386 as
+          # well as for the host, which is why this installs the multiarch
+          # packages below rather than the same list twice. Marked
+          # `continue-on-error` because that stack is not in every Ubuntu mirror —
+          # a run where it cannot be assembled says so in this job, and the
+          # architectures that can be built still become a release.
+          - label: Linux (x86)
+            os: ubuntu-latest
+            target: i686-unknown-linux-gnu
+            artifact: deepwork-linux-x86
+            continue-on-error: true
+            installers: |
+              src-tauri/target/i686-unknown-linux-gnu/release/bundle/appimage/*.AppImage
+              src-tauri/target/i686-unknown-linux-gnu/release/bundle/deb/*.deb
+              src-tauri/target/i686-unknown-linux-gnu/release/bundle/rpm/*.rpm
           # `macos-latest` is Apple Silicon: GitHub's `-latest` macOS image is
           # arm64, so the Intel build needs the explicitly-labelled Intel runner.
           # `macos-13` used to be that runner; it has been retired.
+          #
+          # There is no 32-bit macOS entry and there cannot be one: Apple removed
+          # 32-bit application support in macOS 10.15.
           - label: macOS (Apple Silicon / arm64)
             os: macos-latest
             target: aarch64-apple-darwin
@@ -237,6 +277,8 @@ jobs:
             installers: |
               src-tauri/target/x86_64-apple-darwin/release/bundle/dmg/*.dmg
     runs-on: ${{ matrix.os }}
+    # The one flag the 32-bit entries carry into the job itself.
+    continue-on-error: ${{ matrix.continue-on-error || false }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -256,6 +298,24 @@ jobs:
             libxdo-dev \
             libssl-dev \
             build-essential
+
+      # The i386 half of the same story, and only for the 32-bit entry: a 32-bit
+      # build links against 32-bit libraries, and the packages above are the
+      # host's. `dpkg --add-architecture i386` is not enough on its own —
+      # `apt-get update` has to follow it before apt knows where to look.
+      - name: Install 32-bit Linux build dependencies
+        if: runner.os == 'Linux' && matrix.target == 'i686-unknown-linux-gnu'
+        run: |
+          sudo dpkg --add-architecture i386
+          sudo apt-get update
+          sudo apt-get install -y \
+            gcc-multilib \
+            pkg-config \
+            libwebkit2gtk-4.1-dev:i386 \
+            libappindicator3-dev:i386 \
+            librsvg2-dev:i386 \
+            libgtk-3-dev:i386 \
+            libssl-dev:i386
 
       - name: Setup Node
         uses: actions/setup-node@v4
@@ -284,8 +344,15 @@ jobs:
       # `tauri build` runs `npm run build` first (see `beforeBuildCommand`), then
       # produces this target's bundles: the NSIS installer on Windows, the
       # AppImage/.deb/.rpm on Linux, the .dmg on macOS.
+      #
+      # A 32-bit Linux build needs pkg-config pointed at the i386 copy of every
+      # library above — the host's `.pc` files describe 64-bit libraries and
+      # linking them into a 32-bit binary fails — which is the one thing the
+      # multiarch packages do not do for themselves.
       - name: Build the installer
         run: npm run tauri:build -- --target ${{ matrix.target }}
+        env:
+          PKG_CONFIG_PATH: ${{ matrix.target == 'i686-unknown-linux-gnu' && '/usr/lib/i386-linux-gnu/pkgconfig:/usr/share/pkgconfig' || '' }}
 
       # This is the part that makes an installer downloadable: without it a run
       # only reports that it built something, and the file itself is gone with
@@ -326,6 +393,25 @@ jobs:
           # One flat folder, so the release gets `DeepWork_2.0.17_x64.dmg` rather
           # than a directory per platform.
           merge-multiple: true
+
+      # Two architectures writing one file name would mean one of them silently
+      # replacing the other, and the release would look complete while missing a
+      # platform. The names are expected to differ (`_x64`/`_x86`, `.AppImage`
+      # per target), so this states the expectation instead of trusting it.
+      - name: Check that no two installers share a name
+        run: |
+          set -euo pipefail
+
+          duplicates=$(find installers -type f -printf '%f\n' | sort | uniq -d)
+          if [ -n "$duplicates" ]; then
+            echo "These files were published by more than one architecture:"
+            echo "$duplicates"
+            echo "Rename one of them before the release can be attached."
+            exit 1
+          fi
+
+          echo "Every installer has a name of its own:"
+          find installers -type f -printf '%f\n' | sort
 
       - name: Attach them to the release
         env:

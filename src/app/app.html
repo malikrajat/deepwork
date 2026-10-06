@@ -9,6 +9,20 @@
   <app-toast />
   <app-update-prompt />
   <app-welcome-prefs-dialog />
+  <!-- The visitor dashboard renders from the shell rather than from the settings
+       row that opens it. That row sits in a `.setting-group`, which carries a
+       `backdrop-filter` — and an element with one becomes the containing block
+       for `position: fixed` descendants, so a panel asking for the whole window
+       was measured against the card instead and came out the width of a card.
+       From here it also sits outside the scrolling content area.
+
+       Deferred to idle, because it is a dashboard's worth of template for a panel
+       that a visit may never open: it arrives as its own chunk once the browser is
+       free, so it is ready before anyone reaches the button without being part of
+       the first load. -->
+  @defer (on idle) {
+    <app-visitor-stats-dialog />
+  }
 }
 
 <!-- The water nudge renders even while the window is the mini widget, because it

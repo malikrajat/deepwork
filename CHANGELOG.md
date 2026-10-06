@@ -7,7 +7,123 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+---
+
+## [2.0.19] – 2026-10-06
+
+### Fixed
+
+- **"Update now" no longer tries to run a `.zip`.** The app offers to install a
+  newer release itself: it downloads the file GitHub published for this machine
+  and hands it to the OS. On a release whose Windows build is a portable archive
+  rather than a setup — v2.0.17 is one, and it has no `.exe` at all — the file it
+  chose was `deepwork-windows-x64.zip`, and Windows answered `os error 193`, "not
+  a valid Win32 application". What the user saw was a broken app. Two things were
+  wrong and both are fixed. The file is now judged by **what it is**, not only by
+  its extension: a release's three portable archives are all `.zip`, and only the
+  word in the middle of the name (`deepwork-windows-x64.zip` beside
+  `deepwork-macos-x64.zip` and `deepwork-linux-x64.zip`) tells them apart, so a
+  name that says which platform it is for now decides before the extension does.
+  And the updater only offers **Update** when the release carries something it can
+  actually run — the Windows setup or `.msi`, a `.dmg` on macOS, a
+  `.deb`/`.rpm`/`.AppImage` on Linux. A release of portable builds gets a
+  **Download** button that goes to the file for this machine and says why, which
+  is the honest version of the same offer. The desktop side refuses too, so a
+  stale window cannot talk it into starting a file it cannot run; the refusal is
+  a sentence naming the file and pointing at the release page.
+- **Always on top now stays on top.** The switch was applied once, by asking the
+  desktop layer to set the flag — and that layer only ever calls the OS when its
+  *own* cached idea of the flag changes. So the one call that would put a window
+  back on top after Windows had dropped it was the one call it skipped, and
+  "is it on top?" was answered from the cache rather than from the window. A
+  window that had fallen behind therefore reported itself as on top, which is why
+  the switch looked right while the window went under everything. The flag is now
+  written straight to the OS (`SetWindowPos`, with no move, no resize and no
+  focus), read back from the window's real style rather than from a variable, and
+  **kept** there: a watcher re-asserts it whenever it finds the window without it,
+  so a top spot lost to another application, a display change or a fullscreen
+  window is regained instead of being lost until the setting is toggled off and
+  on again. Every repair is logged. The tray menu's own **Always on top** tick is
+  read from the window for the same reason, so the menu and the Settings switch
+  cannot disagree with what is on screen. On Linux and macOS nothing changed —
+  the platforms where the call is not honoured (Wayland) still say so.
+- **A failed update check is retried once.** The startup check is what puts the
+  update pill on the sidebar and the prompt on screen, and a machine that opened
+  DeepWork before its network was up spent the whole session with neither. A
+  check that could not answer — and has no stored release to show instead — now
+  asks once more after 90 seconds. A check the user asked for is never repeated.
+
 ### Added
+
+- **32-bit installers for Windows and Linux.** The installer matrix built one
+  Windows and one Linux binary, both 64-bit. It now builds `i686` as well: a
+  `.exe`/`.msi` for 32-bit Windows and an `.AppImage`/`.deb`/`.rpm` for 32-bit
+  Linux, each with its own artifact and its own release file, so a 32-bit machine
+  gets an installer for itself rather than a 64-bit binary it cannot run. macOS
+  has no 32-bit entry and cannot have one — Apple removed 32-bit application
+  support in 10.15. The two 32-bit entries are marked `continue-on-error`: the
+  32-bit Linux build needs the whole WebKitGTK stack for i386, which is not in
+  every Ubuntu mirror, and a matrix job that cannot assemble it should not cost
+  the other architectures their release. A first run is how we find out.
+- **The release now refuses to publish two files with one name.** Every
+  architecture's installers are collected into one folder before they are
+  attached, so a name two of them shared would mean one silently replacing the
+  other — and a release that looked complete while missing a platform. The names
+  are expected to differ (`_x64` beside `_x86`, and `.AppImage`/`.deb`/`.rpm` per
+  target); the release job now checks, fails loudly, and lists what it collected.
+
+### Changed
+
+- **"Later" is a snooze, not a goodbye.** Dismissing the update card stored the
+  version and never mentioned it again — so one click on the wrong button, or a
+  "not right now" during a busy morning, meant the update was never offered
+  again while the sidebar went on showing a pill nothing explained. The card now
+  comes back twelve hours later, and the button says **Remind me later** so that
+  is what it means. The one system notification per version is unchanged: only
+  the in-app card returns. A dismissal written by an older build — which has no
+  time beside it — is read as long overdue rather than as forever, so the users
+  who were silenced by it are the first to see the card again.
+- **The About page's install button only appears when there is something to
+  install.** It used to be paired with whichever file `pickAssetFor` chose, so a
+  portable archive could be offered as "Update now". The primary download row
+  still resolves to the best file for the machine — now with the right one for
+  the platform rather than the first file that matched.
+
+---
+
+## [2.0.18] – 2026-10-04
+
+### Added
+
+- **The web build counts its own visitors, and Settings shows what the counter
+  knows.** The app has no server of its own, so its visitor counter is somebody
+  else's: [GoatCounter](https://www.goatcounter.com/), the same one that runs on
+  [rajatmalik.dev](https://rajatmalik.dev/). GoatCounter records no domain — only
+  a path — so the app files every page under its own `/deepwork` prefix, which is
+  what keeps the two apart in a dashboard that cannot tell them apart by
+  hostname. `Settings → Visitor Counter` shows the current figure and a
+  **Details** button; the popup holds the visitors, pages, referrers, browsers,
+  systems, countries, languages, screen sizes and campaigns GoatCounter has for a
+  chosen range, and underneath them what this page can see about the person
+  reading it — referrer, campaign, entry page, screen, language, time zone,
+  connection — read from the browser and sent nowhere. Browser, OS and device
+  identification is [rm-ng-device-detection](https://www.npmjs.com/package/rm-ng-device-detection)'s
+  job rather than this app's: a device list goes stale quietly, and a library
+  that is kept current detects the phone somebody is actually holding. The
+  switch that turns counting off lives in the popup, next to the report it is
+  about: off means the script is never fetched at all. The aggregate lists come
+  from GoatCounter's JSON API, which needs an API token with **Read statistics**
+  ticked; it is pasted into the popup, kept in that browser's `localStorage`, and
+  never written to the database or into an export. Only the browser build is
+  counted: the packaged desktop app has no web address to report, and its
+  settings row says so rather than showing a figure that would never move. The
+  counter script is pinned and integrity-checked rather than fetched fresh, and
+  the API requests are paced to stay inside GoatCounter's four-a-second limit. The
+  token can also be baked into the build — `GOATCOUNTER_API_TOKEN` in
+  `visitor.constants.ts`, empty by default — which suits a build whose reader is
+  the site's own owner; the constant's comment says plainly that a token written
+  there is published with the bundle, and the popup's own field stays the way to
+  keep one in a browser instead.
 
 - **The installers a run builds are now downloadable — and a version tag turns
   them into a release.** The installer job used to compile a Windows, a Linux and
@@ -30,6 +146,16 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Changed
 
+- **The water reminder is on out of the box, and a drink counts as 30 ml.** The
+  nudge was opt-in and counted 500 ml a drink, which asked the user to find a
+  setting before the feature did anything and then recorded a bottle every time
+  they took a mouthful. It is now on by default — it asks a question rather than
+  announcing a fact, so "Not now" is one click — and a drink is 30 ml: the
+  smallest thing anyone would call a drink, so a day of sipping adds up honestly
+  instead of a handful of guesses at half a litre each. Both are still choices in
+  Settings, and the day's target is unchanged at 2 L; only the number of drinks it
+  takes to reach it.
+
 - **Markdown is no longer formatted by Prettier.** Documentation, agent
   instructions and the skill packages under `.agents` are prose: Prettier reflows
   them to `printWidth`, which rewrites whole paragraphs and tables on files nobody
@@ -44,6 +170,102 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   waits for it — an installer is only worth packaging for a commit that passes.
 
 ### Fixed
+
+- **The visitor counter's details popup can be read.** It was drawn on
+  `--glass-bg`, which is 4.5% white — the token for a surface *inside* a card that
+  is already there, and exactly wrong for the one panel that has nothing behind
+  it. On that background the popup was a see-through sheet with the app's own
+  text showing through it, so none of it could be read. It now uses
+  `--surface-float`, the token meant for something floating above the app (0.9 in
+  the dark theme, 0.92 in the light one), and the first-run desktop dialog — which
+  had the same flaw — was fixed with it. The two explanatory rows that used to sit
+  under the settings figure are gone: the counting switch moved into the popup,
+  where a decision rather than a number belongs, and the token's state went
+  entirely, because the popup already says what the token can and cannot do.
+
+- **The dashboard no longer changes shape with the filter.** Narrowing the dates
+  or switching scope used to redraw a different page: the chart disappeared when a
+  range had no whole days in it, the pages card was missing until its answer
+  arrived, a counter with nothing filed under it replaced the entire report with a
+  sentence, and a card with no rows looked nothing like a card with rows. Every
+  range and every scope now draws the same four tiles, the same chart frame and the
+  same eight cards — what changes is the numbers in them. A card with nothing to
+  report carries one `No visitors yet · 0` row, the chart frame stays put with
+  `no visits yet` written in it, a figure with no answer shows `0` in the slot it
+  always occupies, and an empty counter is a note above the report rather than
+  instead of it.
+
+- **The visitor dashboard was the width of a settings card, not of the window.**
+  It rendered from inside the Settings row that opens it, and that row sits in a
+  `.setting-group` carrying a `backdrop-filter` — and an element with one becomes
+  the containing block for `position: fixed` descendants, so a panel asking for
+  the whole window was measured against the card instead. It renders from the app
+  shell now, which neither clips it nor re-bases it, and it starts where the
+  sidebar ends rather than over it: the sidebar keeps its own width (240px open,
+  68px collapsed, and absent in focus mode) and is measured when the panel opens.
+  The shell defers it to idle, so a dashboard most visits never open arrives as
+  its own 25 kB chunk instead of riding along in the first load.
+
+- **The details popup now reads as a report rather than a wall.** It opens with
+  four tiles across the top — everything GoatCounter has ever recorded, the
+  selected range, today, and this month — and every number below them says what it
+  counts ("unique visitors", not pageviews; "visitors each" over the page list).
+  Every card carries a one-line footnote saying what its list is: search engines
+  and referring sites, the country worked out from the request, the language the
+  browser asked for. The referrer rows say what *kind* of referral each one is —
+  referring site, search engine, campaign, or none at all — the way GoatCounter's
+  own dashboard does. The app's own figure is given its denominator too: the same
+  range for the whole GoatCounter site, because one site carries two apps and "12
+  visitors" means something different depending on which of the two it is. Each
+  list is twenty rows deep rather than ten, and a paragraph under the tiles says
+  what a visitor is in GoatCounter's terms: one browser session, counted once per
+  page, with crawlers ignored and ad blockers hiding a visit entirely.
+
+- **The web app can be installed again — its manifest and service worker were
+  404s on the deployed site.** GitHub Pages serves this app from a sub-path
+  (`/deepwork/`), and the three files that make an app installable were written as
+  root-absolute URLs: `/manifest.webmanifest`, `/icons/128x128.png` and `/sw.js`
+  all resolved to the *domain* root, where they are somebody else's 404. With no
+  manifest, Chrome and Edge have nothing to install, which is why no install icon
+  ever appeared in the address bar; the service worker's pre-cache list (`/`,
+  `/manifest.webmanifest`) failed on the same URLs, so the worker never finished
+  installing and offline never worked either. Every one of those paths is relative
+  now — resolved against the `<base href>` the build sets — so the same files work
+  at a domain root (the desktop webview, `ng serve`) and under a sub-path. The
+  manifest's `start_url`, `scope` and icon paths were absolute for the same reason
+  and are relative too, and its `orientation` no longer demands portrait from a
+  desktop-first app. The install instructions now say what each browser actually
+  does, instead of describing a Chromium icon to everybody: Chromium has the
+  address-bar icon, Safari installs from *File → Add to Dock*, and Firefox cannot
+  install a web app at all.
+
+- **The mini widget is always on top, and the always-on-top switch tells the
+  truth.** Three things were wrong. The widget asked to be put on top *before*
+  reshaping and showing itself, so the shape it ended up in was not the shape that
+  was raised; that request is now the last thing done, after the window is on
+  screen. The setting could also be turned *off* while the widget was up — from
+  Settings or from the tray menu — which is the one state a widget cannot be in:
+  the desktop layer now remembers that the window is the widget and will not take
+  it off the top until it is a window again, and the tray's tick follows the
+  window rather than the request. And the switch never checked anything: it
+  reported what it had asked for rather than what the window did, so a desktop
+  that cannot honour the request looked exactly like a switch that worked. The
+  call is now followed by a read-back, and its answer is what the switch and the
+  stored preference follow. That matters most on **Wayland**, where no application
+  may raise its own window — the compositor decides the stacking order, `tao`
+  records the same limitation
+  ([tauri-apps/tao#1134](https://github.com/tauri-apps/tao/issues/1134)) — so the
+  panel disables the switch there and says why, with the way round it:
+  `WAYLAND_DISPLAY=` runs the app through X11/XWayland, where it works.
+
+- **Four window permissions the app was already asking for were missing.** The
+  capability list granted less than the code called: `scale-factor`,
+  `is-maximized`, `current-monitor` and `monitor-from-point` were all refused, and
+  every one of them was swallowed by a `.catch()` — so a maximised window came
+  back from the mini widget un-maximised, and the "fit the restored window inside
+  the monitor that owns it" rescue silently never ran, which is what keeps a
+  window from being restored onto a screen that is no longer there. All four are
+  granted now.
 
 - **A task's Cancel and Create/Save buttons no longer fall below the window when
   the form is long.** The slide panel is exactly one window tall and the form

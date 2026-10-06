@@ -17,11 +17,17 @@ import { WaterReminderService } from '../../core/services/water-reminder.service
 import { formatMillilitres, parseTimeOfDay } from '../../core/utils/water.util';
 import { DesktopPrefsPanelComponent } from '../../shared/components/desktop-prefs-panel/desktop-prefs-panel.component';
 import { LogsPanelComponent } from '../../shared/components/logs-panel/logs-panel.component';
+import { VisitorCounterPanelComponent } from '../../shared/components/visitor-counter-panel/visitor-counter-panel.component';
 import { SettingsFormModel, createSettingsFormDefaults } from '../../shared/models/form.models';
 
 @Component({
   selector: 'app-settings',
-  imports: [FormField, DesktopPrefsPanelComponent, LogsPanelComponent],
+  imports: [
+    FormField,
+    DesktopPrefsPanelComponent,
+    LogsPanelComponent,
+    VisitorCounterPanelComponent,
+  ],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <div class="page-header animate-fade-in">
@@ -389,23 +395,9 @@ import { SettingsFormModel, createSettingsFormDefaults } from '../../shared/mode
         ) {
           <div class="setting-item install-hint-item">
             <span>Install as desktop app</span>
-            <span class="install-hint">
-              Look for the
-              <svg
-                width="13"
-                height="13"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                stroke-width="2"
-                style="display:inline;vertical-align:text-bottom"
-              >
-                <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4" />
-                <polyline points="7,10 12,15 17,10" />
-                <line x1="12" y1="15" x2="12" y2="3" />
-              </svg>
-              icon in the address bar, or open browser menu → <em>Install DeepWork…</em>
-            </span>
+            <!-- The instruction depends on the browser: only Chromium shows an
+                 install icon in the address bar. See InstallService.hint. -->
+            <span class="install-hint">{{ installService.hint }}</span>
           </div>
         }
         @if (installService.isInstalled()) {
@@ -468,6 +460,12 @@ import { SettingsFormModel, createSettingsFormDefaults } from '../../shared/mode
       <!-- Where DeepWork writes down what went wrong, and how to open it -->
       <div class="setting-group">
         <app-logs-panel />
+      </div>
+
+      <!-- Visitors to the web app, and everything GoatCounter knows about them.
+           Web build only: the packaged app has no web address to report. -->
+      <div class="setting-group">
+        <app-visitor-counter-panel />
       </div>
 
       <!-- Shortcuts -->

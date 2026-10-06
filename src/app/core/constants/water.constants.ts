@@ -5,8 +5,9 @@
  * The useful range for each is narrow — a reminder every 6 minutes, a 12 ml
  * glass, a 40 litre target — and a number that has to be typed is a number that
  * can be mistyped, so the app offers the sensible ones and nothing else. The
- * defaults are the middle of each range: 500 ml is a bottle, sixty minutes is
- * the common "a glass an hour" advice, and 2 L is eight glasses of 250 ml.
+ * defaults are the everyday end of each range: 30 ml is a mouthful from the
+ * glass most people have beside them, sixty minutes is the common "a glass an
+ * hour" advice, and 2 L is a day's worth of those.
  *
  * This is a habit nudge, not medical advice; anyone with a reason to drink more
  * or less water is the one who knows their own number.
@@ -42,8 +43,17 @@ export const WATER_AMOUNT_OPTIONS: readonly number[] = [
   30, 50, 70, 90, 100, 150, 200, 250, 300, 400, 500, 750, 1000,
 ];
 
-/** What one drink counts as unless the user says otherwise. */
-export const DEFAULT_WATER_AMOUNT_ML = 500;
+/**
+ * What one drink counts as unless the user says otherwise.
+ *
+ * A mouthful rather than a bottle, deliberately: the tally is easier to keep
+ * honest when the default is the *smallest* thing anyone would call a drink, so
+ * a day of sipping adds up to a real number instead of a handful of guesses at
+ * 500 ml each. Anyone drinking in bigger glasses picks their own size in
+ * Settings, and the target above is unchanged either way — only the count of
+ * drinks it takes to reach it.
+ */
+export const DEFAULT_WATER_AMOUNT_ML = 30;
 
 /** The day's target, in millilitres (2 L ≈ 8 glasses of 250 ml). */
 export const WATER_GOAL_OPTIONS: readonly number[] = [1500, 2000, 2500, 3000];

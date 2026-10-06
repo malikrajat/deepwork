@@ -116,12 +116,12 @@ describe('DbService (browser/localStorage mode)', () => {
     expect(repaired.waterAutoLogWhenMinimized).toBe(DEFAULT_SETTINGS.waterAutoLogWhenMinimized);
   });
 
-  it('starts with the water reminder off', async () => {
+  it('starts with the water reminder on, counting a mouthful', async () => {
     await db.init();
     const s = await db.getSettings();
 
-    expect(s.waterReminders).toBe(false);
-    expect(s.waterAmountMl).toBe(500);
+    expect(s.waterReminders).toBe(true);
+    expect(s.waterAmountMl).toBe(30);
     expect(s.waterGoalMl).toBe(2000);
     // A minimised window is left alone until the user asks otherwise.
     expect(s.waterAutoLogWhenMinimized).toBe(true);

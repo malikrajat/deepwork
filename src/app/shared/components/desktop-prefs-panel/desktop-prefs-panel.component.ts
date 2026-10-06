@@ -24,7 +24,15 @@ import {
   template: `
     @if (title()) {
       <div class="prefs-title">
-        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+        <svg
+          width="15"
+          height="15"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+          aria-hidden="true"
+        >
           <rect x="2" y="4" width="20" height="16" rx="2" />
           <path d="M8 20h8" />
         </svg>
@@ -72,12 +80,20 @@ import {
           [class.on]="prefs.alwaysOnTop()"
           [attr.aria-checked]="prefs.alwaysOnTop()"
           [attr.aria-label]="onTopHelp.heading"
-          [disabled]="disabled()"
+          [disabled]="disabled() || !prefs.alwaysOnTopSupported()"
           (click)="toggleAlwaysOnTop()"
         >
           <span class="knob"></span>
         </button>
       </div>
+
+      @if (!prefs.alwaysOnTopSupported()) {
+        <p class="pref-note">
+          This desktop does not let an app stay above other windows — Wayland leaves the stacking
+          order to the compositor. The mini widget asks for it and the desktop decides; running
+          DeepWork through X11 (<code>WAYLAND_DISPLAY=</code>) makes it work.
+        </p>
+      }
 
       <div class="pref-row">
         <span class="pref-label">
@@ -108,75 +124,127 @@ import {
     }
 
     <p class="pref-footnote">
-      <app-info-tip
-        [heading]="miniHelp.heading"
-        [body]="miniHelp.body"
-        [hint]="miniHelp.hint"
-      />
+      <app-info-tip [heading]="miniHelp.heading" [body]="miniHelp.body" [hint]="miniHelp.hint" />
       <span>Minimising the window turns DeepWork into a mini widget.</span>
     </p>
 
     @if (!prefs.isDesktopApp) {
       <p class="pref-note">
-        These options control your computer, so they are available in the
-        DeepWork desktop app. Everything else works the same here.
+        These options control your computer, so they are available in the DeepWork desktop app.
+        Everything else works the same here.
       </p>
     }
   `,
-  styles: [`
-    :host { display: block; }
-    .prefs-title {
-      display: flex; align-items: center; gap: 8px;
-      font-size: 12px; font-weight: 600; text-transform: uppercase;
-      letter-spacing: 0.08em; color: var(--color-text-muted);
-      margin-bottom: var(--space-md, 16px); padding-bottom: var(--space-sm, 8px);
-      border-bottom: 1px solid var(--glass-border, rgba(255, 255, 255, 0.08));
-    }
-    .prefs-title svg { opacity: 0.5; }
-    .prefs { display: flex; flex-direction: column; }
-    .pref-row {
-      display: flex; justify-content: space-between; align-items: center;
-      gap: 12px; padding: 10px 0;
-      font-size: 14px; color: var(--color-text-secondary);
-      border-bottom: 1px solid var(--glass-border, rgba(255, 255, 255, 0.08));
-    }
-    .pref-row:last-child { border-bottom: none; }
-    .pref-label { display: inline-flex; align-items: center; gap: 7px; }
+  styles: [
+    `
+      :host {
+        display: block;
+      }
+      .prefs-title {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        font-size: 12px;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.08em;
+        color: var(--color-text-muted);
+        margin-bottom: var(--space-md, 16px);
+        padding-bottom: var(--space-sm, 8px);
+        border-bottom: 1px solid var(--glass-border, rgba(255, 255, 255, 0.08));
+      }
+      .prefs-title svg {
+        opacity: 0.5;
+      }
+      .prefs {
+        display: flex;
+        flex-direction: column;
+      }
+      .pref-row {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 12px;
+        padding: 10px 0;
+        font-size: 14px;
+        color: var(--color-text-secondary);
+        border-bottom: 1px solid var(--glass-border, rgba(255, 255, 255, 0.08));
+      }
+      .pref-row:last-child {
+        border-bottom: none;
+      }
+      .pref-label {
+        display: inline-flex;
+        align-items: center;
+        gap: 7px;
+      }
 
-    .switch {
-      flex: 0 0 auto;
-      width: 42px; height: 22px; border-radius: 999px; cursor: pointer; padding: 0;
-      background: rgba(255, 255, 255, 0.1);
-      border: 1px solid var(--glass-border, rgba(255, 255, 255, 0.08));
-      position: relative; transition: background 0.2s, border-color 0.2s;
-    }
-    .switch .knob {
-      position: absolute; top: 2px; left: 2px; width: 16px; height: 16px;
-      border-radius: 50%; background: var(--color-text-muted, #a1a1aa);
-      transition: transform 0.2s, background 0.2s;
-    }
-    .switch.on {
-      background: rgba(139, 92, 246, 0.35);
-      border-color: rgba(139, 92, 246, 0.6);
-    }
-    .switch.on .knob { transform: translateX(20px); background: #ede9fe; }
-    .switch:disabled { opacity: 0.45; cursor: not-allowed; }
-    .switch:focus-visible { outline: 2px solid rgba(139, 92, 246, 0.8); outline-offset: 2px; }
+      .switch {
+        flex: 0 0 auto;
+        width: 42px;
+        height: 22px;
+        border-radius: 999px;
+        cursor: pointer;
+        padding: 0;
+        background: rgba(255, 255, 255, 0.1);
+        border: 1px solid var(--glass-border, rgba(255, 255, 255, 0.08));
+        position: relative;
+        transition:
+          background 0.2s,
+          border-color 0.2s;
+      }
+      .switch .knob {
+        position: absolute;
+        top: 2px;
+        left: 2px;
+        width: 16px;
+        height: 16px;
+        border-radius: 50%;
+        background: var(--color-text-muted, #a1a1aa);
+        transition:
+          transform 0.2s,
+          background 0.2s;
+      }
+      .switch.on {
+        background: rgba(139, 92, 246, 0.35);
+        border-color: rgba(139, 92, 246, 0.6);
+      }
+      .switch.on .knob {
+        transform: translateX(20px);
+        background: #ede9fe;
+      }
+      .switch:disabled {
+        opacity: 0.45;
+        cursor: not-allowed;
+      }
+      .switch:focus-visible {
+        outline: 2px solid rgba(139, 92, 246, 0.8);
+        outline-offset: 2px;
+      }
 
-    .pref-error {
-      margin: 10px 0 0; font-size: 12px; line-height: 1.45;
-      color: #fca5a5;
-    }
-    .pref-footnote {
-      display: flex; align-items: center; gap: 7px;
-      margin: 12px 0 0; font-size: 12px; line-height: 1.45;
-      color: var(--color-text-muted, #a1a1aa);
-    }
-    .pref-note {
-      margin: 10px 0 0; font-size: 12px; line-height: 1.5;
-      color: var(--color-text-muted, #a1a1aa);
-    }
-  `],
+      .pref-error {
+        margin: 10px 0 0;
+        font-size: 12px;
+        line-height: 1.45;
+        color: #fca5a5;
+      }
+      .pref-footnote {
+        display: flex;
+        align-items: center;
+        gap: 7px;
+        margin: 12px 0 0;
+        font-size: 12px;
+        line-height: 1.45;
+        color: var(--color-text-muted, #a1a1aa);
+      }
+      .pref-note {
+        margin: 10px 0 0;
+        font-size: 12px;
+        line-height: 1.5;
+        color: var(--color-text-muted, #a1a1aa);
+      }
+    `,
+  ],
 })
 export class DesktopPrefsPanelComponent {
   /** Optional card heading; omit for a bare list of switches. */

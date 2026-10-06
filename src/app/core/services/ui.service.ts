@@ -98,7 +98,7 @@ export class UiService {
   }
 
   toggleFocusMode(): void {
-    this.focusMode.update(v => !v);
+    this.focusMode.update((v) => !v);
   }
 
   enterFocusMode(): void {
@@ -120,9 +120,7 @@ export class UiService {
    * buttons of its own. The expand arrow inside it (or Esc) is the way back, and
    * dragging it anywhere moves the whole window.
    */
-  async enterMiniMode(
-    options: { wasMinimized?: boolean } = {}
-  ): Promise<void> {
+  async enterMiniMode(options: { wasMinimized?: boolean } = {}): Promise<void> {
     this.isMiniMode.set(true);
     // The window is transparent, so the page behind the widget has to be too —
     // that is what makes the rounded corners empty instead of square.
@@ -153,15 +151,19 @@ export class UiService {
       await win.setResizable(false);
       await win.setDecorations(false);
       await win.setSize(new LogicalSize(WIDGET_SIZE.width, WIDGET_SIZE.height));
-      // A widget is on top by nature, whatever the main-window preference is.
-      await win.setAlwaysOnTop(true);
-      // Last, because reshaping the window is what puts the frame back: the
-      // widget's surface fills the window, and the border Windows draws around
-      // it is repainted in that same colour — see `paintWidgetFrame`.
-      await this.paintWidgetFrame(true);
 
       if (wasMinimized) {
         await win.show();
+      }
+
+      // Last, and after the window is on screen: the widget's frame and its
+      // always-on-top are applied together, and nothing runs after this that
+      // could undo either one. `setWidgetMode` is also where the window is
+      // *told* it is the widget, which is what keeps it on top afterwards —
+      // including when the Settings switch is turned off while it is up.
+      await this.setWidgetMode(true);
+
+      if (wasMinimized) {
         await win.setFocus();
       }
     } catch (e) {
@@ -225,17 +227,17 @@ export class UiService {
       await win.setSize(new PhysicalSize(fit.size.width, fit.size.height));
       await win.setPosition(new PhysicalPosition(fit.position.x, fit.position.y));
 
-      await win.setMinSize(
-        new LogicalSize(MAIN_MIN_SIZE.width, MAIN_MIN_SIZE.height)
-      );
+      await win.setMinSize(new LogicalSize(MAIN_MIN_SIZE.width, MAIN_MIN_SIZE.height));
 
       // A window that was maximised when it shrank goes back maximised: the fit
       // above has already put it where the OS expects to un-maximise it to.
       if (this.savedMaximized) await win.maximize();
 
       // The widget is over: the window's own border belongs to Windows again,
-      // rather than to the widget's surface colour.
-      await this.paintWidgetFrame(false);
+      // rather than to the widget's surface colour — and it stops being a widget
+      // to the desktop layer, which is what lets the user's own always-on-top
+      // choice apply to it again below.
+      await this.setWidgetMode(false);
 
       // Hand the window back with the user's own always-on-top choice applied,
       // instead of assuming "off".
@@ -286,24 +288,24 @@ export class UiService {
   }
 
   /**
-   * Tells the desktop shell to take the window's own border away — or give it
-   * back.
+   * Tells the desktop shell that the window is — or is no longer — the widget.
    *
-   * Windows keeps a hairline border around every top-level window — a
-   * decoration-less, transparent one included — and colours it from the system,
+   * Windows keeps a hairline border around every top-level window, a
+   * decoration-less, transparent one included, and colours it from the system,
    * which around a 136x76 widget reads as a white line the app never drew, on all
-   * four sides. `window_paint_widget_frame` removes the band the border lives in
-   * and tells Windows 11 to draw no border at all, and hands both back on the way
-   * out — so the widget has no frame of any kind, and the full window keeps the
-   * one it always had.
+   * four sides. `window_set_widget_mode` removes the band the border lives in and
+   * tells Windows 11 to draw no border at all — and, in the same call, puts the
+   * widget on top and keeps it there: a widget is the one shape of this app with
+   * nowhere else to be. Leaving hands both back, so the full window keeps the
+   * frame it always had and the always-on-top the user chose.
    *
    * Best effort: a border that cannot be repainted is a cosmetic loss, never a
    * reason to leave the widget half-built, so the failure is logged and dropped.
    */
-  private async paintWidgetFrame(widget: boolean): Promise<void> {
+  private async setWidgetMode(widget: boolean): Promise<void> {
     try {
       const { invoke } = await import('@tauri-apps/api/core');
-      await invoke('window_paint_widget_frame', { widget });
+      await invoke('window_set_widget_mode', { widget });
     } catch (e) {
       console.warn('Tauri window API unavailable', e);
     }
@@ -321,7 +323,7 @@ export class UiService {
     if (typeof document === 'undefined') return;
     document.documentElement.classList.toggle(
       'widget-transparent',
-      transparent && this.widgetWindowIsTransparent
+      transparent && this.widgetWindowIsTransparent,
     );
   }
 
@@ -342,7 +344,8 @@ export class UiService {
   private async captureGeometry(win: TauriWindow): Promise<void> {
     const size = await win.outerSize();
     const position = await win.outerPosition();
-    const looksLikeMainWindow = size.width >= MAIN_MIN_SIZE.width && size.height >= MAIN_MIN_SIZE.height;
+    const looksLikeMainWindow =
+      size.width >= MAIN_MIN_SIZE.width && size.height >= MAIN_MIN_SIZE.height;
     const usablePosition = position.x > -20_000 && position.y > -20_000;
     if (looksLikeMainWindow && usablePosition) {
       this.savedSize = { width: size.width, height: size.height };
@@ -350,5 +353,4 @@ export class UiService {
       this.savedMaximized = await win.isMaximized().catch(() => false);
     }
   }
-
 }

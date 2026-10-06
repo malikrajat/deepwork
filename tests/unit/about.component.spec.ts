@@ -9,7 +9,7 @@ import {
   APP_WEB_APP_URL,
 } from '../../src/app/core/constants/app-info.constants';
 import { DEVELOPER } from '../../src/app/core/constants/about.constants';
-import type { ReleaseInfo } from '../../src/app/core/models/update.model';
+import type { ReleaseAsset, ReleaseInfo } from '../../src/app/core/models/update.model';
 
 /**
  * The About page has one job per tab: introduce the developer so somebody can
@@ -64,7 +64,10 @@ function signalLike<T>(value: T) {
  * The in-app installer, as the About page sees it.
  *
  * `isDesktopApp` is the one part worth setting per test: it decides whether the
- * page offers to install the update itself or only to download it.
+ * page offers to install the update itself or only to download it. The two
+ * assets are what the page's buttons read — `installAsset` is null whenever the
+ * release carries nothing the app can run for this machine, which is what turns
+ * "Update now" into a plain download.
  */
 function fakePrompt(overrides: Record<string, unknown> = {}) {
   return {
@@ -74,6 +77,8 @@ function fakePrompt(overrides: Record<string, unknown> = {}) {
     percent: signalLike(0),
     error: signalLike<string | null>(null),
     note: signalLike<string | null>(null),
+    installAsset: signalLike<ReleaseAsset | null>(release.assets[0]),
+    downloadAsset: signalLike<ReleaseAsset | null>(release.assets[0]),
     install: vi.fn(),
     dismiss: vi.fn(),
     ...overrides,

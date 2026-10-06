@@ -26,24 +26,10 @@ import { InstallService } from '../../../core/services/install.service';
               Install <strong>DeepWork</strong> as an app for faster access and full offline use
             </span>
           } @else {
-            <span class="banner-text">
-              Install <strong>DeepWork</strong> as an app — click the
-              <svg
-                class="inline-icon"
-                width="14"
-                height="14"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                stroke-width="2"
-              >
-                <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4" />
-                <polyline points="7,10 12,15 17,10" />
-                <line x1="12" y1="15" x2="12" y2="3" />
-              </svg>
-              icon in your browser's address bar, or open browser menu →
-              <strong>Install DeepWork…</strong>
-            </span>
+            <!-- One sentence from InstallService, because how to install
+                 depends on the browser: Chromium has an address-bar icon,
+                 Safari installs from its File menu, and Firefox cannot. -->
+            <span class="banner-text">{{ install.hint }}</span>
           }
         </div>
         <div class="banner-actions">

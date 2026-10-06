@@ -103,9 +103,11 @@ export const DEFAULT_SETTINGS: AppSettings = {
   startWithSystem: false,
   alwaysOnTop: false,
   desktopPrefsPrompted: false,
-  // Off by default: a reminder is something the user asks for, never something
-  // the app starts doing to them.
-  waterReminders: false,
+  // On by default: the nudge is what the feature is for, and it asks rather than
+  // announces — a card that waits for Yes or Not now, inside working hours, on
+  // the notification sound the user already chose. Anyone who does not want it
+  // turns it off, which stops the reminders and the tally with them.
+  waterReminders: true,
   waterStart: DEFAULT_WATER_START,
   waterEnd: DEFAULT_WATER_END,
   waterIntervalMinutes: DEFAULT_WATER_INTERVAL_MINUTES,

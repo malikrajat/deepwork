@@ -98,7 +98,7 @@ If a release publishes a SHA-256 checksum, compare it before installing — `Get
 | **Analytics** | Focus, task, habit and journal figures with trends and streaks, plus a plain-language reading of each one. The "what should I change?" half, not only the charts.                                                                                        |
 | **Habits**    | Daily habits with the current streak, the personal best and a check-in strip per habit.                                                                                                                                                                  |
 | **Journal**   | Dated entries with word counts, a weekly words chart — and the writing-versus-focus correlation, surfaced on Analytics.                                                                                                                                  |
-| **Settings**  | Timer lengths, notification sound and repeat interval, alert shake length, water reminder, desktop behaviour, logs and diagnostics, JSON backup export/import.                                                                                           |
+| **Settings**  | Timer lengths, notification sound and repeat interval, alert shake length, water reminder, desktop behaviour, logs and diagnostics, JSON backup export/import, and the web build's visitor counter with its details popup.                                                                                                                                                  |
 | **About**     | Who builds this, how to get in touch, the update check, and the download rows for other devices.                                                                                                                                                         |
 
 Two things this app does that are worth calling out because they are unusual:
@@ -124,7 +124,15 @@ Two things this app does that are worth calling out because they are unusual:
 2. **An installer download**, only when you press **Update**. The request is made by Rust with `curl` ([`updates.rs`](src-tauri/src/updates.rs)), only `https` links to `github.com` are accepted, and only a file the app itself wrote to its own temp folder can be started.
 3. **Links you click**, opened in your real browser ([`opener.rs`](src-tauri/src/opener.rs)) — `http`, `https` and `mailto` only, control characters refused.
 
-There is no telemetry, no analytics service, no crash reporting service and no font CDN. Inter and JetBrains Mono travel inside the app (`src/fonts`, SIL OFL 1.1, licences in `public/fonts`), so it looks like itself offline or behind a proxy.
+**In the browser build only, a visitor counter.** The web app counts visits with [GoatCounter](https://www.goatcounter.com/) — the same counter that runs on [rajatmalik.dev](https://rajatmalik.dev/) — so "is anybody actually using this?" has an answer without DeepWork having a server of its own. It is the one thing in this app that talks to a third party, and it is bounded:
+
+- **The desktop app is never counted.** It is served from your own disk and has no web address to report; the settings row says exactly that rather than showing a figure.
+- **You can switch it off.** **Count my visits**, under the report in `Settings → Visitor Counter → Details`, on by default. With it off the script is never fetched at all, so nothing leaves the machine.
+- **It sends the page, not your work.** The path (`/deepwork/tasks`), the page title, the referrer, and the browser's own screen width, language and time zone — never a task, a journal entry, a habit or any identifier. GoatCounter stores no IP address and sets no cookie of its own for this: a visitor is a derived session rather than a person being followed, which is why it needs no consent banner ([its GDPR note](https://www.goatcounter.com/gdpr) explains that).
+
+`Settings → Visitor Counter → Details` opens what GoatCounter holds (visitors over a chosen range, pages, referrers, browsers, systems, countries, languages, screen sizes and campaigns) and, underneath, what the page can see about the person reading it. The aggregate lists come from GoatCounter's JSON API, which needs an API token: make one at `rajatmalik.goatcounter.com/user/api` with only **Read statistics** ticked, and paste it into the popup. It stays in that browser's `localStorage` — not in the source, not in `deepwork.db`, and not in an export.
+
+Beyond that counter there is no telemetry, no analytics service, no crash reporting service and no font CDN. Inter and JetBrains Mono travel inside the app (`src/fonts`, SIL OFL 1.1, licences in `public/fonts`), so it looks like itself offline or behind a proxy.
 
 ## Behaviour worth knowing
 
@@ -136,7 +144,7 @@ Short versions of the things that surprise people. Each is real behaviour, not a
 
 **Ticking a task off** raises a card with a third list of twenty-four lines. It deliberately makes no sound and does not repeat: a task gets ticked off dozens of times a day.
 
-**The water reminder** asks rather than announces. It only fires inside your working hours, waits a full interval after you switch it on, holds the cadence while a question is unanswered, and starts again from your answer. Its clock counts only time the app is running, so a closed laptop does not owe you a queue of missed reminders. **While minimised** it rings and logs the glass instead of pulling the full window over your work — that is a setting, on by default.
+**The water reminder** asks rather than announces, and is **on by default** — a nudge is the whole point of the feature, and it asks a question rather than announcing a fact, so saying no is one click. It only fires inside your working hours, waits a full interval after you switch it on, holds the cadence while a question is unanswered, and starts again from your answer. Its clock counts only time the app is running, so a closed laptop does not owe you a queue of missed reminders. One drink counts as **30 ml** unless you pick another size — the smallest thing anyone would call a drink, so a day of sipping adds up honestly. **While minimised** it rings and logs the drink instead of pulling the full window over your work — that is a setting, on by default.
 
 **Unfinished work** is handled by a policy you choose: carry yesterday's open tasks forward (the default), or let them close themselves when their day passes.
 
@@ -186,12 +194,16 @@ The dev server runs on **4999**, not 4200 — that is the port [`tauri.conf.json
 
 Tauri does **not** cross-compile: build each platform on that platform, or let CI do it.
 
-| Platform      | Command                 | Where the artefacts land                                                                                                                                                                                                         |
-| ------------- | ----------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Windows       | `npm run build:windows` | `src-tauri/target/x86_64-pc-windows-msvc/release/bundle/msi/DeepWork_2.0.17_x64_en-US.msi` and `bundle/nsis/DeepWork_2.0.17_x64-setup.exe`; the bare binary is at `src-tauri/target/x86_64-pc-windows-msvc/release/deepwork.exe` |
-| macOS (Intel) | `npm run build:mac`     | `src-tauri/target/x86_64-apple-darwin/release/bundle/` — `macos/DeepWork.app` and a `.dmg` whose name carries the version                                                                                                        |
-| macOS (ARM)   | `npm run build:mac-arm` | `src-tauri/target/aarch64-apple-darwin/release/bundle/` (run `rustup target add aarch64-apple-darwin` once)                                                                                                                      |
-| Linux         | `npm run build:linux`   | `src-tauri/target/x86_64-unknown-linux-gnu/release/bundle/` — `.deb`, `.rpm` and `.AppImage`                                                                                                                                     |
+| Platform         | Command                   | Where the artefacts land                                                                                                                                                                                                         |
+| ---------------- | ------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Windows (64-bit) | `npm run build:windows`   | `src-tauri/target/x86_64-pc-windows-msvc/release/bundle/msi/DeepWork_2.0.19_x64_en-US.msi` and `bundle/nsis/DeepWork_2.0.19_x64-setup.exe`; the bare binary is at `src-tauri/target/x86_64-pc-windows-msvc/release/deepwork.exe` |
+| Windows (32-bit) | `npm run build:windows32` | `src-tauri/target/i686-pc-windows-msvc/release/bundle/` — the same two installers, named `…_x86` (run `rustup target add i686-pc-windows-msvc` once)                                                                               |
+| macOS (Intel)    | `npm run build:mac`       | `src-tauri/target/x86_64-apple-darwin/release/bundle/` — `macos/DeepWork.app` and a `.dmg` whose name carries the version                                                                                                        |
+| macOS (ARM)      | `npm run build:mac-arm`   | `src-tauri/target/aarch64-apple-darwin/release/bundle/` (run `rustup target add aarch64-apple-darwin` once)                                                                                                                      |
+| Linux (64-bit)   | `npm run build:linux`     | `src-tauri/target/x86_64-unknown-linux-gnu/release/bundle/` — `.deb`, `.rpm` and `.AppImage`                                                                                                                                     |
+| Linux (32-bit)   | `npm run build:linux32`   | `src-tauri/target/i686-unknown-linux-gnu/release/bundle/` — the same three, and it needs the **i386** WebKitGTK/GTK development packages installed rather than the host's                                                       |
+
+There is no 32-bit macOS build: Apple removed 32-bit application support in macOS 10.15.
 
 Because the build names the target triple, artefacts sit under `target/<triple>/release/bundle/`, not directly under `target/release/`. The exact file names carry the current version.
 
@@ -217,7 +229,7 @@ npm run verify          # lint + tests + build in one go
 
 Coverage is measured over **every** file in `src/app`, whether or not a test imports it, so the percentage cannot be raised by leaving files out. What is left below 90% is the pages and the browser shell, which the Playwright suite is meant to cover instead. Run `npm run coverage:summary` for the current numbers rather than trusting a figure written in a document.
 
-**CI** (`.github/workflows/`) runs on every PR and every push to `main`:
+**CI** (`.github/workflows/`) runs for `main` only — a push to any other branch starts no run, and a pull request shows no checks. The one exception is a `v*` tag, which is not a branch and is what publishes a release:
 
 | Job                                     | Runs                                                                                                                                                                                                                            |
 | --------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -226,7 +238,7 @@ Coverage is measured over **every** file in `src/app`, whether or not a test imp
 | **Unit tests (Vitest)**                 | `npm run test:coverage` + `npm run coverage:summary`                                                                                                                                                                            |
 | **Build (ng build)**                    | `npm run build`                                                                                                                                                                                                                 |
 | **E2E (Playwright)** — _advisory_       | `npm run e2e`, and it reports rather than blocks: a set of expectations still describes pre-refactor screens (the removed dictation panel, the old analytics cards, the matrix panels, the habits calendar, the sidebar labels) |
-| **Installer (Windows / Linux / macOS)** | `npm run tauri:build` per OS, after lint, test and build — on pushes to `main`, tags and manual runs, not on PRs                                                                                                                |
+| **Installer (Windows / Linux / macOS)** | pm run tauri:build per OS, after lint, test and build — on every push to main and on a * tag                                                                                                                                   |
 | **Desktop format**                      | `cargo fmt --check`                                                                                                                                                                                                             |
 
 `deploy.yml` builds the web app with `npm run build:github` and publishes `dist/deepwork/browser` to GitHub Pages on every push to `main`.
@@ -257,6 +269,7 @@ A short map for the changes people actually want to make:
 | The five log files and what goes in them          | `src/app/core/services/log.service.ts` and `src-tauri/src/logging.rs`                                              |
 | Installer metadata, window size, bundle targets   | [`src-tauri/tauri.conf.json`](src-tauri/tauri.conf.json)                                                           |
 | The version number, everywhere it is written down | `npm run version:bump -- x.y.z` (see below) — never by hand                                                        |
+| Where the visitor counter sends its data          | [`visitor.constants.ts`](src/app/core/constants/visitor.constants.ts) — the GoatCounter site, the path prefix, the pinned script |
 
 Documentation index: [`docs/INDEX.md`](docs/INDEX.md) — every guidance file in the repository, including [`docs/angular-best-practices.md`](docs/angular-best-practices.md) and [`docs/memory-footprint.md`](docs/memory-footprint.md).
 

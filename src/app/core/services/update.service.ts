@@ -22,6 +22,17 @@ const CHECK_INTERVAL_MS = 6 * 60 * 60 * 1000;
 /** A request that never answers must not leave the card spinning forever. */
 const REQUEST_TIMEOUT_MS = 10_000;
 
+/**
+ * How long to wait before asking again after a check that could not answer.
+ *
+ * One retry, once, and only for a check nobody asked for. A laptop that opens
+ * the app before its Wi-Fi is up would otherwise go a whole session with no
+ * update pill and no prompt — the two things the user notices — over a failure
+ * that clears itself in seconds. A check the user asked for is never repeated:
+ * they are looking at the answer, and the button is right there.
+ */
+const RETRY_DELAY_MS = 90_000;
+
 /** Releases fetched per check, newest first. */
 const RELEASES_PER_PAGE = 10;
 
@@ -108,6 +119,12 @@ export class UpdateService {
   /** Prevents two checks running at once (a click during the startup check). */
   private inFlight: Promise<void> | null = null;
 
+  /** Whether the one startup retry has been spent, so a failure cannot loop. */
+  private retried = false;
+
+  /** The pending retry, so a later check can cancel it. */
+  private retryTimer: ReturnType<typeof setTimeout> | null = null;
+
   /**
    * The quiet check: uses a stored answer when it is fresh, and otherwise asks
    * GitHub in the background. Called once as the app starts, never awaited, so
@@ -115,7 +132,9 @@ export class UpdateService {
    *
    * Returns when the answer is known — from the cache immediately, or from
    * GitHub — which is what lets the update prompt announce a release as soon as
-   * it has been read.
+   * it has been read. A check that fails gets one more try later, because a
+   * machine that was briefly offline at launch should not lose the notice for
+   * the rest of the day.
    */
   async start(): Promise<void> {
     const cached = this.readCache();
@@ -124,6 +143,7 @@ export class UpdateService {
       if (Date.now() - Date.parse(cached.checkedAt) < CHECK_INTERVAL_MS) return;
     }
     await this.check({ silent: cached !== null });
+    this.scheduleRetry();
   }
 
   /**
@@ -133,12 +153,42 @@ export class UpdateService {
    * there is already an answer on screen to read.
    */
   async check(options: { silent?: boolean } = {}): Promise<void> {
+    // A user who asks is a user who is watching: the automatic retry has either
+    // already happened or is no longer wanted.
+    this.cancelRetry();
+
     if (this.inFlight) return this.inFlight;
 
     this.inFlight = this.runCheck(options).finally(() => {
       this.inFlight = null;
     });
     return this.inFlight;
+  }
+
+  /**
+   * Queues the single retry a failed startup check is worth.
+   *
+   * Only when nothing has been read: a stored release is already an answer, and
+   * a second request would spend the machine's rate limit for a fresher copy of
+   * something the user can already see.
+   */
+  private scheduleRetry(): void {
+    if (this.retried || this.status() !== 'unavailable' || this.latest()) return;
+
+    this.retried = true;
+    this.retryTimer = setTimeout(() => {
+      this.retryTimer = null;
+      void this.check({ silent: true });
+    }, RETRY_DELAY_MS);
+    // A pending retry is not a reason for the process to stay alive.
+    (this.retryTimer as unknown as { unref?: () => void }).unref?.();
+  }
+
+  /** Drops a queued retry: the answer is being asked for directly instead. */
+  private cancelRetry(): void {
+    if (!this.retryTimer) return;
+    clearTimeout(this.retryTimer);
+    this.retryTimer = null;
   }
 
   private async runCheck({ silent = false }: { silent?: boolean }): Promise<void> {

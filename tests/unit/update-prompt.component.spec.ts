@@ -12,6 +12,12 @@ import { UpdatePromptService } from '../../src/app/core/services/update-prompt.s
 
 /** The parts of the prompt service the card reads, all live signals. */
 function fakePrompt(overrides: Record<string, unknown> = {}) {
+  const setup = {
+    name: 'DeepWork_2.1.0_x64-setup.exe',
+    size: 2_072_863,
+    downloadUrl: 'https://example.com/setup.exe',
+  };
+
   return {
     visible: signal(true),
     version: signal<string | null>('v2.1.0'),
@@ -21,11 +27,8 @@ function fakePrompt(overrides: Record<string, unknown> = {}) {
     error: signal<string | null>(null),
     note: signal<string | null>(null),
     isDesktopApp: true,
-    asset: signal<{ name: string; size: number; downloadUrl: string } | null>({
-      name: 'DeepWork_2.1.0_x64-setup.exe',
-      size: 2_072_863,
-      downloadUrl: 'https://example.com/setup.exe',
-    }),
+    installAsset: signal<{ name: string; size: number; downloadUrl: string } | null>(setup),
+    downloadAsset: signal<{ name: string; size: number; downloadUrl: string } | null>(setup),
     releasesUrl: 'https://github.com/malikrajat/deepwork/releases',
     install: vi.fn().mockResolvedValue(undefined),
     dismiss: vi.fn(),
@@ -100,9 +103,33 @@ describe('UpdatePromptComponent', () => {
     expect(link?.textContent?.trim()).toBe('Download');
   });
 
-  it('falls back to the release page when the release carries no installer', () => {
-    const prompt = fakePrompt();
-    prompt.asset.set(null);
+  it('offers the portable build as a download and says why it is not an update', () => {
+    // A release with no setup in it: no Update button, and a Download that goes
+    // to the portable archive rather than nowhere.
+    const portable = {
+      name: 'deepwork-windows-x64.zip',
+      size: 9_341_896,
+      downloadUrl: 'https://example.com/deepwork-windows-x64.zip',
+    };
+    const prompt = fakePrompt({
+      installAsset: signal(null),
+      downloadAsset: signal(portable),
+    });
+
+    const fixture = mount(prompt);
+    const element = fixture.nativeElement as HTMLElement;
+    const link = element.querySelector<HTMLAnchorElement>('a.prompt-btn.primary');
+
+    expect(element.querySelector('.prompt-btn.primary')?.textContent?.trim()).toBe('Download');
+    expect(link?.getAttribute('href')).toBe('https://example.com/deepwork-windows-x64.zip');
+    expect(element.querySelector('.prompt-detail')?.textContent).toContain('no installer');
+  });
+
+  it('falls back to the release page when the release carries no file at all', () => {
+    const prompt = fakePrompt({
+      installAsset: signal(null),
+      downloadAsset: signal(null),
+    });
 
     const fixture = mount(prompt);
     const link = (fixture.nativeElement as HTMLElement).querySelector<HTMLAnchorElement>(
@@ -152,15 +179,16 @@ describe('UpdatePromptComponent', () => {
     ).toBe(true);
   });
 
-  it('lets the user wave the update away', () => {
+  it('lets the user ask to be reminded later', () => {
     const prompt = fakePrompt();
 
     const fixture = mount(prompt);
     const later = Array.from(
       (fixture.nativeElement as HTMLElement).querySelectorAll<HTMLButtonElement>('.prompt-btn'),
-    ).find((button) => button.textContent?.trim() === 'Later');
+    ).find((button) => button.textContent?.trim() === 'Remind me later');
     later?.click();
 
     expect(prompt.dismiss).toHaveBeenCalledTimes(1);
+    expect(later?.getAttribute('title')).toContain('comes back');
   });
 });

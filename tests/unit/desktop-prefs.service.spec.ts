@@ -17,6 +17,37 @@ const hoisted = vi.hoisted(() => {
 
 vi.mock('@tauri-apps/api/core', () => ({ invoke: hoisted.invoke }));
 
+/**
+ * A window that remembers the flag it was given, so the read-back answers for
+ * real: `setAlwaysOnTop` asks the window what happened rather than trusting the
+ * request, because a desktop that cannot honour it (Wayland) accepts the call and
+ * does nothing.
+ */
+let windowOnTop = false;
+let onTopSupported = true;
+let windowOnTopRefuses = false;
+
+function fakeWindow(): void {
+  windowOnTop = false;
+  onTopSupported = true;
+  windowOnTopRefuses = false;
+  hoisted.invoke.mockImplementation((cmd: string, args?: Record<string, unknown>) => {
+    switch (cmd) {
+      case 'autostart_is_enabled':
+        return Promise.resolve(false);
+      case 'window_always_on_top_supported':
+        return Promise.resolve(onTopSupported);
+      case 'window_set_always_on_top':
+        if (!windowOnTopRefuses) windowOnTop = Boolean(args?.['enabled']);
+        return Promise.resolve(undefined);
+      case 'window_is_always_on_top':
+        return Promise.resolve(windowOnTop);
+      default:
+        return Promise.resolve(undefined);
+    }
+  });
+}
+
 const makeMockDb = () => ({
   init: vi.fn().mockResolvedValue(undefined),
 });
@@ -52,10 +83,9 @@ describe('DesktopPrefsService (desktop shell)', () => {
 
   beforeEach(() => {
     hoisted.invoke.mockReset();
-    // Default: the OS reports "startup off", and any window call succeeds.
-    hoisted.invoke.mockImplementation((cmd: string) =>
-      Promise.resolve(cmd === 'autostart_is_enabled' ? false : undefined)
-    );
+    // Default: the OS reports "startup off", the window remembers what it is
+    // told, and this desktop can keep a window on top.
+    fakeWindow();
   });
 
   afterEach(() => TestBed.resetTestingModule());
@@ -74,7 +104,7 @@ describe('DesktopPrefsService (desktop shell)', () => {
 
   it('init() reads the real autostart state from the OS', async () => {
     hoisted.invoke.mockImplementation((cmd: string) =>
-      Promise.resolve(cmd === 'autostart_is_enabled' ? true : undefined)
+      Promise.resolve(cmd === 'autostart_is_enabled' ? true : undefined),
     );
     setup();
 
@@ -293,7 +323,7 @@ describe('DesktopPrefsService (desktop shell)', () => {
     hoisted.invoke.mockImplementation((cmd: string) =>
       cmd === 'autostart_is_enabled'
         ? Promise.reject(new Error('registry unavailable'))
-        : Promise.resolve(undefined)
+        : Promise.resolve(undefined),
     );
     setup();
 
@@ -310,7 +340,7 @@ describe('DesktopPrefsService (desktop shell)', () => {
     hoisted.invoke.mockImplementation((cmd: string) =>
       cmd === 'window_set_always_on_top'
         ? Promise.reject(new Error('no window'))
-        : Promise.resolve(false)
+        : Promise.resolve(false),
     );
     setup({ alwaysOnTop: true });
 
@@ -318,5 +348,52 @@ describe('DesktopPrefsService (desktop shell)', () => {
 
     expect(svc.ready()).toBe(true);
     expect(svc.error()).toBe('no window');
+  });
+
+  it('says the desktop does not allow always-on-top where it cannot', async () => {
+    onTopSupported = false;
+    setup();
+
+    await svc.init();
+
+    expect(svc.alwaysOnTopSupported()).toBe(false);
+  });
+
+  it('reports a refusal rather than claiming the window is on top', async () => {
+    // Wayland: the call is accepted and the window does not move. Trusting the
+    // request would leave the switch saying "on" about a window that is not.
+    onTopSupported = false;
+    windowOnTopRefuses = true;
+    setup();
+    await svc.init();
+
+    await svc.setAlwaysOnTop(true);
+
+    expect(hoisted.invoke).toHaveBeenCalledWith('window_set_always_on_top', { enabled: true });
+    expect(svc.alwaysOnTop()).toBe(false);
+    expect(svc.error()).toContain('Wayland');
+  });
+
+  it('does not store a preference the desktop is not honouring', async () => {
+    windowOnTopRefuses = true;
+    setup();
+
+    await svc.setAlwaysOnTop(true);
+
+    expect(svc.alwaysOnTop()).toBe(false);
+    expect(settings.saveSettings).not.toHaveBeenCalled();
+  });
+
+  it('keeps the switch on what the window reports after the widget lets go', async () => {
+    // The widget holds the window on top while it is open; leaving hands the
+    // user's own preference back, and the switch follows the window.
+    setup({ alwaysOnTop: true });
+    await svc.init();
+    windowOnTop = false;
+
+    await svc.reapplyAlwaysOnTop();
+
+    expect(svc.alwaysOnTop()).toBe(true);
+    expect(hoisted.invoke).toHaveBeenCalledWith('window_set_always_on_top', { enabled: true });
   });
 });

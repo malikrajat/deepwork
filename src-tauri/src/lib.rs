@@ -54,6 +54,253 @@ fn window_keeps_running(window: &tauri::Window) -> bool {
         .unwrap_or(true)
 }
 
+/// True while the window is showing as the mini widget.
+///
+/// A widget is on top by nature, and that has to hold against *every* path that
+/// could take it off: the Settings switch, the tray's own check box, and the
+/// stored preference being re-applied as the window changes shape. One flag is
+/// what turns "the widget is put on top when it opens" into a guarantee — see
+/// `apply_always_on_top`.
+struct WidgetMode(AtomicBool);
+
+/// Puts the window above the others — or not, except that the widget is never
+/// allowed to be anything but on top.
+///
+/// The main window's always-on-top is the user's to choose and is remembered
+/// separately, so switching it off while the widget is up means "off when the
+/// window comes back" rather than "off now": the widget is the one shape of this
+/// app that has nowhere else to be.
+///
+/// The desktop layer's own `set_always_on_top` is deliberately not what this
+/// calls — see [`set_topmost_native`] for why the flag has to be written
+/// straight to the OS, and [`TopmostKeeper`] for what keeps it written.
+fn apply_always_on_top(window: &WebviewWindow, enabled: bool) -> Result<(), String> {
+    let widget = window
+        .try_state::<WidgetMode>()
+        .map(|mode| mode.0.load(Ordering::Relaxed))
+        .unwrap_or(false);
+    let wanted = enabled || widget;
+
+    set_topmost_native(window, wanted)?;
+
+    // The keeper is what makes the answer to "always on top" survive the rest of
+    // the session rather than only the next few seconds: it re-asserts the flag
+    // whenever the window is found without it.
+    if let Some(keeper) = window.try_state::<TopmostKeeper>() {
+        keeper.set_desired(wanted);
+    }
+
+    Ok(())
+}
+
+/// Writes the topmost flag straight to the operating system.
+///
+/// The desktop layer keeps the flag in a struct of its own and only calls
+/// `SetWindowPos` when that struct *changes* — which makes it the wrong tool for
+/// this job twice over. It does nothing at all when its cached idea already
+/// matches the request, so the one call that would repair a window Windows has
+/// dropped from the top of the z-order is the one call it skips; and it reports
+/// its cache back when asked, so "it is on top" has been an answer about a
+/// variable rather than about a window.
+///
+/// `SWP_NOACTIVATE` because a window asking to stay visible above the others is
+/// not asking to take the keyboard with it, and no move or resize so a maximised
+/// window is left maximised.
+#[cfg(windows)]
+fn set_topmost_native(window: &WebviewWindow, wanted: bool) -> Result<(), String> {
+    use windows_sys::Win32::UI::WindowsAndMessaging::{
+        SetWindowPos, HWND_NOTOPMOST, HWND_TOPMOST, SWP_NOACTIVATE, SWP_NOMOVE, SWP_NOSIZE,
+    };
+
+    let handle = window
+        .hwnd()
+        .map_err(|err| format!("Cannot find the window to keep on top: {err}"))?;
+
+    let after = if wanted { HWND_TOPMOST } else { HWND_NOTOPMOST };
+    let placed = unsafe {
+        SetWindowPos(
+            handle.0,
+            after,
+            0,
+            0,
+            0,
+            0,
+            SWP_NOMOVE | SWP_NOSIZE | SWP_NOACTIVATE,
+        )
+    };
+
+    if placed == 0 {
+        return Err("The window would not change its place in the stack.".to_string());
+    }
+    Ok(())
+}
+
+/// Everywhere else the desktop layer is the whole story, and the platforms where
+/// it is not honoured say so themselves (`always_on_top_supported`).
+#[cfg(not(windows))]
+fn set_topmost_native(window: &WebviewWindow, wanted: bool) -> Result<(), String> {
+    window
+        .set_always_on_top(wanted)
+        .map_err(|err| format!("Cannot change always-on-top: {err}"))
+}
+
+/// True when the window is, right now, above the windows that are not on top.
+///
+/// Asked of the window rather than of the flag that was requested — the two
+/// disagreeing is the bug this whole section exists for.
+#[cfg(windows)]
+fn is_topmost_now(window: &WebviewWindow) -> bool {
+    use windows_sys::Win32::UI::WindowsAndMessaging::{
+        GetWindowLongPtrW, GWL_EXSTYLE, WS_EX_TOPMOST,
+    };
+
+    let Ok(handle) = window.hwnd() else {
+        return false;
+    };
+    // The handle is already the pointer `GetWindowLongPtrW` takes.
+    let style = unsafe { GetWindowLongPtrW(handle.0, GWL_EXSTYLE) } as u32;
+    style & WS_EX_TOPMOST != 0
+}
+
+/// The other platforms report this themselves.
+#[cfg(not(windows))]
+fn is_topmost_now(window: &WebviewWindow) -> bool {
+    window.is_always_on_top().unwrap_or(false)
+}
+
+/// How often the window's place in the stack is checked while it is meant to be
+/// on top.
+///
+/// Four times a minute, not sixty: the flag is only ever lost to a rare event —
+/// another application taking the top spot, a display change, the window being
+/// hidden and shown — and a check that finds it still there costs one read of a
+/// window style. What it buys is an answer that converges instead of a setting
+/// that has to be flipped off and on again to be believed.
+const TOPMOST_CHECK_INTERVAL: std::time::Duration = std::time::Duration::from_secs(15);
+
+/// Keeps the window where the user put it: above the others, for as long as that
+/// is what they asked for.
+///
+/// The flag is applied when the switch is flipped and when the widget opens, and
+/// nothing in this app ever lowers it — which is why it was so hard to see it go:
+/// the request was right, the call succeeded, and the window still ended up
+/// behind. What is left is everything outside the app, and a topmost flag is not
+/// a contract: Windows drops it when another window claims the top spot, when the
+/// window is hidden and shown across a display change, and when a fullscreen
+/// application takes the screen. A one-shot call cannot answer any of those.
+///
+/// So the desired state is remembered here and re-applied by a watcher that only
+/// speaks when it finds the window without it — a repair, not a poll. Every repair
+/// is logged, because "it went behind again" and "the repair ran" have to be
+/// tellable apart in the file the user can hand over.
+struct TopmostKeeper {
+    /// The window being kept on top. Held here so the watcher has it without a
+    /// lookup, and manages its own reference rather than making the keeper's
+    /// ownership of the window a second fact to keep in step.
+    window: WebviewWindow,
+    /// Whether the window *should* be on top, as the user and the widget decide it.
+    desired: AtomicBool,
+    /// Set when the app is on its way out, to end the watcher rather than leave
+    /// it running past the window it is holding.
+    stopping: AtomicBool,
+    /// Held while waiting, so a change of mind wakes the watcher instead of
+    /// leaving it to notice up to fifteen seconds later.
+    wake: (std::sync::Mutex<()>, std::sync::Condvar),
+}
+
+impl TopmostKeeper {
+    fn new(window: WebviewWindow) -> Self {
+        Self {
+            window,
+            desired: AtomicBool::new(false),
+            stopping: AtomicBool::new(false),
+            wake: (std::sync::Mutex::new(()), std::sync::Condvar::new()),
+        }
+    }
+
+    fn set_desired(&self, wanted: bool) {
+        let changed = self.desired.swap(wanted, Ordering::Relaxed) != wanted;
+        if changed {
+            // A state that was just applied does not need to wait out the
+            // interval to be noticed: this is what makes leaving and re-entering
+            // the widget immediate.
+            self.wake.1.notify_all();
+        }
+    }
+
+    fn is_desired(&self) -> bool {
+        self.desired.load(Ordering::Relaxed)
+    }
+
+    /// Ends the watcher, for a window that is closing.
+    fn stop(&self) {
+        self.stopping.store(true, Ordering::Relaxed);
+        self.wake.1.notify_all();
+    }
+
+    /// Watches the window from its own thread, re-asserting the flag as needed.
+    ///
+    /// A thread of its own rather than the async runtime: it sleeps for fifteen
+    /// seconds at a time, and a blocking sleep inside an executor is a thread
+    /// taken from whatever else needs one. It ends with the app — `stop` is
+    /// called as the window closes — which is what keeps it from outliving the
+    /// window it holds.
+    fn watch(self: std::sync::Arc<Self>) {
+        std::thread::spawn(move || loop {
+            {
+                // Parking on the mutex makes the wait interruptible: a change of
+                // mind, or the app closing, wakes it at once.
+                let guard = self
+                    .wake
+                    .0
+                    .lock()
+                    .unwrap_or_else(|poisoned| poisoned.into_inner());
+                let _ = self.wake.1.wait_timeout(guard, TOPMOST_CHECK_INTERVAL);
+            }
+
+            if self.stopping.load(Ordering::Relaxed) {
+                break;
+            }
+            if !self.is_desired() || is_topmost_now(&self.window) {
+                continue;
+            }
+            match set_topmost_native(&self.window, true) {
+                Ok(()) => log::warn!(
+                    target: logging::SYSTEM,
+                    "always on top: the window had fallen behind; put back on top"
+                ),
+                Err(err) => log::warn!(
+                    target: logging::SYSTEM,
+                    "always on top: could not put the window back on top: {err}"
+                ),
+            }
+        });
+    }
+}
+
+/// Whether this desktop lets an application put its own window above the rest.
+///
+/// Wayland does not. There is no protocol for a client to raise itself — the
+/// compositor decides the stacking order — so the call succeeds and nothing
+/// happens, which is the worst of both worlds. `tao` records the same limitation
+/// (tauri-apps/tao#1134) and it applies to every Wayland session, not to a few:
+/// the answer is to say so rather than to leave a switch that appears to work.
+///
+/// X11 and XWayland are unaffected, and an empty `WAYLAND_DISPLAY` is the
+/// documented way to ask for them, so an empty value counts as X11 here.
+fn always_on_top_supported() -> bool {
+    // Written as a `let` in both arms rather than as two blocks: a `cfg`-ed out
+    // block in the middle of a body is a trap for the tail expression, and this
+    // reads the same on every platform.
+    #[cfg(target_os = "linux")]
+    let unsupported = std::env::var_os("WAYLAND_DISPLAY").is_some_and(|value| !value.is_empty());
+
+    #[cfg(not(target_os = "linux"))]
+    let unsupported = false;
+
+    !unsupported
+}
+
 /// Takes the window's own frame away while it is the widget, and hands it back.
 ///
 /// Windows keeps a hairline border around every top-level window — a
@@ -290,17 +537,29 @@ fn window_set_always_on_top(
     window: WebviewWindow,
     enabled: bool,
 ) -> Result<(), String> {
-    window
-        .set_always_on_top(enabled)
-        .map_err(|err| format!("Cannot change always-on-top: {err}"))?;
+    apply_always_on_top(&window, enabled)?;
     sync_tray_prefs(&app, Some(&window));
     log::info!(target: logging::SYSTEM, "always on top turned {enabled}");
     Ok(())
 }
 
+/// Whether always-on-top can work at all on this desktop — see
+/// `always_on_top_supported`. The frontend asks once, so the switch can be
+/// disabled with a reason instead of lying.
+#[tauri::command]
+fn window_always_on_top_supported() -> bool {
+    always_on_top_supported()
+}
+
+/// Whether the window is on top right now.
+///
+/// Answered from the window itself on Windows rather than from the desktop
+/// layer's own idea of it — a switch that reports the request rather than the
+/// result is how "always on top" stayed on screen while the window went behind
+/// everything. See `is_topmost_now`.
 #[tauri::command]
 fn window_is_always_on_top(window: WebviewWindow) -> bool {
-    window.is_always_on_top().unwrap_or(false)
+    is_topmost_now(&window)
 }
 
 /// Records what the window's close button should do, from Desktop Behaviour.
@@ -320,15 +579,31 @@ fn window_set_close_behavior(app: AppHandle, keep_in_tray: bool) {
     );
 }
 
-/// Takes the window's own border away for the mini widget, or hands it back.
+/// Says whether the window is showing as the mini widget, and shapes it as one.
 ///
 /// Called by the frontend as the window becomes the widget and as it turns back
-/// into a window (see `UiService`). The widget's surface fills its window edge to
-/// edge, so the frame Windows draws in the system's colour is the one thing that
-/// would still stand out from it.
+/// into a window (see `UiService`). Two things follow from it, and they are one
+/// command because they are one fact: the widget's frame is taken away — its
+/// surface fills the window edge to edge, so the frame Windows draws in the
+/// system's colour is the one thing that would stand out from it — and the widget
+/// is put on top, where nothing else may take it off while it is up.
 #[tauri::command]
-fn window_paint_widget_frame(window: WebviewWindow, widget: bool) {
+fn window_set_widget_mode(app: AppHandle, window: WebviewWindow, widget: bool) {
+    if let Some(mode) = window.try_state::<WidgetMode>() {
+        mode.0.store(widget, Ordering::Relaxed);
+    }
     paint_widget_frame(&window, widget);
+
+    if widget {
+        if let Err(err) = apply_always_on_top(&window, true) {
+            log::warn!(target: logging::SYSTEM, "the widget could not be put on top: {err}");
+        }
+    }
+
+    // The tray's own check box answers for the main window, which the widget is
+    // holding on top: it follows the window rather than lagging behind it.
+    sync_tray_prefs(&app, Some(&window));
+    log::info!(target: logging::SYSTEM, "mini widget {widget}");
 }
 
 /// Posts the completion alert as a toast the OS re-raises instead of stacking.
@@ -622,8 +897,9 @@ pub fn run() {
             autostart_set_enabled,
             window_set_always_on_top,
             window_is_always_on_top,
+            window_always_on_top_supported,
             window_set_close_behavior,
-            window_paint_widget_frame,
+            window_set_widget_mode,
             alert_notify,
             save_download,
             logging::log_folder,
@@ -682,7 +958,7 @@ pub fn run() {
                 "Always on top",
                 true,
                 app.get_webview_window("main")
-                    .and_then(|w| w.is_always_on_top().ok())
+                    .map(|w| is_topmost_now(&w))
                     .unwrap_or(false),
                 None::<&str>,
             )?;
@@ -726,6 +1002,20 @@ pub fn run() {
             // closed, and replaced by the stored preference as soon as the
             // frontend has read it.
             app.manage(CloseInTray::new());
+            // Whether the window is the widget. Off until the frontend says
+            // otherwise, which is when it reshapes the window into one.
+            app.manage(WidgetMode(AtomicBool::new(false)));
+            // Above the others for as long as the user asks for it — and put
+            // back there whenever the OS drops it, which is the half that a
+            // single `set_always_on_top` never covered. See `TopmostKeeper`.
+            // Managed as the `Arc` so the watcher can hold the same keeper the
+            // commands flip.
+            let keeper = std::sync::Arc::new(TopmostKeeper::new(
+                app.get_webview_window("main")
+                    .ok_or_else(|| "the main window is missing".to_string())?,
+            ));
+            app.manage(std::sync::Arc::clone(&keeper));
+            keeper.watch();
 
             let _tray = {
                 let mut builder = TrayIconBuilder::new()
@@ -778,10 +1068,18 @@ pub fn run() {
                             }
                             "always_on_top" => {
                                 if let Some(w) = &window {
-                                    let next = !w.is_always_on_top().unwrap_or(false);
-                                    if w.set_always_on_top(next).is_ok() {
-                                        always_on_top_i.set_checked(next).ok();
-                                        emit(if next { "aot:on" } else { "aot:off" });
+                                    // Read and written natively, so both the
+                                    // question and the answer are about the
+                                    // window rather than about a cached flag.
+                                    let next = !is_topmost_now(&w);
+                                    if apply_always_on_top(&w, next).is_ok() {
+                                        // The tick follows the window, not the
+                                        // request: while the widget is up,
+                                        // asking for "off" leaves it on top on
+                                        // purpose, and the menu has to say so.
+                                        let real = is_topmost_now(&w);
+                                        always_on_top_i.set_checked(real).ok();
+                                        emit(if real { "aot:on" } else { "aot:off" });
                                     }
                                 }
                             }
@@ -844,6 +1142,16 @@ pub fn run() {
                 if size.width == 0 && size.height == 0 {
                     log::info!(target: logging::SYSTEM, "window minimised: turning into the mini widget");
                     request_mini_widget(window);
+                }
+            }
+            // The window has gone for good: the watcher holding it stops rather
+            // than outliving what it was watching.
+            WindowEvent::Destroyed => {
+                if let Some(keeper) = window
+                    .app_handle()
+                    .try_state::<std::sync::Arc<TopmostKeeper>>()
+                {
+                    keeper.stop();
                 }
             }
             _ => {}
