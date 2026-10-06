@@ -237,9 +237,11 @@ Coverage is measured over **every** file in `src/app`, whether or not a test imp
 | **Format (Prettier)**                   | `prettier --check` over the files the change touches only — the app predates Prettier, and a repo-wide gate would fail on code nobody edited                                                                                    |
 | **Unit tests (Vitest)**                 | `npm run test:coverage` + `npm run coverage:summary`                                                                                                                                                                            |
 | **Build (ng build)**                    | `npm run build`                                                                                                                                                                                                                 |
-| **E2E (Playwright)** — _advisory_       | `npm run e2e`, and it reports rather than blocks: a set of expectations still describes pre-refactor screens (the removed dictation panel, the old analytics cards, the matrix panels, the habits calendar, the sidebar labels) |
-| **Installer (Windows / Linux / macOS)** | pm run tauri:build per OS, after lint, test and build — on every push to main and on a * tag                                                                                                                                   |
+| **E2E (Playwright)**                    | `npm run e2e` against a dev server it starts itself; a failing test fails this job and nothing else — the run's other jobs carry on and report separately                                                  |
+| **Installer (Windows / Linux / macOS)** | `npm run tauri:build` per OS, on its own: no job waits on another, so a red check cannot cost you the installers — on every push to main and on a `v*` tag                                                                      |
 | **Desktop format**                      | `cargo fmt --check`                                                                                                                                                                                                             |
+
+**The jobs run independently.** None of them waits for another, and each one reports its own pass or fail, so a red browser suite says the browser suite is red — it does not cancel the unit tests, the compile, the installers, or a tagged release. The one thing that does wait is `release`, and only because it attaches the files the installer jobs upload: on a `v*` tag it publishes whatever they built.
 
 `deploy.yml` builds the web app with `npm run build:github` and publishes `dist/deepwork/browser` to GitHub Pages on every push to `main`.
 

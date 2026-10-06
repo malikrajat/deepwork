@@ -14,6 +14,12 @@ name: CI
 # Every run leaves its logs and its pass/fail behind; the installer job goes
 # further and uploads what it built, so a run can be downloaded from instead of
 # only being read.
+#
+# The jobs are independent of one another: each one checks or builds something
+# of its own, none of them waits on another to start, and a failure is reported
+# against the job it happened in. A red end-to-end suite means the browser suite
+# is red — it does not hold back the unit tests, the build, or the installers,
+# and it does not stop a `v`-tag from publishing what the installer jobs built.
 on:
   push:
     branches:
@@ -191,16 +197,16 @@ jobs:
 
   installers:
     name: Installer — ${{ matrix.label }}
+    # No `needs`: this job consumes nothing the other jobs produce, so it waits
+    # on none of them. Lint, the unit tests and the browser suite report their
+    # own result, and one of them going red cannot leave a commit that builds
+    # without an installer to show for it. `tauri build` runs `npm run build`
+    # itself (see `beforeBuildCommand`), so a front end that does not compile
+    # still fails here, on its own evidence.
+    #
     # Building an installer takes 15–25 minutes per OS, so it runs for every run
     # of this workflow — which is a push to `main` or a `v`-tag, never a branch
     # and never a pull request. Nothing here needs to filter by event again.
-    needs:
-      - lint
-      - test
-      - build
-      # The desktop app is the same front end in a webview, so an installer is
-      # only worth building for a commit that already passes the browser suite.
-      - e2e
     strategy:
       fail-fast: false
       # One entry per installer that is published: one per platform *and*
@@ -379,6 +385,11 @@ jobs:
   release:
     name: Publish the installers
     if: startsWith(github.ref, 'refs/tags/v')
+    # The one dependency left in this workflow, and a data one rather than a
+    # gate: this job attaches the files the installer jobs upload, so it has to
+    # wait for those files to exist. It is not waiting on the checks — a tag
+    # publishes whatever the installers built, and GitHub reports the checks
+    # beside the release rather than holding it back.
     needs:
       - installers
     runs-on: ubuntu-latest
