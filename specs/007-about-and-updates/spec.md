@@ -43,10 +43,13 @@ inside the webview actually open a browser.
    Pressing it downloads this machine's installer — reporting how far it has got —
    and starts it: the Windows setup runs (the app closing behind it), the macOS
    disk image is opened, a Linux package goes to the desktop's installer, or an
-   AppImage is made runnable and started. Pressing **Remind me later** snoozes the
-   card for twelve hours, while the sidebar pill still shows the update; a release
-   that carries only a portable build gets a **Download** button instead, because
-   there is nothing in it the app can install for the user.
+   AppImage is made runnable and started. Pressing **Remind me later** — or the
+   card's corner **close** button — snoozes the
+   card for twelve hours, while the sidebar pill still shows the update; pressing
+   **Skip this version** ends the conversation for that release alone, and a
+   newer one is still offered. A release that carries only a portable build gets
+   a **Download** button instead, because there is nothing in it the app can
+   install for the user.
 
 ### Acceptance criteria
 
@@ -103,7 +106,13 @@ inside the webview actually open a browser.
   repeat the notification, and the card comes back twelve hours after it is
   waved away rather than never; a dismissal stored without a time — one an older
   build wrote — counts as already expired, and a _newer_ release is announced
-  again at once.
+  again at once. The card carries three ways out and they are three different
+  answers: the corner **close** button defers it exactly as **Remind me later**
+  does, while **Skip this version** stores that version with no time beside it
+  under the same key, so it is never offered again — and is never announced
+  either — until a *newer* release arrives, which is a new question. Skipping
+  the card takes nothing else away: the sidebar pill and the About page's own
+  update actions are unchanged.
 - **AC-17** The card is honest about what it will do: it names the version, shows
   how far the download has got as a percentage and a bar, says what the OS did
   with the installer, and reports a failure in a sentence while the app keeps

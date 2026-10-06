@@ -43,9 +43,24 @@ interface PromptHistory {
    * prompt back are the ones whose stored history keeps it away.
    */
   dismissedAt: string | null;
+  /**
+   * The version the user told the app to stop asking about, for good.
+   *
+   * Deliberately separate from {@link dismissed}: a wave-away expires after
+   * {@link SNOOZE_MS}, while this one has no clock beside it at all. It is one
+   * version rather than a list because the prompt only ever offers the latest
+   * release — a newer one is compared against the same field and is a new
+   * question.
+   */
+  skipped: string | null;
 }
 
-const EMPTY_HISTORY: PromptHistory = { announced: null, dismissed: null, dismissedAt: null };
+const EMPTY_HISTORY: PromptHistory = {
+  announced: null,
+  dismissed: null,
+  dismissedAt: null,
+  skipped: null,
+};
 
 /**
  * The update flow: what the user is told when a newer release exists, and the
@@ -56,10 +71,12 @@ const EMPTY_HISTORY: PromptHistory = { announced: null, dismissed: null, dismiss
  *
  * - **Telling the user happens once per version.** A system notification, fired
  *   when the startup check finds something newer, and a card in the app that
- *   stays until it is waved away. Waving it away snoozes the card for
- *   {@link SNOOZE_MS} rather than ending the conversation, so a release is still
- *   offered after a night's sleep; the sidebar keeps showing the update pill
- *   either way, and a *different* version is announced again.
+ *   stays until it is waved away. Waving it away — "Remind me later", or the
+ *   card's close button — snoozes the card for {@link SNOOZE_MS} rather than
+ *   ending the conversation, so a release is still offered after a night's
+ *   sleep; "Skip this version" is the other answer, and ends it for that release
+ *   alone. The sidebar keeps showing the update pill either way, and a
+ *   *different* version is announced again.
  * - **Installing is explicit.** Nothing is downloaded until the user asks,
  *   because an installer is a large file and an action on their machine.
  *
@@ -91,6 +108,9 @@ export class UpdatePromptService {
 
   /** The version the user waved away, while the wave still stands. */
   private readonly snoozedVersion = signal<string | null>(activeSnooze(readHistory()));
+
+  /** The version the user skipped, which is not offered again. */
+  private readonly skippedVersion = signal<string | null>(readHistory().skipped);
 
   /** The version on offer, ready to show (`v2.1.0`), or null. */
   readonly version = computed(() => this.updates.latestVersion());
@@ -133,16 +153,18 @@ export class UpdatePromptService {
   });
 
   /**
-   * True when the prompt should be on screen: something newer is published and
-   * the user has not waved this version away in the last twelve hours.
+   * True when the prompt should be on screen: something newer is published, the
+   * user has not skipped that version, and has not waved it away in the last
+   * twelve hours.
    *
    * The release is compared rather than the status alone, so the prompt follows
-   * a *new* release even while an older one is snoozed.
+   * a *new* release even while an older one is snoozed or skipped.
    */
   readonly visible = computed(() => {
     if (this.updates.status() !== 'update-available') return false;
     const release = this.release();
-    return !!release && release.version !== this.snoozedVersion();
+    if (!release) return false;
+    return release.version !== this.snoozedVersion() && release.version !== this.skippedVersion();
   });
 
   /** Where "see every release" points, for the fallback link. */
@@ -172,6 +194,24 @@ export class UpdatePromptService {
     const version = this.updates.latest()?.version ?? null;
     this.snoozedVersion.set(version);
     writeHistory({ dismissed: version, dismissedAt: new Date().toISOString() });
+  }
+
+  /**
+   * "Skip this version": this release is never offered again.
+   *
+   * Not the same decision as {@link dismiss}, which is why it is a different
+   * button. Waving the card away is a deferral that expires; skipping is an
+   * answer about *this* release, and it is stored with no clock beside it so the
+   * card cannot come back for a version the user has already turned down. A
+   * newer release still is a new question — the comparison is against the
+   * version, not against the fact that something was skipped — and the sidebar
+   * pill and the About page stay exactly as they were, so skipping the card
+   * never takes away the way to update deliberately.
+   */
+  skip(): void {
+    const version = this.updates.latest()?.version ?? null;
+    this.skippedVersion.set(version);
+    writeHistory({ skipped: version });
   }
 
   /**
@@ -244,6 +284,9 @@ export class UpdatePromptService {
 
     const history = readHistory();
     if (history.announced === release.version) return;
+    // A version the user has already skipped is not worth a notification, even
+    // on a profile where the announcement was never sent: the answer is known.
+    if (history.skipped === release.version) return;
 
     writeHistory({ announced: release.version });
     const title = `DeepWork ${this.version()} is available`;
@@ -310,6 +353,7 @@ function readHistory(): PromptHistory {
       announced: typeof record['announced'] === 'string' ? record['announced'] : null,
       dismissed: typeof record['dismissed'] === 'string' ? record['dismissed'] : null,
       dismissedAt: typeof record['dismissedAt'] === 'string' ? record['dismissedAt'] : null,
+      skipped: typeof record['skipped'] === 'string' ? record['skipped'] : null,
     };
   } catch {
     // Storage can be unavailable (privacy mode, a locked-down webview).
