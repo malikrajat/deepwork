@@ -52,6 +52,30 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   DeepWork before its network was up spent the whole session with neither. A
   check that could not answer — and has no stored release to show instead — now
   asks once more after 90 seconds. A check the user asked for is never repeated.
+- **A red check no longer costs the installers or a release.** The installer
+  matrix waited on lint, the unit tests, the build and the browser suite, so a
+  single failing Playwright expectation meant no `.exe`, no `.msi`, no `.dmg`,
+  no `.AppImage` — and, on a tag, no release to download them from. The jobs are
+  now independent: each one runs on its own evidence and reports its own result,
+  and nothing waits on anything else. The one dependency left is the release job
+  attaching the files the installers upload, which is a data dependency rather
+  than a gate. `tauri build` runs the front-end build itself, so a compile that
+  does not work still fails the installer on its own terms.
+- **The end-to-end suite describes the app as it is.** The water-reminder card
+  in Settings has been on by default since the reminder became a nudge, and the
+  E2E test still asserted the removed default — a switch that started off with
+  its working hours disabled — which is what failed CI. The test now checks both
+  directions of the switch against what the app actually does.
+- **There is no 32-bit Linux installer, and the matrix no longer pretends
+  otherwise.** The `i686-unknown-linux-gnu` entry failed inside
+  `apt-get install` on every run it ever had: DeepWork's tray is a required Cargo
+  feature, and Ubuntu publishes no appindicator library for i386 at all
+  (`libappindicator3-dev` and `libayatana-appindicator3-dev` are built for amd64,
+  arm64, armhf, ppc64el, riscv64 and s390x — never i386, in jammy or in noble),
+  so the link could not be satisfied on a GitHub runner. The entry, its i386
+  package step and the i386 `pkg-config` override are gone, along with the
+  `build:linux32` script: a 32-bit Linux build needs a Debian i386 environment,
+  which is a different job rather than another line in this matrix.
 
 ### Added
 
@@ -71,6 +95,18 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   other — and a release that looked complete while missing a platform. The names
   are expected to differ (`_x64` beside `_x86`, and `.AppImage`/`.deb`/`.rpm` per
   target); the release job now checks, fails loudly, and lists what it collected.
+- **The update card can be turned down for good — and closed.** It offered two
+  answers, "Update" and "Remind me later", and both of them were about *when*:
+  waving the card away snoozed it for twelve hours, so the same release came back
+  the next morning whether or not the user wanted it to. It now carries three
+  ways out. The corner **close** button is the deferral — the same twelve hours
+  as **Remind me later**, which is what a close button on a notice usually means
+  — and **Skip this version** is the answer that ends it: that release is never
+  offered again, and is never announced by a system notification again either,
+  while a *newer* release is still a new question and is asked at once. Skipping
+  takes nothing else away — the sidebar's update pill and the About page's own
+  update actions are untouched, so the deliberate route to a new version is
+  still there.
 
 ### Changed
 
