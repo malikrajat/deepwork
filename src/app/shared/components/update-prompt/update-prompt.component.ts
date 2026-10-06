@@ -21,6 +21,11 @@ import { ExternalLinkDirective } from '../../directives/external-link.directive'
  *
  * It stands down entirely in the browser build, where there is nothing to
  * install — there the same button hands the download to the browser.
+ *
+ * There are three ways to leave it, and they are three different answers: the
+ * primary button acts on the release, **Skip this version** stops this release
+ * from being offered ever again, **Remind me later** and the corner **close**
+ * button both put the card away until the snooze runs out.
  */
 @Component({
   selector: 'app-update-prompt',
@@ -62,6 +67,31 @@ import { ExternalLinkDirective } from '../../directives/external-link.directive'
         </div>
 
         <div class="prompt-actions">
+          <!-- The way out of the card without answering it. Closing is the same
+               deferral as "Remind me later" — it comes back once the snooze runs
+               out — while "Skip this version" is the answer that ends it. -->
+          <button
+            type="button"
+            class="prompt-close"
+            aria-label="Close the update notice"
+            title="Close — this notice comes back later. Use Skip to stop being asked about this version."
+            (click)="prompt.dismiss()"
+          >
+            <svg
+              width="14"
+              height="14"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2.2"
+              stroke-linecap="round"
+              aria-hidden="true"
+            >
+              <line x1="6" y1="6" x2="18" y2="18" />
+              <line x1="18" y1="6" x2="6" y2="18" />
+            </svg>
+          </button>
+
           @if (showInstallButton()) {
             <button
               type="button"
@@ -86,6 +116,15 @@ import { ExternalLinkDirective } from '../../directives/external-link.directive'
           }
 
           @if (prompt.state() !== 'started') {
+            <button
+              type="button"
+              class="prompt-btn"
+              title="Never offer this version again — a newer release is a new question"
+              (click)="prompt.skip()"
+            >
+              Skip this version
+            </button>
+
             <button
               type="button"
               class="prompt-btn"
@@ -201,8 +240,38 @@ import { ExternalLinkDirective } from '../../directives/external-link.directive'
       .prompt-actions {
         display: flex;
         flex-direction: column;
+        align-items: stretch;
         gap: 6px;
         flex-shrink: 0;
+      }
+
+      /* In the corner of the card, above the buttons rather than beside them, so
+         it cannot collide with whichever primary action this release offers. */
+      .prompt-close {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        align-self: flex-end;
+        width: 24px;
+        height: 24px;
+        margin: -4px -4px 0 0;
+        padding: 0;
+        border: none;
+        border-radius: 6px;
+        background: transparent;
+        color: var(--color-text-secondary);
+        cursor: pointer;
+        transition: all 0.2s;
+      }
+
+      .prompt-close:hover {
+        background: var(--glass-bg-hover);
+        color: var(--color-text-primary);
+      }
+
+      .prompt-close:focus-visible {
+        outline: 2px solid var(--color-accent-secondary);
+        outline-offset: 2px;
       }
 
       .prompt-btn {

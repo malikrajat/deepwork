@@ -217,6 +217,41 @@ describe('UpdatePromptService', () => {
       const prompt = build();
       expect(prompt.visible()).toBe(true);
     });
+
+    it('never offers a version the user has skipped', () => {
+      const prompt = build();
+
+      prompt.skip();
+      expect(prompt.visible()).toBe(false);
+
+      // A newer release is a new question, so it is asked even though an older
+      // one was turned down for good.
+      updates.latest.set(release({ version: '2.2.0', tag: 'v2.2.0' }));
+      expect(prompt.visible()).toBe(true);
+    });
+
+    it('remembers a skipped version across launches, unlike a snooze', () => {
+      build().skip();
+
+      // Half a day later — well past the snooze — the skipped version is still
+      // not offered, because that answer was not a deferral.
+      const stored = JSON.parse(localStorage.getItem('deepwork.update.prompt.v1') ?? '{}');
+      stored.dismissedAt = new Date(Date.now() - 48 * 60 * 60 * 1000).toISOString();
+      localStorage.setItem('deepwork.update.prompt.v1', JSON.stringify(stored));
+
+      expect(build().visible()).toBe(false);
+    });
+
+    it('does not notify about a version the user has skipped', async () => {
+      localStorage.setItem(
+        'deepwork.update.prompt.v1',
+        JSON.stringify({ announced: null, dismissed: null, dismissedAt: null, skipped: '2.1.0' }),
+      );
+
+      await build().start();
+
+      expect(notifications.announce).not.toHaveBeenCalled();
+    });
   });
 
   describe('the file it would fetch', () => {

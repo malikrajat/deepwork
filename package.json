@@ -26,7 +26,6 @@
     "build:mac": "tauri build --target x86_64-apple-darwin",
     "build:mac-arm": "tauri build --target aarch64-apple-darwin",
     "build:linux": "tauri build --target x86_64-unknown-linux-gnu",
-    "build:linux32": "tauri build --target i686-unknown-linux-gnu",
     "e2e": "playwright test",
     "e2e:headed": "playwright test --headed",
     "e2e:open": "playwright show-report || playwright test --output=playwright-report"
