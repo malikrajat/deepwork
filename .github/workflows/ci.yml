@@ -210,15 +210,16 @@ jobs:
     strategy:
       fail-fast: false
       # One entry per installer that is published: one per platform *and*
-      # architecture. A Mac is either Intel or Apple Silicon, a PC is either
+      # architecture. A Mac is either Intel or Apple Silicon and a PC is either
       # 64-bit or 32-bit, and each needs a build of its own — so Windows and
-      # Linux are two entries each, and macOS is two as well.
+      # macOS are two entries each, and Linux is one.
       #
-      # `continue-on-error` marks the 32-bit entries and *only* them. The release
-      # job waits on this one, so a job that cannot build must not be allowed to
-      # fail the matrix: the 64-bit installers would lose their release because a
-      # 32-bit runner was missing a package. A failure is still reported in the
-      # run; it just cannot take the other architectures' files down with it.
+      # `continue-on-error` marks the one entry that carries it: 32-bit Windows,
+      # the least certain toolchain of the set. The release job waits on this one,
+      # so a job that cannot build must not be allowed to fail the matrix: the
+      # other installers would lose their release because a 32-bit runner was
+      # missing a package. A failure is still reported in the run; it just cannot
+      # take the other architectures' files down with it.
       matrix:
         include:
           - label: Windows (x64)
@@ -249,21 +250,17 @@ jobs:
               src-tauri/target/x86_64-unknown-linux-gnu/release/bundle/appimage/*.AppImage
               src-tauri/target/x86_64-unknown-linux-gnu/release/bundle/deb/*.deb
               src-tauri/target/x86_64-unknown-linux-gnu/release/bundle/rpm/*.rpm
-          # 32-bit Linux, and the awkward one: WebKitGTK has to exist for i386 as
-          # well as for the host, which is why this installs the multiarch
-          # packages below rather than the same list twice. Marked
-          # `continue-on-error` because that stack is not in every Ubuntu mirror —
-          # a run where it cannot be assembled says so in this job, and the
-          # architectures that can be built still become a release.
-          - label: Linux (x86)
-            os: ubuntu-latest
-            target: i686-unknown-linux-gnu
-            artifact: deepwork-linux-x86
-            continue-on-error: true
-            installers: |
-              src-tauri/target/i686-unknown-linux-gnu/release/bundle/appimage/*.AppImage
-              src-tauri/target/i686-unknown-linux-gnu/release/bundle/deb/*.deb
-              src-tauri/target/i686-unknown-linux-gnu/release/bundle/rpm/*.rpm
+          # There is no 32-bit Linux entry, and there cannot be one on this
+          # runner. DeepWork's tray is a required Cargo feature
+          # (`tauri = { features = ["tray-icon"] }`), and Ubuntu publishes no
+          # appindicator library for i386 at all: `libappindicator3-dev` and
+          # `libayatana-appindicator3-dev` are built for amd64, arm64, armhf,
+          # ppc64el, riscv64 and s390x — never i386, in jammy or in noble. The
+          # entry this replaces therefore failed inside `apt-get install` on
+          # every run it ever had, before it could try to compile anything. A
+          # 32-bit Linux build needs a Debian i386 environment, which is a
+          # different job rather than another line in this matrix.
+          #
           # `macos-latest` is Apple Silicon: GitHub's `-latest` macOS image is
           # arm64, so the Intel build needs the explicitly-labelled Intel runner.
           # `macos-13` used to be that runner; it has been retired.
@@ -283,7 +280,7 @@ jobs:
             installers: |
               src-tauri/target/x86_64-apple-darwin/release/bundle/dmg/*.dmg
     runs-on: ${{ matrix.os }}
-    # The one flag the 32-bit entries carry into the job itself.
+    # The one flag the 32-bit Windows entry carries into the job itself.
     continue-on-error: ${{ matrix.continue-on-error || false }}
     steps:
       - name: Checkout
@@ -305,23 +302,10 @@ jobs:
             libssl-dev \
             build-essential
 
-      # The i386 half of the same story, and only for the 32-bit entry: a 32-bit
-      # build links against 32-bit libraries, and the packages above are the
-      # host's. `dpkg --add-architecture i386` is not enough on its own —
-      # `apt-get update` has to follow it before apt knows where to look.
-      - name: Install 32-bit Linux build dependencies
-        if: runner.os == 'Linux' && matrix.target == 'i686-unknown-linux-gnu'
-        run: |
-          sudo dpkg --add-architecture i386
-          sudo apt-get update
-          sudo apt-get install -y \
-            gcc-multilib \
-            pkg-config \
-            libwebkit2gtk-4.1-dev:i386 \
-            libappindicator3-dev:i386 \
-            librsvg2-dev:i386 \
-            libgtk-3-dev:i386 \
-            libssl-dev:i386
+      # The i386 half of the same story used to live here, for a 32-bit Linux
+      # entry this matrix no longer has — see the note in the matrix for why
+      # (Ubuntu builds no appindicator library for i386, so the tray Tauri links
+      # against cannot be satisfied there). One architecture, one package list.
 
       - name: Setup Node
         uses: actions/setup-node@v4
@@ -349,16 +333,10 @@ jobs:
 
       # `tauri build` runs `npm run build` first (see `beforeBuildCommand`), then
       # produces this target's bundles: the NSIS installer on Windows, the
-      # AppImage/.deb/.rpm on Linux, the .dmg on macOS.
-      #
-      # A 32-bit Linux build needs pkg-config pointed at the i386 copy of every
-      # library above — the host's `.pc` files describe 64-bit libraries and
-      # linking them into a 32-bit binary fails — which is the one thing the
-      # multiarch packages do not do for themselves.
+      # AppImage/.deb/.rpm on Linux, the .dmg on macOS. One target per job, on the
+      # runner that matches it, with no cross-compilation flags to keep honest.
       - name: Build the installer
         run: npm run tauri:build -- --target ${{ matrix.target }}
-        env:
-          PKG_CONFIG_PATH: ${{ matrix.target == 'i686-unknown-linux-gnu' && '/usr/lib/i386-linux-gnu/pkgconfig:/usr/share/pkgconfig' || '' }}
 
       # This is the part that makes an installer downloadable: without it a run
       # only reports that it built something, and the file itself is gone with

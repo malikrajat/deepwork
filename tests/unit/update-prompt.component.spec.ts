@@ -32,6 +32,7 @@ function fakePrompt(overrides: Record<string, unknown> = {}) {
     releasesUrl: 'https://github.com/malikrajat/deepwork/releases',
     install: vi.fn().mockResolvedValue(undefined),
     dismiss: vi.fn(),
+    skip: vi.fn(),
     ...overrides,
   };
 }
@@ -190,5 +191,47 @@ describe('UpdatePromptComponent', () => {
 
     expect(prompt.dismiss).toHaveBeenCalledTimes(1);
     expect(later?.getAttribute('title')).toContain('comes back');
+  });
+
+  it('lets the user skip this version for good', () => {
+    const prompt = fakePrompt();
+
+    const fixture = mount(prompt);
+    const skip = Array.from(
+      (fixture.nativeElement as HTMLElement).querySelectorAll<HTMLButtonElement>('.prompt-btn'),
+    ).find((button) => button.textContent?.trim() === 'Skip this version');
+    skip?.click();
+
+    // The two ways out are different answers — skipping must not be the same
+    // call as waving the card away, or the version would come back tomorrow.
+    expect(prompt.skip).toHaveBeenCalledTimes(1);
+    expect(prompt.dismiss).not.toHaveBeenCalled();
+    expect(skip?.getAttribute('title')).toContain('Never offer this version again');
+  });
+
+  it('closes the card from its corner without answering it', () => {
+    const prompt = fakePrompt();
+
+    const fixture = mount(prompt);
+    const close = (fixture.nativeElement as HTMLElement).querySelector<HTMLButtonElement>(
+      '.prompt-close',
+    );
+    close?.click();
+
+    expect(close?.getAttribute('aria-label')).toBe('Close the update notice');
+    expect(prompt.dismiss).toHaveBeenCalledTimes(1);
+    expect(prompt.skip).not.toHaveBeenCalled();
+  });
+
+  it('keeps the close button on a card that has already started installing', () => {
+    // The card outlives its buttons — once the installer is running only Hide is
+    // left — but the corner stays, so the notice can always be put away.
+    const prompt = withState(fakePrompt(), 'started');
+
+    const fixture = mount(prompt);
+    const element = fixture.nativeElement as HTMLElement;
+
+    expect(element.querySelector('.prompt-close')).not.toBeNull();
+    expect(element.querySelectorAll('.prompt-btn').length).toBe(1);
   });
 });

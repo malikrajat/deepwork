@@ -201,9 +201,8 @@ Tauri does **not** cross-compile: build each platform on that platform, or let C
 | macOS (Intel)    | `npm run build:mac`       | `src-tauri/target/x86_64-apple-darwin/release/bundle/` — `macos/DeepWork.app` and a `.dmg` whose name carries the version                                                                                                        |
 | macOS (ARM)      | `npm run build:mac-arm`   | `src-tauri/target/aarch64-apple-darwin/release/bundle/` (run `rustup target add aarch64-apple-darwin` once)                                                                                                                      |
 | Linux (64-bit)   | `npm run build:linux`     | `src-tauri/target/x86_64-unknown-linux-gnu/release/bundle/` — `.deb`, `.rpm` and `.AppImage`                                                                                                                                     |
-| Linux (32-bit)   | `npm run build:linux32`   | `src-tauri/target/i686-unknown-linux-gnu/release/bundle/` — the same three, and it needs the **i386** WebKitGTK/GTK development packages installed rather than the host's                                                       |
 
-There is no 32-bit macOS build: Apple removed 32-bit application support in macOS 10.15.
+There is no 32-bit macOS build: Apple removed 32-bit application support in macOS 10.15. There is no 32-bit Linux build either, and it is not a missing package: DeepWork's tray is a **required** Cargo feature (`tray-icon`), and Ubuntu builds no appindicator library for i386 at all — `libappindicator3-dev` and `libayatana-appindicator3-dev` are published for amd64, arm64, armhf, ppc64el, riscv64 and s390x, and never for i386, in jammy or in noble. The build cannot link, so CI publishes five installers: Windows x64 and x86, Linux x64, and macOS arm64 and x64. A 32-bit Linux build would take a Debian i386 environment.
 
 Because the build names the target triple, artefacts sit under `target/<triple>/release/bundle/`, not directly under `target/release/`. The exact file names carry the current version.
 
