@@ -9,6 +9,7 @@ import {
   ChangeDetectionStrategy,
 } from '@angular/core';
 import { form, FormField } from '@angular/forms/signals';
+import { Router } from '@angular/router';
 import { AnimatedClockComponent } from '../../shared/components/animated-clock/animated-clock.component';
 import { TimelineBarComponent } from '../../shared/components/timeline-bar/timeline-bar.component';
 import { ConfettiComponent } from '../../shared/components/confetti/confetti.component';
@@ -24,6 +25,7 @@ import { UiService } from '../../core/services/ui.service';
 import { PomodoroSession } from '../../core/models/session.model';
 import { Task, TaskQuadrant } from '../../core/models/task.model';
 import { QUADRANT_CONFIG } from '../../core/constants/theme.constants';
+import { TASK_EDIT_PATH, taskEditQuery } from '../../core/utils/task-link.util';
 import { TaskSelectFormModel, createTaskSelectFormDefaults } from '../../shared/models/form.models';
 
 @Component({
@@ -320,6 +322,14 @@ import { TaskSelectFormModel, createTaskSelectFormDefaults } from '../../shared/
               [disabled]="taskService.todayTasks().length === 0"
             >
               Focus next task
+            </button>
+            <button
+              class="insight-action secondary"
+              type="button"
+              (click)="editActiveTask()"
+              [disabled]="!activeTask()"
+            >
+              Edit task
             </button>
             <button
               class="insight-action secondary"
@@ -1200,6 +1210,7 @@ export class DashboardComponent implements OnInit, OnDestroy {
   readonly taskService = inject(TaskService);
   private readonly settingsService = inject(SettingsService);
   readonly ui = inject(UiService);
+  private readonly router = inject(Router);
 
   @ViewChild(ConfettiComponent) confetti!: ConfettiComponent;
 
@@ -1415,6 +1426,20 @@ export class DashboardComponent implements OnInit, OnDestroy {
 
   clearFocusedTask(): void {
     this.selectTask('');
+  }
+
+  /**
+   * The task the timer is running against can be corrected from here.
+   *
+   * The dashboard says which task the session is for and how much of the day is
+   * done; a wrong title or a deadline that has moved is fixed in the app's one
+   * task form, so this button hands over to the Tasks page's editor with the
+   * same deep link every other page uses.
+   */
+  editActiveTask(): void {
+    const task = this.activeTask();
+    if (!task) return;
+    this.router.navigate([TASK_EDIT_PATH], { queryParams: taskEditQuery(task.id) });
   }
 
   selectTask(taskId: string): void {

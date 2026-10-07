@@ -7,8 +7,45 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+---
+
+## [2.0.20] – 2026-10-07
+
 ### Added
 
+- **Every task can be edited from wherever it is read.** A task could be moved,
+  finished, re-ordered or deleted from the pages that show it, but changing what
+  it *says* — its title, its date, its priority, its repeat — was possible only
+  on the Tasks page, where the app's one form lives. A card in the Eisenhower
+  Matrix carried no pencil at all, Today's cards carried none, the Calendar could
+  re-time a task but not correct it, and the dashboard's current-focus card could
+  hand a task to the timer without ever letting the user fix it. Every one of
+  those places now carries an **Edit** control — a pencil beside the status
+  switch on a Matrix card, a pencil on every board card, a **✎** on a Calendar
+  rail card, an **Edit** button in the Calendar's slot panel, an **Edit task**
+  button on the dashboard's current-focus card, and **Edit task** as the first
+  entry of the Matrix's right-click menu. All of them open the same editor, on
+  the Tasks page, with the task already in its fields: the request travels as a
+  query parameter (`/tasks?edit=<id>`), so the app still has exactly one task
+  form to keep correct, and the parameter is cleared as soon as it is answered.
+- **A day that has its own section can be added to.** The Tasks page files work
+  into date sections — Today, Tomorrow, the months ahead — and the only way to
+  add to one was to open the form and change its deadline by hand, because the
+  form always started on today: a task meant for tomorrow had to be corrected
+  before it could be saved. Every section that *is* a single day now carries a
+  **+** in its header — Today, Tomorrow, and each month ahead — and the form opens
+  with that day already in the deadline, and with the advanced fields showing, so
+  the task lands in the section whose button was pressed. The sections that span
+  several days (later this week, next week, later this month) offer no button
+  rather than a guessed date, and neither does a section in the past, whose date
+  the deadline field would refuse.
+- **Today and the Matrix have their own add buttons.** Today shows the day's list
+  and nothing else, so adding to it meant walking to another page first: its
+  header now carries **Add task**, which opens the form dated today and pinned to
+  today's list, and the empty state offers the same button. Each of the Matrix's
+  four quadrants carries a **+** in its header — and the unassigned list one of
+  its own — which opens the form already sorted into that quadrant and dated
+  today, so the task arrives in the very column the button sat on.
 - **The update card can be turned down for good — and closed.** It offered two
   answers, "Update" and "Remind me later", and both of them were about *when*:
   waving the card away snoozed it for twelve hours, so the same release came back

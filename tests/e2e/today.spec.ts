@@ -1,6 +1,14 @@
 import { test, expect } from '@playwright/test';
 import { cardIn, dragCardToColumn, createTask } from './board.helpers';
 
+/** Today as `YYYY-MM-DD` in the browser's own timezone. */
+const todayIso = (): string => {
+  const now = new Date();
+  return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(
+    now.getDate(),
+  ).padStart(2, '0')}`;
+};
+
 test.describe('Today Page', () => {
   test('tasks created today automatically appear on the Today board', async ({ page }) => {
     const taskTitle = `Today Task ${Date.now()}`;
@@ -102,9 +110,13 @@ test.describe('Today Page', () => {
     await deleteBtn.click();
 
     // The task is deleted everywhere, not merely detached from today's order.
-    await expect(page.locator('.task-card', { hasText: taskTitle })).toHaveCount(0, { timeout: 5000 });
+    await expect(page.locator('.task-card', { hasText: taskTitle })).toHaveCount(0, {
+      timeout: 5000,
+    });
     await page.goto('/tasks');
-    await expect(page.locator('.task-card', { hasText: taskTitle })).toHaveCount(0, { timeout: 5000 });
+    await expect(page.locator('.task-card', { hasText: taskTitle })).toHaveCount(0, {
+      timeout: 5000,
+    });
   });
 
   test('focus button navigates to dashboard with task linked', async ({ page }) => {
@@ -124,6 +136,48 @@ test.describe('Today Page', () => {
     expect(await page.evaluate(() => localStorage.getItem('deepwork_focusTaskId'))).toBeTruthy();
   });
 
+  test('a card can be edited from Today, which owns no form of its own', async ({ page }) => {
+    const taskTitle = `Edit From Today ${Date.now()}`;
+    await createTask(page, taskTitle);
+
+    await page.goto('/today');
+    await expect(page.locator('.page-title')).toHaveText('Today', { timeout: 8000 });
+
+    const card = cardIn(page, 'todo', taskTitle);
+    await expect(card).toBeVisible({ timeout: 5000 });
+    await expect(card.locator('.edit-btn')).toBeVisible();
+
+    // The pencil hands the task to the Tasks page's editor, already open on it.
+    await card.locator('.edit-btn').click();
+    await expect(page.locator('.page-title')).toHaveText('Tasks', { timeout: 5000 });
+    await expect(page.locator('.slide-panel')).toBeVisible({ timeout: 5000 });
+    await expect(page.locator('.slide-panel h2')).toHaveText('Edit Task');
+    await expect(
+      page.locator('.slide-panel input[placeholder="What needs to be done?"]'),
+    ).toHaveValue(taskTitle);
+
+    // Cleanup
+    await page.locator('.slide-panel').getByRole('button', { name: 'Cancel' }).click();
+    await expect(page.locator('.task-card', { hasText: taskTitle })).toBeVisible({ timeout: 5000 });
+    await page.locator('.task-card', { hasText: taskTitle }).locator('button.delete').click();
+    await expect(page.locator('.task-card', { hasText: taskTitle })).toHaveCount(0, {
+      timeout: 5000,
+    });
+  });
+
+  test('the Add task button opens the form for today', async ({ page }) => {
+    await page.goto('/today');
+    await expect(page.locator('.page-title')).toHaveText('Today', { timeout: 8000 });
+
+    await page.locator('.header-stats .btn-add').click();
+
+    await expect(page.locator('.page-title')).toHaveText('Tasks', { timeout: 5000 });
+    await expect(page.locator('.slide-panel h2')).toHaveText('New Task');
+    await expect(page.locator('.slide-panel input[type="date"]').first()).toHaveValue(todayIso());
+
+    await page.locator('.slide-panel').getByRole('button', { name: 'Cancel' }).click();
+  });
+
   test('empty state shows when there are no tasks for today', async ({ page }) => {
     // Fresh context → no tasks → empty state should show
     await page.goto('/today');
@@ -132,7 +186,9 @@ test.describe('Today Page', () => {
     const cards = page.locator('.task-card');
     const count = await cards.count();
     if (count === 0) {
-      await expect(page.locator('.empty-state h3')).toHaveText('No tasks for today', { timeout: 3000 });
+      await expect(page.locator('.empty-state h3')).toHaveText('No tasks for today', {
+        timeout: 3000,
+      });
     }
   });
 });

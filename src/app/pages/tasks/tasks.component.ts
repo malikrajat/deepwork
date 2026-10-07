@@ -37,7 +37,13 @@ import {
   createSearchFormDefaults,
 } from '../../shared/models/form.models';
 import { noXss, trimmedRequired, futureDate } from '../../shared/validators/form-validators';
-import { TaskDateGroup, groupTasksByDate, sectionKeyFor } from './task-date-groups.view';
+import {
+  TaskDateGroup,
+  groupAddDate,
+  groupTasksByDate,
+  sectionKeyFor,
+} from './task-date-groups.view';
+import { TASK_LINK_PARAMS, parseTaskDeepLink } from '../../core/utils/task-link.util';
 import { TASK_DESCRIPTION_MAX_LENGTH, TASK_TITLE_MAX_LENGTH } from '../../core/models/task.model';
 
 type SortKey = 'updated' | 'priority' | 'deadline' | 'newest';
@@ -226,31 +232,57 @@ const PRIORITY_LABELS: Record<string, string> = {
         <div class="date-groups" [class.multi-open]="openGroups().length > 1">
           @for (group of taskGroups(); track group.key) {
             <section class="date-group" [class.open]="isGroupOpen(group.key)">
-              <button
-                class="group-header"
-                type="button"
-                [attr.aria-expanded]="isGroupOpen(group.key)"
-                [attr.aria-controls]="'task-group-' + group.key"
-                (click)="toggleGroup(group.key)"
-              >
-                <svg
-                  class="chevron"
-                  [class.open]="isGroupOpen(group.key)"
-                  width="12"
-                  height="12"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  stroke-width="2.5"
+              <div class="group-header-row">
+                <button
+                  class="group-header"
+                  type="button"
+                  [attr.aria-expanded]="isGroupOpen(group.key)"
+                  [attr.aria-controls]="'task-group-' + group.key"
+                  (click)="toggleGroup(group.key)"
                 >
-                  <polyline points="9,6 15,12 9,18" />
-                </svg>
-                <span class="group-label">{{ group.label }}</span>
-                <span class="group-count">{{ group.tasks.length }}</span>
-                @if (group.doneCount > 0) {
-                  <span class="group-done">{{ group.doneCount }} done</span>
+                  <svg
+                    class="chevron"
+                    [class.open]="isGroupOpen(group.key)"
+                    width="12"
+                    height="12"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="2.5"
+                  >
+                    <polyline points="9,6 15,12 9,18" />
+                  </svg>
+                  <span class="group-label">{{ group.label }}</span>
+                  <span class="group-count">{{ group.tasks.length }}</span>
+                  @if (group.doneCount > 0) {
+                    <span class="group-done">{{ group.doneCount }} done</span>
+                  }
+                </button>
+
+                <!-- A section that is one day can be added to. "Today" and
+                     "Tomorrow" write their own date onto the new task. -->
+                @if (addDateFor(group.key); as due) {
+                  <button
+                    class="group-add"
+                    type="button"
+                    [appTooltip]="'Add a task for ' + group.label"
+                    [attr.aria-label]="'Add a task for ' + group.label"
+                    (click)="addTaskInGroup(due)"
+                  >
+                    <svg
+                      width="14"
+                      height="14"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      stroke-width="2.4"
+                    >
+                      <line x1="12" y1="5" x2="12" y2="19" />
+                      <line x1="5" y1="12" x2="19" y2="12" />
+                    </svg>
+                  </button>
                 }
-              </button>
+              </div>
 
               @if (isGroupOpen(group.key)) {
                 <div class="group-board" [id]="'task-group-' + group.key">
@@ -260,6 +292,7 @@ const PRIORITY_LABELS: Record<string, string> = {
                     emptyText="Drop a task here"
                     (moved)="onMoved($event)"
                     (opened)="openEditPanel($event)"
+                    (editRequested)="openEditPanel($event)"
                     (todayToggled)="toggleToday($event)"
                     (deleteRequested)="deleteTask($event.id)"
                   />
@@ -602,11 +635,19 @@ const PRIORITY_LABELS: Record<string, string> = {
       .date-groups.multi-open .date-group.open {
         flex: 0 0 auto;
       }
+      /* The header is the section's own row now: the fold control and the
+         "+" that adds a task to that day sit side by side, so the add button is
+         never nested inside the button that folds the section. */
+      .group-header-row {
+        display: flex;
+        align-items: center;
+      }
       .group-header {
         display: flex;
         align-items: center;
         gap: 8px;
-        width: 100%;
+        flex: 1;
+        min-width: 0;
         padding: 10px 14px;
         border: none;
         background: transparent;
@@ -614,6 +655,30 @@ const PRIORITY_LABELS: Record<string, string> = {
         font: inherit;
         text-align: left;
         cursor: pointer;
+      }
+      .group-add {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        flex-shrink: 0;
+        width: 30px;
+        height: 30px;
+        margin-right: 10px;
+        border: 1px solid rgba(139, 92, 246, 0.25);
+        border-radius: 8px;
+        background: transparent;
+        color: var(--color-text-secondary);
+        cursor: pointer;
+        transition: all 0.2s;
+      }
+      .group-add:hover {
+        border-color: rgba(139, 92, 246, 0.6);
+        color: var(--color-text-primary);
+        background: rgba(139, 92, 246, 0.1);
+      }
+      .group-add:focus-visible {
+        outline: 2px solid var(--color-accent-glow);
+        outline-offset: 1px;
       }
       .group-header:hover {
         color: var(--color-text-primary);
@@ -964,6 +1029,13 @@ export class TasksComponent implements OnInit {
   /** Task ids on the board when the import panel opened — see `onTasksImported`. */
   private idsBeforeImport = new Set<string>();
 
+  /**
+   * Set when the form was opened by a button that promised today's list (the
+   * Today page's own Add Task), so the task that comes out of it is pinned there
+   * as well as dated today.
+   */
+  private addToTodayOnCreate = false;
+
   /** The panel's title field — focused as soon as the panel opens. */
   private readonly taskTitleInput = viewChild<ElementRef<HTMLInputElement>>('taskTitleInput');
 
@@ -1010,7 +1082,7 @@ export class TasksComponent implements OnInit {
   }
 
   /** Buttons every card on this page carries. */
-  readonly boardActions = ['today', 'delete'] as const;
+  readonly boardActions = ['today', 'edit', 'delete'] as const;
 
   // Search form
   private readonly searchModel = signal<SearchFormModel>(createSearchFormDefaults());
@@ -1157,27 +1229,87 @@ export class TasksComponent implements OnInit {
     // way the boards do: expired work closed, quadrants re-asked, today's
     // recurring instances in place.
     await this.taskService.runDailyUpkeep();
-    if (this.route.snapshot.queryParamMap.get('add') === '1') {
-      this.openAddPanel();
-      await this.router.navigate([], {
-        relativeTo: this.route,
-        queryParams: { add: null },
-        queryParamsHandling: 'merge',
-        replaceUrl: true,
-      });
-    }
+    await this.answerDeepLink();
   }
 
-  openAddPanel(): void {
+  /**
+   * Answers a link that arrived from another page.
+   *
+   * Every card in the app carries an Edit control, and none of those pages own a
+   * task form: they link here instead. `?edit=<id>` opens that task, `?add=1`
+   * (with an optional `date`, `quadrant` and `today`) opens the form already
+   * filled in for the day or quadrant the button belonged to. Both are one-shot
+   * instructions rather than page state, so they are cleared out of the URL
+   * before the user can reload or bookmark a panel that has since been closed.
+   */
+  private async answerDeepLink(): Promise<void> {
+    const link = parseTaskDeepLink((name) => this.route.snapshot.queryParamMap.get(name));
+
+    if (link.editId) {
+      // A link whose task is gone (deleted between the click and the load)
+      // simply leaves the page as it is; the parameter is still cleared below.
+      const task = this.taskService.tasks().find((candidate) => candidate.id === link.editId);
+      if (task) this.openEditPanel(task);
+    } else if (link.add) {
+      this.openAddPanel({
+        deadline: link.deadline,
+        quadrant: link.quadrant,
+        addToToday: link.addToToday,
+      });
+    }
+
+    if (!link.present) return;
+    const cleared: Record<string, null> = {};
+    for (const name of TASK_LINK_PARAMS) cleared[name] = null;
+    await this.router.navigate([], {
+      relativeTo: this.route,
+      queryParams: cleared,
+      queryParamsHandling: 'merge',
+      replaceUrl: true,
+    });
+  }
+
+  /**
+   * Opens the Add Task form, optionally already decided.
+   *
+   * Defaults come from `createTaskFormDefaults()` — today's date, P3, no
+   * quadrant — and a caller only overrides the one thing its button promised:
+   * the "+" in a date section sets the day, the Matrix's per-quadrant "+" sets
+   * the quadrant, and the Today page's button also asks for the new task to
+   * land on today's list.
+   */
+  openAddPanel(
+    prefill: { deadline?: string; quadrant?: TaskQuadrant | null; addToToday?: boolean } = {},
+  ): void {
     this.editingTask.set(null);
+    const defaults = createTaskFormDefaults();
     // `reset` clears touched/dirty on the whole field tree, so a previously
     // submitted form cannot reopen with its validation messages already shown.
-    this.taskForm().reset(createTaskFormDefaults());
+    // An empty pre-fill is not a choice — it is a link that carried no date — so
+    // the deadline falls back to today rather than to "no deadline".
+    this.taskForm().reset({
+      ...defaults,
+      deadline: prefill.deadline || defaults.deadline,
+      quadrant: prefill.quadrant ?? '',
+    });
     this.formRecurDays = [];
-    // Adding a task asks for a title; everything else keeps its default until
-    // the user opens Advanced options.
-    this.advancedOpen.set(false);
+    // Adding a task asks for a title; a pre-filled day or quadrant is one of the
+    // values the user came here to set, so the fields holding it are shown.
+    const decided =
+      Boolean(prefill.deadline) || Boolean(prefill.quadrant) || Boolean(prefill.addToToday);
+    this.advancedOpen.set(decided);
+    this.addToTodayOnCreate = Boolean(prefill.addToToday);
     this.panelOpen.set(true);
+  }
+
+  /** The day a section's "+" writes onto a new task, or '' when it has none. */
+  addDateFor(groupKey: string): string {
+    return groupAddDate(groupKey);
+  }
+
+  /** A task added from a date section's header belongs to that day. */
+  addTaskInGroup(deadline: string): void {
+    this.openAddPanel({ deadline });
   }
 
   /**
@@ -1191,6 +1323,7 @@ export class TasksComponent implements OnInit {
 
   openEditPanel(task: Task): void {
     this.editingTask.set(task);
+    this.addToTodayOnCreate = false;
     this.taskForm().reset({
       title: task.title,
       description: task.description,
@@ -1258,6 +1391,11 @@ export class TasksComponent implements OnInit {
           deadline: formData.deadline || null,
           recurrence,
         });
+        // A form opened by the Today page's button promised today's list, not
+        // only today's date: a task dated today is on the list anyway, but one
+        // whose date the user moved is not — and the button that opened the form
+        // said it would be.
+        if (this.addToTodayOnCreate) await this.taskService.addToToday(created.id);
         // Its deadline decides the section, so a task for another month opens
         // that month instead of disappearing into a folded header.
         this.openSectionsFor([created]);

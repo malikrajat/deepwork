@@ -7,7 +7,7 @@ Central reference for all guidance files in this repository.
 | File                                                   | Purpose                                                       |
 | ------------------------------------------------------ | ------------------------------------------------------------- |
 | [angular-best-practices.md](angular-best-practices.md) | Angular/TypeScript coding standards                           |
-| [code-signing.md](code-signing.md)                     | Signing the Windows installer: what Windows shows, and how to |
+| [code-signing.md](code-signing.md)                     | Windows installer signatures, and the macOS Gatekeeper dialog |
 | [memory-footprint.md](memory-footprint.md)             | Where the app's memory goes, and which levers can move it     |
 
 ## Copilot / AI agent configuration

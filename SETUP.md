@@ -217,7 +217,7 @@ regardless of either setting — which is why the feature can stay out.
 npm run build:windows -- --debug
 
 # The installer will be at:
-# src-tauri/target/x86_64-pc-windows-msvc/debug/bundle/nsis/DeepWork_2.0.19_x64-setup.exe
+# src-tauri/target/x86_64-pc-windows-msvc/debug/bundle/nsis/DeepWork_2.0.20_x64-setup.exe
 ```
 
 ### Toggle DevTools for Release Builds

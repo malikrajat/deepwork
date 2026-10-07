@@ -45,7 +45,14 @@ The honest version of what happens on a fresh download:
 - **Windows** — SmartScreen may interrupt with "Windows protected your PC", and the UAC prompt says _Unknown
   publisher_. That line is the Authenticode signature and nothing else; the publisher, copyright and category in
   the file's properties are correct. Choose _More info → Run anyway_ only if you trust the source.
-- **macOS** — Gatekeeper may refuse the first launch. Right-click the app → _Open_ → _Open_.
+- **macOS** — Gatekeeper refuses the first launch with _"DeepWork" Not Opened — Apple could not verify "DeepWork" is free of malware_. Nothing is broken: the app is
+  not signed with an Apple Developer ID and not notarized. **On macOS 15 (Sequoia) and
+  later the old Control-click → _Open_ trick does nothing**, so either open **System
+  Settings → Privacy & Security → Security → Open Anyway** (try to open DeepWork once
+  first, so the entry appears) or clear the download flag from Terminal:
+  `xattr -dr com.apple.quarantine /Applications/DeepWork.app`. The browser build at
+  <https://malikrajat.github.io/deepwork/> needs none of this. Full story:
+  [docs/code-signing.md](https://github.com/malikrajat/deepwork/blob/main/docs/code-signing.md#macos-the-dialog-a-mac-user-is-hitting).
 - **Linux** — `chmod +x DeepWork_*.AppImage` before running it.
 
 If a release publishes a SHA-256 checksum, compare it before installing.

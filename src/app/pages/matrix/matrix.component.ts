@@ -10,7 +10,7 @@ import {
   afterNextRender,
 } from '@angular/core';
 import { CdkDragDrop, DragDropModule } from '@angular/cdk/drag-drop';
-import { RouterLink } from '@angular/router';
+import { Router, RouterLink } from '@angular/router';
 import { NotificationService } from '../../core/services/notification.service';
 import { TaskService } from '../../core/services/task.service';
 import { DbService } from '../../core/services/db.service';
@@ -18,6 +18,7 @@ import { ScheduleService, dayKey } from '../../core/services/schedule.service';
 import { Task, TaskQuadrant, TaskStatus } from '../../core/models/task.model';
 import { QUADRANT_CONFIG, STATUS_CONFIG, STATUS_CYCLE } from '../../core/constants/theme.constants';
 import { TooltipDirective } from '../../shared/directives/tooltip.directive';
+import { TASK_EDIT_PATH, taskAddQuery, taskEditQuery } from '../../core/utils/task-link.util';
 
 const PANE_WIDTH_KEY = 'deepwork_matrix_pane_width';
 const PANE_COLLAPSED_KEY = 'deepwork_matrix_pane_collapsed';
@@ -171,6 +172,25 @@ interface MatrixContextMenu {
                 <h3>{{ q.label }}</h3>
                 <span class="quadrant-count">{{ getQuadrantTasks(q.id).length }}</span>
                 <button
+                  class="collapse-btn add-task-btn"
+                  type="button"
+                  (click)="addTask(q.id)"
+                  [attr.aria-label]="'Add a task to ' + q.label"
+                  [appTooltip]="'Add a task to ' + q.label"
+                >
+                  <svg
+                    width="13"
+                    height="13"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="2.4"
+                  >
+                    <line x1="12" y1="5" x2="12" y2="19" />
+                    <line x1="5" y1="12" x2="19" y2="12" />
+                  </svg>
+                </button>
+                <button
                   class="collapse-btn"
                   type="button"
                   (click)="toggleQuadrant(q.id)"
@@ -255,6 +275,27 @@ interface MatrixContextMenu {
                         [style.background]="'var(--priority-p' + task.priority + '-color)'"
                         appTooltip="Priority {{ task.priority }}"
                       ></span>
+                      <button
+                        class="card-edit"
+                        type="button"
+                        [attr.aria-label]="'Edit ' + task.title"
+                        appTooltip="Edit task"
+                        (pointerdown)="$event.stopPropagation()"
+                        (mousedown)="$event.stopPropagation()"
+                        (click)="editTask(task, $event)"
+                      >
+                        <svg
+                          width="13"
+                          height="13"
+                          viewBox="0 0 24 24"
+                          fill="none"
+                          stroke="currentColor"
+                          stroke-width="2"
+                        >
+                          <path d="M12 20h9" />
+                          <path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z" />
+                        </svg>
+                      </button>
                     </div>
                   }
                   @if (getQuadrantTasks(q.id).length === 0) {
@@ -308,6 +349,25 @@ interface MatrixContextMenu {
             @if (!paneCollapsed()) {
               Unassigned
               <span class="unassigned-count">{{ taskService.getUnassignedTasks().length }}</span>
+              <button
+                class="collapse-btn add-task-btn"
+                type="button"
+                (click)="addTask(null)"
+                aria-label="Add a task without a quadrant"
+                appTooltip="Add a task without a quadrant"
+              >
+                <svg
+                  width="13"
+                  height="13"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="2.4"
+                >
+                  <line x1="12" y1="5" x2="12" y2="19" />
+                  <line x1="5" y1="12" x2="19" y2="12" />
+                </svg>
+              </button>
             }
             <button
               class="collapse-btn pane-toggle"
@@ -392,6 +452,27 @@ interface MatrixContextMenu {
                     [style.background]="'var(--priority-p' + task.priority + '-color)'"
                     appTooltip="Priority {{ task.priority }}"
                   ></span>
+                  <button
+                    class="card-edit"
+                    type="button"
+                    [attr.aria-label]="'Edit ' + task.title"
+                    appTooltip="Edit task"
+                    (pointerdown)="$event.stopPropagation()"
+                    (mousedown)="$event.stopPropagation()"
+                    (click)="editTask(task, $event)"
+                  >
+                    <svg
+                      width="13"
+                      height="13"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      stroke-width="2"
+                    >
+                      <path d="M12 20h9" />
+                      <path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z" />
+                    </svg>
+                  </button>
                 </div>
               }
               @if (taskService.getUnassignedTasks().length === 0) {
@@ -419,6 +500,19 @@ interface MatrixContextMenu {
         <div class="menu-header">
           <span class="menu-title">{{ menu.task.title }}</span>
           <span class="menu-subtitle">{{ taskContextLabel(menu.task) }}</span>
+        </div>
+
+        <div class="menu-section">
+          <button
+            class="menu-option"
+            type="button"
+            role="menuitem"
+            (click)="editTaskFromMenu(menu.task)"
+          >
+            <span class="menu-dot edit"></span>
+            <span class="menu-option-label">Edit task</span>
+            <span class="menu-option-desc">Title, date, priority, repeat</span>
+          </button>
         </div>
 
         <div class="menu-section">
@@ -716,6 +810,15 @@ interface MatrixContextMenu {
         outline: 2px solid var(--color-accent-primary);
         outline-offset: 1px;
       }
+      /* The "+" beside a quadrant's fold control: add a task to this quadrant. */
+      .collapse-btn.add-task-btn {
+        color: var(--color-text-secondary);
+        border: 1px solid rgba(139, 92, 246, 0.2);
+      }
+      .collapse-btn.add-task-btn:hover {
+        border-color: rgba(139, 92, 246, 0.5);
+        color: var(--color-text-primary);
+      }
 
       /* Each quadrant scrolls on its own once its tasks no longer fit. */
       .task-drop-zone {
@@ -866,6 +969,31 @@ interface MatrixContextMenu {
         border-radius: 50%;
         flex-shrink: 0;
       }
+      /* The way into the task form straight from a card, without right-clicking
+         for the menu — the complaint this answers was that a card could be read
+         here but never changed. */
+      .card-edit {
+        width: 22px;
+        height: 22px;
+        border-radius: 6px;
+        flex-shrink: 0;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        border: none;
+        background: transparent;
+        color: var(--color-text-muted);
+        cursor: pointer;
+        transition: all 0.2s;
+      }
+      .card-edit:hover {
+        background: rgba(139, 92, 246, 0.12);
+        color: var(--color-text-primary);
+      }
+      .card-edit:focus-visible {
+        outline: 2px solid var(--color-accent-primary);
+        outline-offset: 1px;
+      }
       /* Titles wrap onto two lines so they stay readable in a narrow list. */
       .card-title {
         font-size: 12px;
@@ -990,6 +1118,9 @@ interface MatrixContextMenu {
       }
       .menu-dot.unassigned {
         background: var(--color-text-muted);
+      }
+      .menu-dot.edit {
+        background: var(--color-accent-primary);
       }
       .menu-option-label {
         font-size: 12px;
@@ -1159,6 +1290,7 @@ export class MatrixComponent implements OnInit {
   private readonly schedule = inject(ScheduleService);
   private readonly db = inject(DbService);
   private readonly notifications = inject(NotificationService);
+  private readonly router = inject(Router);
 
   private readonly wrapperRef = viewChild<ElementRef<HTMLElement>>('wrapper');
   private readonly contextMenuRef = viewChild<ElementRef<HTMLElement>>('contextMenu');
@@ -1244,6 +1376,32 @@ export class MatrixComponent implements OnInit {
 
   getQuadrantTasks(quadrant: TaskQuadrant): Task[] {
     return this.schedule.tasksInQuadrant(quadrant);
+  }
+
+  /**
+   * A card's pencil, and the menu's own "Edit task".
+   *
+   * The matrix reads tasks — it sorts them, re-times them and checks them off —
+   * but it deliberately owns no form: the app has one editor, on the Tasks page.
+   * Both controls therefore hand over to it with the same deep link the other
+   * pages use, so a task can be corrected from wherever it was noticed.
+   */
+  editTask(task: Task, event: Event): void {
+    event.stopPropagation();
+    this.closeContextMenu();
+    this.router.navigate([TASK_EDIT_PATH], { queryParams: taskEditQuery(task.id) });
+  }
+
+  editTaskFromMenu(task: Task): void {
+    this.closeContextMenu();
+    this.router.navigate([TASK_EDIT_PATH], { queryParams: taskEditQuery(task.id) });
+  }
+
+  /** A quadrant's "+" (or the unassigned list's) opens the form already sorted. */
+  addTask(quadrant: TaskQuadrant | null): void {
+    this.router.navigate([TASK_EDIT_PATH], {
+      queryParams: taskAddQuery({ quadrant, deadline: dayKey() }),
+    });
   }
 
   /** Drop, the 1–4 / 0 shortcuts, or the right-click menu re-prioritise a card. */

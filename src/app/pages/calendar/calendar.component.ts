@@ -37,6 +37,8 @@ import {
   ScheduleBlock,
 } from '../../core/models/schedule.model';
 import { TooltipDirective } from '../../shared/directives/tooltip.directive';
+import { TASK_EDIT_PATH, taskEditQuery } from '../../core/utils/task-link.util';
+import { Router } from '@angular/router';
 
 interface BlockLayout {
   block: ScheduleBlock;
@@ -334,6 +336,15 @@ function persistCollapsedGroups(value: Record<string, boolean>): void {
                       >
                         📌
                       </button>
+                      <button
+                        type="button"
+                        class="rail-edit"
+                        [attr.aria-label]="'Edit ' + item.task.title"
+                        appTooltip="Edit task"
+                        (click)="editTask(item.task, $event)"
+                      >
+                        ✎
+                      </button>
                     </div>
                   </article>
                 }
@@ -398,6 +409,15 @@ function persistCollapsedGroups(value: Record<string, boolean>): void {
                         appTooltip="Put in Q1 · Do First"
                       >
                         Q1
+                      </button>
+                      <button
+                        type="button"
+                        class="rail-edit"
+                        [attr.aria-label]="'Edit ' + item.task.title"
+                        appTooltip="Edit task"
+                        (click)="editTask(item.task, $event)"
+                      >
+                        ✎
                       </button>
                     </div>
                   </article>
@@ -630,6 +650,14 @@ function persistCollapsedGroups(value: Record<string, boolean>): void {
                         appTooltip="Take off the timeline"
                       >
                         Remove
+                      </button>
+                      <button
+                        type="button"
+                        class="edit-task"
+                        (click)="editTask(task, $event)"
+                        appTooltip="Edit the task itself — title, date, priority, repeat"
+                      >
+                        Edit
                       </button>
                     </div>
                   </div>
@@ -1137,6 +1165,11 @@ function persistCollapsedGroups(value: Record<string, boolean>): void {
         background: rgba(139, 92, 246, 0.25);
         border-color: rgba(139, 92, 246, 0.5);
       }
+      /* The way into the app's task form from the plan itself. */
+      .rail-actions button.rail-edit:hover {
+        border-color: rgba(139, 92, 246, 0.6);
+        color: var(--color-text-primary);
+      }
       .rail-empty,
       .rail-note {
         font-size: 10px;
@@ -1562,6 +1595,10 @@ function persistCollapsedGroups(value: Record<string, boolean>): void {
         color: #fca5a5;
         border-color: rgba(248, 113, 113, 0.4);
       }
+      .panel-task-actions button.edit-task:hover {
+        border-color: rgba(139, 92, 246, 0.6);
+        color: var(--color-text-primary);
+      }
       .panel-note {
         padding: 10px 12px;
         font-size: 11px;
@@ -1703,6 +1740,7 @@ function persistCollapsedGroups(value: Record<string, boolean>): void {
 export class CalendarComponent implements OnInit, OnDestroy {
   protected readonly schedule = inject(ScheduleService);
   private readonly taskService = inject(TaskService);
+  private readonly router = inject(Router);
 
   protected readonly pomodoroChoices = [1, 2, 3, 4, 5, 6];
   protected readonly pxPerMinute = 1.8;
@@ -2141,6 +2179,19 @@ export class CalendarComponent implements OnInit, OnDestroy {
   protected async complete(task: Task, event: Event): Promise<void> {
     event.stopPropagation();
     await this.taskService.toggleStatus(task);
+  }
+
+  /**
+   * The pencil on a rail card, and the panel's own Edit button.
+   *
+   * The calendar decides *when* a task runs, not what it is: a title that turns
+   * out to be wrong, or a deadline that moved, is corrected in the app's one
+   * task form. Both controls hand over to it with the shared deep link, so the
+   * task opens on the Tasks page with its own values in the fields.
+   */
+  protected editTask(task: Task, event: Event): void {
+    event.stopPropagation();
+    this.router.navigate([TASK_EDIT_PATH], { queryParams: taskEditQuery(task.id) });
   }
 
   // ── Slot panel ────────────────────────────────────────────────────────────

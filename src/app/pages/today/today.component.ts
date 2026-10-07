@@ -15,6 +15,8 @@ import {
   TaskBoardComponent,
 } from '../../shared/components/task-board/task-board.component';
 import { sequenceAfterMove } from '../../shared/components/task-board/task-board.view';
+import { TooltipDirective } from '../../shared/directives/tooltip.directive';
+import { TASK_EDIT_PATH, taskAddQuery, taskEditQuery } from '../../core/utils/task-link.util';
 
 /**
  * Today is the same status board as the Tasks page, scoped to the day's list:
@@ -27,7 +29,7 @@ import { sequenceAfterMove } from '../../shared/components/task-board/task-board
  */
 @Component({
   selector: 'app-today',
-  imports: [TaskBoardComponent],
+  imports: [TaskBoardComponent, TooltipDirective],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <div class="today-layout">
@@ -38,6 +40,25 @@ import { sequenceAfterMove } from '../../shared/components/task-board/task-board
         </div>
         <div class="header-stats">
           <span class="stat">{{ completedCount() }}/{{ boardTasks().length }} done</span>
+          <button
+            class="btn-add"
+            type="button"
+            (click)="addTask()"
+            appTooltip="Open the task form for today — the task lands on this board"
+          >
+            <svg
+              width="14"
+              height="14"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2.4"
+            >
+              <line x1="12" y1="5" x2="12" y2="19" />
+              <line x1="5" y1="12" x2="19" y2="12" />
+            </svg>
+            Add task
+          </button>
         </div>
       </div>
 
@@ -103,6 +124,7 @@ import { sequenceAfterMove } from '../../shared/components/task-board/task-board
           </svg>
           <h3>No tasks for today</h3>
           <p>Create a task with today's date or set a deadline for today</p>
+          <button class="btn-add" type="button" (click)="addTask()">Add a task for today</button>
         </div>
       } @else if (filteredBoardTasks().length === 0) {
         <div class="empty-state">
@@ -117,6 +139,7 @@ import { sequenceAfterMove } from '../../shared/components/task-board/task-board
           [highlightedTaskId]="focusedTaskId()"
           emptyText="Nothing here today"
           (moved)="onMoved($event)"
+          (editRequested)="editTask($event)"
           (focusRequested)="focusTask($event)"
           (deleteRequested)="deleteTask($event)"
         />
@@ -162,6 +185,33 @@ import { sequenceAfterMove } from '../../shared/components/task-board/task-board
         background: rgba(139, 92, 246, 0.08);
         padding: 4px 12px;
         border-radius: 20px;
+      }
+      .header-stats {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+      }
+      .btn-add {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        padding: 7px 14px;
+        font: inherit;
+        font-size: 12px;
+        font-weight: 600;
+        border: none;
+        border-radius: 10px;
+        background: linear-gradient(135deg, #8b5cf6, #7c3aed);
+        color: #fff;
+        cursor: pointer;
+        transition: all 0.2s;
+      }
+      .btn-add:hover {
+        transform: translateY(-1px);
+        box-shadow: 0 4px 16px rgba(139, 92, 246, 0.3);
+      }
+      .empty-state .btn-add {
+        margin-top: 4px;
       }
 
       .filters-bar {
@@ -252,7 +302,7 @@ export class TodayComponent implements OnInit {
   });
 
   /** Buttons every card on this page carries. */
-  readonly boardActions = ['focus', 'delete'] as const;
+  readonly boardActions = ['edit', 'focus', 'delete'] as const;
 
   /** Today's tasks in every status — the board shows Done as well. */
   readonly boardTasks = this.taskService.todayBoardTasks;
@@ -314,5 +364,22 @@ export class TodayComponent implements OnInit {
     localStorage.setItem('deepwork_focusTaskId', task.id);
     this.focusedId.set(task.id);
     this.router.navigate(['/dashboard']);
+  }
+
+  /**
+   * A card's pencil, and the header's Add task button.
+   *
+   * This page is a view of the day, not an editor: it has no task form and the
+   * app deliberately has only one. Both controls therefore hand over to the
+   * Tasks page's panel through the deep link every other page uses — editing
+   * opens that task, adding opens the form dated today and pins the result to
+   * today's list, which is what "Add task" on this page promises.
+   */
+  editTask(task: Task): void {
+    this.router.navigate([TASK_EDIT_PATH], { queryParams: taskEditQuery(task.id) });
+  }
+
+  addTask(): void {
+    this.router.navigate([TASK_EDIT_PATH], { queryParams: taskAddQuery({ today: true }) });
   }
 }

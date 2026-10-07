@@ -79,10 +79,10 @@ Inside the app, **About → Get it on another device** resolves each of those li
 This is the honest version of what happens on a fresh, unsigned download:
 
 - **Windows** — SmartScreen may interrupt with "Windows protected your PC"; the UAC prompt says _Unknown publisher_. The publisher, copyright and category are set correctly in [`tauri.conf.json`](src-tauri/tauri.conf.json), so Add/Remove Programs and the file's properties name the developer even though the signature is absent. Choose _More info → Run anyway_ only if you trust the source.
-- **macOS** — Gatekeeper may refuse the first launch. Right-click the app → _Open_ → _Open_, or clear the quarantine flag yourself if you are sure of the file.
+- **macOS** — Gatekeeper refuses the first launch, with _"DeepWork" Not Opened — Apple could not verify "DeepWork" is free of malware_. That is the unsigned, un-notarized app, not a broken download. **The Control-click → _Open_ trick no longer works on macOS 15 (Sequoia) or later**, so on a current Mac open **System Settings → Privacy & Security → Security → Open Anyway** (after trying to open it once), or clear the flag from Terminal: `xattr -dr com.apple.quarantine /Applications/DeepWork.app`. The [full macOS story](docs/code-signing.md#macos-the-dialog-a-mac-user-is-hitting) — including the browser build that needs no signature — is in [`docs/code-signing.md`](docs/code-signing.md).
 - **Linux** — `chmod +x DeepWork_*.AppImage` before running it.
 
-If a release publishes a SHA-256 checksum, compare it before installing — `Get-FileHash <file> -Algorithm SHA256` on Windows, `sha256sum <file>` elsewhere. [`docs/code-signing.md`](docs/code-signing.md) has the full picture: what each kind of certificate would change for the user, the exact configuration for a certificate store or a cloud signer, and how to verify a build before publishing it.
+If a release publishes a SHA-256 checksum, compare it before installing — `Get-FileHash <file> -Algorithm SHA256` on Windows, `sha256sum <file>` elsewhere. [`docs/code-signing.md`](docs/code-signing.md) has the full picture: what each kind of certificate or notarization ticket would change for the user, the exact configuration for a certificate store or a cloud signer, how to get past Gatekeeper on a Mac in the meantime, and how to verify a build before publishing it.
 
 **On first launch**, a one-time dialog offers _start with system_, _always on top_ and _keep running in the tray_. No installer writes a startup entry, and nothing is enabled unless you ask for it.
 
@@ -150,6 +150,8 @@ Short versions of the things that surprise people. Each is real behaviour, not a
 
 **A task's own date decides the day it belongs to** — deadline, or the day it was written when it has no deadline. Dragging a card to Done never makes it jump into another date section, and an import for the rest of the week waits in its own sections instead of crowding today. Where a title would qualify for today twice over, Today shows one card, not two.
 
+**Editing a task from wherever it is read.** The app has exactly one task form, on the Tasks page, and every card that shows a task now carries the way into it — a pencil on a board card and on an Eisenhower Matrix card, a **✎** on a Calendar rail card, **Edit** in the Calendar's slot panel, **Edit task** on the dashboard's current-focus card, and **Edit task** at the top of the Matrix's right-click menu. Each one opens that same panel with the task already in its fields, so a title or a date can be corrected the moment it is noticed, without hunting for the page that owns it. Adding works the same way: a **+** in a date section's header (Today, Tomorrow, or a month ahead) opens the form already dated for that section, every Matrix quadrant has a **+** that adds straight into it, and Today's header carries **Add task** for a task that also lands on today's list.
+
 ## Keyboard shortcuts
 
 | Keys                 | What they do                                                                                                |
@@ -196,7 +198,7 @@ Tauri does **not** cross-compile: build each platform on that platform, or let C
 
 | Platform         | Command                   | Where the artefacts land                                                                                                                                                                                                         |
 | ---------------- | ------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Windows (64-bit) | `npm run build:windows`   | `src-tauri/target/x86_64-pc-windows-msvc/release/bundle/msi/DeepWork_2.0.19_x64_en-US.msi` and `bundle/nsis/DeepWork_2.0.19_x64-setup.exe`; the bare binary is at `src-tauri/target/x86_64-pc-windows-msvc/release/deepwork.exe` |
+| Windows (64-bit) | `npm run build:windows`   | `src-tauri/target/x86_64-pc-windows-msvc/release/bundle/msi/DeepWork_2.0.20_x64_en-US.msi` and `bundle/nsis/DeepWork_2.0.20_x64-setup.exe`; the bare binary is at `src-tauri/target/x86_64-pc-windows-msvc/release/deepwork.exe` |
 | Windows (32-bit) | `npm run build:windows32` | `src-tauri/target/i686-pc-windows-msvc/release/bundle/` — the same two installers, named `…_x86` (run `rustup target add i686-pc-windows-msvc` once)                                                                               |
 | macOS (Intel)    | `npm run build:mac`       | `src-tauri/target/x86_64-apple-darwin/release/bundle/` — `macos/DeepWork.app` and a `.dmg` whose name carries the version                                                                                                        |
 | macOS (ARM)      | `npm run build:mac-arm`   | `src-tauri/target/aarch64-apple-darwin/release/bundle/` (run `rustup target add aarch64-apple-darwin` once)                                                                                                                      |

@@ -32,8 +32,18 @@ export interface TaskDateGroup {
 const DAY_MS = 86_400_000;
 
 const MONTH_NAMES = [
-  'January', 'February', 'March', 'April', 'May', 'June',
-  'July', 'August', 'September', 'October', 'November', 'December',
+  'January',
+  'February',
+  'March',
+  'April',
+  'May',
+  'June',
+  'July',
+  'August',
+  'September',
+  'October',
+  'November',
+  'December',
 ];
 
 /** A task's date reduced to the four numbers the boundaries are drawn with. */
@@ -101,7 +111,11 @@ function fromIsoTimestamp(iso: string): DayInfo | null {
  * of its own.
  */
 export function taskDay(task: Task, now = new Date()): DayInfo {
-  return (task.deadline ? fromIsoDay(task.deadline) : null) ?? fromIsoTimestamp(task.createdAt) ?? infoOf(now);
+  return (
+    (task.deadline ? fromIsoDay(task.deadline) : null) ??
+    fromIsoTimestamp(task.createdAt) ??
+    infoOf(now)
+  );
 }
 
 function monthLabel(day: DayInfo, today: DayInfo): string {
@@ -184,4 +198,35 @@ export function groupTasksByDate(tasks: readonly Task[], now = new Date()): Task
  */
 export function sectionKeyFor(task: Task, now = new Date()): string {
   return bucketFor(taskDay(task, now), infoOf(now)).key;
+}
+
+/**
+ * The day a "+" in a date section should write onto a new task, as
+ * `YYYY-MM-DD`, or `''` when that section is not a single day.
+ *
+ * A section that holds one day can hold a new task for that day: Today and
+ * Tomorrow have a date of their own, so a task added from their header is filed
+ * straight back under that header instead of quietly landing on today. The
+ * month sections are single days too — their first — which is the nearest
+ * honest reading of "add to October".
+ *
+ * The sections that span several days (this week, next week, later this month)
+ * get no button rather than a guessed date, and neither does a section that lies
+ * in the past: the deadline field refuses a day before today, so a pre-filled
+ * past date would open a form that is already complaining.
+ */
+export function groupAddDate(key: string, now = new Date()): string {
+  const today = infoOf(now);
+  if (key === 'today') return today.key;
+  if (key === 'tomorrow') {
+    return infoOf(new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1)).key;
+  }
+
+  const month = /^month-(\d{4})-(\d{2})$/.exec(key);
+  if (month) {
+    const first = `${month[1]}-${month[2]}-01`;
+    return first >= today.key ? first : '';
+  }
+
+  return '';
 }

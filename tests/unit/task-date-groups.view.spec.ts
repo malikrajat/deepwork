@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import {
+  groupAddDate,
   groupTasksByDate,
   sectionKeyFor,
   taskDay,
@@ -30,7 +31,7 @@ const task = (title: string, over: Partial<Task> = {}): Task => ({
 /** Friday 18 September 2026 — a week with days on both sides of "today". */
 const TODAY = new Date(2026, 8, 18, 12);
 
-const labelsFor = (tasks: Task[]) => groupTasksByDate(tasks, TODAY).map(group => group.label);
+const labelsFor = (tasks: Task[]) => groupTasksByDate(tasks, TODAY).map((group) => group.label);
 
 describe('task date sections', () => {
   it('files a task by its deadline, not by when it was written', () => {
@@ -81,10 +82,10 @@ describe('task date sections', () => {
         task('later this month', { deadline: '2026-09-30' }),
         task('next month', { deadline: '2026-10-02' }),
       ],
-      TODAY
+      TODAY,
     );
 
-    expect(groups.map(group => group.label)).toEqual([
+    expect(groups.map((group) => group.label)).toEqual([
       'Today',
       'Tomorrow',
       'Next week',
@@ -104,18 +105,18 @@ describe('task date sections', () => {
         task('second', { deadline: '2026-09-18', status: 'done' }),
         task('third', { deadline: '2026-09-18' }),
       ],
-      TODAY
+      TODAY,
     );
 
     expect(groups).toHaveLength(1);
-    expect(groups[0].tasks.map(entry => entry.title)).toEqual(['first', 'second', 'third']);
+    expect(groups[0].tasks.map((entry) => entry.title)).toEqual(['first', 'second', 'third']);
     expect(groups[0].doneCount).toBe(1);
   });
 
   it('drops the sections that ended up with no tasks', () => {
     const groups = groupTasksByDate([task('only', { deadline: '2026-09-18' })], TODAY);
 
-    expect(groups.map(group => group.key)).toEqual(['today']);
+    expect(groups.map((group) => group.key)).toEqual(['today']);
   });
 
   it('reads an unbounded task date as its local creation day', () => {
@@ -127,6 +128,47 @@ describe('task date sections', () => {
   it('names the section a task lands in, so a new task can be revealed', () => {
     expect(sectionKeyFor(task('today', { deadline: '2026-09-18' }), TODAY)).toBe('today');
     expect(sectionKeyFor(task('last week', { deadline: '2026-09-12' }), TODAY)).toBe('last-week');
-    expect(sectionKeyFor(task('next month', { deadline: '2026-10-02' }), TODAY)).toBe('month-2026-10');
+    expect(sectionKeyFor(task('next month', { deadline: '2026-10-02' }), TODAY)).toBe(
+      'month-2026-10',
+    );
+  });
+});
+
+/**
+ * The "+" in a section header has to write a date that puts the new task back
+ * in that very section — otherwise the button lies about where the task went.
+ */
+describe('the date a section adds to', () => {
+  it('gives Today and Tomorrow their own day', () => {
+    expect(groupAddDate('today', TODAY)).toBe('2026-09-18');
+    expect(groupAddDate('tomorrow', TODAY)).toBe('2026-09-19');
+  });
+
+  it('crosses a month and a year boundary correctly', () => {
+    expect(groupAddDate('tomorrow', new Date(2026, 8, 30, 12))).toBe('2026-10-01');
+    expect(groupAddDate('tomorrow', new Date(2026, 11, 31, 12))).toBe('2027-01-01');
+  });
+
+  it('adds to a future month on its first day', () => {
+    expect(groupAddDate('month-2026-10', TODAY)).toBe('2026-10-01');
+    expect(groupAddDate('month-2027-01', TODAY)).toBe('2027-01-01');
+  });
+
+  it('offers no date for a section that spans several days', () => {
+    expect(groupAddDate('this-week', TODAY)).toBe('');
+    expect(groupAddDate('next-week', TODAY)).toBe('');
+    expect(groupAddDate('this-month', TODAY)).toBe('');
+  });
+
+  it('offers no date in the past, which the deadline field refuses', () => {
+    expect(groupAddDate('yesterday', TODAY)).toBe('');
+    expect(groupAddDate('last-week', TODAY)).toBe('');
+    expect(groupAddDate('month-2026-08', TODAY)).toBe('');
+  });
+
+  it('files the task it creates back under the same header', () => {
+    const due = groupAddDate('tomorrow', TODAY);
+
+    expect(sectionKeyFor(task('added tomorrow', { deadline: due }), TODAY)).toBe('tomorrow');
   });
 });
