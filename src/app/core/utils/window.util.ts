@@ -109,3 +109,21 @@ function copyOf(geometry: WindowGeometry): WindowGeometry {
 function clamp(value: number, low: number, high: number): number {
   return Math.min(Math.max(value, low), high);
 }
+
+/**
+ * Is the page drawn *under* a native macOS title bar?
+ *
+ * It is on macOS in the desktop shell, and only there. Tauri's default
+ * `titleBarStyle` for a Mac window is `Visible`, which it implements as
+ * `titlebarAppearsTransparent(false)` **plus** `fullsizeContentView(true)` —
+ * an ordinary opaque title bar that the page is laid out *behind*, so the top of
+ * the app sits underneath the traffic lights unless the layout reserves that
+ * strip. Windows and Linux put the webview below the frame instead, and the
+ * browser build has no native bar at all, so neither of them needs the inset.
+ *
+ * Pure, so the rule can be unit-tested without a Mac: the caller passes the user
+ * agent and whether it is running inside the desktop shell.
+ */
+export function hasNativeMacTitlebar(userAgent: string, isTauriEnv: boolean): boolean {
+  return isTauriEnv && /Mac OS X|Macintosh/i.test(userAgent);
+}

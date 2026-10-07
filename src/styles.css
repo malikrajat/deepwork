@@ -93,6 +93,14 @@
      this much room for it — the banner and the shell both read this value. */
   --install-banner-height: 48px;
 
+  /* The strip a native macOS title bar occupies at the top of the window.
+     Tauri's default title-bar style lays the page out *under* that bar, so on a
+     Mac the app reserves this much room and the traffic lights get it to
+     themselves instead of sitting on the sidebar's brand row. Windows and Linux
+     put the webview below the frame, and the browser has no frame at all, so
+     this only ever applies with `html.macos-native-frame` (see `UiService`). */
+  --macos-titlebar-height: 28px;
+
   /* Deep space palette */
   --color-bg-primary: #080613;
   --color-bg-secondary: #0f0b1f;
@@ -420,6 +428,32 @@ html[data-theme='light'] {
   margin: 0;
   padding: 0;
   box-sizing: border-box;
+}
+
+/* macOS: the page is drawn under the native title bar (see the comment on
+   `--macos-titlebar-height`), so the shell starts below it. The class is put on
+   <html> by `UiService` only while the full window is up — the mini widget has no
+   title bar, so it reserves nothing. */
+html.macos-native-frame .app-shell {
+  padding-top: var(--macos-titlebar-height);
+}
+
+/* The install banner is fixed to the very top of the window, which on a Mac is
+   inside the title bar. It moves down with everything else, and the shell's own
+   reservation for it follows. */
+html.macos-native-frame .install-banner {
+  top: var(--macos-titlebar-height);
+}
+
+html.macos-native-frame .app-shell.banner-open {
+  padding-top: calc(var(--macos-titlebar-height) + var(--install-banner-height));
+}
+
+/* The water reminder is anchored to the top-right of the window and is a
+   question — half of it behind the title bar is not a question. It moves down
+   with everything else. */
+html.macos-native-frame app-water-nudge {
+  top: calc(var(--macos-titlebar-height) + 24px);
 }
 
 /* One keyboard focus ring for the whole app.

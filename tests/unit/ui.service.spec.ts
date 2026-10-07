@@ -93,4 +93,40 @@ describe('UiService (behavior)', () => {
     expect(svc.isMiniMode()).toBe(false);
     expect(mockPrefs.reapplyAlwaysOnTop).not.toHaveBeenCalled();
   });
+
+  /**
+   * Every window except the widget keeps its native title bar, and this is the
+   * call that guarantees it: at startup, on the way out of the widget, and when
+   * the tray hands the app back.
+   */
+  it('can restore the full window frame, and does nothing outside the desktop app', async () => {
+    await svc.restoreWindowFrame();
+
+    // No Tauri runtime means no window to decorate — and in particular no stored
+    // preference may be reapplied against a missing window.
+    expect(mockPrefs.reapplyAlwaysOnTop).not.toHaveBeenCalled();
+  });
+
+  it('claims no macOS title-bar strip in a browser', async () => {
+    // jsdom is not a Mac in the desktop shell, so the shell is left alone; the
+    // class is what reserves the traffic lights' room on a real Mac.
+    await svc.restoreWindowFrame();
+    expect(document.documentElement.classList.contains('macos-native-frame')).toBe(false);
+
+    await svc.enterMiniMode();
+    expect(document.documentElement.classList.contains('macos-native-frame')).toBe(false);
+
+    await svc.exitMiniMode();
+    expect(document.documentElement.classList.contains('macos-native-frame')).toBe(false);
+  });
+
+  it('asks for the full window frame only where there is a native window', async () => {
+    // The desktop half of this lives in `ui.service.desktop.spec.ts`, where the
+    // Tauri window is mocked. Here there is none, so the call has to be inert
+    // rather than throwing on a missing window.
+    svc.isMiniMode.set(true);
+    await svc.restoreWindowFrame();
+
+    expect(mockPrefs.reapplyAlwaysOnTop).not.toHaveBeenCalled();
+  });
 });

@@ -53,6 +53,9 @@ export class TrayMenuService implements OnDestroy {
         // Rust already un-minimised and focused the window; if it happens to be
         // the mini widget, the user asked for the app, not the widget.
         if (this.ui.isMiniMode()) void this.ui.exitMiniMode();
+        // A window that was hidden to the tray comes back with the frame every
+        // full window is entitled to — the frame is never left to chance.
+        else void this.ui.restoreWindowFrame();
         break;
       case 'pause':
         this.timer.pause();
@@ -92,7 +95,7 @@ export class TrayMenuService implements OnDestroy {
       this.notification.showToastMessage(
         'Timer resumed',
         `Pause over — back to ${this.timer.timerType() === 'work' ? 'focus' : 'break'}.`,
-        this.timer.timerType()
+        this.timer.timerType(),
       );
     }, minutes * 60_000);
   }

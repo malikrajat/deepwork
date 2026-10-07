@@ -1,6 +1,6 @@
 import { Injectable, computed, inject, signal } from '@angular/core';
 import { DesktopPrefsService } from './desktop-prefs.service';
-import { fitInsideWorkArea } from '../utils/window.util';
+import { fitInsideWorkArea, hasNativeMacTitlebar } from '../utils/window.util';
 import type { Window as TauriWindow } from '@tauri-apps/api/window';
 
 /**
@@ -51,6 +51,22 @@ export class UiService {
   private readonly widgetWindowIsTransparent =
     this.isTauriEnv && /Windows/i.test(globalThis.navigator?.userAgent ?? '');
 
+  /**
+   * True when the page is laid out under a native macOS title bar.
+   *
+   * The app reserves the height of that bar in the layout because macOS draws the
+   * traffic lights over the top strip of the page — see `hasNativeMacTitlebar`.
+   * The class is only claimed while the full window is up: the widget has no
+   * title bar to make room for.
+   */
+  private readonly nativeMacTitlebar = hasNativeMacTitlebar(
+    globalThis.navigator?.userAgent ?? '',
+    this.isTauriEnv,
+  );
+
+  /** The last full-screen state seen, so leaving it can re-assert the frame. */
+  private wasFullscreen = false;
+
   private readonly prefs = inject(DesktopPrefsService);
 
   /** Geometry captured on the way into the widget, restored on the way out. */
@@ -85,6 +101,12 @@ export class UiService {
       // leaving the widget always has somewhere sensible to return to.
       await this.captureGeometry(getCurrentWindow());
 
+      // The window starts with the frame the config asked for — and this makes
+      // sure of it, because the one thing this app must never do is leave the
+      // user with a window they cannot move, minimise or close.
+      await this.restoreWindowFrame();
+      await this.watchFullscreen(getCurrentWindow());
+
       const { listen } = await import('@tauri-apps/api/event');
       // The listener lives as long as the window does, so the handle is not kept.
       await listen('deepwork:minimize', () => {
@@ -95,6 +117,81 @@ export class UiService {
     } catch (e) {
       console.warn('Tauri window API unavailable', e);
     }
+  }
+
+  /**
+   * Puts the full window back in its frame: title bar, resize grip and minimum
+   * size — everything the widget takes away.
+   *
+   * `enterMiniMode` is the only place the frame is ever removed, and this is the
+   * other half of that promise: the frame belongs to every window *except* the
+   * widget, so any path back to the full window re-asserts it rather than
+   * assuming an earlier call worked. It is safe to call at any time and inert
+   * outside the desktop app.
+   */
+  async restoreWindowFrame(): Promise<void> {
+    this.applyTitlebarInset();
+    if (!this.isTauriEnv || this.isMiniMode()) return;
+    try {
+      const { getCurrentWindow } = await import('@tauri-apps/api/window');
+      const { LogicalSize } = await import('@tauri-apps/api/dpi');
+      const win = getCurrentWindow();
+
+      // A frame that is missing has to be forced: the desktop layer skips a
+      // "decorate it" request when its own idea of the window already says
+      // decorated, and one path can leave it saying that while the window on
+      // screen has no bar at all (see `forceWindowFrame`).
+      const decorated = await win.isDecorated().catch(() => true);
+      if (!decorated) await this.forceWindowFrame(win);
+
+      await win.setDecorations(true);
+      await win.setResizable(true);
+      await win.setMinSize(new LogicalSize(MAIN_MIN_SIZE.width, MAIN_MIN_SIZE.height));
+    } catch (e) {
+      console.warn('Tauri window API unavailable', e);
+    }
+  }
+
+  /**
+   * Takes the frame off and puts it straight back on.
+   *
+   * Used where the frame is known to be *wrong* rather than merely unverified.
+   * On macOS the decoration flag can end up cached as "decorated" while the
+   * window itself has no title bar — the change is dropped when it arrives while
+   * the window is in native full screen — and from then on every
+   * `setDecorations(true)` is treated as "no change" and skipped. Toggling it off
+   * first is what makes the desktop layer act on the request again.
+   */
+  private async forceWindowFrame(win: TauriWindow): Promise<void> {
+    await win.setDecorations(false);
+    await win.setDecorations(true);
+  }
+
+  /**
+   * Repairs the frame after leaving native full screen.
+   *
+   * macOS hides the title bar and its buttons in full screen by design, and the
+   * decoration change the app made in the meantime can have been dropped — the
+   * one sequence that leaves a full window frameless with no way back from the
+   * UI. Watching for the exit is what makes that state recoverable.
+   */
+  private async watchFullscreen(win: TauriWindow): Promise<void> {
+    this.wasFullscreen = await win.isFullscreen().catch(() => false);
+    await win.onResized(async () => {
+      const fullscreen = await win.isFullscreen().catch(() => false);
+      const leftFullscreen = this.wasFullscreen && !fullscreen;
+      // Recorded before anything is done with it: the widget's own resizes run
+      // through here too, and a stale flag would fire a repair on the first
+      // resize after the window came back.
+      this.wasFullscreen = fullscreen;
+      // The widget has no frame to repair — leaving it re-asserts one anyway.
+      if (!leftFullscreen || this.isMiniMode()) return;
+      try {
+        await this.forceWindowFrame(win);
+      } catch (e) {
+        console.warn('Tauri window API unavailable', e);
+      }
+    });
   }
 
   toggleFocusMode(): void {
@@ -125,6 +222,8 @@ export class UiService {
     // The window is transparent, so the page behind the widget has to be too —
     // that is what makes the rounded corners empty instead of square.
     this.setWidgetSurface(true);
+    // The widget has no title bar, so the strip reserved for one goes with it.
+    this.applyTitlebarInset();
     if (!this.isTauriEnv) return;
     try {
       const { getCurrentWindow } = await import('@tauri-apps/api/window');
@@ -245,6 +344,11 @@ export class UiService {
 
       await win.unminimize();
       await win.setFocus();
+
+      // Last, so nothing after it can leave the frame off: the full window keeps
+      // the title bar, the resize grip and the minimum size for good, whatever
+      // happened to any of them on the way out of the widget.
+      await this.restoreWindowFrame();
     } catch (e) {
       console.warn('Tauri window API unavailable', e);
     }
@@ -324,6 +428,23 @@ export class UiService {
     document.documentElement.classList.toggle(
       'widget-transparent',
       transparent && this.widgetWindowIsTransparent,
+    );
+  }
+
+  /**
+   * Reserves the native title bar's strip in the layout — macOS only.
+   *
+   * A Mac window is drawn with the page *under* an opaque title bar (see
+   * `hasNativeMacTitlebar`), so without this the app's own top row — the brand
+   * and the sidebar's collapse button — sits behind the traffic lights. The class
+   * is on `<html>` so the shell's stylesheet can read it, and it is given up
+   * while the widget is up: the widget has no title bar to make room for.
+   */
+  private applyTitlebarInset(): void {
+    if (typeof document === 'undefined') return;
+    document.documentElement.classList.toggle(
+      'macos-native-frame',
+      this.nativeMacTitlebar && !this.isMiniMode(),
     );
   }
 

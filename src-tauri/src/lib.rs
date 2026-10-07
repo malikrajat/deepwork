@@ -1138,8 +1138,17 @@ pub fn run() {
             // The system minimise button should shrink DeepWork into the mini
             // widget rather than bury the timer in the tray: Windows reports a
             // minimise as a 0x0 resize, which the frontend turns into the widget.
+            //
+            // That 0x0 is the *whole* test on Windows, where it is what the OS
+            // sends for a minimise and nothing else. Elsewhere a 0x0 can also be
+            // reported for a window that has merely been un-mapped or moved off
+            // the screen — and the widget is the only window in this app without
+            // a title bar, so a stray 0x0 must not be allowed to take the frame
+            // away. There the window's own state has to agree as well.
             WindowEvent::Resized(size) => {
-                if size.width == 0 && size.height == 0 {
+                let looks_minimised = size.width == 0 && size.height == 0;
+                let confirmed = cfg!(windows) || window.is_minimized().unwrap_or(false);
+                if looks_minimised && confirmed {
                     log::info!(target: logging::SYSTEM, "window minimised: turning into the mini widget");
                     request_mini_widget(window);
                 }

@@ -1,5 +1,9 @@
 import { describe, it, expect } from 'vitest';
-import { fitInsideWorkArea, type WindowGeometry } from '../../src/app/core/utils/window.util';
+import {
+  fitInsideWorkArea,
+  hasNativeMacTitlebar,
+  type WindowGeometry,
+} from '../../src/app/core/utils/window.util';
 
 /**
  * Where a restored window is allowed to land, pinned down.
@@ -102,5 +106,36 @@ describe('fitting a restored window to a desktop', () => {
     expect(fitted.position).toEqual({ x: 720, y: 239 });
     expect(fitted.size).toEqual({ width: 1200, height: 801 });
     expect(wanted).toEqual(untouched);
+  });
+});
+
+/**
+ * The one platform whose title bar the page is drawn *under*, and therefore the
+ * one that needs the layout to reserve room for the traffic lights.
+ */
+describe('the native macOS title bar', () => {
+  const MAC_UA =
+    'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko)';
+  const WINDOWS_UA =
+    'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko)';
+  const LINUX_UA = 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko)';
+
+  it('reserves the strip in the desktop app on a Mac', () => {
+    expect(hasNativeMacTitlebar(MAC_UA, true)).toBe(true);
+  });
+
+  it('reserves nothing for a Mac in a browser, which has no native bar', () => {
+    expect(hasNativeMacTitlebar(MAC_UA, false)).toBe(false);
+  });
+
+  it('reserves nothing where the webview sits below the frame', () => {
+    // Windows and Linux draw the webview inside the frame rather than under it,
+    // so an inset there would be a gap nobody asked for.
+    expect(hasNativeMacTitlebar(WINDOWS_UA, true)).toBe(false);
+    expect(hasNativeMacTitlebar(LINUX_UA, true)).toBe(false);
+  });
+
+  it('reads the Macintosh spelling as well as Mac OS X', () => {
+    expect(hasNativeMacTitlebar('Mozilla/5.0 (Macintosh; PowerPC)', true)).toBe(true);
   });
 });

@@ -61,6 +61,31 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Fixed
 
+- **Every window but the widget keeps its native frame.** Close, minimise and
+  zoom belong to the user, and the app now treats them as something it guarantees
+  rather than something it hopes the desktop layer did. The mini widget is the one
+  chrome-free window and the one place the frame is ever taken away; leaving it
+  re-asserts the title bar, the resize grip and the 800×600 minimum, the tray's
+  **Show** does the same, and startup asserts them once. On macOS this also closes
+  the one state that used to be unrecoverable: a decoration change that arrives
+  while the window is in native full screen is dropped by the desktop layer *after*
+  it records the window as decorated, so every later request is skipped as "no
+  change" and the frame never comes back. The window now forces it — off, then on
+  — whenever it leaves full screen, or whenever it reports itself undecorated.
+- **A Mac's title bar has a strip of its own.** Tauri's default macOS title-bar
+  style lays the page out *under* an opaque title bar, and nothing reserved that
+  height: the sidebar's brand row and its collapse button sat behind the traffic
+  lights, and the three buttons were drawn over the app's own header, where they
+  read as missing. On macOS the shell now reserves the title bar's height
+  (`--macos-titlebar-height`, 28px), and the install banner and the water reminder
+  — both anchored to the top of the window — move down with it. Windows, Linux and
+  the browser are untouched: their webview already starts below the frame.
+- **A 0×0 resize only means "minimised" where it does.** Windows reports a
+  minimise as a 0×0 resize, and that is what turns the window into the widget.
+  Elsewhere a window can report the same size while it is merely un-mapped or
+  moved off-screen, and taking the frame away for that was how a full window could
+  become frameless by accident. Outside Windows the window's own minimised state
+  now has to agree before the widget opens.
 - **A red check no longer costs the installers or a release.** The installer
   matrix waited on lint, the unit tests, the build and the browser suite, so a
   single failing Playwright expectation meant no `.exe`, no `.msi`, no `.dmg`,
