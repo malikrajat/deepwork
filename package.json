@@ -4,7 +4,7 @@
   "scripts": {
     "ng": "ng",
     "start": "ng serve --port 4999",
-    "build:github": "ng build  --base-href=/deepwork/ --configuration production",
+    "build:github": "ng build --base-href=/deepwork/ --configuration production && node scripts/pages-404.mjs",
     "build": "ng build",
     "watch": "ng build --watch --configuration development",
     "test": "vitest run",

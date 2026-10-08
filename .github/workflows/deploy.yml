@@ -30,6 +30,11 @@ jobs:
       - name: Install Dependencies
         run: npm ci
 
+      # Builds for the `/deepwork/` sub-path and then writes the shell out again
+      # as `404.html` (scripts/pages-404.mjs). Pages has no rewrite rules, so
+      # without that file a refresh on `/deepwork/tasks` is answered by GitHub's
+      # own "File not found" page; with it, the app is served and routes itself.
+      # Both files are in `dist/deepwork/browser` by the time this step ends.
       - name: Build Deepwork
         run: npm run build:github
 

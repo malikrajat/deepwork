@@ -244,7 +244,7 @@ Coverage is measured over **every** file in `src/app`, whether or not a test imp
 
 **The jobs run independently.** None of them waits for another, and each one reports its own pass or fail, so a red browser suite says the browser suite is red — it does not cancel the unit tests, the compile, the installers, or a tagged release. The one thing that does wait is `release`, and only because it attaches the files the installer jobs upload: on a `v*` tag it publishes whatever they built.
 
-`deploy.yml` builds the web app with `npm run build:github` and publishes `dist/deepwork/browser` to GitHub Pages on every push to `main`.
+`deploy.yml` builds the web app with `npm run build:github` and publishes `dist/deepwork/browser` to GitHub Pages on every push to `main`. That one command does two things: it builds for the `/deepwork/` sub-path, and it writes the shell out a second time as `404.html` — the one file Pages serves when a URL is not a file. Pages has no rewrite rules, so without that copy a refresh, a bookmark or a shared link on any route but the root is answered by GitHub's own "File not found" page; with it the app is served at the address that was asked for and routes itself, exactly as an S3 website's error document does. The same file is produced by a local `npm run build:github`, so the artifact is the one CI publishes.
 
 ## Project structure, and where to change what
 
@@ -273,6 +273,7 @@ A short map for the changes people actually want to make:
 | Installer metadata, window size, bundle targets   | [`src-tauri/tauri.conf.json`](src-tauri/tauri.conf.json)                                                           |
 | The version number, everywhere it is written down | `npm run version:bump -- x.y.z` (see below) — never by hand                                                        |
 | Where the visitor counter sends its data          | [`visitor.constants.ts`](src/app/core/constants/visitor.constants.ts) — the GoatCounter site, the path prefix, the pinned script |
+| How the deployed site answers a deep link         | [`pages-404.mjs`](scripts/pages-404.mjs) — the shell written out as `404.html`, so a refresh on `/deepwork/tasks` is the app and not GitHub's 404 |
 
 Documentation index: [`docs/INDEX.md`](docs/INDEX.md) — every guidance file in the repository, including [`docs/angular-best-practices.md`](docs/angular-best-practices.md) and [`docs/memory-footprint.md`](docs/memory-footprint.md).
 

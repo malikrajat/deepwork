@@ -7,6 +7,24 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+### Fixed
+
+- **A refresh on a deployed page is the page again.** The web build lives at
+  `/deepwork/` on GitHub Pages, and Pages has no rewrite rules: it looks a URL up
+  as a file, so `/deepwork/tasks` — a route the app itself had just put in the
+  address bar — was answered with GitHub's own "File not found" page. Everything
+  worked until somebody refreshed, bookmarked or shared a link to anything but
+  the root, which is nearly the whole address space of a single-page app. The
+  Pages build now writes the shell out a second time as `404.html`
+  (`scripts/pages-404.mjs`, run at the end of `npm run build:github`): that is the
+  one file the host serves when a path is not a file, and it serves it *at the
+  address that was asked for*, so the router still reads `/deepwork/tasks` and
+  opens Tasks. No routing changed, no base URL moved, and the desktop build is
+  untouched — the same job an S3 website's `ErrorDocument` does on AWS. The
+  service worker learned the same trick for the visits it already controls: a
+  navigation answered with a 404 is served from the cached shell instead of being
+  stored as a 404 document.
+
 ---
 
 ## [2.0.20] – 2026-10-07

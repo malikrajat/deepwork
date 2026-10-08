@@ -8,7 +8,7 @@
  * rejects when any request fails, and a service worker that never finishes
  * installing is one of the reasons Chrome and Edge offered no install icon.
  */
-const CACHE = 'deepwork-v2';
+const CACHE = 'deepwork-v3';
 
 /* Where this worker is served from — `/deepwork/` or `/`. */
 const SHELL = new URL('./', self.location.href).href;
@@ -47,6 +47,17 @@ self.addEventListener('fetch', (e) => {
     e.respondWith(
       fetch(request)
         .then((res) => {
+          /*
+           * 404 is not an error here, it is how the host answers a deep link:
+           * GitHub Pages has no file at `/deepwork/tasks` and replies with the
+           * site's own 404.html — the shell again, published under that name by
+           * `npm run build:github`. Answer from the pre-cached shell instead, so
+           * what gets stored is a real page with a real status rather than a 404
+           * document the next offline visit would be handed.
+           */
+          if (res.status === 404) {
+            return caches.match(SHELL).then((cached) => cached ?? res);
+          }
           const clone = res.clone();
           caches.open(CACHE).then((c) => c.put(request, clone));
           return res;
