@@ -5,9 +5,9 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ---
 
-## [Unreleased]
+## [2.0.20] – 2026-10-07
 
-### Fixed
+### Added
 
 - **A refresh on a deployed page is the page again.** The web build lives at
   `/deepwork/` on GitHub Pages, and Pages has no rewrite rules: it looks a URL up
@@ -24,12 +24,6 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   service worker learned the same trick for the visits it already controls: a
   navigation answered with a 404 is served from the cached shell instead of being
   stored as a 404 document.
-
----
-
-## [2.0.20] – 2026-10-07
-
-### Added
 
 - **Every task can be edited from wherever it is read.** A task could be moved,
   finished, re-ordered or deleted from the pages that show it, but changing what
