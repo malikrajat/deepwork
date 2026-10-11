@@ -2,7 +2,14 @@
 .app-shell {
   display: flex;
   flex-direction: column;
+  /* `100dvh` and not `100vh`: on a phone the URL bar is counted as part of
+     `vh`, so a shell measured that way is taller than the screen and its last
+     strip — the bottom of a card, the quick-add button — sits under the
+     browser chrome for as long as the bar is showing. `dvh` follows the bar as
+     it comes and goes. The `vh` line stays first as the fallback: a browser
+     that does not know `dvh` keeps exactly the behaviour it always had. */
   height: 100vh;
+  height: 100dvh;
   overflow: hidden;
 }
 
@@ -23,13 +30,35 @@
   display: flex;
   flex: 1;
   min-height: 0;
+  min-width: 0;
   overflow: hidden;
 }
 
 .main-content {
   flex: 1;
+  /* A flex item is `min-width: auto` by default, which lets one over-wide child
+     — a board column, a preview table — push the whole column past the window
+     instead of scrolling inside it. `0` is what makes the scroll region below
+     the only place a long line can go. */
+  min-width: 0;
   overflow-y: auto;
+  /* Nothing may turn the page into a horizontally scrolling canvas: on a phone
+     that slides every fixed header out of view and there is no scrollbar to
+     explain it. Content that genuinely needs the width scrolls in its own box
+     (see `.table-scroll` in `styles.css`). */
+  overflow-x: hidden;
+  /* A flick that reaches the end of the page must not rubber-band the body
+     behind it, and on Android it must not turn into a pull-to-refresh. */
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
+  /* The `env()` terms are the notch and the home indicator, and they are 0px
+     everywhere else — so the padding below is the desktop padding on a desktop
+     and the desktop padding *plus the cutout* on a phone. */
   padding: var(--space-xl) var(--space-2xl);
+  padding-top: calc(var(--space-xl) + var(--safe-top));
+  padding-right: calc(var(--space-2xl) + var(--safe-right));
+  padding-bottom: calc(var(--space-xl) + var(--safe-bottom));
+  padding-left: calc(var(--space-2xl) + var(--safe-left));
   background: transparent;
   position: relative;
   transition: padding 0.3s ease;
@@ -38,6 +67,10 @@
 /* Focus Mode */
 .focus-mode .main-content {
   padding: var(--space-lg) var(--space-xl);
+  padding-top: calc(var(--space-lg) + var(--safe-top));
+  padding-right: calc(var(--space-xl) + var(--safe-right));
+  padding-bottom: calc(var(--space-lg) + var(--safe-bottom));
+  padding-left: calc(var(--space-xl) + var(--safe-left));
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -46,8 +79,8 @@
 
 .exit-focus-btn {
   position: absolute;
-  top: 16px;
-  right: 16px;
+  top: calc(16px + var(--safe-top));
+  right: calc(16px + var(--safe-right));
   display: flex;
   align-items: center;
   gap: 6px;
@@ -68,4 +101,196 @@
   border-color: rgba(139, 92, 246, 0.4);
   color: var(--color-text-primary);
   background: rgba(139, 92, 246, 0.08);
+}
+
+/* ===== Mobile shell =====
+
+   Below 900px the sidebar stops being a column beside the content and becomes a
+   drawer over it, and this bar is the only way to open it. It is rendered on
+   every page but laid out as nothing above the breakpoint, so the desktop shell
+   it was built as is unchanged — `display: none` is what makes this the same
+   markup rather than a second one.
+
+   The bar belongs to the shell rather than to any page: navigation is
+   shell-level furniture, and a page that had to draw its own menu button could
+   forget to. */
+
+.mobile-topbar,
+.nav-backdrop {
+  display: none;
+}
+
+.mobile-menu-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  flex-shrink: 0;
+  padding: 0;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--glass-border);
+  background: var(--glass-bg);
+  color: var(--color-text-primary);
+  cursor: pointer;
+  transition:
+    background 0.2s,
+    border-color 0.2s;
+}
+
+.mobile-menu-btn:hover {
+  background: var(--glass-bg-hover);
+}
+
+/* While the drawer is up the button is the state it describes, so it wears the
+   same accent the active nav row does. */
+.mobile-menu-btn[aria-expanded='true'] {
+  background: var(--sidebar-active-bg);
+  border-color: var(--sidebar-active-border);
+}
+
+.mobile-bar-brand {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  font-size: 16px;
+  font-weight: 700;
+  letter-spacing: -0.2px;
+  white-space: nowrap;
+  overflow: hidden;
+}
+
+.mobile-bar-brand .brand-text {
+  background: var(--color-accent-gradient);
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+@keyframes nav-backdrop-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+/* The phone layout for the shell itself. The page-level rules that go with it
+   live in each page's own stylesheet; these are only the things the shell
+   owns — its bar, its drawer's backdrop, and the width it leaves the content.
+   Dashboard's own e2e suite drives the real app down to 800x600, and the
+   `.main-row` that suite measures has `flex-shrink: 0`, so the room taken here
+   comes out of the scroll region and never out of the cards. */
+@media (max-width: 900px) {
+  .mobile-topbar {
+    display: flex;
+    align-items: center;
+    gap: var(--space-sm);
+    flex-shrink: 0;
+    min-height: var(--mobile-topbar-height);
+    padding: 6px var(--space-md);
+    padding-top: calc(6px + var(--safe-top));
+    padding-right: calc(var(--space-md) + var(--safe-right));
+    padding-left: calc(var(--space-md) + var(--safe-left));
+    background: var(--sidebar-bg);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    border-bottom: 1px solid var(--glass-border);
+    position: relative;
+    z-index: 55;
+  }
+
+  /* Only mounted while the drawer is open, which is why this is not animated
+     out: it is removed on the tap that closes it.
+
+     85 and the drawer's 90 sit in the one gap in the app's layer stack: above
+     the floating quick-add button (80) so the drawer is not sharing taps with
+     it, and below every page panel and dialog (100 and up) so a modal opened
+     from a page still covers the navigation, which is what a modal means. */
+  .nav-backdrop {
+    display: block;
+    position: fixed;
+    inset: 0;
+    z-index: 85;
+    background: rgba(4, 2, 12, 0.55);
+    backdrop-filter: blur(2px);
+    -webkit-backdrop-filter: blur(2px);
+    /* The drawer is the only thing that may answer a touch while it is up.
+       Without this, a drag on the backdrop scrolls the page behind it. */
+    touch-action: none;
+    animation: nav-backdrop-in 0.2s ease-out both;
+  }
+
+  .main-content {
+    padding: var(--space-lg);
+    padding-top: calc(var(--space-lg) + var(--safe-top));
+    padding-right: calc(var(--space-lg) + var(--safe-right));
+    padding-bottom: calc(var(--space-xl) + var(--safe-bottom));
+    padding-left: calc(var(--space-lg) + var(--safe-left));
+  }
+
+  .focus-mode .main-content {
+    padding: var(--space-md);
+    padding-top: calc(var(--space-lg) + var(--safe-top));
+    padding-bottom: calc(var(--space-lg) + var(--safe-bottom));
+  }
+
+  /* The focus-mode exit button is the one control in that view, so it keeps a
+     thumb-sized target of its own. */
+  .exit-focus-btn {
+    padding: 10px 16px;
+  }
+}
+
+@media (max-width: 640px) {
+  .main-content {
+    padding: var(--space-md);
+    padding-top: calc(var(--space-sm) + var(--safe-top));
+    padding-right: calc(var(--space-md) + var(--safe-right));
+    /* Room for the quick-add button, which floats over the last of the page. */
+    padding-bottom: calc(var(--space-3xl) + var(--safe-bottom));
+    padding-left: calc(var(--space-md) + var(--safe-left));
+  }
+
+  .focus-mode .main-content {
+    padding: var(--space-sm);
+    padding-top: calc(var(--space-md) + var(--safe-top));
+    padding-bottom: calc(var(--space-md) + var(--safe-bottom));
+  }
+}
+
+/* ===== Large screens =====
+
+   The other end of the same range. A tablet, a monitor, an ultrawide and a
+   television all get the desktop layout, and the desktop layout has no upper
+   bound: the column that holds every page just keeps growing. Past 1920px that
+   stops being generous and starts being wrong — a task card becomes a letterbox,
+   a paragraph becomes a single two-foot line, and a page that caps its own
+   content ends up as a narrow strip against the left edge of a 3840px window.
+
+   So the page column gets a maximum and centres itself in what is left. Capping
+   the column and not the page inside it is deliberate: the pages keep their own
+   widths (About caps its prose at 780px, the board wants all the room it can
+   get), and centring the column is what puts those narrower pages in the middle
+   of the window instead of against its edge.
+
+   The centring is free rather than forced — `margin-inline: auto` on a flex item
+   only absorbs space that is actually spare, so below the maximum this is a
+   no-op and nothing moves. That is why there is no `min-width` around it. */
+@media (min-width: 1920px) {
+  .main-content {
+    max-width: var(--content-max-width);
+    margin-inline: auto;
+    /* More air than a 1400px window wants: 48px of padding is a comfortable
+       margin at 1440 and a hairline at 3840. */
+    padding-right: calc(var(--space-3xl) + var(--safe-right));
+    padding-left: calc(var(--space-3xl) + var(--safe-left));
+  }
+
+  .focus-mode .main-content {
+    max-width: none;
+    padding-right: calc(var(--space-2xl) + var(--safe-right));
+    padding-left: calc(var(--space-2xl) + var(--safe-left));
+  }
 }

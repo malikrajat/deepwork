@@ -249,6 +249,13 @@ interface DownloadRow extends DownloadTarget {
               <dd>Windows, macOS and Linux — and in the browser</dd>
             </div>
             <div class="fact">
+              <dt>Fits any screen</dt>
+              <dd>
+                Phone, tablet, laptop and any size of monitor or TV — one layout that adapts to the
+                screen it is opened on, so it runs on whatever you have
+              </dd>
+            </div>
+            <div class="fact">
               <dt>Analysis</dt>
               <dd>AI-assisted, run offline against your own data — nothing leaves this machine</dd>
             </div>
@@ -1143,6 +1150,217 @@ interface DownloadRow extends DownloadTarget {
         color: var(--color-text-muted);
         text-align: center;
         line-height: 1.7;
+      }
+
+      /* ===== Phone layout =====
+
+         Every wide thing on this page is a pair: two tabs, a title beside its
+         detail, a label beside its value, a file beside the button that takes
+         it. A 320px phone leaves a card 256px of content and the tab row 288px,
+         and none of those pairs fits in that — so each one becomes a column, and
+         every control grows to a thumb. */
+      @media (max-width: 640px) {
+        .card {
+          /* The card follows the shell down: 24px of padding on each side of a
+             320px screen is a sixth of the width spent on air. */
+          padding: var(--space-md);
+        }
+
+        /* A release note, an issue link and an installer name are all long
+           unbroken tokens, and any of them would otherwise widen the card it is
+           written in. This is inherited, so one rule covers every card. */
+        .content {
+          overflow-wrap: anywhere;
+        }
+
+        /* The two tab labels need about 331px side by side and a 320px phone
+           gives them 288px, so they share the row evenly instead of pushing the
+           second tab off the edge of the page. */
+        .tabs {
+          display: flex;
+          width: 100%;
+        }
+        .tabs button {
+          flex: 1 1 0;
+          min-width: 0;
+          min-height: 44px;
+          justify-content: center;
+          text-align: center;
+        }
+
+        /* The avatar keeps its size and the name beside it gives up its 200px
+           floor, so the two share the line instead of the name dropping below
+           the avatar on a screen with room for both. */
+        .hero-who {
+          min-width: 0;
+        }
+
+        /* A 170px title column leaves 76px for the detail beside it at 320px,
+           which is a word to a line; stacking reads better than that. */
+        .option-list li {
+          flex-direction: column;
+          gap: 2px;
+        }
+        .option-title {
+          flex: 0 0 auto;
+        }
+
+        /* A fact is the same shape, and a value wrapped into a right-aligned
+           column the width of a word is harder to read than one line under its
+           own label. */
+        .fact {
+          flex-direction: column;
+          gap: 2px;
+        }
+        .fact dd {
+          text-align: left;
+        }
+
+        .btn {
+          min-height: 44px;
+          max-width: 100%;
+        }
+
+        /* A download button carries a file name and a size, and beside the file
+           it describes it was squeezing that name into three lines. It belongs
+           under the file, and the update buttons stack the same way. */
+        .download-list li .btn,
+        .update-actions .btn {
+          flex: 1 1 100%;
+          justify-content: center;
+        }
+        .download-text {
+          min-width: 0;
+        }
+        .download-name {
+          flex-wrap: wrap;
+        }
+
+        /* Links that are a whole row — the release notes, the issue tracker, a
+           file in the release — are given a row's height so the row is the
+           target rather than the 12px of text inside it. */
+        .release-link,
+        .link-list li a {
+          display: inline-flex;
+          align-items: center;
+          min-height: 44px;
+        }
+        .other-assets summary {
+          display: flex;
+          align-items: center;
+          min-height: 44px;
+        }
+        .other-assets li {
+          flex-wrap: wrap;
+        }
+
+        /* The release notes are a scroll box inside a scrolling page, so a flick
+           that reaches the end of the notes stops there instead of carrying on
+           into the page behind them. */
+        .release-notes {
+          overscroll-behavior: contain;
+        }
+      }
+
+      /* ===== Large screens =====
+
+         The prose on this page is capped at 780px because that is where a
+         paragraph stops being a comfortable line, and the cap is right — what was
+         missing was anything that said where the 780px should sit. A max-width
+         with no auto margin leaves its box at the start of the column, so on a
+         3840px screen these cards were a strip against the left edge of the
+         shell's centred band with a thousand empty pixels beside them. Centring
+         is the whole fix and it changes nothing below 1920px, because a maximum
+         the available room never reaches moves nothing.
+
+         The header is held to the same width and centred with it, and so is the
+         tab row below it — the three are siblings on this page rather than a
+         header wrapping the tabs, and centring two of the three would leave the
+         tabs hanging off the left edge of the column they belong to. */
+
+      @media (min-width: 1920px) {
+        .page-header,
+        .tabs,
+        .content {
+          max-width: 780px;
+          margin-inline: auto;
+        }
+      }
+
+      @media (min-width: 2560px) {
+        /* A television is read from a sofa, so the column takes a little of the
+           room back — 880px at 16px holds about the line length the 780px column
+           holds at 14px — and every literal pixel size this page reads at is
+           restated, since the ladder the shell raises here cannot reach one. */
+        .page-header,
+        .tabs,
+        .content {
+          max-width: 880px;
+        }
+        .page-title {
+          font-size: 34px;
+        }
+        .page-subtitle {
+          font-size: 16px;
+        }
+        .card-header h2 {
+          font-size: 20px;
+        }
+        .card-subtitle {
+          font-size: 14px;
+        }
+        .prose,
+        .fact,
+        .option-list li,
+        .download-name,
+        .link-list li a {
+          font-size: 16px;
+        }
+        .hero-who h2 {
+          font-size: 22px;
+        }
+        .hero-role {
+          font-size: 15px;
+        }
+        .hero-location,
+        .contact-label,
+        .contact-value,
+        .download-detail,
+        .update-detail,
+        .update-note,
+        .release-notes,
+        .release-link,
+        .other-assets {
+          font-size: 14px;
+        }
+        .update-title,
+        .release-version {
+          font-size: 16px;
+        }
+        .status-pill {
+          font-size: 13px;
+        }
+        .btn {
+          font-size: 14px;
+        }
+        .signature {
+          font-size: 13px;
+        }
+      }
+
+      @media (min-width: 3440px) {
+        .page-title {
+          font-size: 36px;
+        }
+        /* The cards take the extra air rather than the column taking the extra
+           width: a fact row, a download row and a release note all read better
+           with more room inside the card than with a longer line in it. */
+        .card {
+          padding: var(--space-xl);
+        }
+        .prose {
+          font-size: 17px;
+        }
       }
     `,
   ],

@@ -212,6 +212,33 @@ import { formatClockTime, formatMillilitres } from '../../../core/utils/water.ut
           gap: var(--space-md);
         }
       }
+
+      /* ===== Phone layout =====
+
+         The column layout above leaves '.water-main' at the 260px floor it was
+         given to stop the header and the percentage badge colliding. A 320px
+         phone puts the card, its own padding and the shell's together at 240px,
+         so that floor is what was holding the card 20px wider than the screen —
+         it is the floor, not the content, that has to go at this width.
+
+         The two buttons and the "Reminder settings" link are the card's controls;
+         at this size each is a thumb target rather than a 33px pill. */
+      @media (max-width: 640px) {
+        .water-card {
+          padding: var(--space-md);
+        }
+        .water-main {
+          min-width: 0;
+        }
+        .water-btn {
+          min-height: 44px;
+        }
+        .water-link {
+          display: inline-flex;
+          align-items: center;
+          min-height: 44px;
+        }
+      }
     `,
   ],
 })

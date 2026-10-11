@@ -4,7 +4,15 @@
     <meta charset="utf-8" />
     <title>DeepWork</title>
     <base href="/" />
-    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <!-- `viewport-fit=cover` lets the page paint into the notch and the home
+         indicator on a phone, which is what the app's own background wants: a
+         near-black surface that stops short of the edge reads as a rendering
+         bug. `black-translucent` (below) already draws the page under the iOS
+         status bar when the app is installed, so the layout has to inset itself
+         to stay readable — the `env(safe-area-inset-*)` paddings in
+         `styles.css` and the shell are the other half of this promise. On a
+         desktop browser every one of those insets is 0, so nothing moves. -->
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
     <link rel="icon" type="image/svg+xml" href="favicon.svg" />
     <link rel="alternate icon" type="image/x-icon" href="favicon.ico" />
     <!-- Relative, not `/…`: the web build is served from a sub-path on GitHub

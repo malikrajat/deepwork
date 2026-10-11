@@ -1027,7 +1027,14 @@ interface MatrixContextMenu {
         z-index: 1200;
         width: 300px;
         max-width: calc(100vw - 16px);
+        /* The height is capped against the dynamic viewport, not the small
+           one: on a phone vh is the height the window would have with the URL
+           bar hidden, so a menu measured against it can open with its last
+           options below the fold. The vh line stays first as the fallback for a
+           browser without dvh, and the two are identical on a desktop, so
+           nothing above the breakpoints moves. */
         max-height: calc(100vh - 16px);
+        max-height: calc(100dvh - 16px);
         overflow-y: auto;
         padding: 8px;
         background: var(--surface-float);
@@ -1280,6 +1287,229 @@ interface MatrixContextMenu {
       @media (max-width: 560px) {
         .matrix-grid {
           grid-template-columns: 1fr;
+        }
+      }
+
+      /* The compact board releases the desktop's fixed-height window.
+
+         Above 900px the board is designed to sit inside the host's own
+         100%-tall, clipped box with every quadrant scrolling inside itself,
+         which is what keeps the four of them in one screenful. The compact
+         block above turns the board into one long column instead, and the host
+         box then cuts it off at the first screenful with nothing left to
+         scroll: the lower quadrants and the whole task list become
+         unreachable. Scrolling this page belongs to .main-content in the shell
+         stylesheet, so the host hands its height and its clipping back. */
+      @media (max-width: 900px) {
+        :host {
+          height: auto;
+          overflow: visible;
+        }
+      }
+
+      @media (max-width: 640px) {
+        /* One quadrant per row. This is the phone breakpoint the shell's own
+           comments describe as the one where multi-column grids stack, and it
+           is also where the compact block's four fixed minmax(160px, auto)
+           rows stop matching the grid: with two columns only two rows are ever
+           filled, so the last two sat empty for 320px under the board. */
+        .matrix-grid {
+          grid-template-columns: 1fr;
+        }
+
+        /* The header's three controls — the progress pill, the guide toggle and
+           the calendar link — ask for something close to 360px side by side,
+           and a 320px phone leaves this page 288px of column. Wrapping them
+           onto as many lines as they need is what keeps the calendar link on
+           screen instead of past the right edge. */
+        .header-actions {
+          flex-wrap: wrap;
+          gap: var(--space-sm);
+          width: 100%;
+        }
+
+        /* Every control a thumb has to hit grows to the 44px a fingertip
+           reliably lands on. The icon buttons keep their 20–22px glyphs and
+           take the extra as box around it, so the drawing stays the size it
+           was designed at while the thing being tapped is the size of the
+           finger tapping it. */
+        .collapse-btn,
+        .card-edit {
+          width: 44px;
+          height: 44px;
+        }
+        .guide-toggle,
+        .empty-cta,
+        .menu-option {
+          min-height: 44px;
+        }
+        /* The toggle's label names one control, so it is not allowed to break
+           across two lines and read as two. Both it and the empty state's link
+           are anchors rather than buttons, and an anchor puts its one line of
+           text at the top of a taller box, so they centre it themselves. */
+        .guide-toggle {
+          white-space: nowrap;
+        }
+        .guide-toggle,
+        .empty-cta {
+          display: inline-flex;
+          align-items: center;
+          justify-content: center;
+        }
+
+        /* The two 44px buttons in a quadrant header take twice the width they
+           take on the desktop, so the title beside them has to be allowed to
+           shrink and wrap rather than holding them out of the box. */
+        .quadrant-header h3 {
+          min-width: 0;
+          overflow-wrap: anywhere;
+        }
+
+        /* At 320px a card has 228px inside it and its controls — the three
+           status segments, the priority dot and the pencil — came to more than
+           that, which left the title one word per line. Letting the card wrap
+           puts the switch on a line of its own, where each segment can take a
+           third of the card: a bigger target and a wider title underneath it,
+           out of the same card width. */
+        .matrix-card {
+          flex-wrap: wrap;
+        }
+        .status-switch {
+          flex: 1 0 100%;
+        }
+        .status-segment {
+          flex: 1 1 auto;
+          min-width: 44px;
+          min-height: 44px;
+        }
+
+        /* Every scroll region on this page stops its own scrolling from
+           chaining into the page behind it, and gets momentum scrolling on iOS
+           while it does. */
+        .task-drop-zone,
+        .unassigned-list,
+        .matrix-menu {
+          overscroll-behavior: contain;
+          -webkit-overflow-scrolling: touch;
+        }
+
+        /* The openContextMenu method measures the menu as 470px tall against
+           the window and clamps its top to innerHeight - 470 - 8, so 470px is
+           the most the menu can ever show with its bottom still on screen —
+           anything taller would hang its last options off the display with no
+           way to reach them. A 44px menu row makes the real menu taller than
+           that, so the menu keeps a scrollbar of its own inside the height it
+           was measured for rather than growing past it. The second max-height
+           repeats both bounds against dvh, the height a phone actually shows,
+           with the vh pair left above it as the fallback. */
+        .matrix-menu {
+          max-height: min(470px, calc(100vh - 16px));
+          max-height: min(470px, calc(100dvh - 16px));
+        }
+
+        /* The drag preview is the one card that is not inside a column, so the
+           desktop's 240px floor and 420px ceiling are measured against a 320px
+           screen rather than against a quadrant. It takes the width there is
+           room for and no more. */
+        .cdk-drag-preview {
+          min-width: 0;
+          max-width: calc(100vw - 24px);
+        }
+      }
+
+      /* ===== 1920px and up: the board gets a shape =====
+
+         Past 1920px the shell gives this page a column up to 2200px wide, and a
+         2x2 board poured into it makes every quadrant a ~1000px box holding two
+         lines of text while the action buttons sit an arm's length from the
+         heading they belong to.
+
+         So the header, the guide panel, the empty state and the board are all
+         capped at the same 1720px and centred, which is one deliberate band in
+         the middle of a 3840px screen rather than four rows each stretching to
+         whatever the window happens to be.
+
+         The board is capped as a whole — wrapper, splitter and task list
+         together — and not the grid on its own. The divider's drag maths lives
+         in TypeScript and measures the wrapper: it reads the wrapper's
+         clientWidth, clamps the pane against that width, and turns a pixel of
+         pointer travel into a pixel of panel. A capped, centred wrapper is
+         therefore still a box the splitter can measure honestly, and a drag that
+         moves the divider 200px moves it 200px on screen. Capping only the grid
+         would leave the divider being dragged against a 2200px measurement while
+         the box under it was 1240px, so a small drag would throw the pane across
+         the board. */
+      @media (min-width: 1920px) {
+        .page-header,
+        .guide-panel,
+        .empty-state {
+          max-width: 1720px;
+          margin-inline: auto;
+        }
+
+        .matrix-wrapper {
+          max-width: 1720px;
+          margin-inline: auto;
+        }
+      }
+
+      /* ===== 2560px and up: a screen read from across a room =====
+
+         The same board, 160px wider, with the few sizes that are actually read
+         from the sofa stepped up onto the ladder styles.css raises at this
+         breakpoint. Everything here is a whole pixel and none of it goes below
+         the 10px floor the ladder stops at. */
+      @media (min-width: 2560px) {
+        .page-header,
+        .guide-panel,
+        .empty-state,
+        .matrix-wrapper {
+          max-width: 1880px;
+        }
+
+        /* Room for the raised sizes below to sit in rather than against the
+           quadrant's edge. */
+        .quadrant,
+        .unassigned-panel {
+          padding: 18px;
+        }
+
+        /* The three labels a person reads a quadrant by, and the count beside
+           them, all one step up the ladder. */
+        .quadrant-header h3 {
+          font-size: var(--text-base);
+        }
+        .quadrant-desc,
+        .quadrant-count {
+          font-size: var(--text-2xs);
+        }
+
+        /* The card title and the status switch on it, which is where the eye
+           lands when looking for the next thing to do. The switch is not grown
+           to the phone block's 44px targets — this is a mouse and a keyboard —
+           so only the type in it steps up. */
+        .card-title {
+          font-size: var(--text-md);
+        }
+        .card-deadline {
+          font-size: var(--text-2xs);
+        }
+        .status-segment {
+          font-size: var(--text-2xs);
+          padding: 4px 7px;
+        }
+
+        /* The task list's own heading and the rail label on a collapsed pane:
+           the same step, so the two sides of the board agree. */
+        .panel-title {
+          font-size: var(--text-sm);
+        }
+        .rail-label {
+          font-size: var(--text-2xs);
+        }
+        .empty-text,
+        .empty-hint {
+          font-size: var(--text-xs);
         }
       }
     `,

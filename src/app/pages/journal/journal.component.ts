@@ -211,7 +211,26 @@ function todayIso(): string {
     .stat-label { font-size: 10px; color: var(--color-text-muted); text-transform: uppercase; letter-spacing: 0.04em; }
 
     .journal-layout { display: grid; grid-template-columns: 1fr 260px; gap: 16px; }
-    @media (max-width: 700px) { .journal-layout { grid-template-columns: 1fr; } }
+    /* Below 700px the two columns cannot sit beside each other, so the layout
+       stacks and the editor keeps the top. It is the page's main action, its own
+       arrows already step through days without the list, and the list's
+       empty-state line reads "Start writing above" — a list on top would make
+       that sentence point the wrong way. The zero floor in minmax(0, 1fr)
+       replaces the automatic minimum a plain 1fr track carries: the editor's
+       date is nowrap in the desktop rules and is wider than a phone, and without
+       that floor the one line would push the whole column past the screen. */
+    @media (max-width: 700px) {
+      .journal-layout { grid-template-columns: minmax(0, 1fr); }
+      .editor-card, .entries-sidebar { min-width: 0; }
+      /* The list is a scroll window of its own rather than a full-length page:
+         only the rows inside that window are ever created, so an auto-height
+         list would build every entry in the journal and stretch the card to
+         match it. */
+      .entries-list {
+        height: 44vh; min-height: 220px; max-height: 340px;
+        overscroll-behavior: contain; -webkit-overflow-scrolling: touch;
+      }
+    }
 
     .editor-card {
       padding: 20px; border-radius: 16px;
@@ -289,6 +308,153 @@ function todayIso(): string {
     .today-badge { font-size: 10px; font-weight: 700; color: rgb(236,72,153); background: rgba(236,72,153,0.1); padding: 1px 6px; border-radius: 6px; }
     .entry-preview { font-size: 11px; color: var(--color-text-muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 100%; }
     .no-entries { text-align: center; color: var(--color-text-muted); font-size: 13px; padding: 16px 0; }
+
+    /* Phone layout. The page is already one column by 640px; what is left is the
+       date row, which does not fit the card at all (the editor date is nowrap, so
+       a full weekday and month is a hard minimum wider than a 320px screen), and
+       the controls that were sized for a mouse pointer. */
+    @media (max-width: 640px) {
+      /* The date stops being a single unbreakable line and the two arrows move
+         to the card's edges with the date between them, so the date can wrap
+         instead of setting the row's minimum width. */
+      .date-nav { flex: 1 1 100%; min-width: 0; justify-content: space-between; }
+      .date-info { min-width: 0; }
+      .editor-date { white-space: normal; text-align: center; }
+      /* The status line drops to its own row under the date and keeps the
+         right-hand position it has when the header is one row. */
+      .editor-status { margin-left: auto; }
+
+      /* Touch targets. Every control below was between 19px and 36px in its
+         tappable dimension, which is under the 44px a fingertip covers, so each
+         is given that minimum. None of them shrink. */
+      .today-link {
+        display: flex; align-items: center; min-height: 44px; padding: 0 12px;
+      }
+      /* A fixed flex basis of 44px and not just a width: the date's text still
+         wants 226px, and without a fixed basis the two arrows would be the
+         things the row shrinks. */
+      .nav-btn { flex: 0 0 44px; width: 44px; height: 44px; }
+      .delete-btn { min-height: 44px; padding: 0 14px; }
+      .search-input { min-height: 44px; padding-right: 48px; }
+      /* 44px wide, so the field above reserves that much of its own padding for
+         it — otherwise the clear button sits on the last word of the query. */
+      .clear-search {
+        display: flex; align-items: center; justify-content: center;
+        width: 44px; height: 44px; right: 2px; font-size: 18px;
+      }
+
+      /* The desktop floor of 300px is kept and lifted on a tall phone: roughly
+         half the screen is what makes the box a place to write rather than three
+         visible lines above a keyboard. */
+      .journal-textarea { min-height: max(300px, 46vh); }
+
+      /* Two labels that fit one line on the desktop wrap as whole labels here
+         instead of breaking a word in half. */
+      .editor-footer { flex-wrap: wrap; gap: 2px 12px; }
+      /* The empty-state line quotes whatever was typed into the search box. */
+      .no-entries { overflow-wrap: anywhere; }
+    }
+
+    /* Large screens.
+
+       The editor and the list are a 1fr / 260px pair, and 1fr has no ceiling:
+       on a 3840px screen the editor takes 1800px and a journal line runs the
+       width of a dining table while the list sits a metre and a half away from
+       the sentence it belongs to.
+
+       Two changes answer that, and they are deliberately different sizes. The
+       pair as a whole is held to a band and centred, so the page reads as one
+       object in the middle of the window. Inside that band the list's 260px
+       becomes a floor rather than a fixed width — it takes the extra room the
+       band has to give, up to 380px, because a list row holds a date and a
+       preview and reads better at the wider of the two; the editor takes what
+       is left, which is where the band's own ceiling does the line-length work.
+
+       The header is held to the same band. It is a title and two stat pills on
+       a space-between row, and in a 1960px column those two ends are far enough
+       apart not to read as one row. */
+
+    @media (min-width: 1920px) {
+      .page-header,
+      .journal-layout {
+        max-width: 1700px;
+        margin-inline: auto;
+      }
+      .journal-layout {
+        grid-template-columns: 1fr minmax(260px, 380px);
+      }
+      /* A grid item is min-width: auto by default, and the search field and the
+         entry rows inside these two are the things that would otherwise set
+         the tracks' floor rather than the tracks setting theirs. */
+      .editor-card,
+      .entries-sidebar {
+        min-width: 0;
+      }
+    }
+
+    @media (min-width: 2560px) {
+      /* The type ladder the shell raises at this breakpoint cannot reach a
+         literal pixel size, so the sizes this page reads at are restated. */
+      .page-title {
+        font-size: 34px;
+      }
+      .page-subtitle {
+        font-size: 16px;
+      }
+      .journal-stats .stat-value {
+        font-size: 20px;
+      }
+      .journal-stats .stat-label,
+      .journal-reading,
+      .entry-preview {
+        font-size: 13px;
+      }
+      .editor-date {
+        font-size: 17px;
+      }
+      .journal-textarea {
+        font-size: 17px;
+      }
+      .sidebar-title {
+        font-size: 15px;
+      }
+      .entry-date {
+        font-size: 14px;
+      }
+      .search-input {
+        font-size: 14px;
+      }
+      .editor-footer,
+      .save-indicator,
+      .delete-btn {
+        font-size: 13px;
+      }
+      .today-link {
+        font-size: 12px;
+      }
+      .word-count {
+        font-size: 13px;
+      }
+    }
+
+    @media (min-width: 3440px) {
+      .page-title {
+        font-size: 36px;
+      }
+      /* A wall-mounted screen is read standing up: the two boxes grow a little
+         and the text inside them grows with the room. */
+      .editor-card,
+      .entries-sidebar {
+        padding: var(--space-lg);
+      }
+      .journal-textarea {
+        font-size: 18px;
+        min-height: 380px;
+      }
+      .editor-date {
+        font-size: 18px;
+      }
+    }
 
   `]
 })

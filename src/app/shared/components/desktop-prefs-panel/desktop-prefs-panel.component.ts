@@ -243,6 +243,43 @@ import {
         line-height: 1.5;
         color: var(--color-text-muted, #a1a1aa);
       }
+
+      /* ===== Narrow layout =====
+
+         Below 900px the info tip stops being the anchor for its own popover — a
+         272px card hung off an 18px button is off the left of a narrow screen —
+         and the popover spans whichever positioned box it is drawn in instead.
+         This is the other half of that: the row and the footnote the tips are
+         opened from become that box, so the explanation lands as a band under the
+         setting it belongs to. 'position: relative' with no offsets draws nothing
+         and moves nothing; it only says what the popover is measured against. */
+      @media (max-width: 900px) {
+        .pref-row,
+        .pref-footnote {
+          position: relative;
+        }
+      }
+
+      /* ===== Phone layout =====
+
+         A thumb is not a mouse. The switch keeps the 42x22 pill it is drawn as —
+         a taller box would leave its 16px knob in the corner of the track rather
+         than on it — and takes the 44px a finger needs from an invisible box
+         around the switch instead. The label is allowed to shrink so that a
+         single long word cannot hold the row wider than the card. */
+      @media (max-width: 640px) {
+        .pref-row {
+          padding: 12px 0;
+        }
+        .pref-label {
+          min-width: 0;
+        }
+        .switch::before {
+          content: '';
+          position: absolute;
+          inset: -11px;
+        }
+      }
     `,
   ],
 })

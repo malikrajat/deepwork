@@ -155,7 +155,11 @@ const PREVIEW_ROWS = 8;
               {{ dateFieldName() }}”.
             </p>
           } @else {
-            <div class="table-wrap">
+            <!-- The global '.table-scroll' class joins this wrapper rather than
+                 sitting inside it: 'overflow-x: auto' computes 'overflow-y' to
+                 'auto' as well, so a second scroll box would take the sticky
+                 header away from the box that scrolls the preview rows. -->
+            <div class="table-wrap table-scroll">
               <table>
                 <thead>
                   <tr>
@@ -301,6 +305,69 @@ const PREVIEW_ROWS = 8;
       .btn-primary:disabled { opacity: 0.4; cursor: not-allowed; }
       .btn-ghost { background: transparent; color: var(--color-text-muted); }
       .btn-ghost:hover { color: var(--color-text-primary); }
+
+      /* ===== Phone layout =====
+
+         At 320px this host leaves the panel a 272px column once its own 24px of
+         window padding is taken out, and the panel's rows were written for a
+         1000px card: the block heading sits beside its hint, three selects share
+         one row at 170px each, the two custom date fields share a row with an
+         arrow between them, and the footer puts Cancel beside a full sentence.
+         Each of those wraps or stacks here instead of widening the panel and the
+         page with it.
+
+         The preview table keeps its own scrolling box ('.table-wrap', with the
+         global '.table-scroll' on the same element) rather than gaining a second
+         wrapper: the sticky header has to belong to the box that scrolls. */
+      @media (max-width: 640px) {
+        :host {
+          padding: 12px;
+          padding-top: calc(12px + var(--safe-top));
+          padding-right: calc(12px + var(--safe-right));
+          padding-bottom: calc(12px + var(--safe-bottom));
+          padding-left: calc(12px + var(--safe-left));
+        }
+        /* 'dvh' so the maximum is the height the phone is actually showing: a
+           94vh panel is measured against the URL-bar-inclusive viewport and puts
+           its own footer under the browser chrome. The 'vh' line above it is the
+           fallback for a browser that does not know the unit. */
+        .export-modal {
+          padding: 16px 14px;
+          gap: 12px;
+          max-height: calc(100vh - 24px - var(--safe-top) - var(--safe-bottom));
+          max-height: calc(100dvh - 24px - var(--safe-top) - var(--safe-bottom));
+        }
+        .block-head { flex-wrap: wrap; gap: 4px 12px; }
+        .field-row { gap: 8px; }
+        /* One select per row: a 170px field is what the row was built around,
+           and two of them will never sit side by side in a 244px column. */
+        .field { flex: 1 1 100%; min-width: 0; }
+        .custom-range { flex-wrap: wrap; gap: 8px; }
+        .custom-range label { flex: 1 1 100%; }
+        /* With the two dates stacked, the arrow that joined them side by side
+           points at nothing. */
+        .custom-range .range-dash { display: none; }
+        .custom-range input { width: 100%; min-width: 0; }
+        /* The pickers a finger has to land on: three selects and two dates. */
+        .custom-range input,
+        .field select { min-height: 44px; }
+        /* See quick-add for why a select needs this said twice: the global 16px
+           rule on a phone is 'html body select', which '.field select' outranks,
+           so without this the chooser keeps 12px and iOS zooms the page in. */
+        .field select { font-size: 16px; }
+        /* The global class on this box contains the sideways flick; the vertical
+           one is added here, where the box is the one that scrolls the rows. */
+        .table-wrap { min-width: 0; overscroll-behavior-y: contain; }
+        .export-footer { flex-wrap: wrap; }
+        .export-footer .btn { flex: 1 1 auto; justify-content: center; }
+
+        /* A thumb is not a mouse: the chips are the range picker, so they are the
+           controls this panel is actually driven with on a phone. */
+        .icon-btn { width: 44px; height: 44px; }
+        .chip { min-height: 44px; padding: 8px 14px; }
+        .option { min-height: 44px; }
+        .btn { min-height: 44px; }
+      }
     `,
   ],
 })

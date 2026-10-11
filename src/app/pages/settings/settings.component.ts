@@ -733,6 +733,174 @@ import { SettingsFormModel, createSettingsFormDefaults } from '../../shared/mode
         color: var(--color-accent-primary);
         box-shadow: 0 0 12px rgba(139, 92, 246, 0.15);
       }
+
+      /* ===== Phone layout =====
+
+         The row is the whole of this page: a label, often with a note under it,
+         and the control that answers it, side by side. That shape is sized for
+         a desktop window — "Sessions Until Long Break" beside a 120px slider and
+         its value box needs about 340px — and a 320px phone leaves the card
+         256px once the shell's own padding is taken out. Wrapping is what keeps
+         a row from ever being wider than the card it is drawn in, and the value
+         controls take the whole width because a thumb is not a mouse pointer. */
+      @media (max-width: 640px) {
+        .setting-group {
+          /* The card follows the shell down: 24px of padding on each side of a
+             320px screen is a sixth of the width spent on air. */
+          padding: var(--space-md);
+          /* A note can quote an address — the visitor counter's does — and a URL
+             has no break opportunity of its own, so it would hold its row open
+             to its own length. 'overflow-wrap' is inherited, which is also what
+             carries it into the notes inside the panels this page renders from
+             other components, where this stylesheet cannot reach. */
+          overflow-wrap: anywhere;
+        }
+
+        .setting-item {
+          flex-wrap: wrap;
+          row-gap: 6px;
+        }
+
+        /* A slider is dragged rather than tapped, so it takes the row to itself;
+           the value box keeps its 52px because the slider can now shrink. */
+        .range-control {
+          flex: 1 1 100%;
+        }
+        .range-control input[type='range'] {
+          flex: 1 1 auto;
+          width: auto;
+          min-width: 0;
+          /* The rail and the thumb keep the size they are drawn at. What grows
+             is the input around them, because that is the part a finger has to
+             find, and 18px of it is a miss. */
+          height: 44px;
+        }
+
+        /* A select or a time field answers a whole row, so it takes the whole
+           row, and 44px is the smallest height a thumb can be trusted to land
+           on: the global control styles stop at 36px because a mouse pointer
+           does not need the extra eight. */
+        select,
+        input[type='time'] {
+          min-height: 44px;
+        }
+        .setting-item > select,
+        .setting-item > input[type='time'] {
+          flex: 1 1 100%;
+        }
+
+        /* The same for a button, wherever it appears — and full width when it is
+           the only answer to its row. */
+        .action-btn {
+          min-height: 44px;
+        }
+        .setting-item > .action-btn {
+          flex: 1 1 100%;
+          justify-content: center;
+        }
+
+        /* The two compound controls — a select with Preview beside it, a switch
+           with Test — are little rows of their own, and they wrap for the same
+           reason the outer row does. */
+        .sound-control,
+        .toggle-control {
+          flex-wrap: wrap;
+        }
+
+        /* A switch is drawn 42x22 and keeps that size, because a track blown up
+           to thumb size stops reading as a switch. What grows is the invisible
+           box around it, so a tap a few pixels wide of the knob still lands on
+           the switch instead of on the row behind it. */
+        .switch::before {
+          content: '';
+          position: absolute;
+          top: 50%;
+          left: 50%;
+          width: 44px;
+          height: 44px;
+          transform: translate(-50%, -50%);
+        }
+      }
+
+      /* ===== Large screens =====
+
+         This is the page the whole pass is for. Its 560px column was sized
+         against the width the design was drawn in, and there was never anything
+         that said where in a wider window it should sit — so on a 3840px screen
+         it sat against the left edge of the shell's own centred band, a strip of
+         cards with fourteen hundred empty pixels to its right. A maximum with no
+         matching auto margin is the whole of that bug; the auto margin is the
+         whole of the fix.
+
+         The column keeps the 560px it was designed at, because a settings row is
+         a label and the control that answers it and neither of them gets better
+         with more room between them. The header is held to the same width and
+         centred with it, so the title sits over the cards rather than over the
+         window. */
+
+      @media (min-width: 1920px) {
+        .page-header,
+        .settings-grid {
+          max-width: 560px;
+          margin-inline: auto;
+        }
+      }
+
+      @media (min-width: 2560px) {
+        /* The ladder the shell raises at this breakpoint reaches form controls
+           and nothing else on this page: every label, note and value here is a
+           literal. The column takes 80px of the extra room — enough that the
+           120px sliders and two-word labels are not fighting for it at 18px —
+           and the rest stays air. */
+        .page-header,
+        .settings-grid {
+          max-width: 640px;
+        }
+        .page-title {
+          font-size: 34px;
+        }
+        .page-subtitle {
+          font-size: 16px;
+        }
+        .group-header {
+          font-size: 14px;
+        }
+        .setting-item {
+          font-size: 16px;
+        }
+        .setting-note {
+          font-size: 12px;
+        }
+        /* Only the two of these whose desktop size is under the ladder's new
+           floor: an action button already draws at 14px and the install hint at
+           12px, so neither is named here — a rule that made either smaller would
+           be this breakpoint working backwards. */
+        .range-value,
+        .installed-badge {
+          font-size: 14px;
+        }
+        kbd {
+          font-size: 13px;
+        }
+        input[type='range'] {
+          width: 160px;
+        }
+      }
+
+      @media (min-width: 3440px) {
+        .page-title {
+          font-size: 36px;
+        }
+        /* A row read from across a room is given the room a row needs: the
+           padding grows rather than the column, so the pairing of a label and
+           its control stays as close as it was designed to be. */
+        .setting-group {
+          padding: var(--space-xl);
+        }
+        .setting-item {
+          padding: 14px 0;
+        }
+      }
     `,
   ],
 })

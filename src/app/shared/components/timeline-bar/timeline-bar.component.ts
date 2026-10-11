@@ -246,6 +246,26 @@ const UPDATE_INTERVAL_MS = 1000;
     .now-marker {
       display: none;
     }
+
+    /* ===== Phone layout =====
+
+       The day is one tall scroll region, so it is told where its own edges are:
+       a flick that reaches midnight must not carry on into the card behind it.
+       The 36px hour gutter and the 42px the session blocks start at are also a
+       fifth of what a 320px column leaves for the blocks themselves, so both give
+       back a few pixels — the labels are four characters wide at most. */
+    @media (max-width: 640px) {
+      .timeline-container {
+        overscroll-behavior-y: contain;
+        -webkit-overflow-scrolling: touch;
+      }
+      .hour-text {
+        width: 32px;
+      }
+      .session-block {
+        left: 36px;
+      }
+    }
   `],
 })
 export class TimelineBarComponent implements OnInit, OnDestroy, AfterViewInit {

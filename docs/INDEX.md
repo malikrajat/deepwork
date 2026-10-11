@@ -37,6 +37,7 @@ Central reference for all guidance files in this repository.
 | `specs/012-task-dates-and-today/`         | The task's own date deciding the day it belongs to: imports for tomorrow, and today                                                  |
 | `specs/013-carry-forward-and-offline-ai/` | Carrying unfinished work forward or closing it when its day passes, and saying where the analysis runs                               |
 | `specs/014-task-completion-quote/`        | The line of encouragement on the card raised when a task is finished                                                                 |
+| `specs/015-responsive-layout/`            | The app on any screen: the drawer below 900px, the phone layout below 640px, the centred column above 1920px, and the four breakpoints that decide it |
 
 ---
 

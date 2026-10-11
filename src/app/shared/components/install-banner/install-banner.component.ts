@@ -70,7 +70,17 @@ import { InstallService } from '../../../core/services/install.service';
         align-items: center;
         justify-content: space-between;
         gap: 12px;
-        padding: 10px 20px;
+        /* The band is '48px + --safe-top' (see that token), because on a phone
+           with 'viewport-fit=cover' the strip iOS keeps for the status bar falls
+           inside a banner pinned to 'top: 0'. The padding follows it down so the
+           text and the buttons are laid out below that strip rather than centred
+           across it, and it picks up the landscape cutout on the two sides the
+           notch actually sits against. Every inset is 0px on a desktop, so this
+           is the same 10px/20px it always was there. */
+        padding-top: calc(10px + var(--safe-top));
+        padding-right: calc(20px + var(--safe-right));
+        padding-bottom: 10px;
+        padding-left: calc(20px + var(--safe-left));
         background: linear-gradient(
           135deg,
           rgba(139, 92, 246, 0.18) 0%,
@@ -158,6 +168,44 @@ import { InstallService } from '../../../core/services/install.service';
       .btn-dismiss:hover {
         background: rgba(255, 255, 255, 0.08);
         color: var(--color-text-secondary);
+      }
+
+      /* ===== Phone layout =====
+
+         The band is a fixed 48px plus the status-bar strip, and the shell
+         reserves exactly that much room for it, so a phone cannot answer the 44px
+         thumb target by making the banner taller — the page below would move under
+         it. What is left of the 48px once 1px sits above the strip and 2px and
+         the border below it is exactly 44px, so both controls are given the whole
+         of it and the strip keeps its own space.
+
+         The sentence is allowed a second line here for the same reason the
+         buttons are as tall as the band: the hint that says how to install
+         ("Tap the Share button, then Add to Home Screen") is the banner's entire
+         purpose, and one ellipsised line at 320px keeps the first four words of
+         it. */
+      @media (max-width: 640px) {
+        .install-banner {
+          padding-top: calc(var(--safe-top) + 1px);
+          padding-right: calc(12px + var(--safe-right));
+          padding-bottom: 2px;
+          padding-left: calc(12px + var(--safe-left));
+        }
+        .banner-text {
+          white-space: normal;
+          line-height: 1.25;
+          display: -webkit-box;
+          -webkit-box-orient: vertical;
+          -webkit-line-clamp: 2;
+        }
+        .btn-install {
+          min-height: 44px;
+          padding: 5px 14px;
+        }
+        .btn-dismiss {
+          width: 44px;
+          height: 44px;
+        }
       }
     `,
   ],

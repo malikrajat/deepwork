@@ -92,6 +92,44 @@ import {
       margin: 8px 0 0; font-size: 11px; line-height: 1.45;
       color: var(--color-accent-primary, #a78bfa);
     }
+
+    /* ===== Narrow layout =====
+
+       The popover is 272px wide and anchored to the right-hand edge of its own
+       18px button, which assumes there is a card's worth of room to the left of
+       that button. Every row this tip is opened from is anchored to the left of
+       its card, so at a narrow width the button sits ~200px from the left and the
+       popover's left edge lands off the screen — where the shell's own
+       'overflow-x: hidden' on the content column clips it, leaving a truncated
+       card and no way to read the rest of it.
+
+       The tip therefore stops being the anchor and the row it is drawn in becomes
+       one, which every consumer of this component does in its own stylesheet (the
+       desktop preferences panel puts 'position: relative' on the rows and the
+       footnote for exactly this). The popover then spans that row: it is the full
+       width of the card it belongs to, and it reads as a band under the setting it
+       explains rather than a card floating beside it. */
+    @media (max-width: 900px) {
+      .info-tip { position: static; }
+      .info-popover {
+        top: calc(100% + 6px);
+        left: 0;
+        right: 0;
+        width: auto;
+      }
+    }
+
+    /* The 18px glyph is the size the row was laid out around, so on a phone the
+       44px a thumb needs comes from a box around it rather than from the button:
+       'position: relative' is what gives that box the button as its frame. */
+    @media (max-width: 640px) {
+      .info-btn { position: relative; }
+      .info-btn::before {
+        content: '';
+        position: absolute;
+        inset: -13px;
+      }
+    }
   `],
 })
 export class InfoTipComponent {

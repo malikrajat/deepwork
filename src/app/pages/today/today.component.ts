@@ -287,6 +287,136 @@ import { TASK_EDIT_PATH, taskAddQuery, taskEditQuery } from '../../core/utils/ta
         font-size: 13px;
         color: var(--color-text-muted);
       }
+
+      /* ===== Phone: the page stops being a fixed canvas =====
+
+         On a desktop this page is exactly as tall as the window and the board
+         scrolls inside it, which is what keeps the column headers sitting under
+         a header that never moves. A phone has roughly 400px of height to divide
+         between that header, the search field and the board, and the board — the
+         only part of the page that carries today's work — came out of the
+         division with almost nothing left. Below 640px both heights go back to
+         auto, so the board grows to the height of the cards it holds and the
+         shell's own scroll region does the scrolling instead of a second one
+         nested inside it. */
+      @media (max-width: 640px) {
+        :host,
+        .today-layout {
+          height: auto;
+        }
+        .today-layout {
+          gap: 16px;
+        }
+
+        /* Title, date, the done count and the button are one row on the desktop.
+           At 320px the four of them are wider than the column, and the row's
+           space-between turned that into a horizontal scroll of the whole page;
+           wrapping puts the count and the button under the title, which is the
+           order they are read in anyway. */
+        .page-header {
+          flex-wrap: wrap;
+          row-gap: 10px;
+        }
+        .header-left {
+          flex-wrap: wrap;
+          row-gap: 4px;
+        }
+
+        /* The 320px cap on the search field is there so it cannot sprawl across
+           a wide window. A phone column is narrower than the cap, so at this
+           width it only ever took away width the field could have used. */
+        .filters-bar {
+          flex-wrap: wrap;
+        }
+        .search-box {
+          max-width: 100%;
+          min-height: 44px;
+        }
+        /* The field's text is 16px on a phone instead of the 13px this 20px box
+           was drawn for (see the input rule in styles.css), so the box has to
+           grow with it or the taller line is clipped. The min-width is the
+           second half of the same problem: an input carries an automatic
+           minimum of its own default size, which lets the placeholder — not the
+           column — decide how wide the search field is. */
+        .search-box input {
+          height: auto;
+          min-height: 24px;
+          min-width: 0;
+        }
+        /* A thumb is not a mouse: the clear button is a 16px cross on the
+           desktop, which is a miss on a phone. */
+        .clear-search {
+          min-width: 44px;
+          min-height: 44px;
+        }
+        .btn-add {
+          min-height: 44px;
+          padding: 10px 16px;
+        }
+      }
+
+      /* ===== Large screens =====
+
+         The same correction the Tasks page needs, because this page is the same
+         shape: past 1920px a row drawn for a window stretches across the whole
+         column, which left 'Today' and its date at one end of a 2072px band and
+         the done count and 'Add task' at the other with nothing between them.
+         The header and the toolbar stop at 1600px and centre themselves. The
+         board below them is capped and centred by the board component itself, so
+         the page keeps one band: the title, the search field and the first
+         column share their left edge. */
+      @media (min-width: 1920px) {
+        .page-header,
+        .filters-bar {
+          width: 100%;
+          max-width: 1600px;
+          margin-inline: auto;
+        }
+        /* A page whose body is 1600px is not titled at the size a 1000px one
+           was; the token takes it to 32px again past 2560px. */
+        .page-title {
+          font-size: var(--text-6xl);
+        }
+      }
+
+      /* ===== Very large screens =====
+
+         Past 2560px the page is read from across a room, which is the distance
+         the ladder in styles.css climbs for — including the form controls, which
+         it takes to 18px. Everything below takes a step up that ladder, and the
+         search field's box grows with the taller text rather than clipping it. */
+      @media (min-width: 2560px) {
+        .date-label,
+        .stat,
+        .search-count,
+        .btn-add {
+          font-size: var(--text-sm);
+        }
+        .btn-add {
+          padding: 9px 18px;
+        }
+        .search-box {
+          min-height: 40px;
+          max-width: 400px;
+        }
+        /* The 20px this input is pinned to was the line box of a 13px font; at
+           the ladder's 18px the text is taller than the box it sits in. */
+        .search-box input {
+          height: auto;
+          min-height: 26px;
+        }
+        .today-layout {
+          gap: 28px;
+        }
+        /* With no tasks the empty state is the whole page, so its message is
+           read at the distance a card title is. */
+        .empty-state h3 {
+          font-size: var(--text-2xl);
+        }
+        .empty-state p {
+          font-size: var(--text-md);
+        }
+      }
     `,
   ],
 })

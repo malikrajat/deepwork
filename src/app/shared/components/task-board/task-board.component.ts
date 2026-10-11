@@ -276,11 +276,40 @@ export interface BoardMove {
           padding-bottom: 4px;
         }
       }
+      /* A phone has no room to scroll a board sideways and drag a card at the
+       same time: the sideways scroll the 960px rule above asks for is what
+       makes a column unreachable while a card is in the air, and a 240px
+       column is wider than the page it would be read on. So the board becomes
+       one column per row — the Jira board turned on its side — which keeps all
+       three statuses on screen and every one of them a drop target.
+       'grid-auto-flow: row' has to be stated here: the 960px rule set it to
+       'column', and auto-placement is what decides whether the stack flows
+       downward or sideways once there is only one grid track. */
+      @media (max-width: 640px) {
+        .board {
+          grid-template-columns: minmax(0, 1fr);
+          grid-auto-flow: row;
+          grid-auto-columns: minmax(0, 1fr);
+          overflow-x: auto;
+          overflow-y: auto;
+          gap: 10px;
+          /* A flick that reaches the end of the board must not carry on into
+             the page behind it. */
+          overscroll-behavior: contain;
+          -webkit-overflow-scrolling: touch;
+        }
+      }
 
+      /* A grid track sized '1fr' will not shrink below the smallest its item
+       can be, and its item will not shrink below its own content's minimum —
+       so the loop above asks for 'minmax(0, 1fr)' and the column says the same
+       thing in its own terms here. Without both, one long title or one wide
+       badge pushes the column, and with it the page, sideways. */
       .board-column {
         display: flex;
         flex-direction: column;
         min-height: 0;
+        min-width: 0;
         overflow: hidden;
         background: var(--glass-bg);
         border: 1px solid var(--glass-border);
@@ -517,6 +546,121 @@ export interface BoardMove {
       }
       .column-body.cdk-drop-list-dragging .task-card:not(.cdk-drag-placeholder) {
         transition: transform 200ms ease;
+      }
+
+      /* Touch sizes for the things a finger has to hit. Nothing here is smaller
+         than it is on the desktop: the 24px icons, the 10px grip and the 30px
+         card all keep their look, they simply answer a tap over a larger area —
+         which is the only way the today / edit / delete controls, and the card
+         itself, are reachable at all. */
+      @media (max-width: 640px) {
+        .task-card {
+          min-height: 44px;
+          /* A card at 320px carries three 44px-tall buttons, a 10px title and up
+             to four meta badges inside about 230px. Fitting them on one line is
+             not possible without either cutting the badges off or letting the
+             row push the card wider than the phone, so the card is allowed to
+             take a second line instead. */
+          flex-wrap: wrap;
+        }
+        .drag-grip {
+          justify-content: center;
+          width: 24px;
+          min-height: 44px;
+        }
+        .icon-btn {
+          width: 32px;
+          height: 44px;
+        }
+        /* Tall enough that an empty column is still a comfortable thing to drop
+           a card onto, since here the whole column is the target. */
+        .board-column {
+          min-height: 120px;
+        }
+        /* The column scrolls its own cards instead of stretching without limit:
+           one column holding a hundred tasks would otherwise push the next
+           status several screens down, and a status you cannot see is one you
+           cannot drag a card onto. 'dvh' after 'vh' for the same reason the
+           board's own section heights use it: the cap has to match the window
+           the phone is actually showing, not the one it would show with its URL
+           bar hidden. */
+        .column-body {
+          max-height: 60vh;
+          max-height: 60dvh;
+          overscroll-behavior-y: contain;
+          -webkit-overflow-scrolling: touch;
+        }
+      }
+
+      /* ===== Large screens =====
+
+         The board above divides whatever width it is given into three equal
+         columns, which is right for a window and wrong for a wall: on a 3840px
+         screen each column reached about 680px, so a card held its title against
+         one edge and its four controls against the other with half a metre of
+         empty surface between them — a letterbox, read by moving the eye across
+         it twice.
+
+         The fix is the board's width rather than its columns'. Capping the board
+         and centring it keeps the three tracks equal and the columns at about
+         520px, which is the width a card was drawn for: a title, up to four meta
+         badges and the priority chip plus three buttons all inside one glance.
+         Nothing about the grid changes — the same three columns in the same
+         order, still one drop target each — only how much room they are asked to
+         share. */
+      @media (min-width: 1920px) {
+        .board {
+          max-width: 1600px;
+          margin-inline: auto;
+        }
+      }
+
+      /* ===== Very large screens =====
+
+         Past 2560px the board is read from across a room, which is the distance
+         the type ladder in styles.css climbs for. The card title is what this
+         page is read for, so it takes the ladder's 16px step and the badges
+         around it take the 12px one; the column heading follows at 14px. Sizes
+         are the published tokens rather than new numbers, so the board grows
+         with every other page instead of on its own. */
+      @media (min-width: 2560px) {
+        .column-header {
+          padding: 13px 16px;
+        }
+        .column-title {
+          font-size: var(--text-sm);
+        }
+        .column-count,
+        .meta-badge,
+        .priority-badge,
+        .order-num {
+          font-size: var(--text-2xs);
+        }
+        .column-empty {
+          font-size: var(--text-sm);
+        }
+        .card-title {
+          font-size: var(--text-md);
+        }
+        /* Bigger type needs a bigger row around it, or a 16px title sits in the
+           same 7px of padding it had at 13px and the card reads as cramped.
+           The controls grow with it for the same reason. */
+        .task-card {
+          padding: 9px 11px 9px 16px;
+        }
+        .column-body {
+          gap: 10px;
+          padding: 12px;
+        }
+        .icon-btn {
+          width: 28px;
+          height: 28px;
+        }
+        /* The order number is two digits in a fixed 14px box, which a 10px
+           monospace figure fits and a 12px one does not. */
+        .order-num {
+          width: 18px;
+        }
       }
     `,
   ],

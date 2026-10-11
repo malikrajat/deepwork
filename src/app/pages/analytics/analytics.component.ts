@@ -869,6 +869,178 @@ import {
           grid-template-columns: 1fr;
         }
       }
+
+      /* ===== Phone: the rows that were laid out for a 600px card =====
+
+         Nothing on this page is tappable, so all of the phone work is width.
+         Every row below was measured against the ~600px a desktop card gets,
+         and inside a 320px card the column is about 250px. Three kinds of row
+         have to change, and each for its own reason: the bar charts, whose
+         flex items refuse to shrink past the widest label inside them; the
+         quadrant and habit rows, whose fixed name and figure columns leave the
+         bar or the dots almost nothing; and the four-up journal figures. */
+      @media (max-width: 640px) {
+        /* A bar column is a flex item, so its minimum width is the width of the
+           widest thing inside it. For the weekday chart that is the value
+           label, which the desktop holds on one line with white-space: nowrap —
+           and seven of those labels plus their gaps are wider than the card,
+           which is what pushed the chart out of it. Zeroing the minimum lets
+           all seven share the row evenly, and letting the value wrap is what
+           keeps it inside the ~30px each column then gets instead of spilling
+           over its neighbour. */
+        .bar-col,
+        .bar-col.wide {
+          min-width: 0;
+        }
+        .bar-value {
+          white-space: normal;
+          text-align: center;
+        }
+        /* The 4px between bars costs the hour chart 92px of its 250px row;
+           halving it gives each of the 24 bars about a quarter more width. */
+        .bar-chart {
+          gap: 2px;
+        }
+
+        /* The swatch run and the scale text together are wider than a phone
+           card, and on one line the wrapped scale threads itself in between the
+           swatches. The scale takes a line of its own, which leaves the
+           swatches a single readable run. */
+        .heat-legend {
+          flex-wrap: wrap;
+          row-gap: 6px;
+        }
+        .legend-scale {
+          flex-basis: 100%;
+          margin-left: 0;
+        }
+
+        /* The desktop row is a 112px name, a bar that takes what is left, and a
+           92px block of figures. At 250px the bar is down to about 30px and
+           reads as a dot rather than as a proportion. The name and the figures
+           take the first line and the bar gets the whole width of the second —
+           the same reading order the desktop row has, only stacked. */
+        .quad-row {
+          flex-wrap: wrap;
+          row-gap: 4px;
+        }
+        .quad-name {
+          width: auto;
+          flex: 1;
+        }
+        .quad-track {
+          order: 1;
+          flex: 1 0 100%;
+        }
+
+        /* Same stacked shape for the same reason: thirty day-dots beside a 92px
+           name and a 96px streak block were left a few pixels of the row and
+           wrapped into thirty lines of one dot. The dots get the second line
+           and wrap into two rows instead. */
+        .habit-row {
+          flex-wrap: wrap;
+          row-gap: 6px;
+        }
+        .habit-name {
+          width: auto;
+          flex: 1;
+        }
+        .habit-dots {
+          order: 1;
+          flex: 1 0 100%;
+        }
+
+        /* Four figures across a 250px card are about 57px each, which the words
+           total's 16px value already overflows. Two rows of two give every
+           figure the room it was drawn for. */
+        .journal-stats {
+          grid-template-columns: repeat(2, 1fr);
+          row-gap: 12px;
+        }
+      }
+
+      /* ===== Very large screens =====
+
+       The shell stops its column growing at 2200px (see the large-screen block
+       in app.css). Analytics is a page of short readings — a sparkline, a bar
+       chart, a line of prose — and none of them has anything to do with the
+       other when they are spread across 2104px: the KPI cards become 690px of
+       card around a 22px number, a two-column chart card becomes an 884px cell
+       holding a 190px heatmap, and a session row puts its task name and its
+       badge at opposite ends of a metre of glass.
+
+       So the page measures itself instead of the window. 1280px is the width the
+       cards were drawn for — it is what a 1600px laptop gives them — and it is
+       the band the whole page is read in from here up. The block is above the
+       2560px the type ladder moves at for the same reason it is there: a 1920px
+       window is a laptop and keeps the layout it was designed around, and the
+       kpi, two-column and phone blocks below are untouched. */
+      @media (min-width: 2560px) {
+        :host {
+          --page-max-width: 1280px;
+          max-width: var(--page-max-width);
+          margin-inline: auto;
+        }
+
+        /* A KPI card is a label, a number, a sparkline and a hint, stacked. At
+         this width the three-across grid it already has gives each of them about
+         400px, which is the proportion the card was drawn at; what changes is
+         the reading distance, so the number and its label step up. The hint
+         stays a sentence under the figure rather than a fourth size. */
+        .kpi-value {
+          font-size: 28px;
+        }
+        .kpi-label {
+          font-size: 12px;
+        }
+        .kpi-delta {
+          font-size: 13px;
+        }
+
+        /* The card headings, the readings that follow them and the per-bar
+         figures are all prose read at the same distance as the numbers above. */
+        .chart-title {
+          font-size: 17px;
+        }
+        .title-note {
+          font-size: 12px;
+        }
+        .insight-list li,
+        .empty-note {
+          font-size: 14px;
+        }
+        .bar-label,
+        .bar-value {
+          font-size: 12px;
+        }
+
+        /* The heatmap is the one figure on the page built from fixed-size parts:
+         twelve weeks of twelve-pixel squares is 190px whatever window it is
+         drawn in, which leaves most of a 1240px card empty beside it. The cells
+         and their gaps grow together so the run reads at this distance, and the
+         legend swatches — the same class — grow with the grid they explain. */
+        .heat-col,
+        .heat-weekdays {
+          grid-template-rows: repeat(7, 16px);
+          gap: 4px;
+        }
+        .heat-cell {
+          width: 16px;
+          height: 16px;
+        }
+        .heatmap {
+          gap: 4px;
+        }
+
+        /* A session row is a name, a time and sometimes a badge. Capped at the
+         column, the badge ends up a screen away from the name it belongs to;
+         the list is a reading column, so it is measured like one and centred in
+         the card above it. */
+        .session-list {
+          max-width: 900px;
+          margin-inline: auto;
+        }
+      }
     `,
   ],
 })

@@ -257,6 +257,75 @@ import { TooltipDirective } from '../../directives/tooltip.directive';
     .qa-btn.primary { background: linear-gradient(135deg, #8b5cf6, #7c3aed); color: #fff; }
     .qa-btn.primary:hover:not(:disabled) { transform: translateY(-1px); box-shadow: 0 6px 18px rgba(139,92,246,0.34); }
     .qa-btn.primary:disabled { opacity: 0.45; cursor: not-allowed; }
+
+    /* ===== Phone layout =====
+
+       The dialog is already 'width: min(620px, 94vw)' with 'max-height: 88vh' and
+       a scrolling body, and three things about that don't survive a phone. 'vh'
+       on a phone counts the URL bar, so 88vh is taller than the screen and the
+       dialog — centred, and wider than the space the browser chrome leaves — has
+       its footer, the button that saves the task, below the fold. The 'dvh' cap
+       below is measured against what is actually on screen, with the 'vh' line
+       kept above it as the fallback, and the safe-area insets are subtracted
+       because the dialog is centred between the notch and the home indicator.
+
+       The footer is the reason the body must be the part that scrolls: it is
+       pinned to the bottom of the dialog by the column layout, so its buttons
+       stay reachable however long the advanced section grows. */
+    @media (max-width: 640px) {
+      /* The button floats over the page, so it clears the home indicator and the
+         landscape cutout rather than assuming a screen with neither. */
+      .qa-fab {
+        right: calc(16px + var(--safe-right));
+        bottom: calc(104px + var(--safe-bottom));
+      }
+      .qa-dialog {
+        /* '100%' of the window rather than '100vw': 'vw' counts a scrollbar the
+           page cannot scroll behind, and the dialog is centred so it only has to
+           be a little narrower than the window. */
+        width: calc(100% - 24px - var(--safe-left) - var(--safe-right));
+        max-height: calc(100vh - 24px - var(--safe-top) - var(--safe-bottom));
+        max-height: calc(100dvh - 24px - var(--safe-top) - var(--safe-bottom));
+      }
+      .qa-header { padding: 14px 14px 12px; flex-shrink: 0; }
+      /* The one part that may scroll: 'min-height: 0' lets a flex item shrink
+         below its content, and the automatic minimum of a scroll container is
+         already zero — this says which box the shrink is meant to land in. The
+         containment is what stops a flick inside the form from being handed on to
+         the page behind the dialog. */
+      .qa-body {
+        padding: 14px;
+        min-height: 0;
+        overscroll-behavior-y: contain;
+        -webkit-overflow-scrolling: touch;
+      }
+      .qa-footer { padding: 12px 14px; flex-wrap: wrap; flex-shrink: 0; }
+      .qa-footer .qa-btn { flex: 1 1 auto; }
+      .qa-info { padding: 10px 12px; }
+      /* The section labels are a fixed 68px column, which is a third of the text
+         column at this width; the two stack instead. */
+      .qa-info-line { flex-direction: column; gap: 2px; }
+      .qa-tag { width: auto; padding-top: 0; }
+      /* The fields are what this dialog is: the global 16px font on a phone takes
+         them to about 40px, and 44 is the number that turns a tap into a tap. */
+      .qa-field input,
+      .qa-field textarea,
+      .qa-field select { min-height: 44px; }
+      /* The 16px the app asks of every field on a phone, repeated here because
+         the global rule cannot always deliver it: that rule is written as
+         'html body textarea' and 'html body select', and a class on the element
+         — '.qa-field textarea' — outranks both, so the phone would keep the 13px
+         above and iOS would zoom the whole page in on the first tap in the
+         description box. */
+      .qa-field textarea,
+      .qa-field select { font-size: 16px; }
+
+      /* A thumb is not a mouse: the close button, the disclosure that reveals the
+         advanced fields, and both footer buttons. */
+      .qa-close { width: 44px; height: 44px; }
+      .qa-advanced-toggle { min-height: 44px; }
+      .qa-btn { min-height: 44px; }
+    }
   `],
 })
 export class QuickAddComponent {

@@ -93,7 +93,11 @@ import { WaterReminderService } from '../../../core/services/water-reminder.serv
         flex-direction: column;
         gap: 14px;
         width: 380px;
+        /* 'vw' is the scrollbar's width too wide on a phone that is showing one,
+           so the cap is measured against the dynamic viewport with the 'vw' line
+           kept above it for browsers that do not know 'dvw'. */
         max-width: calc(100vw - 48px);
+        max-width: calc(100dvw - 48px);
         padding: 18px;
         border-radius: var(--glass-radius, 14px);
         background: linear-gradient(135deg, rgba(6, 182, 212, 0.16) 0%, var(--toast-bg) 100%);
@@ -218,6 +222,41 @@ import { WaterReminderService } from '../../../core/services/water-reminder.serv
         50% {
           opacity: 0.72;
           transform: scale(1.06);
+        }
+      }
+
+      /* ===== Compact and phone layout =====
+
+         The card is anchored 24px from the top-right corner, which on a phone is
+         inside the band the shell keeps for navigation: below 900px the mobile
+         top bar is the only way to the drawer, and while a browser is offering to
+         install the app the install banner is up there too. A question that
+         covers the way out of the page is worse than one asked a little lower, so
+         the card starts below both bands — the install banner's height is counted
+         whether or not it is showing, because a question that jumps when a banner
+         appears is its own kind of surprise, and on a 640px-tall phone the card
+         still ends well above the fold.
+
+         It also spans the window rather than sitting 380px wide against the right
+         edge: the width was the desktop one, and at 320px that left the card
+         hanging off the left of the screen. */
+      @media (max-width: 900px) {
+        :host {
+          top: calc(var(--install-banner-height) + var(--mobile-topbar-height) + var(--safe-top) + 12px);
+          right: calc(var(--space-md) + var(--safe-right));
+          left: calc(var(--space-md) + var(--safe-left));
+        }
+        .nudge-card {
+          width: 100%;
+          max-width: 100%;
+        }
+      }
+
+      /* The two answers are the only way past this card, so on a phone they are
+         thumb-sized rather than the 35px the pointer layout gives them. */
+      @media (max-width: 640px) {
+        .nudge-btn {
+          min-height: 44px;
         }
       }
 

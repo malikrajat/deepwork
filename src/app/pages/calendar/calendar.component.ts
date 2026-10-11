@@ -1734,6 +1734,495 @@ function persistCollapsedGroups(value: Record<string, boolean>): void {
           box-shadow: 0 16px 48px rgba(0, 0, 0, 0.55);
         }
       }
+
+      /* Compact layout, applied up to the 900px shell breakpoint so the page
+       and the off-canvas drawer it opens agree about where the phone layout
+       begins. The rail and the timeline stop being two columns here: on a
+       360px window a 268px rail leaves the timeline about ninety pixels, which
+       is narrower than one entry, so both go full width and the page scrolls
+       instead of the two of them grinding each other down. */
+      @media (max-width: 900px) {
+        /* A height of auto plus visible overflow turns the host from a pane
+         that is exactly one screen tall into a normal block that lets the
+         shell's scroll region do the scrolling. Nothing is clipped as a
+         result, which is what the fixed height and hidden overflow on the
+         desktop are for. */
+        :host {
+          height: auto;
+          overflow: visible;
+        }
+        .cal-layout {
+          flex-direction: column;
+          /* No flex growth and no fixed height: the column sizes itself to the
+           queue plus the timeline and the page grows, rather than one of the
+           two being squeezed into whatever is left of the screen. */
+          flex: none;
+          height: auto;
+          overflow: visible;
+        }
+        /* Full width, and free of its weight in the flex row: the rail is a
+         list of tasks to place, and at 87px (what the fixed 268px rail came
+         down to beside the timeline) every title and every reorder button
+         was unusable. */
+        .queue-rail {
+          width: 100%;
+          flex: none;
+        }
+        /* Its own scrollbar is left to the desktop column. Letting the rail
+         grow keeps one scroll axis on the page: a nested scroller whose cards
+         own touch-action none for drag-to-place can only be scrolled from the
+         gaps between them. */
+        .rail-scroll {
+          flex: none;
+          overflow-y: visible;
+          -webkit-overflow-scrolling: touch;
+        }
+        .rail-warning {
+          border-top: none;
+          border-bottom: 1px solid var(--glass-border);
+        }
+        /* A 12px tap target for "mark complete" is a coin toss with a thumb.
+         The circle keeps its drawn size and an invisible 44px square centres
+         itself on it, so the hit area grows without the badge changing. */
+        .ev-check {
+          position: relative;
+        }
+        .ev-check::after {
+          content: '';
+          position: absolute;
+          top: 50%;
+          left: 50%;
+          width: 44px;
+          height: 44px;
+          transform: translate(-50%, -50%);
+        }
+        .timeline {
+          flex: none;
+          min-height: 0;
+        }
+        /* The pane's own scroll region still scrolls, so it is told not to
+         hand the gesture on to the page behind it at either end. */
+        .timeline-scroll {
+          overscroll-behavior: contain;
+          -webkit-overflow-scrolling: touch;
+        }
+        /* 58px of hour labels out of a 296px row leaves the day grid under
+         200px, where a two-column focus block is a few characters wide. The
+         narrower gutter is the whole reason the grid keeps any width at all
+         at 320px. */
+        .gutter {
+          width: 34px;
+        }
+        .hour-cell {
+          padding-right: 4px;
+        }
+        /* Room for the notch and the home indicator on a phone held sideways.
+         Zero everywhere else, so this is the desktop padding on a desktop. */
+        :host {
+          padding-left: var(--safe-left);
+          padding-right: var(--safe-right);
+        }
+      }
+
+      /* Phone. The seven-column week strip is the widest fixed thing on the
+       page: at 360px the shell leaves the content 328px, so a cell is about
+       40px once the gaps are paid for. Everything inside a cell is measured
+       against that — header text loses its extra letter-spacing, the count and
+       the focus label shrink and truncate — because a strip that is wider than
+       the screen turns the whole page into a horizontally scrolling canvas. */
+      @media (max-width: 640px) {
+        .page-header {
+          margin-bottom: 8px;
+        }
+        .page-title {
+          font-size: 20px;
+        }
+        .header-actions {
+          width: 100%;
+        }
+        .day-window {
+          /* The auto margin pushes the window to the right end of the toolbar
+           on the desktop; once the group is on a line of its own there is
+           nothing to push away from, so it starts flush like everything
+           else. */
+          margin-left: 0;
+          gap: 4px;
+        }
+        .cal-toolbar {
+          gap: 8px;
+          padding: 8px 10px;
+        }
+        /* Thumb-sized paging: 28px is about half of what a fingertip covers,
+         and these are the two controls the day is paged with. */
+        .nav-btn {
+          min-width: 44px;
+          height: 44px;
+          padding: 0 4px;
+          font-size: 18px;
+        }
+        .today-btn {
+          font-size: 13px;
+        }
+        .cal-btn {
+          min-height: 44px;
+          padding: 8px 14px;
+        }
+        /* One control per line, so nothing has to choose between being narrow
+         and being over the column. */
+        .date-input,
+        .day-title,
+        .day-window {
+          flex: 1 1 100%;
+          min-width: 0;
+          max-width: 100%;
+        }
+        .date-input {
+          font-size: 13px;
+        }
+        /* A full date wraps onto a second line rather than widening the
+         toolbar. */
+        .day-title {
+          font-size: 13px;
+          white-space: normal;
+          overflow-wrap: anywhere;
+        }
+        .week-strip {
+          /* The tracks resolve to zero before they resolve to their share of
+           the row, so a single long label — "12 tasks" in a 39px column — can
+           no longer set the width of the whole strip. */
+          grid-template-columns: repeat(7, minmax(0, 1fr));
+          gap: 2px;
+          margin-bottom: 8px;
+        }
+        /* The digit and the two labels stack in a single track so the cell can
+         be as narrow as its seventh of the row while the labels truncate. */
+        .week-day {
+          display: grid;
+          grid-template-columns: minmax(0, 1fr);
+          gap: 1px;
+          min-height: 45px;
+          padding: 5px 2px;
+        }
+        .wd-name {
+          font-size: var(--text-2xs);
+          letter-spacing: 0.02em;
+        }
+        .wd-num {
+          font-size: 14px;
+        }
+        .wd-meta,
+        .wd-focus {
+          max-width: 100%;
+          font-size: var(--text-2xs);
+          overflow: hidden;
+          text-overflow: ellipsis;
+          white-space: nowrap;
+        }
+        /* Wrapping matters more here than the size below: a block narrow enough
+         to be split into two columns cannot also hold the timestamp and both
+         badges on one line, and the badges would win. */
+        .ev-head {
+          flex-wrap: wrap;
+        }
+        .ev-title {
+          font-size: 10px;
+        }
+        /* A 6px strip is not a grabbable edge for a finger — it is one line of
+         text tall. The extra height is the difference between retiming a
+         block and not being able to. */
+        .ev-resize {
+          height: 16px;
+        }
+        /* A break label and its duration in a narrow block: the duration wraps
+         under the label instead of running past the right edge. */
+        .ev.rest {
+          flex-wrap: wrap;
+          gap: 2px 6px;
+        }
+        .rest-label,
+        .rest-time {
+          max-width: 100%;
+          overflow: hidden;
+          text-overflow: ellipsis;
+          white-space: nowrap;
+        }
+        .rail-group-head {
+          min-height: 44px;
+        }
+        /* The cards are the drag source, so the card keeps its touch-action
+         none; only its height grows, to the 44px a finger needs to start a
+         drag on it rather than overshoot into the card below. */
+        .rail-card {
+          min-height: 44px;
+        }
+        /* Four 20px buttons in a row leave the title about eighty pixels. They
+         move under the title instead, which is both touch-sized and legible.
+         The 1px margin-left below is there only so the desktop selector that
+         fades them in on hover keeps matching. */
+        .rail-actions {
+          flex: 1 1 100%;
+          flex-wrap: wrap;
+          margin-left: 1px;
+          opacity: 1;
+        }
+        .rail-actions button {
+          width: 44px;
+          height: 44px;
+          font-size: 13px;
+        }
+        /* An underlined word inline with the warning it belongs to: 11px of
+         text with a thumb's worth of padding around the tap. */
+        .rail-warning button {
+          display: inline-block;
+          min-height: 44px;
+          padding: 0 6px;
+          font-size: 12px;
+        }
+        .chip {
+          font-size: var(--text-2xs);
+          padding: 3px 7px;
+        }
+        /* The drawer still has 6px of the layout showing on either side at
+         320px, and its own padding is what the fields inside it measure
+         against, so it tightens up first. */
+        .slot-panel {
+          top: 4px;
+          right: 4px;
+          bottom: 4px;
+          max-width: calc(100% - 8px);
+        }
+        .panel-head {
+          padding: 8px 10px;
+        }
+        /* A 13px glyph with 2px of padding is the smallest target in the
+         drawer, and it is the only way out of it. */
+        .panel-close {
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          width: 44px;
+          height: 44px;
+          padding: 0;
+        }
+        .panel-task-head {
+          flex-wrap: wrap;
+        }
+        .panel-task-title {
+          flex: 1;
+        }
+        /* Six verbs on a task, each one a separate tap: a 44px row keeps them
+         apart without stretching the two-word labels across the drawer. */
+        .panel-task-actions button {
+          min-height: 44px;
+          padding: 4px 10px;
+        }
+        /* A candidate stacks: at 320px "Important & urgent" is wider than the
+         room left beside it, and a truncated title next to a clipped label is
+         less use than two readable lines. */
+        .candidate {
+          flex-direction: column;
+          align-items: stretch;
+          gap: 2px;
+          min-height: 44px;
+          padding: 7px 8px;
+        }
+        .panel-new-row {
+          flex-wrap: wrap;
+        }
+        .panel-new-row select {
+          min-height: 44px;
+        }
+        /* The ghost is 220px wide and follows the pointer; at 320px that is
+         most of the screen and past the right edge near it. */
+        .drag-ghost {
+          max-width: calc(100vw - 24px);
+        }
+      }
+
+      /* The 320px end of the range: the same eleven-hour grid in a narrower
+       column, so the header and the strip give back the last few pixels that
+       buy a line of the timeline.
+
+       Nothing here shrinks a type size. The strip's day name and its secondary
+       line are already at the '--text-2xs' token, which is the 10px floor the
+       whole type scale stops at — below it a label stops being small text and
+       becomes a grey smudge, which is the very thing the floor exists to
+       prevent. The cells buy their last few pixels from padding and the gap
+       instead, and the secondary line is already allowed to ellipsise. */
+      @media (max-width: 380px) {
+        .page-subtitle {
+          font-size: 12px;
+        }
+        .page-header {
+          margin-bottom: 6px;
+        }
+        .cal-toolbar {
+          padding: 6px 8px;
+        }
+        .week-strip {
+          gap: 1px;
+        }
+        .week-day {
+          padding: 4px 1px;
+        }
+      }
+
+      /* ===== 1920px and up: a day, not a billboard =====
+
+         Past 1920px the shell gives this page a column up to 2200px wide. Left
+         alone, the 268px queue rail is swallowed and the day grid stretches a
+         single hour row across two thousand pixels — a two-line focus block
+         becomes a letterbox — while the toolbar's date controls are flung to
+         opposite ends of the window from the title they belong to.
+
+         So the header, the toolbar, the week strip and the whole two-column
+         layout are capped at one 1760px band and centred. The timeline is not
+         given a width of its own on top of that: the blocks on it are positioned
+         as percentages of the day grid, and the drag maths that decides which
+         slot a pointer is over measures the grid itself, so the grid has to stay
+         a real box the pointer can be measured against — capping the row it
+         lives in is the shape that leaves that maths alone.
+
+         What the extra room buys is the rail, which stops being a fixed 268px
+         and becomes a 300px column: it is a queue of task titles and reorder
+         buttons, and the reorder button is the first thing to be crushed by the
+         grid taking all of a wider row.
+
+         The 1760px is deliberately below the 2200px column maximum, which is
+         what makes it do something at 1920px and at 3840px alike: at 2560px the
+         column has already reached its own cap, and without this band the day
+         grid would stretch another 250px with it. */
+      @media (min-width: 1920px) {
+        .page-header,
+        .cal-toolbar,
+        .week-strip,
+        .cal-layout {
+          max-width: 1760px;
+          margin-inline: auto;
+        }
+
+        /* The one side column here that is not a fixed size in the desktop
+           rules, so the wider row goes into it rather than into the grid. The
+           timeline's own share is what is left. */
+        .queue-rail {
+          width: 300px;
+        }
+      }
+
+      /* ===== 2560px and up: a screen read from across a room =====
+
+         The same day, 160px wider, with the type the ladder raises at this
+         breakpoint actually applied to the few elements that are read rather
+         than glanced at. Sizes come from the ladder and are whole pixels; the
+         pixels that stay literal — the hour row, the check badge, the icon
+         buttons — are ones where the desktop geometry is the point.
+
+         Nothing here widens the day grid, which is the thing that goes wrong
+         first on a big screen. The band above is what caps it, and a block that
+         is already a metre from the left edge does not get better by being
+         wider: the room the extra 160px buys goes into the queue and the slot
+         panel, which is where the words are. */
+      @media (min-width: 2560px) {
+        .page-header,
+        .cal-toolbar,
+        .week-strip,
+        .cal-layout {
+          max-width: 1920px;
+        }
+
+        /* The rail is a queue of titles with four controls a row, and it is the
+           first thing the raised type would crush. */
+        .queue-rail {
+          width: 400px;
+        }
+
+        /* The slot panel is the one column whose every line is prose rather
+           than a label, so it grows before the timeline does. */
+        .slot-panel {
+          flex-basis: 400px;
+          width: 400px;
+        }
+
+        .rail-title,
+        .rail-task {
+          font-size: var(--text-md);
+        }
+        .rail-collapse,
+        .rail-group-head,
+        .rail-meta,
+        .rail-empty,
+        .rail-note {
+          font-size: var(--text-2xs);
+        }
+        .group-count,
+        .group-summary {
+          font-size: var(--text-2xs);
+        }
+        .rail-actions button {
+          width: 24px;
+          height: 24px;
+          font-size: var(--text-2xs);
+        }
+
+        /* The hour labels are the ruler the whole day is read against: the
+           gutter and the row keep their geometry, and the labels step up inside
+           them. A form control would otherwise jump to the 18px the global rule
+           gives every input at this breakpoint, which is a size these two have
+           never been given a box for. */
+        .hour-cell {
+          font-size: var(--text-2xs);
+        }
+        .date-input,
+        .day-window input[type='time'],
+        .panel-search,
+        .panel-new-row select {
+          font-size: var(--text-md);
+        }
+        .day-title {
+          font-size: var(--text-lg);
+        }
+        .window-label,
+        .chip {
+          font-size: var(--text-2xs);
+        }
+        .wd-name,
+        .wd-meta,
+        .wd-focus {
+          font-size: var(--text-2xs);
+        }
+        .wd-num {
+          font-size: var(--text-xl);
+        }
+        .nav-btn {
+          font-size: var(--text-xl);
+        }
+        .today-btn {
+          font-size: var(--text-sm);
+        }
+
+        /* The two lines inside a focus block — the time it starts and the task
+           it holds — are the reason the block is on screen at all. */
+        .ev-time,
+        .rest-label,
+        .rest-time {
+          font-size: var(--text-sm);
+        }
+        .ev-title {
+          font-size: var(--text-base);
+        }
+        .panel-task-title,
+        .candidate {
+          font-size: var(--text-base);
+        }
+        .panel-task-actions button,
+        .panel-hint,
+        .panel-note,
+        .meta-text,
+        .q-chip,
+        .cand-meta {
+          font-size: var(--text-2xs);
+        }
+      }
     `,
   ],
 })

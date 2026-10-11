@@ -220,6 +220,38 @@ interface LogFile {
         line-height: 1.5;
         color: var(--color-text-muted);
       }
+
+      /* ===== Phone layout =====
+
+         The folder path is the longest string on this panel and the only one with
+         no space in it, so it takes the row to itself rather than sharing it with
+         its own label at 240px. The file list drops the 108px filename column for
+         the same reason in reverse: side by side, the sentence that says what each
+         file is for is left about a hundred pixels to do it in. Both buttons —
+         the ones that open the folder and copy the diagnostics — become thumb
+         targets. */
+      @media (max-width: 640px) {
+        .folder-row {
+          flex-direction: column;
+          align-items: flex-start;
+          row-gap: 4px;
+        }
+        .log-path {
+          max-width: 100%;
+          min-width: 0;
+          text-align: left;
+        }
+        .log-file {
+          flex-direction: column;
+          gap: 2px;
+        }
+        .log-file code {
+          flex: 0 0 auto;
+        }
+        .action-btn {
+          min-height: 44px;
+        }
+      }
     `,
   ],
 })

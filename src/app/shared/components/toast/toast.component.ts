@@ -263,6 +263,34 @@ import { alertTheme } from '../../../core/constants/alert.constants';
         animation: toast-in 0.5s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
       }
     }
+
+    /* ===== Phone layout =====
+
+       The card is 280px at its narrowest and capped at 360px, anchored 24px from
+       the bottom-right corner: on a 320px phone the corner it hangs from leaves
+       296px, so a card at its widest is cut off by the right edge of the screen
+       and one carrying a tooltip-length title spills past the left one. The host
+       is given both edges instead of the corner down here, which is the whole fix
+       — the card then measures itself against the window and the 280px floor has
+       nothing left to push against — and the corners pick up the home indicator
+       and the landscape cutout while they are at it.
+
+       The dismiss button is the only control on the card and grows to a thumb. */
+    @media (max-width: 640px) {
+      :host {
+        left: calc(var(--space-sm) + var(--safe-left));
+        right: calc(var(--space-sm) + var(--safe-right));
+        bottom: calc(var(--space-sm) + var(--safe-bottom));
+      }
+      .toast-container {
+        min-width: 0;
+        max-width: 100%;
+      }
+      .toast-dismiss {
+        width: 44px;
+        height: 44px;
+      }
+    }
   `]
 })
 export class ToastComponent {

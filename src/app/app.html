@@ -39,13 +39,91 @@
   [class.mini-active]="ui.isNativeWidget()"
   [class.banner-open]="installBannerOpen()"
 >
+  <!-- The phone's only way to the navigation. Rendered always and laid out as
+       nothing above the breakpoint (see `app.css`), which is what keeps this one
+       template serving both shapes. Focus Mode has no navigation to open, so it
+       has no bar either. -->
+  @if (!ui.focusMode() && !ui.isNativeWidget()) {
+    <header class="mobile-topbar">
+      <button
+        class="mobile-menu-btn"
+        type="button"
+        (click)="toggleMobileNav()"
+        [attr.aria-expanded]="mobileNavOpen()"
+        aria-controls="app-navigation"
+        [attr.aria-label]="mobileNavOpen() ? 'Close navigation' : 'Open navigation'"
+      >
+        @if (mobileNavOpen()) {
+          <svg
+            width="20"
+            height="20"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+            stroke-linecap="round"
+          >
+            <line x1="18" y1="6" x2="6" y2="18" />
+            <line x1="6" y1="6" x2="18" y2="18" />
+          </svg>
+        } @else {
+          <svg
+            width="20"
+            height="20"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+            stroke-linecap="round"
+          >
+            <line x1="3" y1="6" x2="21" y2="6" />
+            <line x1="3" y1="12" x2="21" y2="12" />
+            <line x1="3" y1="18" x2="21" y2="18" />
+          </svg>
+        }
+      </button>
+
+      <span class="mobile-bar-brand">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
+          <circle cx="12" cy="12" r="10" stroke="url(#mobile-brand-grad)" stroke-width="2" />
+          <path
+            d="M12 6v6l4 2"
+            stroke="url(#mobile-brand-grad)"
+            stroke-width="2"
+            stroke-linecap="round"
+          />
+          <defs>
+            <linearGradient id="mobile-brand-grad" x1="0%" y1="0%" x2="100%" y2="100%">
+              <stop offset="0%" stop-color="#8b5cf6" />
+              <stop offset="100%" stop-color="#06b6d4" />
+            </linearGradient>
+          </defs>
+        </svg>
+        <span class="brand-text">DeepWork</span>
+      </span>
+    </header>
+  }
+
+  <!-- Tap anywhere beside the drawer to close it. Decorative to assistive tech:
+       the drawer's own close button and Escape are the accessible ways out. -->
+  @if (mobileNavOpen() && !ui.focusMode()) {
+    <div class="nav-backdrop" aria-hidden="true" (click)="closeMobileNav()"></div>
+  }
+
   <div
     class="app-layout"
     [class.sidebar-collapsed]="sidebarCollapsed()"
     [class.focus-mode]="ui.focusMode()"
   >
     @if (!ui.focusMode()) {
-      <app-sidebar [collapsed]="sidebarCollapsed()" (toggleCollapse)="toggleSidebar()" />
+      <app-sidebar
+        [collapsed]="sidebarCollapsed() && !isCompactLayout()"
+        [mobileOpen]="mobileNavOpen()"
+        (toggleCollapse)="toggleSidebar()"
+        (closeMobile)="closeMobileNav()"
+        [attr.inert]="drawerIsInert() ? '' : null"
+        [attr.aria-hidden]="drawerIsInert() ? 'true' : null"
+      />
     }
     <main class="main-content">
       @if (ui.focusMode()) {

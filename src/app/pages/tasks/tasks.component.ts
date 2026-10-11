@@ -583,6 +583,68 @@ const PRIORITY_LABELS: Record<string, string> = {
           display: none;
         }
       }
+      /* The title, the three header buttons and the filter row are all single
+         rows designed for a window: at 320px they add up to roughly twice the
+         width of the page, and a row that cannot fit turns the whole page into
+         a sideways-scrolling canvas — the fixed top bar slides away with it.
+         Stacking is also the order the controls are used in: what the page is,
+         then what it is filtered by. */
+      @media (max-width: 640px) {
+        .page-header {
+          flex-direction: column;
+          align-items: stretch;
+          gap: 10px;
+        }
+        .header-left {
+          flex-wrap: wrap;
+        }
+        /* 'wrap' and not a column: three buttons stacked one per row is three
+           full-width bars of chrome above the board, and two per row still fit
+           at 320px. 'flex: 1 1 auto' lets them share the row evenly instead of
+           leaving the second one short. */
+        .header-actions {
+          flex-wrap: wrap;
+        }
+        .header-actions .btn {
+          flex: 1 1 auto;
+          justify-content: center;
+        }
+        .filters-bar {
+          flex-direction: column;
+          align-items: stretch;
+          gap: 8px;
+        }
+        /* The 320px cap is a desktop idea — there, a search box that stretched
+           the whole toolbar would dwarf the sort control beside it. Here the
+           row is a column, so the field takes all of it. */
+        .search-box {
+          max-width: none;
+          min-height: 44px;
+        }
+        .clear-search {
+          min-width: 44px;
+          min-height: 44px;
+        }
+        .sort-control {
+          flex-wrap: wrap;
+        }
+        .sort-control select {
+          flex: 1 1 160px;
+          min-width: 0;
+        }
+        /* Everything a thumb has to hit is 44px tall here. The desktop sizes
+           above are untouched: this only widens the target, it never shrinks
+           what is already there. */
+        .btn {
+          min-height: 44px;
+        }
+        /* The target is the whole width of the section header rather than just
+           the word "Collapse all", so the length of the label does not decide
+           how easy the control is to hit. */
+        .filters-bar .btn {
+          justify-content: center;
+        }
+      }
 
       .board-empty {
         flex: 1;
@@ -723,12 +785,52 @@ const PRIORITY_LABELS: Record<string, string> = {
       }
       .date-groups.multi-open .group-board {
         flex: 0 0 auto;
+        /* 'dvh' and not 'vh': on a phone 'vh' is the height the window would
+           have with the URL bar hidden, which is taller than what is on screen,
+           so a section measured with it puts its last rows under the browser
+           chrome. The 'vh' line stays first as the fallback for a browser that
+           does not know 'dvh'. */
         height: calc(100vh - 220px);
+        height: calc(100dvh - 220px);
         min-height: 320px;
       }
       .group-board app-task-board {
         display: block;
         height: 100%;
+      }
+      /* A phone stacks the board's three columns instead of scrolling them
+         sideways (see task-board.component.ts), and a stack is as tall as its
+         cards — it cannot be read through a fixed-height window. Both sizes
+         above assume a board that fits in the room left under the filters: the
+         open section takes the leftover space, and each one in a multi-open
+         page is measured against the window with 'calc(100dvh - …)'. Neither
+         leaves room for a stack, so the section is allowed to grow and the
+         page's own scroll region ('.date-groups') carries the length. */
+      @media (max-width: 640px) {
+        .date-groups:not(.multi-open) .date-group.open,
+        .date-groups.multi-open .date-group.open {
+          flex: 0 0 auto;
+        }
+        .group-board,
+        .date-groups.multi-open .group-board {
+          flex: 0 0 auto;
+          height: auto;
+          min-height: 0;
+        }
+        .group-board app-task-board {
+          height: auto;
+        }
+        /* The section header row is the fold control and the "+" side by side.
+           Its own height lands just under a thumb at the body's line height —
+           10px of padding above and below a 12px label — so the row is given
+           the missing pixels instead, and the "+" beside it gets the same. */
+        .group-header {
+          min-height: 48px;
+        }
+        .group-add {
+          width: 44px;
+          height: 44px;
+        }
       }
 
       .empty-state {
@@ -1009,6 +1111,162 @@ const PRIORITY_LABELS: Record<string, string> = {
       }
       .day-btn:hover {
         border-color: rgba(139, 92, 246, 0.6);
+      }
+      /* The panel is the app's widest single surface — 420px of form beside a
+         window — and on a phone it is a 90vw sheet with 24px of its own
+         padding, which at 320px leaves the fields a little over 200px. The
+         priority/quadrant row is the one pair that assumes the desktop width:
+         side by side, two selects and their gap want more than that. */
+      @media (max-width: 640px) {
+        .form-row {
+          grid-template-columns: minmax(0, 1fr);
+        }
+        /* A select is as wide as its longest option unless it is told it may be
+           narrower, and a grid or flex track will not shrink past it — so the
+           fields are given permission to be the width of the panel instead of
+           the width of their own text. */
+        .panel-form input,
+        .panel-form select,
+        .panel-form textarea {
+          min-width: 0;
+          max-width: 100%;
+        }
+        .icon-btn {
+          width: 44px;
+          height: 44px;
+        }
+        .day-btn {
+          width: 44px;
+          height: 44px;
+        }
+        /* "Advanced options" is a bare text button — its own height is about
+           one line of 12px type — so it is padded out to a thumb here. */
+        .advanced-toggle {
+          min-height: 44px;
+        }
+      }
+
+      /* ===== Large screens =====
+
+         Every rule above assumes a window, and a window has no upper bound: past
+         1920px the page column keeps growing and each row built for it stretches
+         with the column. On a 3840px screen that put the title and the three
+         header buttons at opposite ends of a 2000px band with nothing between
+         them, spread the toolbar the same way, and left an open date section a
+         metre wide around three board columns of about 680px each.
+
+         So the rows the page is made of — the header, the toolbar, and the date
+         sections that hold the boards — stop at 1600px and centre themselves in
+         the column. One width and therefore one pair of edges: the title, the
+         search field and the first board column all start on the same line, and
+         the page reads as a band that was placed in the window rather than as
+         three rows that each happen to be as wide as the monitor. 1600px is the
+         width the board wants (see task-board.component.ts): three columns of
+         about 520px, which is what a card needs to hold a title, its badges and
+         its controls in one glance. */
+      @media (min-width: 1920px) {
+        .page-header,
+        .filters-bar,
+        .date-groups {
+          width: 100%;
+          max-width: 1600px;
+          margin-inline: auto;
+        }
+        /* A page whose body is 1600px is not titled at the size a 1000px one
+           was; the token takes it to 32px again past 2560px. */
+        .page-title {
+          font-size: var(--text-6xl);
+        }
+      }
+
+      /* ===== Very large screens =====
+
+         Past 2560px this page is the same picture read from three metres away —
+         a sofa, a meeting room, a wall — which is the distance the ladder in
+         styles.css climbs for. Every label below takes a step up that ladder
+         rather than a new size of its own, so the section headings, the toolbar
+         and the buttons stay in proportion with the board they sit above. */
+      @media (min-width: 2560px) {
+        .task-count,
+        .group-label,
+        .sort-control {
+          font-size: var(--text-sm);
+        }
+        .group-count,
+        .group-done {
+          font-size: var(--text-2xs);
+        }
+        .group-count {
+          padding: 2px 10px;
+        }
+        /* The one sentence on the page, and the only place the drag and keyboard
+           shortcuts are written down: at 11px it is a grey line across a room.
+           Raised, the toolbar still fits its band on one line — about 1375px of
+           the 1600px it has. */
+        .board-hint {
+          font-size: var(--text-sm);
+        }
+        .board-hint kbd {
+          font-size: var(--text-2xs);
+        }
+        /* The header's three buttons are how this page is used, and 12px was a
+           caption size. The small-button rule is repeated after this one on
+           purpose: both selectors are a single class, so among equal weights the
+           later rule is what sizes a small button. */
+        .btn {
+          padding: 10px 20px;
+          font-size: var(--text-base);
+        }
+        .btn-sm {
+          padding: 8px 16px;
+          font-size: var(--text-sm);
+        }
+        /* The ladder takes every form control to 18px past 2560px, and this
+           field's box was drawn around a 13px line: the 20px height it pins the
+           input to clips the taller text top and bottom. The input is allowed
+           its own height instead, and the box widens and grows to sit level with
+           the sort control beside it, which the ladder has just made taller. */
+        .search-box {
+          min-height: 40px;
+          max-width: 400px;
+        }
+        .search-box input {
+          height: auto;
+          min-height: 26px;
+        }
+        .sort-control select {
+          padding: 8px 10px;
+        }
+        /* The board inside a section now holds 16px cards, so the section's own
+           frame grows to match and the sections get more air between them. */
+        .group-board {
+          padding: 0 16px 16px;
+        }
+        .date-groups {
+          gap: 14px;
+        }
+        .tasks-layout {
+          gap: 20px;
+        }
+        /* When there is no board the empty state is the whole page, so its line
+           is read at the same distance as a card title. */
+        .empty-state {
+          font-size: var(--text-md);
+        }
+        .panel-header h2 {
+          font-size: var(--text-2xl);
+        }
+        /* Editing opens priority and quadrant side by side, and the ladder takes
+           both selects to 18px. 'Urgent + Important' is then wider than half of
+           the drawer's 372px of form, and a grid track never shrinks below its
+           own content — so the drawer widens to hold the pair, and the two
+           tracks are allowed to be narrower than the words inside them. */
+        .slide-panel {
+          width: 560px;
+        }
+        .form-row {
+          grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+        }
       }
     `,
   ],

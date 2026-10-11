@@ -207,6 +207,42 @@ import { MINI_WIDGET_HELP } from '../../../core/constants/desktop-prefs.constant
           transform: none;
         }
       }
+
+      /* ===== Narrow layout =====
+
+         The card is a fixed 460px centred inside a 24px frame. This dialog is
+         only ever shown in the desktop app — but that window can be resized to a
+         phone's width and to less than its own height, and there the frame is most
+         of what there is: the card is capped to the window rather than centred
+         past its edges, its own content scrolls from there so the two buttons at
+         the foot stay reachable, and the frame takes the safe-area insets the
+         same way the shell does. */
+      @media (max-width: 640px) {
+        .dialog-backdrop {
+          padding: 12px;
+          padding-top: calc(12px + var(--safe-top));
+          padding-right: calc(12px + var(--safe-right));
+          padding-bottom: calc(12px + var(--safe-bottom));
+          padding-left: calc(12px + var(--safe-left));
+          align-items: flex-start;
+        }
+        .dialog-card {
+          padding: 20px 16px 16px;
+          max-height: calc(100vh - 24px - var(--safe-top) - var(--safe-bottom));
+          max-height: calc(100dvh - 24px - var(--safe-top) - var(--safe-bottom));
+          overflow-y: auto;
+          overscroll-behavior-y: contain;
+          -webkit-overflow-scrolling: touch;
+        }
+        .dialog-actions {
+          flex-wrap: wrap;
+        }
+        .btn-ghost,
+        .btn-primary {
+          flex: 1 1 auto;
+          min-height: 44px;
+        }
+      }
     `,
   ],
 })

@@ -429,6 +429,194 @@ const WINDOW_DAYS = 30;
         font-size: 14px;
         color: var(--color-text-muted);
       }
+
+      /* Phone layout.
+
+         Everything below answers one of two questions: does anything here
+         insist on more width than a phone's column actually has, and can a
+         thumb hit what is left. No rule above the breakpoint moves — each one
+         here either releases a desktop minimum that no longer fits or adds
+         height that a mouse pointer never needed. */
+
+      @media (max-width: 640px) {
+        /* The add row is a single line on the desktop, held open by the name
+           input's own min-width of 180px. A 320px phone hands the whole form
+           less width than that floor, and a min-width on a flex child is a
+           promise the row cannot break: the input would rather push the icon
+           field and the Add button off the card than shrink. Letting the row
+           wrap gives the name a line of its own and puts the other two
+           underneath it. */
+        .add-form {
+          flex-wrap: wrap;
+        }
+        .add-form app-form-field {
+          min-width: 0;
+        }
+        .add-form app-form-field:first-child {
+          flex: 1 1 100%;
+        }
+        .add-form .btn {
+          flex: 1;
+        }
+        /* The same 180px floor again, released so the input can use the whole
+           line the wrap above just gave it. */
+        .habit-input {
+          min-width: 0;
+          width: 100%;
+        }
+
+        /* A month of 7px dots needs 268px at the desktop 2px gap, and a 320px
+           phone leaves the card 256px for them. The strip already wraps, but a
+           second row of dots would land under a label that still reads
+           "today", so the gap tightens instead and the whole month stays on one
+           line. */
+        .strip {
+          gap: 1px;
+        }
+
+        /* The desktop grid's 268px column floor is wider than the column a
+           phone gives it, and a track cannot shrink below its own floor. The CSS
+           min() function lets that floor fall to the container's width, while
+           every container at or above 268px still resolves to exactly the
+           auto-fill grid it resolves to today. */
+        .habits-grid {
+          grid-template-columns: repeat(auto-fill, minmax(min(268px, 100%), 1fr));
+        }
+        /* A grid item is min-width: auto by default, which is what would
+           otherwise let a long habit name hold the card wider than its track. */
+        .habit-card {
+          min-width: 0;
+        }
+        /* The reading paragraph quotes habit names back, and a name typed as one
+           unbroken word is exactly as wide as that word. */
+        .reading {
+          overflow-wrap: anywhere;
+        }
+
+        /* Touch targets. Delete is a bare 18px glyph, Check in is 28px tall and
+           the two fields are 36px — all under the 44px a fingertip covers — so
+           each gets that minimum here. Sizes only ever grow: nothing that was
+           already big enough is made smaller. The fields are named through
+           their parent because the global input rule sets the same 36px at the
+           same specificity, which leaves the two rules to be decided by
+           stylesheet order alone. */
+        .add-form input {
+          min-height: 44px;
+        }
+        .btn {
+          min-height: 44px;
+        }
+        .delete-btn {
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          width: 44px;
+          height: 44px;
+          padding: 0;
+        }
+        .check-btn {
+          min-height: 44px;
+        }
+      }
+
+      /* Large screens.
+
+         The third size of this page. The phone rules above release two floors
+         that no longer fit; these put a ceiling on two things that have grown
+         past what they were for. The grid's auto-fill was written for a laptop
+         window and has no upper bound: handed 1960px of column it answers with
+         seven 268px cards and two hundred pixels of nothing, and handed a 3840px
+         television it answers with seven tracks stretched to 277px, which is a
+         card that has stopped being a card and started being a letterbox.
+
+         Counting the tracks is what fixes that at both ends, and the counts are
+         chosen so every card stays between 265px and 320px — the range the
+         desktop grid already draws the card at, and the width the 30-dot strip
+         needs at its 2px gap.
+
+         The header and the grid are held to one width and centred together, so
+         the title and its three stat pills stop being pushed to opposite ends
+         of a two-metre row. */
+
+      @media (min-width: 1920px) {
+        .page-header,
+        .habits-grid {
+          max-width: 1700px;
+          margin-inline: auto;
+        }
+        /* Six tracks of 310px across a 1700px band, bound by the card's own
+           280px floor rather than by whatever width the window happens to be.
+           The whole number of tracks rarely divides the band exactly, so a row
+           finishes short of its right edge by part of a card; centring the
+           tracks turns that remainder into an even margin on both sides instead
+           of leaving it all at the end of the row. */
+        .habits-grid {
+          grid-template-columns: repeat(6, minmax(280px, 1fr));
+          justify-content: center;
+        }
+      }
+
+      @media (min-width: 2560px) {
+        /* The same band, read from further away: this is the breakpoint the
+           shell raises the type ladder at, and every size on this page is a
+           literal that the ladder cannot reach. */
+        .page-title {
+          font-size: 34px;
+        }
+        .page-subtitle {
+          font-size: 16px;
+        }
+        .stat-value {
+          font-size: 18px;
+        }
+        .stat-label {
+          font-size: 11px;
+        }
+        .stat-pill {
+          padding: 8px 18px;
+        }
+        input {
+          font-size: 16px;
+        }
+        .btn {
+          font-size: 15px;
+        }
+        .reading {
+          font-size: 14px;
+        }
+        .habit-name {
+          font-size: 16px;
+        }
+        .consistency-badge {
+          font-size: 11px;
+        }
+
+        /* Six tracks at 24px of gap: the same 306px card, with the air between
+           the cards growing instead of the cards themselves. */
+        .habits-grid {
+          grid-template-columns: repeat(6, minmax(320px, 1fr));
+          gap: 24px;
+        }
+      }
+
+      @media (min-width: 3440px) {
+        .page-title {
+          font-size: 36px;
+        }
+        /* Seven tracks, and no eighth: a track narrower than about 268px cannot
+           hold the 30-dot month strip on one line at the 2px gap it is drawn
+           with, and at 283px the card is already wider than the 268px the
+           desktop grid draws it at. The extra width goes to the gaps and then
+           to the margins rather than to a card the strip would have to wrap
+           inside. */
+        .habits-grid {
+          grid-template-columns: repeat(7, minmax(283px, 1fr));
+          gap: 28px;
+        }
+        .habit-card {
+          padding: var(--space-lg);
+        }
+      }
     `,
   ],
 })

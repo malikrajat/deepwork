@@ -318,6 +318,57 @@ import { ExternalLinkDirective } from '../../directives/external-link.directive'
           transform: translateY(0) scale(1);
         }
       }
+
+      /* ===== Phone layout =====
+
+         The card is a 380px row of icon, text and a stack of buttons, anchored to
+         the bottom-right corner. At 320px there is no 380px to be had, and the
+         corner anchor would hang it off the left of the screen; the host takes
+         both edges instead, the corners pick up the home indicator and the
+         landscape cutout, and the card may fill whatever is between them.
+
+         The buttons move to their own line rather than sitting in a column beside
+         a squeezed paragraph: "Download and install it now — nothing on this
+         machine is touched until you press Update" is three lines at 220px, and
+         the four actions beside it would be four more. Each one also becomes a
+         44px thumb target, which it was not as a 12px-text pill. */
+      @media (max-width: 640px) {
+        :host {
+          left: calc(var(--space-md) + var(--safe-left));
+          right: calc(var(--space-md) + var(--safe-right));
+          bottom: calc(var(--space-md) + var(--safe-bottom));
+        }
+        .update-prompt {
+          max-width: 100%;
+          flex-wrap: wrap;
+          padding: 14px;
+          gap: 10px;
+        }
+        .prompt-actions {
+          flex: 1 1 100%;
+          flex-direction: row;
+          flex-wrap: wrap;
+          gap: 8px;
+        }
+        /* Last on the row it lands in, and pushed to the far end of it: the corner
+           it is drawn in on a desktop is the right-hand end. It is also a 24px
+           target on a desktop and the corner button of a card that is asking a
+           question, so on a phone it takes the 44px a thumb needs. */
+        .prompt-close {
+          order: 1;
+          align-self: center;
+          margin: 0 0 0 auto;
+          width: 44px;
+          height: 44px;
+        }
+        .prompt-btn {
+          display: inline-flex;
+          align-items: center;
+          justify-content: center;
+          flex: 1 1 auto;
+          min-height: 44px;
+        }
+      }
     `,
   ],
 })

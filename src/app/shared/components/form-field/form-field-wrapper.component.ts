@@ -61,6 +61,17 @@ import { FieldState } from '@angular/forms/signals';
       25% { transform: translateX(-2px); }
       75% { transform: translateX(2px); }
     }
+
+    /* A validation message can quote the value it rejected — an address, a
+       filename — and an error kind can be a single word with no space in it. This
+       wrapper is a flex item, so without 'min-width: 0' its minimum size is that
+       word and it holds the column it sits in open by however wide the word is;
+       the break rule is what lets the message use the width it has instead of
+       spilling out of it. */
+    @media (max-width: 640px) {
+      .form-field-wrapper { min-width: 0; }
+      .error-message { overflow-wrap: anywhere; }
+    }
   `]
 })
 export class FormFieldWrapperComponent {

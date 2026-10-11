@@ -154,6 +154,37 @@ import { VisitorStatsService } from '../../../core/services/visitor-stats.servic
         background: rgba(139, 92, 246, 0.22);
         border-color: rgba(139, 92, 246, 0.6);
       }
+
+      /* ===== Phone layout =====
+
+         The row is a label with a note under it beside the count and its button.
+         A 320px phone leaves the card about 240px of content, and the note — a
+         sentence about which of two apps the number covers — is the part that
+         needs it, so the row stacks and the number and the button keep the row
+         under it. The note that quotes an address is the reason the break rule is
+         repeated here: that string has no space in it, and this component is what
+         draws it, so it cannot rely on the card around it having set one.
+
+         The Details button is a 30px pill and the only way into the report; a
+         thumb needs 44. */
+      @media (max-width: 640px) {
+        .setting-item {
+          flex-direction: column;
+          align-items: flex-start;
+          row-gap: 8px;
+        }
+        .setting-note {
+          max-width: 100%;
+          overflow-wrap: anywhere;
+        }
+        .counter-control {
+          width: 100%;
+          justify-content: space-between;
+        }
+        .action-btn {
+          min-height: 44px;
+        }
+      }
     `,
   ],
 })

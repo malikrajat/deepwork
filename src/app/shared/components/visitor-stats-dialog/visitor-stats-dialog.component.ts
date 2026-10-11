@@ -965,6 +965,105 @@ interface SparkBar {
           transform: none;
         }
       }
+
+      /* ===== Phone layout =====
+
+         The panel is the whole window at every width, which is the right shape
+         for a report — but parts of it were measured for a wide window. The cards
+         sit in a grid whose tracks are 300px at the very least, so on a 320px
+         phone a track is wider than the panel holding it and the report scrolls
+         sideways behind its own header; the header is sticky at a negative offset
+         that is exactly the card's top padding, so the two have to move together;
+         and the token row asks for a 60-character paste beside two buttons.
+
+         Nothing here is added or removed: the same eight cards, the same four
+         tiles and the same rows are drawn, narrowed. */
+      @media (max-width: 640px) {
+        .dialog-card {
+          padding: 16px 14px 14px;
+          /* The panel is the page and has its own scroll; a flick that reaches
+             the end of it must not carry on into the app behind. */
+          overscroll-behavior-y: contain;
+          -webkit-overflow-scrolling: touch;
+        }
+        /* The sticky header is pinned by the negative of the card's top padding,
+           and carries that padding itself so the report slides under an opaque
+           band rather than under the first line of the title. Changing one of the
+           two without the other is what puts the header on top of the text. */
+        .dialog-head {
+          top: -16px;
+          /* The band bleeds to the panel's edges as it scrolls under, so the
+             report does not slide past it in the two 14px gutters. */
+          margin-right: -14px;
+          margin-left: -14px;
+          padding: 16px 14px 10px;
+        }
+        .dialog-subtitle {
+          max-width: 100%;
+        }
+        .close-btn {
+          width: 44px;
+          height: 44px;
+        }
+
+        /* One column each. A 300px track minimum inside a 292px panel is the
+           overflow itself, and 'minmax(0, 1fr)' is what lets a column be narrower
+           than the longest word in it instead of holding the panel open. */
+        .blocks,
+        .kpi-grid {
+          grid-template-columns: minmax(0, 1fr);
+        }
+        .kpi-value {
+          font-size: 30px;
+        }
+
+        /* The token, then its two buttons on the next line: the field is the part
+           that has to be usable, and it was sharing the row with 150px of them. */
+        .token-row {
+          flex-wrap: wrap;
+        }
+        .token-input {
+          flex: 1 1 100%;
+          /* The one field in the report, and the only way to read the numbers
+             below it: it is a thumb target like every control beside it. */
+          min-height: 44px;
+        }
+        .token-row .btn-ghost,
+        .token-row .btn-primary {
+          flex: 1 1 auto;
+        }
+
+        .token-state,
+        .count-row,
+        .dialog-actions {
+          flex-wrap: wrap;
+        }
+        .dialog-actions .btn-ghost,
+        .dialog-actions .btn-primary {
+          flex: 1 1 auto;
+          justify-content: center;
+        }
+
+        /* A thumb is not a mouse. The chips are the range and scope pickers and
+           the buttons are the way in and out of the report. The switch keeps the
+           42x22 pill it is drawn as — growing the box would leave the 16px knob
+           sitting in its corner — and takes its 44px from an invisible box around
+           it, which is also what a coarse pointer gets on the desktop preferences
+           and the same control here. */
+        .chip {
+          min-height: 44px;
+          padding: 8px 14px;
+        }
+        .btn-ghost,
+        .btn-primary {
+          min-height: 44px;
+        }
+        .switch::before {
+          content: '';
+          position: absolute;
+          inset: -11px;
+        }
+      }
     `,
   ],
 })

@@ -1154,13 +1154,26 @@ import { TaskSelectFormModel, createTaskSelectFormDefaults } from '../../shared/
           top: 8px;
           right: 8px;
         }
+        /* These two used to shrink to 28px here, which is a cursor-sized target
+         in the corner of the card a thumb reaches worst. A finger covers about
+         a 44px square, so that is what they grow to — and the corner they take
+         that from is empty, because the dial is a circle drawn inside a wider
+         box. */
         .action-btn {
-          width: 28px;
-          height: 28px;
+          width: 44px;
+          height: 44px;
         }
+        /* The size is written here rather than left to the 16px that the phone
+         layout in styles.css gives every select: this rule carries the
+         component's encapsulation attribute, so it outranks that global one,
+         and the 11px that used to sit here is below the size at which iOS
+         Safari zooms the whole page in the moment the picker takes focus — a
+         zoom the user then has to undo by hand. The height is the usual floor
+         for a thumb. */
         .task-selector select {
           min-width: 140px;
-          font-size: 11px;
+          min-height: 44px;
+          font-size: var(--text-xl);
         }
         .progress-card {
           padding: 12px 16px;
@@ -1198,6 +1211,156 @@ import { TaskSelectFormModel, createTaskSelectFormDefaults } from '../../shared/
         }
         .quick-action {
           flex: 1;
+        }
+      }
+
+      /* Phone (<=640px): the size of the things a thumb lands on.
+
+       A second block at the same width as the one above rather than more
+       declarations inside it, because it answers a different question. That
+       block is about the shape of the page — what stacks, what shrinks — while
+       every rule here is a floor under a control: a cursor is a single pixel
+       wide and a finger is not, so the 27-38px controls that were comfortable
+       under a cursor are a coin toss under a thumb. Nothing here touches the
+       clock card's own rules: its height still comes from the row, and a dial
+       that does not fit shrinks instead of pushing the card past it. */
+      @media (max-width: 640px) {
+        .btn,
+        .exit-fullscreen-btn,
+        .insight-action,
+        .quick-action {
+          min-height: 44px;
+        }
+        /* The two icon-only controls beside the clock are square, so their width
+         is as much of the target as their height is. */
+        .btn-ghost {
+          min-width: 44px;
+        }
+        /* The insight and quick actions are a short label with no icon, so the
+         height they were just given would otherwise collect above the text
+         instead of around it. */
+        .insight-action,
+        .quick-action {
+          display: inline-flex;
+          align-items: center;
+          justify-content: center;
+          padding: 10px 14px;
+        }
+        /* Three timer controls on one line need more width than the card has
+         inside its padding at 320px, and the card clips rather than scrolls —
+         an over-wide row would simply lose its last button. Wrapping turns that
+         into a second line, and the row is given the card's full width so the
+         wrapped line has something to centre against. */
+        .timer-controls {
+          width: 100%;
+          flex-wrap: wrap;
+          justify-content: center;
+        }
+        /* The primary action is the widest label in the card and the one control
+         without which no session starts, so it is the last thing that should be
+         squeezed: it takes a line of its own, and the two icon controls share
+         the one below it with a full 44px each. */
+        .timer-controls .btn-lg {
+          flex: 1 1 100%;
+        }
+        /* The quick actions share a single row, which at 320px is 85px each:
+         narrower than the thumb aiming at it, and too narrow for "Resume
+         timer" to stay on one line, so every label wraps onto two. A 120px
+         floor wraps the row into a pair and a full-width third instead. */
+        .quick-action {
+          min-width: 120px;
+        }
+        /* The dial was capped at 35vmin back when the card's height came from
+         the window and that cap was how the face was stopped from swallowing
+         the card. A phone hands the card a fixed 680px row instead, so what
+         runs out first is the card's own width — and 35vmin of a 320px screen
+         left a 112px face floating in a half-empty card. The vmin term stays as
+         a ceiling for a short window; on a phone it is the card's width, and
+         the height the task row and the controls leave behind, that decide the
+         size of the face. */
+        .timer-card-inner app-animated-clock {
+          max-height: min(260px, 60vmin);
+        }
+      }
+
+      /* ===== Very large screens =====
+
+       The shell caps its own column at 2200px (see the large-screen block in
+       app.css), and on a 3840px television that leaves a 2104px band for this
+       page. That is the right width for a board and the wrong width for the
+       dashboard: the clock card alone would be about 1400px around a 340px dial,
+       the insight cards would be 1000px each for two lines of text, and the
+       Desktop Behaviour panel would sit against the left edge of the band with
+       900px of nothing beside it. So this page stops using the whole column as
+       its layout unit and lays itself out inside a band of its own.
+
+       2560px is where a real screen is past the point the column was built for,
+       not the 1920px the 1600px block already covers: a 1920px window is a
+       laptop, and it keeps the layout it was designed around, untouched. Every
+       rule below is therefore above the width any existing block was written
+       for, and the 1600px, 1024px and 640px blocks are left exactly as they
+       were. */
+      @media (min-width: 2560px) {
+        /* The band the whole page is read in. Narrower than the 2104px the shell
+         lets through by roughly a third, so the margin down each side is part of
+         the shape instead of something the content has to fill.
+
+         A max-width on the wrapper and not on each section: the dashboard is
+         one stack — a row, then cards, then the quick actions — and capping the
+         wrapper is the only version of this that cannot leave one section
+         centred while the one above it still reaches for the window edge. The
+         two rules under it are the two places where that shape alone is still
+         not enough. */
+        .dashboard-wrapper {
+          max-width: 1440px;
+          margin-inline: auto;
+        }
+
+        /* The clock card is the one panel asked to hold a fixed-size object: the
+         dial inside it is capped by its own rule and does not grow, so 1440px of
+         card around it is mostly empty glass. Fixing the clock's track at 900px
+         and letting the timeline take what is left is what stops the row
+         stretching the card and stranding the dial; the 440px column it leaves
+         is the same shape the timeline has at 1400px, not a panel disowned by
+         the grid. */
+        .main-row {
+          max-width: 1360px;
+          margin-inline: auto;
+          grid-template-columns: minmax(0, 900px) minmax(0, 440px);
+          justify-content: center;
+        }
+
+        /* The switches are a short list with no figure to fill a card, so at this
+         width the 560px cap they already carry reads as a column that forgot to
+         centre. The band centres it. */
+        .dashboard-prefs {
+          margin-inline: auto;
+        }
+
+        /* The fullscreen face is the one thing on the page with no neighbouring
+         content to keep it in proportion: it is alone on a black screen, and the
+         600px cap it inherits from the 1600px block is a dial read from three
+         metres away. The clamp keeps its floor, so a short window is unchanged,
+         and only the ceiling moves. */
+        .fullscreen-clock {
+          --clock-size: clamp(420px, 40vmin, 720px);
+          width: var(--clock-size);
+          height: var(--clock-size);
+        }
+
+        /* Type at this width is read from the far side of a room, and the sizes
+         below are the ones a viewer is actually reading: the page's own name and
+         the figures in the progress row. Neither can be reached by the ladder
+         the rest of the app moves onto at this width (styles.css), because both
+         are literal pixel sizes written here that no token feeds. */
+        .page-title {
+          font-size: 30px;
+        }
+        .page-subtitle {
+          font-size: 16px;
+        }
+        .progress-value {
+          font-size: 22px;
         }
       }
     `,

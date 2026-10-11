@@ -204,7 +204,11 @@ const MAX_PREVIEW_ROWS = 300;
           </div>
         </div>
 
-        <div class="table-wrap">
+        <!-- The global '.table-scroll' class joins this wrapper rather than
+             sitting inside it: 'overflow-x: auto' computes 'overflow-y' to 'auto'
+             as well, so a second scroll box would take the sticky header away
+             from the box that actually scrolls the 300 preview rows. -->
+        <div class="table-wrap table-scroll">
           <table>
             <thead>
               <tr>
@@ -563,6 +567,65 @@ const MAX_PREVIEW_ROWS = 300;
         border: 1px solid rgba(139, 92, 246, 0.3);
       }
       .btn-outline:hover { border-color: rgba(139, 92, 246, 0.6); color: var(--color-text-primary); }
+
+      /* ===== Phone layout =====
+
+         Below 640px this host's 24px of window padding leaves the panel a 272px
+         column at 320px wide, and every row in it was written for the 940px card
+         above: a file chip beside four stat pills, a row count beside its filter
+         chips, a template note beside its download button, and two footer
+         buttons. None of those pairs fits, so each one wraps or stacks rather
+         than pushing the panel — and with it the page — wider than the phone.
+
+         The preview table is deliberately not given a second wrapper down here.
+         '.table-wrap' already scrolls it, and the global '.table-scroll' added to
+         that same element is what carries the touch scrolling and the promise
+         that the box stays inside its column. */
+      @media (max-width: 640px) {
+        :host {
+          padding: 12px;
+          padding-top: calc(12px + var(--safe-top));
+          padding-right: calc(12px + var(--safe-right));
+          padding-bottom: calc(12px + var(--safe-bottom));
+          padding-left: calc(12px + var(--safe-left));
+        }
+        /* 'dvh', not 'vh': on a phone the URL bar is counted as part of 'vh', so
+           the 92vh above is taller than the screen and the footer — the only way
+           to start the import — ends up under the browser chrome. */
+        .import-modal {
+          padding: 16px 14px;
+          gap: 12px;
+          /* The 'vh' line is the fallback: a browser that does not know 'dvh'
+             keeps the old measurement rather than losing the rule. */
+          max-height: calc(100vh - 24px - var(--safe-top) - var(--safe-bottom));
+          max-height: calc(100dvh - 24px - var(--safe-top) - var(--safe-bottom));
+        }
+        .preview-summary { flex-direction: column; align-items: stretch; gap: 8px; }
+        .file-chip { max-width: 100%; }
+        .file-name { max-width: 100%; }
+        /* Both halves of the chip are scroll containers, so each one can shrink
+           to whatever the row has left instead of holding the row at its own
+           text width. */
+        .file-sheet { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+        .stat-chips { flex-wrap: wrap; }
+        .table-toolbar { flex-wrap: wrap; gap: 8px; }
+        .filter-chips { flex-wrap: wrap; }
+        /* The global class on this box contains the sideways flick; the vertical
+           one is added here, where the box is the one that scrolls the rows. */
+        .table-wrap { min-width: 0; overscroll-behavior-y: contain; }
+        .template-card { flex-direction: column; align-items: stretch; gap: 10px; }
+        .template-card .btn { justify-content: center; }
+        .import-footer { flex-wrap: wrap; }
+        .import-footer .btn { flex: 1 1 auto; justify-content: center; }
+
+        /* A thumb is not a mouse: every control on this panel grows to the 44px
+           a finger needs, and the dialog's close button — which sits alone in
+           the corner of the header — most of all. */
+        .icon-btn { width: 44px; height: 44px; }
+        .chip { min-height: 44px; padding: 8px 14px; }
+        .option { min-height: 44px; }
+        .btn { min-height: 44px; }
+      }
     `,
   ],
 })

@@ -17,8 +17,9 @@ interface NavItem {
   selector: 'app-sidebar',
   imports: [RouterLink, SafeHtmlPipe],
   changeDetection: ChangeDetectionStrategy.OnPush,
+  host: { '[class.mobile-open]': 'mobileOpen()' },
   template: `
-    <nav class="sidebar" [class.collapsed]="collapsed()" aria-label="Main navigation">
+    <nav id="app-navigation" class="sidebar" [class.collapsed]="collapsed()" aria-label="Main navigation">
       <div class="sidebar-header">
         @if (!collapsed()) {
           <div class="brand">
@@ -63,6 +64,24 @@ interface NavItem {
             <line x1="3" y1="18" x2="18" y2="18" />
           </svg>
         </button>
+        <!-- The drawer's way out. On a wide window the collapse toggle above is
+             the control that belongs there and this one is not laid out at all;
+             inside the drawer there is nothing to collapse to, so the equivalent
+             action is to close the drawer. -->
+        <button class="close-btn" type="button" (click)="closeMobile.emit()" aria-label="Close navigation">
+          <svg
+            width="18"
+            height="18"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+            stroke-linecap="round"
+          >
+            <line x1="18" y1="6" x2="6" y2="18" />
+            <line x1="6" y1="6" x2="18" y2="18" />
+          </svg>
+        </button>
       </div>
 
       <ul class="nav-list">
@@ -74,6 +93,7 @@ interface NavItem {
               [attr.aria-current]="isActive(item.path) ? 'page' : null"
               class="nav-item"
               [title]="collapsed() ? item.label : ''"
+              (click)="closeMobile.emit()"
             >
               <span class="nav-icon" [innerHTML]="item.icon | safeHtml"></span>
               @if (!collapsed()) {
@@ -90,6 +110,7 @@ interface NavItem {
           <a
             class="version-badge"
             routerLink="/about"
+            (click)="closeMobile.emit()"
             [attr.aria-label]="versionLabel + ' — about DeepWork and updates'"
             [title]="
               updates.hasUpdate()
@@ -197,6 +218,16 @@ interface NavItem {
         flex-direction: column;
         gap: 2px;
         flex: 1;
+        /* The sidebar is exactly as tall as the window and the list is taller
+           than a short one: ten destinations plus the version badge do not fit
+           in a 568px phone, and a flex item will not shrink below its content
+           without this — the last two destinations simply slide off the bottom
+           with nothing to scroll. Harmless on a tall window, where it never
+           overflows and so never scrolls. */
+        min-height: 0;
+        overflow-y: auto;
+        overscroll-behavior-y: contain;
+        -webkit-overflow-scrolling: touch;
       }
       .nav-item {
         position: relative;
@@ -289,6 +320,130 @@ interface NavItem {
         color: #0b1020;
         background: var(--color-accent-secondary);
       }
+
+      /* Not laid out on the desktop column, where the collapse toggle is the
+         control that belongs. Declared before the mobile block on purpose: the
+         two rules have the same specificity, so the last one in source order
+         decides, and the drawer has to be able to turn this back on. */
+      .close-btn {
+        display: none;
+      }
+
+      /* ===== Mobile: the same sidebar, as an off-canvas drawer =====
+
+         Below 900px a 240px column is a quarter of the window, so the sidebar
+         leaves the row entirely and slides over the content instead. Nothing
+         about *what* it does changes — the same nav items, the same active
+         state, the same version badge — only where it is drawn.
+
+         The host element is the layer. It is fixed to the window and spans it,
+         so the drawer can be a full-height panel anchored to the left edge, but
+         it is pointer-events: none so that everything except the panel itself
+         falls through to the backdrop the shell puts underneath. */
+      @media (max-width: 900px) {
+        :host {
+          position: fixed;
+          inset: 0;
+          /* One above the backdrop (85), and still below every page panel and
+             dialog (100 and up) so a modal covers the navigation. */
+          z-index: 90;
+          display: block;
+          width: 100%;
+          height: 100%;
+          pointer-events: none;
+        }
+        .sidebar,
+        .sidebar.collapsed {
+          position: absolute;
+          top: 0;
+          bottom: 0;
+          left: 0;
+          width: min(288px, 86vw);
+          /* 100% of the fixed host, not 100vh: the host is already the height
+             of what the phone is actually showing. */
+          height: 100%;
+          padding: var(--space-lg) var(--space-md);
+          padding-top: calc(var(--space-lg) + var(--safe-top));
+          padding-bottom: calc(var(--space-lg) + var(--safe-bottom));
+          padding-left: calc(var(--space-md) + var(--safe-left));
+          /* Opaque, unlike the desktop column's translucent --sidebar-bg: this
+             panel has the page's own cards directly behind it, and at 0.65
+             alpha they read through it as text on top of text. */
+          background: var(--surface-float);
+          transform: translateX(-100%);
+          pointer-events: auto;
+          /* visibility rides along on the transform's own clock: the panel is
+             hidden once it has finished leaving and visible the moment it
+             starts arriving. Without it a closed drawer is still in the tab
+             order and still read out by a screen reader — the inert attribute
+             on the host is the second half of that promise, for the browsers
+             that have it. */
+          visibility: hidden;
+          transition:
+            transform 0.28s cubic-bezier(0.4, 0, 0.2, 1),
+            visibility 0s linear 0.28s;
+        }
+        :host(.mobile-open) .sidebar {
+          transform: translateX(0);
+          visibility: visible;
+          transition:
+            transform 0.28s cubic-bezier(0.4, 0, 0.2, 1),
+            visibility 0s linear 0s;
+        }
+
+        /* A thumb is not a mouse: the desktop rows are 14px text in a 40px row,
+           which is under the 44px a touch target wants. */
+        .nav-item {
+          min-height: 46px;
+          padding: 13px 14px;
+          font-size: 15px;
+        }
+        .nav-label {
+          font-size: 15px;
+        }
+        .nav-icon {
+          width: 22px;
+          height: 22px;
+        }
+        .sidebar-header {
+          margin-bottom: var(--space-lg);
+        }
+
+        .toggle-btn {
+          display: none;
+        }
+        .close-btn {
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          width: 40px;
+          height: 40px;
+          margin-left: auto;
+          padding: 0;
+          border-radius: 10px;
+          border: 1px solid var(--glass-border);
+          background: var(--glass-bg);
+          color: var(--color-text-secondary);
+          cursor: pointer;
+          transition: all 0.2s;
+        }
+        .close-btn:hover {
+          color: var(--color-text-primary);
+          background: var(--glass-bg-hover);
+        }
+      }
+
+      @media (prefers-reduced-motion: reduce) {
+        .sidebar,
+        .sidebar.collapsed,
+        :host(.mobile-open) .sidebar,
+        .sidebar.collapsed .nav-item,
+        .nav-item,
+        .close-btn,
+        .version-badge {
+          transition: none;
+        }
+      }
     `,
   ],
 })
@@ -315,7 +470,20 @@ export class SidebarComponent {
   }
 
   collapsed = input<boolean>(false);
+
+  /**
+   * True while the shell has the drawer open.
+   *
+   * Only ever set in the compact layout, where the shell also stops passing
+   * `collapsed` — an icon rail inside a 288px drawer is unusable, so the drawer
+   * always renders the full labels.
+   */
+  mobileOpen = input<boolean>(false);
+
   toggleCollapse = output<void>();
+
+  /** Asks the shell to close the mobile drawer. Inert in the wide layout. */
+  closeMobile = output<void>();
 
   navItems: NavItem[] = [
     {
