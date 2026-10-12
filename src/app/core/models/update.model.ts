@@ -46,19 +46,6 @@ export interface ReleaseInfo {
   assets: ReleaseAsset[];
 }
 
-/** The answer to "is there anything newer than what I am running?" */
-export interface UpdateCheck {
-  status: UpdateStatus;
-  /** Version of the running build. */
-  currentVersion: string;
-  /** The newest published release, once one has been read. */
-  latest: ReleaseInfo | null;
-  /** When the answer was obtained, ISO timestamp. */
-  checkedAt: string | null;
-  /** Why the check could not answer, or extra context when it could. */
-  message: string | null;
-}
-
 /**
  * How far the in-app update has got.
  *

@@ -159,7 +159,7 @@ import {
             </span>
           }
         </h3>
-        <div class="bar-chart hours">
+        <div class="bar-chart">
           @for (bar of report().focusByHour; track bar.label) {
             <div class="bar-col" [appTooltip]="bar.label + ':00 · ' + bar.display">
               <span
@@ -180,7 +180,7 @@ import {
         <h3 class="chart-title">
           Average focus by weekday <span class="title-note">last 12 weeks</span>
         </h3>
-        <div class="bar-chart weekdays">
+        <div class="bar-chart">
           @for (bar of report().focusByWeekday; track bar.label) {
             <div class="bar-col" [appTooltip]="bar.label + ' · ' + bar.display + ' on average'">
               <span class="bar-value">{{ bar.display }}</span>
@@ -202,7 +202,7 @@ import {
         <h3 class="chart-title">
           Task flow <span class="title-note">created vs closed, last 8 weeks</span>
         </h3>
-        <div class="bar-chart flow">
+        <div class="bar-chart">
           @for (week of report().taskFlow; track week.label) {
             <div
               class="bar-col wide"

@@ -119,7 +119,7 @@ function todayIso(): string {
 
         <div class="editor-footer">
           <span class="word-count">{{ wordCount() }} words · {{ readingTime() }} min read</span>
-          <span class="shortcut-hint">Ctrl+S to save now</span>
+          <span>Ctrl+S to save now</span>
         </div>
       </div>
 

@@ -1,37 +1,49 @@
-<!--
-  The mini widget replaces the window, so nothing else may share it: banners,
-  toasts and the first-run dialog would be clipped into a 136x76 frame. The
-  completion alert is the exception that proves the rule — the widget answers it
-  itself, out of its own controls, because nothing else is there to do it.
--->
-@if (!ui.isNativeWidget()) {
-  <app-install-banner />
-  <app-toast />
-  <app-update-prompt />
-  <app-welcome-prefs-dialog />
-  <!-- The visitor dashboard renders from the shell rather than from the settings
-       row that opens it. That row sits in a `.setting-group`, which carries a
-       `backdrop-filter` — and an element with one becomes the containing block
-       for `position: fixed` descendants, so a panel asking for the whole window
-       was measured against the card instead and came out the width of a card.
-       From here it also sits outside the scrolling content area.
+<!-- The database could not be read: the app is not shown at all. This sits above
+     everything, including the mini widget, because an app with no database has
+     nothing to be small about. -->
+<app-database-error />
 
-       Deferred to idle, because it is a dashboard's worth of template for a panel
-       that a visit may never open: it arrives as its own chunk once the browser is
-       free, so it is ready before anyone reaches the button without being part of
-       the first load. -->
-  @defer (on idle) {
-    <app-visitor-stats-dialog />
+@if (!db.failure()) {
+  <!--
+    The mini widget replaces the window, so nothing else may share it: banners,
+    toasts and the first-run dialog would be clipped into a 136x76 frame. The
+    completion alert is the exception that proves the rule — the widget answers it
+    itself, out of its own controls, because nothing else is there to do it.
+  -->
+  @if (!ui.isNativeWidget()) {
+    <app-install-banner />
+    <app-toast />
+    <app-update-prompt />
+    <app-welcome-prefs-dialog />
+    <!-- The one-time offer to pin DeepWork where the user can reach it in one
+         click. It waits for the first-run dialog rather than racing it — see
+         `TaskbarPinService.visible` — and shows the instruction instead of the
+         question on the desktops that do not let an app pin itself. -->
+    <app-pin-nudge />
+    <!-- The visitor dashboard renders from the shell rather than from the settings
+         row that opens it. That row sits in a `.setting-group`, which carries a
+         `backdrop-filter` — and an element with one becomes the containing block
+         for `position: fixed` descendants, so a panel asking for the whole window
+         was measured against the card instead and came out the width of a card.
+         From here it also sits outside the scrolling content area.
+
+         Deferred to idle, because it is a dashboard's worth of template for a panel
+         that a visit may never open: it arrives as its own chunk once the browser is
+         free, so it is ready before anyone reaches the button without being part of
+         the first load. -->
+    @defer (on idle) {
+      <app-visitor-stats-dialog />
+    }
   }
-}
 
-<!-- The water nudge renders even while the window is the mini widget, because it
-     is what asks the window to come back: it hides itself for the one frame the
-     widget is still on screen, and puts the question up once it is not. -->
-<app-water-nudge />
+  <!-- The water nudge renders even while the window is the mini widget, because it
+       is what asks the window to come back: it hides itself for the one frame the
+       widget is still on screen, and puts the question up once it is not. -->
+  <app-water-nudge />
 
-@if (ui.isMiniMode()) {
-  <app-mini-widget />
+  @if (ui.isMiniMode()) {
+    <app-mini-widget />
+  }
 }
 
 <div

@@ -125,11 +125,6 @@ import { InstallService } from '../../../core/services/install.service';
         color: var(--color-text-primary);
         font-weight: 600;
       }
-      .inline-icon {
-        display: inline-block;
-        vertical-align: text-bottom;
-        color: var(--color-accent-primary);
-      }
       .banner-actions {
         display: flex;
         align-items: center;

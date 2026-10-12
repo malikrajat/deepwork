@@ -20,6 +20,7 @@
 //! knows to open without stealing focus (see `restore_in_background`).
 
 /// Registry value name / launch-item label. Matches the NSIS `${PRODUCTNAME}`.
+#[cfg(any(windows, target_os = "linux"))]
 pub const APP_LABEL: &str = "DeepWork";
 
 /// Argument telling a login-launched copy to open without stealing focus.
@@ -53,11 +54,19 @@ pub fn refresh_if_enabled() {
     }
 }
 
-/// The command line stored in the startup entry, including the tray flag.
+/// Path of the running executable, as the startup entry should point at it.
 #[cfg(any(windows, target_os = "linux", target_os = "macos"))]
+fn executable_path() -> Result<std::path::PathBuf, String> {
+    std::env::current_exe().map_err(|err| format!("Cannot locate the DeepWork executable: {err}"))
+}
+
+/// The command line stored in the startup entry, including the tray flag.
+///
+/// macOS builds the equivalent from [`executable_path`] instead, because a
+/// LaunchAgent takes the program and its arguments as separate array items.
+#[cfg(any(windows, target_os = "linux"))]
 fn launch_command() -> Result<String, String> {
-    let exe = std::env::current_exe()
-        .map_err(|err| format!("Cannot locate the DeepWork executable: {err}"))?;
+    let exe = executable_path()?;
     Ok(format!("\"{}\" {}", exe.display(), AUTOSTART_FLAG))
 }
 
@@ -107,7 +116,7 @@ mod platform {
 
 #[cfg(target_os = "linux")]
 mod platform {
-    use super::launch_command;
+    use super::{launch_command, APP_LABEL};
     use std::fs;
     use std::path::PathBuf;
 
@@ -146,7 +155,7 @@ mod platform {
             "[Desktop Entry]\n\
              Type=Application\n\
              Version=1.0\n\
-             Name=DeepWork\n\
+             Name={APP_LABEL}\n\
              Comment=Start DeepWork in the system tray\n\
              Exec={command}\n\
              Terminal=false\n\
@@ -208,8 +217,7 @@ mod platform {
                 .map_err(|err| format!("Cannot create {}: {err}", dir.display()))?;
         }
 
-        let exe = std::env::current_exe()
-            .map_err(|err| format!("Cannot locate the DeepWork executable: {err}"))?;
+        let exe = super::executable_path()?;
 
         let plist = format!(
             "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n\

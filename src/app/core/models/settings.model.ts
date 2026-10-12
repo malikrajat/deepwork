@@ -45,6 +45,17 @@ export interface AppSettings {
   alwaysOnTop: boolean;
   /** Whether the one-time "desktop preferences" dialog has been shown. */
   desktopPrefsPrompted: boolean;
+  /**
+   * Whether the user has been asked about pinning DeepWork where they can reach
+   * it in one click — the taskbar on Windows, the Dock on macOS, the panel on
+   * Linux.
+   *
+   * True after either answer, because "not now" is an answer: the card is shown
+   * once and the deliberate route back is `TaskbarPinService.reoffer`. On
+   * Windows the shell is also asked whether the app is already pinned, and being
+   * pinned there ends the question whatever this flag says.
+   */
+  taskbarPinPrompted: boolean;
   /** Nudge the user to drink water during their working hours. */
   waterReminders: boolean;
   /** `HH:MM` local time — the first minute of the day a reminder may fire. */
@@ -103,6 +114,10 @@ export const DEFAULT_SETTINGS: AppSettings = {
   startWithSystem: false,
   alwaysOnTop: false,
   desktopPrefsPrompted: false,
+  // Not prompted *yet*, and the card waits for the first-run dialog before it
+  // appears: being offered the taskbar before being told what the app is would
+  // be a question asked in the wrong order.
+  taskbarPinPrompted: false,
   // On by default: the nudge is what the feature is for, and it asks rather than
   // announces — a card that waits for Yes or Not now, inside working hours, on
   // the notification sound the user already chose. Anyone who does not want it
