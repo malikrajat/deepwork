@@ -650,6 +650,10 @@ service polls the backend up to `POLL_ATTEMPTS = 400 × 250 ms` while the spec's
 passes **21/21**, and the second full run passed everything, so this is pre-existing flakiness, not a
 consequence of the removals. Worth giving that spec a larger timeout or a default mock implementation.
 
+> Moot as of 2.0.22: pin to taskbar was removed — the feature, that spec and every
+> other reference to it. Nothing polls that backend any more, so there is no
+> flakiness left to fix.
+
 **Caveat 2 — formatting drift is repo-wide and predates this cleanup.** `npm run format:check`
 currently flags **155 files**, including `.prettierrc`, `.vscode/*.json`, `.github/workflows/ci.yml`
 and **68 files under `src/` that this cleanup never touched** (e.g. `app.routes.ts`,

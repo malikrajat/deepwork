@@ -1,6 +1,6 @@
 [package]
 name = "deepwork"
-version = "2.0.21"
+version = "2.0.22"
 description = "DeepWork - Pomodoro & Task Management"
 authors = ["you"]
 license = "MIT"
@@ -17,10 +17,10 @@ tauri-build = { version = "2.6.2", features = [] }
 
 [dependencies]
 log = "0.4"
-# The command payloads the frontend receives: `PinStatus`, `PinOutcome` and
-# `DbReport` cross the bridge as objects rather than as positional arrays, so a
-# field can be added to one without moving every value after it. Tauri already
-# depends on serde, so this asks for the derive it does not enable itself.
+# The command payloads the frontend receives: `DbReport` crosses the bridge as an
+# object rather than as a positional array, so a field can be added to it without
+# moving every value after it. Tauri already depends on serde, so this asks for
+# the derive it does not enable itself.
 serde = { version = "1", features = ["derive"] }
 # Deliberately *not* a SQLite binding. The database guard (`src/db_guard.rs`)
 # reads the file's own header and nothing else: the app already links one SQLite
@@ -60,26 +60,13 @@ windows-sys = { version = "0.61", features = [
 ] }
 # WinRT toasts, for the one thing the notification plugin cannot do on Windows:
 # post under a tag, so the alert's repeat re-raises its own notification instead
-# of stacking one copy per interval. See `alert_notify` in `src/lib.rs`.
-#
-# `UI_Shell` is the other half: `Windows.UI.Shell.TaskbarManager` is the one
-# supported way to ask Windows to pin the app to the taskbar, and to find out
-# whether it already is. See `src/taskbar.rs`. `Foundation` comes with it because
-# that is where `IAsyncOperation` and its `AsyncStatus` live: both calls the
-# taskbar API offers are asynchronous, and how they are *waited for* is the
-# difference between a card the user can click and a frozen window.
+# of stacking one copy per interval. See `alert_notify` in `src/lib.rs`. The two
+# features are the API itself and the XML document it is handed: the toast is
+# built as markup and parsed by `XmlDocument`.
 windows = { version = "0.61", features = [
-    "Foundation",
     "UI_Notifications",
-    "UI_Shell",
     "Data_Xml_Dom",
 ] }
-# The async operation types the taskbar API returns, and the `AsyncStatus` that
-# says whether one has finished. The `windows` crate hands these back but does not
-# re-export them (they live in `windows-future`, the same way `windows-collections`
-# is separate), so the polling in `src/taskbar.rs` names them directly. The version
-# is the one `windows` 0.61 already resolves to, so this adds no second copy.
-windows-future = "0.2"
 
 [profile.release]
 panic = "abort"

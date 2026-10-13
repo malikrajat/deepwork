@@ -3,7 +3,6 @@ mod db_guard;
 mod downloads;
 mod logging;
 mod opener;
-mod taskbar;
 mod updates;
 
 use std::sync::atomic::{AtomicBool, Ordering};
@@ -811,221 +810,6 @@ async fn save_download(file_name: String, bytes: Vec<u8>) -> Result<String, Stri
     Ok(path)
 }
 
-/// What the app should ask the user about pinning, on this desktop.
-///
-/// On Windows this carries the shell's own answer to "is DeepWork already on the
-/// taskbar?" — asked of `TaskbarManager`, which is the only thing that knows.
-///
-/// The shape of this command is a bug fix rather than a style: the shell will only
-/// answer `IsCurrentAppPinnedAsync` from the thread that owns the window, and
-/// **waiting** for that answer on that thread freezes the app — a message loop
-/// that is not pumping is a window that does not repaint, does not answer clicks
-/// and does not answer the webview. So the question is *started* there, which
-/// returns at once, and waited out here on the command's own thread, where a sleep
-/// blocks nothing the user can see.
-///
-/// Anywhere else there is nothing to ask: macOS and Linux keep their pinned apps in
-/// stores no application is given an interface to, and a guess read out of `dconf`
-/// or a binary plist would be a guess the app then acts on. The frontend is told so
-/// instead, and asks once — see `TaskbarPinService`.
-#[cfg(windows)]
-#[tauri::command]
-async fn taskbar_pin_status(app: AppHandle) -> Result<taskbar::PinStatus, String> {
-    let mut status = taskbar::status();
-
-    let window = app
-        .get_webview_window("main")
-        .ok_or_else(|| "the main window is missing".to_string())?;
-    let ask = std::sync::Arc::new(std::sync::Mutex::new(None));
-
-    {
-        let ask = std::sync::Arc::clone(&ask);
-        window
-            .run_on_main_thread(move || {
-                // Started, never waited for — see the note above.
-                set_once(&ask, taskbar::start_pinned());
-            })
-            .map_err(|err| format!("Could not ask the taskbar: {err}"))?;
-    }
-
-    // Waited out here, on this command's own thread, where a sleep blocks nothing
-    // the user can see.
-    let mut started = None;
-    for _ in 0..500 {
-        if let Some(ask) = take_once(&ask) {
-            started = Some(ask);
-            break;
-        }
-        std::thread::sleep(std::time::Duration::from_millis(10));
-    }
-
-    match started {
-        Some(Ok(ask)) => match taskbar::finish_pinned(ask) {
-            Ok(pinned) => {
-                status.pinned = pinned;
-                log::debug!(target: logging::SYSTEM, "taskbar pin: already pinned = {pinned}");
-            }
-            // The shell would not answer. "Not pinned" is the safe reading: the
-            // offer is shown, and a request for a pin that is already there simply
-            // returns true without showing a dialog.
-            Err(err) => log::warn!(target: logging::SYSTEM, "taskbar pin: {err}"),
-        },
-        Some(Err(err)) => log::debug!(target: logging::SYSTEM, "taskbar pin: {err}"),
-        // The main thread never got to it — the same answer as above, and the same
-        // consequence: ask, because asking twice is free.
-        None => log::warn!(target: logging::SYSTEM, "taskbar pin: the shell was never asked"),
-    }
-
-    Ok(status)
-}
-
-/// Everywhere else: what pinning means here, with nothing to ask.
-#[cfg(not(windows))]
-#[tauri::command]
-fn taskbar_pin_status() -> taskbar::PinStatus {
-    taskbar::status()
-}
-
-/// Asks this desktop to pin DeepWork — the user's own Yes, acted on.
-///
-/// On Windows the request has to come from the app's foreground window: the shell
-/// shows its own confirmation and refuses the call from any other thread. The
-/// frontend only reaches this after the user has answered the app's card, so what
-/// the user meets here is the second half of a question they already answered —
-/// Windows' own consent step, which is not ours to skip.
-///
-/// And it is split exactly like `taskbar_pin_status`, for the same reason: the
-/// shell's prompt goes up from the message thread and this command returns as soon
-/// as it has, while the *answer* — the user reading the prompt and clicking it —
-/// is waited for on this thread. That wait is unbounded in principle (it ends when
-/// the user decides) and blocking the message thread for it is what made every
-/// click in the app do nothing.
-///
-/// A `None` message with `pinned: false` is the honest report that the prompt is
-/// up and unanswered; the frontend polls `taskbar_pin_result` for the verdict.
-#[cfg(windows)]
-#[tauri::command]
-async fn taskbar_pin_request(app: AppHandle) -> Result<taskbar::PinOutcome, String> {
-    let window = app
-        .get_webview_window("main")
-        .ok_or_else(|| "the main window is missing".to_string())?;
-    let started = std::sync::Arc::new(std::sync::Mutex::new(None));
-
-    {
-        let started = std::sync::Arc::clone(&started);
-        window
-            .run_on_main_thread(move || {
-                set_once(&started, taskbar::start_pin());
-            })
-            .map_err(|err| format!("Could not reach the taskbar: {err}"))?;
-    }
-
-    let mut handshake = None;
-    for _ in 0..500 {
-        if let Some(started) = take_once(&started) {
-            handshake = Some(started);
-            break;
-        }
-        std::thread::sleep(std::time::Duration::from_millis(10));
-    }
-
-    match handshake {
-        // The prompt is up. The waiting happens on a thread of its own, so *this
-        // command returns immediately* and the frontend stays responsive while the
-        // user reads the shell's dialog and decides — which is the whole point of
-        // the split. `taskbar_pin_result` is how the verdict gets back.
-        Some(Ok(request)) => {
-            set_pin_result(None);
-            std::thread::spawn(move || {
-                let outcome = taskbar::finish_pin(request);
-                log::info!(
-                    target: logging::SYSTEM,
-                    "taskbar pin: pinned={} automatic={}",
-                    outcome.pinned,
-                    outcome.automatic
-                );
-                set_pin_result(Some(outcome));
-            });
-
-            // Not an answer: the honest report that the prompt is up and the user
-            // has not answered it. `pinned: false` with no message is that state,
-            // and `automatic: false` is what tells the frontend to keep polling.
-            Ok(taskbar::PinOutcome {
-                pinned: false,
-                automatic: false,
-                message: None,
-            })
-        }
-        // The shell refused before it ever showed anything — a policy, or a
-        // Windows that will not let an app ask. The outcome already carries the
-        // sentence to show instead.
-        Some(Err(outcome)) => Ok(outcome),
-        None => Err(
-            "The taskbar was never asked. You can pin DeepWork from the taskbar itself.".to_string(),
-        ),
-    }
-}
-
-/// What the shell finally said about the last pin request, if it has said it.
-///
-/// `None` means the shell's prompt is still up. The frontend polls this while the
-/// user is deciding, which is what lets `taskbar_pin_request` return at once
-/// instead of holding the message thread for as long as a person takes to read a
-/// dialog.
-#[cfg(windows)]
-#[tauri::command]
-fn taskbar_pin_result() -> Option<taskbar::PinOutcome> {
-    take_pin_result()
-}
-
-/// Everywhere else there is never anything to collect: nothing was asked.
-#[cfg(not(windows))]
-#[tauri::command]
-fn taskbar_pin_result() -> Option<taskbar::PinOutcome> {
-    None
-}
-
-/// Where the shell's verdict on a pin request is left for the frontend to collect.
-#[cfg(windows)]
-static PIN_RESULT: std::sync::Mutex<Option<taskbar::PinOutcome>> = std::sync::Mutex::new(None);
-
-/// Leaves the shell's verdict where `taskbar_pin_result` will find it.
-#[cfg(windows)]
-fn set_pin_result(outcome: Option<taskbar::PinOutcome>) {
-    let mut slot = PIN_RESULT
-        .lock()
-        .unwrap_or_else(|poisoned| poisoned.into_inner());
-    *slot = outcome;
-}
-
-/// Collects the shell's verdict, emptying the slot as it does.
-#[cfg(windows)]
-fn take_pin_result() -> Option<taskbar::PinOutcome> {
-    let mut slot = PIN_RESULT
-        .lock()
-        .unwrap_or_else(|poisoned| poisoned.into_inner());
-    slot.take()
-}
-
-/// Everywhere else: the instruction that stands in for the call.
-#[cfg(not(windows))]
-#[tauri::command]
-fn taskbar_pin_request() -> taskbar::PinOutcome {
-    taskbar::start_pin().unwrap_or_else(|outcome| outcome)
-}
-
-/// Files the thread doing the work put an answer into.
-fn set_once<T>(slot: &std::sync::Mutex<Option<T>>, value: T) {
-    let mut slot = slot.lock().unwrap_or_else(|poisoned| poisoned.into_inner());
-    *slot = Some(value);
-}
-
-/// Takes an answer out, at most once.
-fn take_once<T>(slot: &std::sync::Mutex<Option<T>>) -> Option<T> {
-    let mut slot = slot.lock().unwrap_or_else(|poisoned| poisoned.into_inner());
-    slot.take()
-}
-
 /// Whether the user's database is there, holds data, and can be read — asked
 /// before anything is allowed to open it for writing.
 ///
@@ -1115,12 +899,6 @@ pub fn run() {
             sql: include_str!("../migrations/010_carry_forward_tasks.sql"),
             kind: MigrationKind::Up,
         },
-        Migration {
-            version: 11,
-            description: "remember the taskbar pin offer",
-            sql: include_str!("../migrations/011_taskbar_pin_prompt.sql"),
-            kind: MigrationKind::Up,
-        },
     ];
 
     tauri::Builder::default()
@@ -1146,9 +924,6 @@ pub fn run() {
             window_set_widget_mode,
             alert_notify,
             save_download,
-            taskbar_pin_status,
-            taskbar_pin_request,
-            taskbar_pin_result,
             db_preflight,
             db_backup,
             logging::log_folder,
