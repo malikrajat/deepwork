@@ -53,6 +53,9 @@ Thumbs.db
 
 # Tauri build artifacts
 src-tauri/target/
+# A cargo build whose target directory is somewhere other than `src-tauri/target`
+# (`CARGO_TARGET_DIR`), used when that folder is not writable.
+/.cargo-check-target/
 .tmp-verify
 
 # Test output (Vitest coverage, Playwright report and traces)

@@ -346,7 +346,7 @@ interface SparkBar {
           <!-- Nothing here is fetched or sent: it is this page describing itself. -->
           <div class="blocks">
             @for (group of stats.factGroups(); track group.title) {
-              <section class="stat-block facts">
+              <section class="stat-block">
                 <h3 class="block-title">{{ group.title }}</h3>
                 <dl class="fact-list">
                   @for (fact of group.facts; track fact.label) {

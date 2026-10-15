@@ -17,6 +17,17 @@ tauri-build = { version = "2.6.2", features = [] }
 
 [dependencies]
 log = "0.4"
+# The command payloads the frontend receives: `DbReport` crosses the bridge as an
+# object rather than as a positional array, so a field can be added to it without
+# moving every value after it. Tauri already depends on serde, so this asks for
+# the derive it does not enable itself.
+serde = { version = "1", features = ["derive"] }
+# Deliberately *not* a SQLite binding. The database guard (`src/db_guard.rs`)
+# reads the file's own header and nothing else: the app already links one SQLite
+# through `tauri-plugin-sql`, and a second copy of the library — which is what a
+# `rusqlite` dependency would either add or fight over — is a size and linkage
+# cost for a check that a hundred bytes can make. See that module for what the
+# header proves and where the deeper check lives.
 # No `devtools` feature, on purpose: that flag is what carries the web inspector
 # into a *packaged* build (`tauri-runtime-wry` only calls `with_devtools` behind
 # `cfg(any(debug_assertions, feature = "devtools"))`). `tauri dev` keeps its
@@ -49,8 +60,13 @@ windows-sys = { version = "0.61", features = [
 ] }
 # WinRT toasts, for the one thing the notification plugin cannot do on Windows:
 # post under a tag, so the alert's repeat re-raises its own notification instead
-# of stacking one copy per interval. See `alert_notify` in `src/lib.rs`.
-windows = { version = "0.61", features = ["UI_Notifications", "Data_Xml_Dom"] }
+# of stacking one copy per interval. See `alert_notify` in `src/lib.rs`. The two
+# features are the API itself and the XML document it is handed: the toast is
+# built as markup and parsed by `XmlDocument`.
+windows = { version = "0.61", features = [
+    "UI_Notifications",
+    "Data_Xml_Dom",
+] }
 
 [profile.release]
 panic = "abort"

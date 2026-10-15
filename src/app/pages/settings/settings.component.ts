@@ -10,7 +10,6 @@ import { DbService } from '../../core/services/db.service';
 import { SettingsService } from '../../core/services/settings.service';
 import { ThemeService } from '../../core/services/theme.service';
 import { InstallService } from '../../core/services/install.service';
-import { ThemePreference } from '../../core/models/settings.model';
 import { NotificationService } from '../../core/services/notification.service';
 import { TaskService } from '../../core/services/task.service';
 import { WaterReminderService } from '../../core/services/water-reminder.service';
@@ -174,7 +173,7 @@ import { SettingsFormModel, createSettingsFormDefaults } from '../../shared/mode
             </select>
             <button
               type="button"
-              class="action-btn preview-btn"
+              class="action-btn"
               (click)="previewNotificationSound()"
             >
               Preview
@@ -245,7 +244,7 @@ import { SettingsFormModel, createSettingsFormDefaults } from '../../shared/mode
             >
               <span class="knob"></span>
             </button>
-            <button type="button" class="action-btn preview-btn" (click)="testWaterReminder()">
+            <button type="button" class="action-btn" (click)="testWaterReminder()">
               Test
             </button>
           </div>
@@ -701,38 +700,6 @@ import { SettingsFormModel, createSettingsFormDefaults } from '../../shared/mode
         color: var(--color-text-muted);
         font-family: 'JetBrains Mono', monospace;
       }
-      .theme-switcher {
-        display: flex;
-        gap: 4px;
-        background: rgba(255, 255, 255, 0.04);
-        padding: 3px;
-        border-radius: 10px;
-        border: 1px solid rgba(139, 92, 246, 0.12);
-      }
-      .theme-btn {
-        display: flex;
-        align-items: center;
-        gap: 5px;
-        padding: 5px 12px;
-        border-radius: 6px;
-        border: none;
-        background: transparent;
-        color: var(--color-text-secondary);
-        font-size: 12px;
-        font-weight: 500;
-        cursor: pointer;
-        transition: all 0.2s;
-        line-height: 1;
-      }
-      .theme-btn:hover {
-        background: rgba(139, 92, 246, 0.1);
-        color: var(--color-text-primary);
-      }
-      .theme-btn.active {
-        background: rgba(139, 92, 246, 0.18);
-        color: var(--color-accent-primary);
-        box-shadow: 0 0 12px rgba(139, 92, 246, 0.15);
-      }
 
       /* ===== Phone layout =====
 
@@ -923,7 +890,6 @@ export class SettingsComponent implements OnInit {
   protected readonly alertShakeOptions = ALERT_SHAKE_OPTIONS;
   protected readonly formatShake = formatShakeDuration;
 
-  readonly activeTheme = signal<ThemePreference>('system');
   readonly settingsModel = signal<SettingsFormModel>(createSettingsFormDefaults());
   readonly settingsForm = form(this.settingsModel, (s) => {
     // Timer duration ranges (in seconds)
@@ -948,7 +914,6 @@ export class SettingsComponent implements OnInit {
     await this.settingsService.loadSettings();
     // Sync the service settings into our form model
     const s = this.settingsService.settings();
-    this.activeTheme.set(s.theme ?? 'dark');
     this.settingsModel.set({
       workDuration: s.workDuration,
       shortBreak: s.shortBreak,
@@ -1037,11 +1002,6 @@ export class SettingsComponent implements OnInit {
     this.settingsModel.update((model) => ({ ...model, carryForwardTasks: next }));
     await this.settingsService.updateField('carryForwardTasks', next);
     await this.taskService.closeExpiredTasks();
-  }
-
-  async setTheme(theme: ThemePreference): Promise<void> {
-    this.activeTheme.set(theme);
-    await this.settingsService.updateField('theme', theme);
   }
 
   async persist(key: string): Promise<void> {

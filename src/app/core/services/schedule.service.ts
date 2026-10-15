@@ -76,9 +76,6 @@ export class ScheduleService {
   // Ã¢â€â‚¬Ã¢â€â‚¬ Plan state Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬
   readonly queue = computed(() => this.buildQueue(this.selectedDate(), this.plans()));
 
-  /** Queue for the real today Ã¢â‚¬â€ what the Eisenhower matrix reorders. */
-  readonly todayQueue = computed(() => this.buildQueue(dayKey(), this.plans()));
-
   readonly schedule = computed(() =>
     this.buildSchedule(this.buildScheduleItems(this.selectedDate()), this.prefs()),
   );
@@ -354,14 +351,6 @@ export class ScheduleService {
       focusMinutes: schedule.totals.focusMinutes,
       breaks: schedule.totals.breaks,
     };
-  }
-
-  /**
-   * Full layout for any day without touching the selected date — used by the
-   * calendar reminders, which always follow the real today.
-   */
-  scheduleFor(date: string): DaySchedule {
-    return this.buildSchedule(this.buildScheduleItems(date), this.prefs());
   }
 
   weekDates(around: string = this.selectedDate()): string[] {

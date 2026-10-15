@@ -1,6 +1,6 @@
 import { Injectable, signal, computed, inject, OnDestroy } from '@angular/core';
 import { TimerType, TimerState, PomodoroSession } from '../models/session.model';
-import { AppSettings, DEFAULT_SETTINGS } from '../models/settings.model';
+import { DEFAULT_SETTINGS } from '../models/settings.model';
 import { DbService } from './db.service';
 import { SettingsService } from './settings.service';
 import { LogService } from './log.service';
@@ -170,13 +170,6 @@ export class TimerService implements OnDestroy {
 
   linkTask(taskId: string | null): void {
     this.currentTaskId.set(taskId);
-  }
-
-  async updateSettings(newSettings: AppSettings): Promise<void> {
-    await this.settingsService.saveSettings(newSettings);
-    if (!this.isRunning()) {
-      this.remainingSeconds.set(this.getDurationForType(this.timerType()));
-    }
   }
 
   private tick(): void {

@@ -219,7 +219,7 @@ const MAX_PREVIEW_ROWS = 300;
                 <th class="col-small">Quadrant</th>
                 <th class="col-small">Deadline</th>
                 <th class="col-small">Repeat</th>
-                <th class="col-notes">Notes</th>
+                <th>Notes</th>
               </tr>
             </thead>
             <tbody>
@@ -236,7 +236,7 @@ const MAX_PREVIEW_ROWS = 300;
                   <td class="col-small">{{ row.cells.quadrant || '—' }}</td>
                   <td class="col-small">{{ row.cells.deadline || '—' }}</td>
                   <td class="col-small">{{ row.cells.repeat || '—' }}</td>
-                  <td class="col-notes">
+                  <td>
                     @for (message of row.errors; track message) {
                       <span class="note error">{{ message }}</span>
                     }
@@ -270,13 +270,13 @@ const MAX_PREVIEW_ROWS = 300;
 
         <div class="options">
           @if (data.duplicateCount) {
-            <label class="option skip-duplicates">
+            <label class="option">
               <input type="checkbox" [checked]="skipDuplicates()" (change)="onSkipDuplicates($event)" />
               Skip these {{ data.duplicateCount }} row(s) instead of importing them
             </label>
           }
           @if (data.warningCount) {
-            <label class="option include-warnings">
+            <label class="option">
               <input type="checkbox" [checked]="includeWarnings()" (change)="onIncludeWarnings($event)" />
               Import {{ data.warningCount }} row(s) with warnings
             </label>

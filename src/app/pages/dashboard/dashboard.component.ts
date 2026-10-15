@@ -116,7 +116,7 @@ import { TaskSelectFormModel, createTaskSelectFormDefaults } from '../../shared/
     <!-- Main dashboard -->
     <div class="dashboard-wrapper" [class.hidden]="isFullscreen() || ui.isNativeWidget()">
       <div class="page-header animate-fade-in">
-        <div class="header-content">
+        <div>
           <h1 class="gradient-text page-title">Dashboard</h1>
           <p class="page-subtitle">Focus. Track. Achieve.</p>
         </div>
@@ -266,7 +266,7 @@ import { TaskSelectFormModel, createTaskSelectFormDefaults } from '../../shared/
 
       <!-- Focus insights and actions -->
       <section class="insights-grid animate-fade-in-delay-2" aria-label="Focus insights">
-        <article class="insight-card goal-card">
+        <article class="insight-card">
           <div class="insight-header">
             <div>
               <span class="eyebrow">Daily focus goal</span>
@@ -343,7 +343,7 @@ import { TaskSelectFormModel, createTaskSelectFormDefaults } from '../../shared/
           </div>
         </article>
 
-        <article class="insight-card schedule-card">
+        <article class="insight-card">
           <div class="insight-header">
             <div>
               <span class="eyebrow">Today&apos;s schedule</span>
@@ -1385,12 +1385,6 @@ export class DashboardComponent implements OnInit, OnDestroy {
   private readonly taskSelectModel = signal<TaskSelectFormModel>(createTaskSelectFormDefaults());
   readonly taskSelectForm = form(this.taskSelectModel);
 
-  readonly selectedTaskName = computed(() => {
-    const id = this.selectedTaskId();
-    if (!id) return '';
-    const task = this.taskService.todayTasks().find((t) => t.id === id);
-    return task?.title ?? '';
-  });
   readonly selectedTaskQuadrant = computed(() => {
     const id = this.selectedTaskId();
     if (!id) return '';

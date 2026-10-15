@@ -189,20 +189,3 @@ export function numberRange(min: number, max: number): (ctx: { value: () => numb
 export function stripHtml(value: string): string {
   return value.replace(/<[^>]*>/g, '');
 }
-
-/** Sanitize string: trim, strip HTML, collapse multiple spaces */
-export function sanitizeText(value: string): string {
-  return stripHtml(value).trim().replace(/\s{2,}/g, ' ');
-}
-
-/** Sanitize for safe storage - escapes HTML entities */
-export function escapeHtml(value: string): string {
-  const map: Record<string, string> = {
-    '&': '&amp;',
-    '<': '&lt;',
-    '>': '&gt;',
-    '"': '&quot;',
-    "'": '&#x27;',
-  };
-  return value.replace(/[&<>"']/g, (char) => map[char]);
-}

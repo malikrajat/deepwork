@@ -370,7 +370,7 @@ interface MatrixContextMenu {
               </button>
             }
             <button
-              class="collapse-btn pane-toggle"
+              class="collapse-btn"
               type="button"
               (click)="togglePane()"
               [attr.aria-expanded]="!paneCollapsed()"

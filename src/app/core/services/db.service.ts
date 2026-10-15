@@ -11,6 +11,38 @@ import { Task } from '../models/task.model';
 import { WaterEntry } from '../models/water.model';
 import { localDayStart, parseTimeOfDay } from '../utils/water.util';
 
+/** True when running inside the packaged desktop app (Tauri). */
+const IN_TAURI = typeof globalThis !== 'undefined' && '__TAURI_INTERNALS__' in globalThis;
+
+/** What the desktop layer found at the database path before it was opened. */
+interface DbReport {
+  present: boolean;
+  bytes: number;
+  holdsData: boolean;
+  unreadable: string | null;
+  path: string;
+}
+
+/**
+ * A database that is there, holds data, and cannot be read.
+ *
+ * Thrown by {@link DbService.init} instead of opening the database, and it is the
+ * one error in this app that is deliberately allowed to stop startup: the only
+ * other answer the stack offers is to create a new database over the old one,
+ * which is the loss this whole guard exists to prevent.
+ */
+export class DatabaseUnreadableError extends Error {
+  constructor(readonly report: DbReport) {
+    super(
+      `DeepWork found its database at ${report.path} but could not read it` +
+        `${report.unreadable ? ` (${report.unreadable})` : ''}. Nothing has been changed or ` +
+        `deleted — the file is still there. Move it aside, or contact support with it, and ` +
+        `DeepWork will start with a fresh database.`,
+    );
+    this.name = 'DatabaseUnreadableError';
+  }
+}
+
 /**
  * Wraps @tauri-apps/plugin-sql with typed, parameterized query methods.
  * Falls back to localStorage when running outside Tauri (browser dev).
@@ -21,16 +53,179 @@ export class DbService {
   private readonly initialized = signal(false);
   private isBrowser = false;
 
+  /**
+   * The startup that is in progress, if one is.
+   *
+   * The guard runs once per launch no matter how many callers ask for the
+   * database at the same moment — see {@link init}.
+   */
+  private starting?: Promise<void>;
+
+  /** The database file on disk, as the desktop layer resolved it. */
+  readonly filePath = signal<string | null>(null);
+
+  /**
+   * The database that was refused, when one was.
+   *
+   * Held as state rather than only thrown, because a thrown error from an
+   * initializer is a line in a log file — and the user staring at an app with no
+   * data in it is the one person who needs to know that their tasks are still on
+   * disk. The shell renders this instead of the app, see `DatabaseErrorComponent`.
+   */
+  readonly failure = signal<DatabaseUnreadableError | null>(null);
+
+  /**
+   * True once the database on disk has been checked and consented to be opened.
+   *
+   * Set as soon as the guard has run — a real desktop build waits on it before
+   * opening anything; the browser build has no file to guard and sets it at once.
+   */
+  readonly welcomed = signal(false);
+
+  /**
+   * Opens the database — after asking whether there is one worth protecting.
+   *
+   * Three things happen before the SQL plugin is handed the connection string,
+   * and the order matters:
+   *
+   * 1. **The file is checked, read-only** (`db_preflight`). A database that is
+   *    there, holds data, and cannot be read is *not* opened: the plugin's answer
+   *    to an unopenable database is to create a new one, so opening it is how
+   *    the user's tasks are replaced by an empty database that looks exactly the
+   *    same. {@link DatabaseUnreadableError} is thrown instead.
+   * 2. **What is there is copied aside** (`db_backup`). A copy taken now is the
+   *    state the user left behind; a copy taken after the plugin opens it is a
+   *    copy of a schema half-way through migrating. This is best effort on
+   *    purpose — a backup that cannot be written must not be the thing that
+   *    stops the app.
+   * 3. **Only then** is the database opened, and the migrations the plugin finds
+   *    pending are applied to *that* file. Every migration this app has ever
+   *    shipped adds to the schema; none drops a table or deletes a row, which is
+   *    what a `tasks` table full of finished work needs in order to survive an
+   *    upgrade.
+   *
+   * The check and the copy are desktop-only: a browser tab has `localStorage` and
+   * nothing to lose by an upgrade.
+   *
+   * **Safe to call from several places at once**, which it now is: the shell opens
+   * the database as it starts and the pin offer asks whether DeepWork is already
+   * on the taskbar in the same breath, and the second of those needs a database to
+   * record its answer in. The flag below only stopped *repeat* calls — two callers
+   * arriving together both passed it, both ran the guard, and both then raced to
+   * assign `this.db`, so one of them could be left reading settings through a
+   * connection that the other had not made yet. The promise is therefore what is
+   * cached, not the flag.
+   */
   async init(): Promise<void> {
     if (this.initialized()) return;
+    // One startup, one guard, one connection — however many callers ask for it.
+    this.starting ??= this.open();
+    await this.starting;
+  }
+
+  /** The one place the database is actually opened. See {@link init}. */
+  private async open(): Promise<void> {
+    if (IN_TAURI) {
+      await this.guard();
+    }
+    this.welcomed.set(true);
+
     try {
       const { default: Database } = await import('@tauri-apps/plugin-sql');
-      this.db = await Database.load('sqlite:deepwork.db');
+      const database = await Database.load('sqlite:deepwork.db');
+
+      // A database that cannot be queried is not a database this app may use. The
+      // plugin is normally absent outside Tauri and the import throws — but the
+      // package *is* installed in a development tree, so `load` can succeed there
+      // and hand back a connection that only ever fails, one query at a time, in
+      // whatever happens to ask first. Asking once, here, turns that into the
+      // fallback the browser build already has.
+      if (typeof database?.select === 'function') {
+        await database.select('SELECT 1');
+        this.db = database;
+      } else {
+        throw new Error('the SQL plugin returned no usable connection');
+      }
+
       this.initialized.set(true);
-    } catch {
-      console.warn('DbService: Running in browser mode (localStorage)');
+    } catch (err) {
+      console.warn('DbService: Running in browser mode (localStorage)', err);
+      this.db = null;
       this.isBrowser = true;
       this.initialized.set(true);
+    }
+  }
+
+  /**
+   * Runs the two desktop-only steps that come before the database is opened.
+   *
+   * Separated from {@link init} because it is the part that talks to the Rust
+   * layer, and because it is the part with something to say to the user: the
+   * guard's report is kept (see {@link filePath}) so the app can point at the real
+   * file when it has to refuse.
+   */
+  private async guard(): Promise<void> {
+    const { invoke } = await import('@tauri-apps/api/core');
+
+    let report: DbReport;
+    try {
+      report = await invoke<DbReport>('db_preflight');
+    } catch (err) {
+      // The desktop layer could not answer at all. That is not a reason to
+      // refuse to start — the database may be perfectly fine — and it is not a
+      // reason to skip the plugin's own creation either, because the plugin is
+      // what makes a first run work.
+      console.warn('DbService: the database could not be checked before opening', err);
+      return;
+    }
+
+    this.filePath.set(report.path);
+
+    if (report.present && report.holdsData && report.unreadable) {
+      const failure = new DatabaseUnreadableError(report);
+      this.failure.set(failure);
+      throw failure;
+    }
+
+    try {
+      // `launch` names the copy. Every launch that gets this far makes one, which
+      // is the cheap half of the promise: a rolling series of the file as it was,
+      // for the upgrade that turns out badly.
+      await invoke('db_backup', { note: 'launch' });
+    } catch (err) {
+      console.warn('DbService: the database could not be backed up before opening', err);
+    }
+  }
+
+  /**
+   * Asks the database's own engine whether it is internally consistent.
+   *
+   * The desktop-side check reads the file's header and nothing else — see
+   * `src-tauri/src/db_guard.rs` for why the deeper check cannot live there — so
+   * this is where the pages themselves are checked, through the SQLite this app
+   * has already linked rather than a second copy of it.
+   *
+   * Called after the database is open rather than before it, because it needs a
+   * connection to ask. The answer is reported and the app carries on: by the time
+   * it arrives the database is open and the migrations have run, so the only
+   * thing left to do with a bad verdict is to say so — and the copies in the
+   * `backups` folder are what to say it with.
+   *
+   * Returns a sentence when the database is damaged, and `null` when it is fine
+   * or could not be asked.
+   */
+  async verify(): Promise<string | null> {
+    if (this.isBrowser || !this.db) return null;
+    try {
+      const rows = await this.query<Record<string, unknown>>('PRAGMA integrity_check');
+      const verdict = Object.values(rows[0] ?? {})[0];
+      if (typeof verdict === 'string' && verdict.toLowerCase() !== 'ok') {
+        return `DeepWork's database reports a problem: ${verdict}. Any backups that exist are in the "backups" folder beside it.`;
+      }
+      return null;
+    } catch (err) {
+      console.warn('DbService: the database could not be checked for damage', err);
+      return null;
     }
   }
 
@@ -38,7 +233,6 @@ export class DbService {
     if (!this.db) return [];
     return this.db.select(sql, params);
   }
-
   async execute(
     sql: string,
     params: unknown[] = [],
@@ -109,6 +303,10 @@ export class DbService {
         r.desktop_prefs_prompted === undefined || r.desktop_prefs_prompted === null
           ? DEFAULT_SETTINGS.desktopPrefsPrompted
           : r.desktop_prefs_prompted !== 0,
+      taskbarPinPrompted:
+        r.taskbar_pin_prompted === undefined || r.taskbar_pin_prompted === null
+          ? DEFAULT_SETTINGS.taskbarPinPrompted
+          : r.taskbar_pin_prompted !== 0,
       waterReminders:
         r.water_reminders === undefined || r.water_reminders === null
           ? DEFAULT_SETTINGS.waterReminders
@@ -152,7 +350,8 @@ export class DbService {
        water_amount_ml = $16, water_goal_ml = $17,
        water_auto_log_when_minimized = $18,
        alert_shake_ms = $19,
-       carry_forward_tasks = $20
+       carry_forward_tasks = $20,
+       taskbar_pin_prompted = $21
        WHERE id = 1`,
       [
         merged.workDuration,
@@ -175,6 +374,7 @@ export class DbService {
         merged.waterAutoLogWhenMinimized ? 1 : 0,
         merged.alertShakeMs,
         merged.carryForwardTasks ? 1 : 0,
+        merged.taskbarPinPrompted ? 1 : 0,
       ],
     );
   }
@@ -278,27 +478,6 @@ export class DbService {
     }));
   }
 
-  async getSessionsSince(dateStr: string): Promise<PomodoroSession[]> {
-    if (this.isBrowser) {
-      const all = this.lsGet<PomodoroSession[]>('sessions', []);
-      return all.filter((s) => s.startedAt >= dateStr);
-    }
-    const rows = await this.query<any>(
-      `SELECT * FROM sessions WHERE started_at >= $1 ORDER BY started_at ASC`,
-      [dateStr],
-    );
-    return rows.map((r) => ({
-      id: r.id,
-      taskId: r.task_id,
-      type: r.type,
-      durationPlanned: r.duration_planned,
-      durationActual: r.duration_actual,
-      startedAt: r.started_at,
-      completedAt: r.completed_at,
-      interrupted: !!r.interrupted,
-    }));
-  }
-
   // ==================== HABIT METHODS ====================
 
   async getHabits(): Promise<any[]> {
@@ -341,17 +520,6 @@ export class DbService {
       return;
     }
     await this.execute('DELETE FROM habits WHERE id = $1', [id]);
-  }
-
-  async getHabitEntries(habitId: string): Promise<any[]> {
-    if (this.isBrowser) {
-      return this.lsGet<any[]>('habitEntries', []).filter((e) => e.habitId === habitId);
-    }
-    const rows = await this.query<any>(
-      'SELECT * FROM habit_entries WHERE habit_id = $1 ORDER BY completed_at ASC',
-      [habitId],
-    );
-    return rows.map((r) => ({ id: r.id, habitId: r.habit_id, completedAt: r.completed_at }));
   }
 
   async getAllHabitEntries(): Promise<any[]> {
@@ -398,23 +566,6 @@ export class DbService {
     }));
   }
 
-  async getJournalEntry(date: string): Promise<any> {
-    if (this.isBrowser) {
-      const entries = this.lsGet<any[]>('journal', []);
-      return entries.find((e) => e.date === date) ?? null;
-    }
-    const rows = await this.query<any>('SELECT * FROM journal_entries WHERE date = $1', [date]);
-    return rows.length
-      ? {
-          id: rows[0].id,
-          date: rows[0].date,
-          content: rows[0].content,
-          createdAt: rows[0].created_at,
-          updatedAt: rows[0].updated_at,
-        }
-      : null;
-  }
-
   async saveJournalEntry(entry: {
     id: string;
     date: string;
@@ -454,15 +605,6 @@ export class DbService {
     return rows.map((r) => this.mapTask(r));
   }
 
-  async getTaskById(id: string): Promise<Task | null> {
-    if (this.isBrowser) {
-      const tasks = this.lsGet<Task[]>('tasks', []);
-      return tasks.find((t) => t.id === id) ?? null;
-    }
-    const rows = await this.query<any>('SELECT * FROM tasks WHERE id = $1', [id]);
-    return rows.length ? this.mapTask(rows[0]) : null;
-  }
-
   async getTasksByQuadrant(quadrant: string): Promise<Task[]> {
     if (this.isBrowser) {
       return this.lsGet<Task[]>('tasks', []).filter((t) => t.quadrant === quadrant);
@@ -470,29 +612,6 @@ export class DbService {
     const rows = await this.query<any>(
       'SELECT * FROM tasks WHERE quadrant = $1 ORDER BY priority ASC',
       [quadrant],
-    );
-    return rows.map((r) => this.mapTask(r));
-  }
-
-  async getTasksByStatus(status: string): Promise<Task[]> {
-    if (this.isBrowser) {
-      return this.lsGet<Task[]>('tasks', []).filter((t) => t.status === status);
-    }
-    const rows = await this.query<any>(
-      'SELECT * FROM tasks WHERE status = $1 ORDER BY created_at DESC',
-      [status],
-    );
-    return rows.map((r) => this.mapTask(r));
-  }
-
-  async getTodayTasks(): Promise<Task[]> {
-    if (this.isBrowser) {
-      return this.lsGet<Task[]>('tasks', [])
-        .filter((t) => t.todayOrder !== null)
-        .sort((a, b) => (a.todayOrder ?? 0) - (b.todayOrder ?? 0));
-    }
-    const rows = await this.query<any>(
-      'SELECT * FROM tasks WHERE today_order IS NOT NULL ORDER BY today_order ASC',
     );
     return rows.map((r) => this.mapTask(r));
   }
