@@ -140,8 +140,9 @@ export class DbService {
       this.lsSet('settings', merged);
       return;
     }
-    // `calendar_reminders` is still a column — a database that has been upgraded
-    // rather than recreated keeps it — but nothing reads or writes it any more.
+    // `calendar_reminders` and `taskbar_pin_prompted` are still columns — a
+    // database that has been upgraded rather than recreated keeps them — but
+    // nothing reads or writes either any more.
     await this.execute(
       `UPDATE settings SET work_duration = $1, short_break = $2, long_break = $3,
        sessions_before_long_break = $4, notification_sound = $5, tray_behavior = $6, theme = $7,

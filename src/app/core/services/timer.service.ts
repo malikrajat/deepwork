@@ -70,7 +70,12 @@ export class TimerService implements OnDestroy {
       const remaining = Math.max(0, saved.remainingSeconds - elapsed);
       this.timerType.set(saved.type);
       this.sessionCount.set(isNewDay ? 0 : saved.sessionCount);
-      this.currentTaskId.set(saved.taskId);
+      // The task a session is for is a per-day choice, so a session interrupted
+      // yesterday is not resumed against yesterday's task: it is carried over as
+      // an untasked session, which is what starting the day without picking one
+      // means. Restoring it regardless was one of the two ways a task chose weeks
+      // ago came back and named work it had nothing to do with (see CHANGELOG).
+      this.currentTaskId.set(isNewDay ? null : saved.taskId);
       this.remainingSeconds.set(remaining);
       this.activeStartedAt.set(saved.startedAt);
       this.startedAt = saved.startedAt;

@@ -93,6 +93,41 @@ describe('TimerService', () => {
     expect(mockDb.getSettings).toHaveBeenCalledTimes(1);
   });
 
+  it('init() does not resume yesterday’s task on today’s session', async () => {
+    // What an interrupted session leaves behind: still running, still naming the
+    // task it was for. Carrying that task into a new day is how a session started
+    // without picking one ended up filed against a task from weeks earlier.
+    mockDb.getTimerState.mockResolvedValue({
+      isRunning: true,
+      type: 'work',
+      remainingSeconds: 900,
+      taskId: 'task-from-yesterday',
+      sessionCount: 3,
+      startedAt: new Date(Date.now() - 60_000).toISOString(),
+      lastActiveDate: '2000-01-01',
+    });
+
+    await svc.init();
+
+    expect(svc.currentTaskId()).toBeNull();
+  });
+
+  it('init() keeps the task of a session interrupted earlier today', async () => {
+    mockDb.getTimerState.mockResolvedValue({
+      isRunning: true,
+      type: 'work',
+      remainingSeconds: 900,
+      taskId: 'task-from-today',
+      sessionCount: 3,
+      startedAt: new Date(Date.now() - 60_000).toISOString(),
+      lastActiveDate: new Date().toISOString().slice(0, 10),
+    });
+
+    await svc.init();
+
+    expect(svc.currentTaskId()).toBe('task-from-today');
+  });
+
   // ── start / pause / stop ─────────────────────────────────────────────
 
   it('start() sets isRunning to true', async () => {
@@ -166,7 +201,7 @@ describe('TimerService', () => {
 
   it('uses the updated session cycle setting when advancing to a break', async () => {
     await svc.init();
-    mockSettings.settings.update(settings => ({ ...settings, sessionsBeforeLongBreak: 2 }));
+    mockSettings.settings.update((settings) => ({ ...settings, sessionsBeforeLongBreak: 2 }));
 
     svc.skip(); // work → short-break
     svc.skip(); // short-break → work
@@ -178,7 +213,10 @@ describe('TimerService', () => {
 
   it('skip() on long-break returns to work', async () => {
     await svc.init();
-    for (let i = 0; i < 3; i++) { svc.skip(); svc.skip(); }
+    for (let i = 0; i < 3; i++) {
+      svc.skip();
+      svc.skip();
+    }
     svc.skip(); // work → long-break
     svc.skip(); // long-break → work
     expect(svc.timerType()).toBe('work');

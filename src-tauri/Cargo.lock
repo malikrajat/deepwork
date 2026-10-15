@@ -824,7 +824,7 @@ dependencies = [
 
 [[package]]
 name = "deepwork"
-version = "2.0.20"
+version = "2.0.22"
 dependencies = [
  "log",
  "tauri",

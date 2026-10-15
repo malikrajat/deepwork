@@ -26,6 +26,7 @@ import { PomodoroSession } from '../../core/models/session.model';
 import { Task, TaskQuadrant } from '../../core/models/task.model';
 import { QUADRANT_CONFIG } from '../../core/constants/theme.constants';
 import { TASK_EDIT_PATH, taskEditQuery } from '../../core/utils/task-link.util';
+import { readFocusedTaskId, saveFocusedTaskId } from '../../core/utils/focus-task.util';
 import { TaskSelectFormModel, createTaskSelectFormDefaults } from '../../shared/models/form.models';
 
 @Component({
@@ -1532,8 +1533,10 @@ export class DashboardComponent implements OnInit, OnDestroy {
     await this.taskService.loadTasks();
     await this.taskService.runDailyUpkeep();
 
-    // Restore focused task from Today's view
-    const focusId = localStorage.getItem('deepwork_focusTaskId');
+    // Restore the focused task, but only if it was chosen today: a task picked
+    // yesterday is not this morning's task, and the dashboard used to link the
+    // timer to it anyway (see CHANGELOG).
+    const focusId = readFocusedTaskId();
     if (focusId) {
       this.selectedTaskId.set(focusId);
       this.taskSelectModel.update((m) => ({ ...m, taskId: focusId }));
@@ -1608,14 +1611,14 @@ export class DashboardComponent implements OnInit, OnDestroy {
   selectTask(taskId: string): void {
     this.selectedTaskId.set(taskId);
     this.taskSelectModel.update((m) => ({ ...m, taskId }));
-    localStorage.setItem('deepwork_focusTaskId', taskId);
+    saveFocusedTaskId(taskId);
     this.timer.linkTask(taskId || null);
   }
 
   onTaskSelect(): void {
     const taskId = this.taskSelectModel().taskId;
     this.selectedTaskId.set(taskId);
-    localStorage.setItem('deepwork_focusTaskId', taskId);
+    saveFocusedTaskId(taskId);
     this.timer.linkTask(taskId || null);
   }
 

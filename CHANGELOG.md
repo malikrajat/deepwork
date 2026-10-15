@@ -5,6 +5,179 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ---
 
+## [2.0.22] – 2026-10-30
+
+### Added
+
+- **The timeline now says what the session running right now is, and how long it has
+  been going.** A running focus session is drawn inside the time it was booked for —
+  a faint 25-minute span with its end marked — while the part already worked fills
+  in solid inside it, so a session twelve minutes in reads as twelve minutes of a
+  twenty-five minute block rather than as a stub that appeared out of nowhere. The
+  session's own times (`10:15 – 10:40`) are on the card itself, in mono with tabular
+  figures so a column of them lines up, and they are the one thing on it that never
+  shrinks: the task title ellipsises first, because the range is what a timeline is
+  read for. Those times used to live only in the hover tooltip, which is the one
+  gesture a touch screen does not have. The title steps back a shade to let the range
+  lead, the now line — an element that sat in the DOM with `display: none` — is drawn
+  again so the times have something to be read against, and a block shorter than a
+  line of text (under eight minutes) still carries no label.
+
+### Fixed
+
+- **A focus session started without picking a task is no longer filed against the
+  task you last worked on.** The task a session is for was remembered in
+  `localStorage` and read back on every launch with no date attached to it, and a
+  session interrupted before was resumed against the task saved in the timer's own
+  state with no day check either. So starting the day without choosing a task linked
+  the timer — and every session it recorded — to whatever was chosen last, yesterday
+  or a month ago, and the dashboard named that task for work it had nothing to do
+  with. Both now expire with the day: the remembered task carries the date it was
+  chosen on (`focus-task.util.ts`) and a stamp that is not today's reads as "no
+  task", while an interrupted session from an earlier day resumes untasked. A task
+  chosen today still survives the walk from Today's board to the Dashboard, and a
+  running session still shows its name. The untasked session is labelled **Focus**,
+  which is what the fallback always said and what the stale id was hiding.
+
+### Removed
+
+- **Pin to taskbar is gone — the card, the service, the Windows side, and the
+  promise all of it made.** It did not work on the machines it was written for, and
+  what the user met instead was a card explaining why not: a Windows that reserves
+  pinning behind a Microsoft-issued feature token, or has no taskbar, or has pinning
+  turned off by policy. What survived the feature's own limits was a question asked
+  in the middle of starting work whose answer was usually a paragraph. Removed with
+  it: the in-app offer and its copy constants, the service that drove it, its model,
+  the `taskbar_pin_status`, `taskbar_pin_support`, `taskbar_pin_request` and
+  `taskbar_pin_result` commands with the whole `src/taskbar.rs` module behind them,
+  the migration that added `taskbar_pin_prompted`, that setting, and the `UI_Shell`,
+  `Foundation` and `windows-future` Windows dependencies that existed only to ask.
+  A database that already carries the column keeps it — every migration this app has
+  shipped adds to the schema and none drops a table, a column or a row — but nothing
+  reads or writes it any more, and a fresh install never creates it. The changelog
+  entries that announced the feature are removed from 2.0.21 with it: a feature that
+  no longer exists, and will never be fixed, does not belong in a list of what
+  changed.
+
+---
+
+## [2.0.21] – 2026-10-15
+
+### Fixed
+
+- **An existing database is no longer at risk from an install or an upgrade.**
+  This is the one piece of state in DeepWork that exists nowhere else, and the
+  stack had two habits that could quietly replace it with an empty database that
+  looks exactly the same:
+
+  - `tauri-plugin-sql` *creates the database when it is missing* and then runs
+    every migration it has not recorded. A file that has gone missing — a moved
+    install, a half-finished upgrade, a folder a sync client dropped it from — is
+    therefore not an error anyone sees. It is a fresh database, and the app
+    carries on as if nothing happened.
+  - The Windows uninstaller offers a check box, **Delete the application data**,
+    which removes `%APPDATA%\com.deepwork.app` — the folder the database lives in.
+    It is unticked by default and an in-place update can never reach it, so
+    upgrades were never the problem; a manual uninstall before a reinstall can
+    tick it, and "the application data" reads like caches and preferences rather
+    than years of finished work.
+
+  All three are addressed. Before anything is allowed to open the database, the
+  file is checked — read-only, so the check cannot itself be the thing that loses
+  the data — and a database that is there, holds data, and cannot be read **stops
+  the app** instead of being replaced with an empty one: the window shows a single
+  card that says nothing has been deleted, names the file, repeats what was found
+  wrong with it, and points at the copies beside it. The check reads SQLite's own
+  header rather than the whole file, because the app already links exactly one
+  copy of SQLite through the SQL plugin, and a second one (`rusqlite`) would
+  either duplicate a large C library inside the binary or fight the first for the
+  same symbols; the deeper `PRAGMA integrity_check` is asked of the SQLite that is
+  already there, once the database is open. A truncated file — a header promising
+  two pages and a disk holding one — is treated as data to protect rather than an
+  empty file to start over, and so is a database whose committed changes are still
+  in its write-ahead log, which SQLite records as the reserved page count `1`:
+  reading that as "one page", or worse as "no pages", is precisely how a database
+  full of tasks would have been recreated over. Every launch that gets that far
+  also copies the database and its write-ahead log into a `backups` folder beside
+  it, named with the date and time, before the migrations can touch anything — and
+  the copies are kept rather than rotated, because a rolling series of them is the
+  only thing that helps after a bad upgrade. Last, the Windows uninstaller now
+  says in plain words, before its own check box appears, where DeepWork keeps
+  everything, that uninstalling does not remove it, and that ticking the box
+  deletes it for good (`src-tauri/installer-hooks.nsh`). Every migration this app
+  has ever shipped adds to the schema; none drops a table or deletes a row.
+
+### Removed
+
+- **Everything in the web app that nothing was using is gone: six dead CSS
+  selectors, four dead custom properties, four unreachable exports, thirteen
+  unused class members and eighteen class attributes that no stylesheet ever
+  styled.** The pass covered `src/**` only — 2,271 selectors and 115 custom
+  properties — and asked of each one whether anything could ever apply it. That
+  question has to be asked per stylesheet, because Angular's default
+  encapsulation means a rule written inside a component's `styles` can only match
+  elements in *that component's* template while `src/styles.css` is global: a
+  class is dead only if the templates that can reach it never use it. Evidence was
+  collected from every template (the 33 components keep theirs inline, so a
+  template use would have been found), from every `[class.x]`, `[class]`,
+  `ngClass`, `classList` and `className` call and `querySelector` string, and from
+  the 71 spec files and the Playwright suites — a class a test selects is a class
+  in use, which is why `.current`, `.delete`, `.edit-btn`, `.focus-btn` and
+  `.cycle-card` are still there. What went was the residue of features that were
+  themselves replaced: the settings page's segmented theme buttons (the theme is a
+  `<select [formField]="settingsForm.theme">` now, and the `activeTheme` signal
+  they wrote to was read by nothing), the About page's `.work-list` selector (the
+  rule still carries `.option-list`, `.contact-list` and `.link-list`), the
+  install banner's `.inline-icon` (the icon is `.banner-icon`), the animated
+  clock's two tick tokens (the ticks paint literal `rgba()` values),
+  `DbService`'s six never-called query methods (`getSessionsSince`,
+  `getHabitEntries`, `getJournalEntry`, `getTaskById`, `getTasksByStatus`,
+  `getTodayTasks`), the schedule service's unused `todayQueue` and `scheduleFor`,
+  the timer's `updateSettings`, the dashboard's `selectedTaskName`, the settings
+  page's `setTheme`, the timeline bar's `nowTimeLabel`, and four exports that
+  nothing imported (`APP_CHANGELOG_URL`, the `UpdateCheck` interface,
+  `sanitizeText`, `escapeHtml`).
+
+  What was *not* removed matters as much. The classic false positives were checked
+  one by one and kept: `.cdk-drag-preview`, `.cdk-drag-placeholder`,
+  `.cdk-drag-animating` and `.cdk-drop-list-dragging` are added at runtime by the
+  CDK's drag-and-drop, so no string in the source can contain them; classes built
+  by concatenation (`'update-row state-' + updates.status()`, `'l' + levelFor(date)`,
+  `class="priority-badge p{{ task.priority }}"`, and `host: { '[class.mobile-open]': … }`)
+  are applied without their full name ever appearing in a template; `handleError`
+  and `ngAfterViewInit` are called by Angular rather than by the app. Three bound
+  state classes with no rules (`.sidebar-collapsed`, `.compact`, `.multi`) were
+  left in place, because a binding that describes state is worth more than a
+  tidy diff — if anything, their missing rules are the thing to look at. The
+  design-token rungs nothing uses yet (`--space-xs`, `--text-3xl`, `--text-4xl`,
+  `--text-7xl`, `--radius-xs`, `--radius-xl`, `--radius-pill`,
+  `--color-accent-tertiary`) were left as well: they are rungs of the type and
+  radius ladders that `tests/unit/visual-crispness.spec.ts` pins as the app's
+  published scale, and deleting rungs from a declared scale is not a cleanup.
+
+  One consequence is worth recording, because it is the reason the editor's
+  unused-CSS count will look large whether or not this app has any: most of the
+  CSS in this repository is **generated**, and 563 selectors of it live outside
+  `src/` — `coverage/base.css` and `coverage/lcov-report/base.css` (104 selectors
+  each), the two `prettify.css` copies (41 each, and `.pln`/`.kwd`/`.typ` belong to
+  the coverage report's own syntax highlighter) and the 273-selector minified
+  bundle in `dist/`. Nothing in `coverage/**/base.css` is DeepWork's. The
+  `dead-css-report.md` in the repository root is an older export from such a scan
+  and is stale: it lists selectors in `playwright-report/trace/*.css` (CodeMirror,
+  xterm) and in a `.kilo/worktrees/axiomatic-piano` copy of this repository, and
+  neither path exists any more. Excluding those folders from the tooling — or
+  deleting them, since `npm test --coverage` and `npm run build` recreate all of
+  it — is what makes that panel quiet.
+
+  Verified after the removals: `npm run lint` 0 errors (warnings 134 → 124, since
+  the six deleted query methods were most of the remaining `any`s), `tsc --noEmit`
+  clean, **1160/1160 unit tests pass**, and the production `ng build` succeeds.
+  Every removed block is written out verbatim, with its anchor, in
+  `docs/dead-code-removed-2.0.21.md`, so any single one can be pasted back.
+
+---
+
+
 ## [2.0.20] – 2026-10-07
 
 ### Added
