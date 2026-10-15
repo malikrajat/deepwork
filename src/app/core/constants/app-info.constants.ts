@@ -8,7 +8,7 @@
  * exactly where they stop agreeing. Keep it in step with `package.json`,
  * `src-tauri/tauri.conf.json` and `src-tauri/Cargo.toml`.
  */
-export const APP_VERSION = '2.0.20';
+export const APP_VERSION = '2.0.21';
 
 /** Product name as it appears in the UI, the installers and the releases. */
 export const APP_NAME = 'DeepWork';
@@ -50,6 +50,3 @@ export const APP_RELEASES_API = `https://api.github.com/repos/${APP_REPOSITORY}/
 
 /** Where to send a bug report or a feature request. */
 export const APP_ISSUES_URL = `${APP_REPO_URL}/issues/new`;
-
-/** The written history of the app, kept in the repository. */
-export const APP_CHANGELOG_URL = `${APP_REPO_URL}/blob/main/CHANGELOG.md`;

@@ -12,9 +12,11 @@ import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { filter } from 'rxjs';
 import { SidebarComponent } from './shared/components/sidebar/sidebar.component';
 import { ToastComponent } from './shared/components/toast/toast.component';
+import { DatabaseErrorComponent } from './shared/components/database-error/database-error.component';
 import { InstallBannerComponent } from './shared/components/install-banner/install-banner.component';
 import { WelcomePrefsDialogComponent } from './shared/components/welcome-prefs-dialog/welcome-prefs-dialog.component';
 import { MiniWidgetComponent } from './shared/components/mini-widget/mini-widget.component';
+import { PinNudgeComponent } from './shared/components/pin-nudge/pin-nudge.component';
 import { QuickAddComponent } from './shared/components/quick-add/quick-add.component';
 import { UpdatePromptComponent } from './shared/components/update-prompt/update-prompt.component';
 import { WaterNudgeComponent } from './shared/components/water-nudge/water-nudge.component';
@@ -26,6 +28,8 @@ import { SettingsService } from './core/services/settings.service';
 import { DbService } from './core/services/db.service';
 import { UpdatePromptService } from './core/services/update-prompt.service';
 import { NotificationService } from './core/services/notification.service';
+import { TaskbarPinService } from './core/services/taskbar-pin.service';
+import { LogService } from './core/services/log.service';
 import { VisitorCounterService } from './core/services/visitor-counter.service';
 
 const PAGE_ROUTES = [
@@ -63,9 +67,11 @@ const COMPACT_LAYOUT_QUERY = '(max-width: 900px)';
     RouterOutlet,
     SidebarComponent,
     ToastComponent,
+    DatabaseErrorComponent,
     InstallBannerComponent,
     WelcomePrefsDialogComponent,
     MiniWidgetComponent,
+    PinNudgeComponent,
     QuickAddComponent,
     UpdatePromptComponent,
     WaterNudgeComponent,
@@ -82,10 +88,17 @@ export class App implements OnInit {
   private readonly router = inject(Router);
   private readonly timer = inject(TimerService);
   private readonly settingsService = inject(SettingsService);
-  private readonly db = inject(DbService);
+  /**
+   * Read by the shell's template as well as by this class: the error card is
+   * rendered *instead of* the app when the database could not be opened, which is
+   * a decision the template makes.
+   */
+  readonly db = inject(DbService);
   private readonly updatePrompt = inject(UpdatePromptService);
   private readonly notifications = inject(NotificationService);
   private readonly visitors = inject(VisitorCounterService);
+  private readonly taskbarPin = inject(TaskbarPinService);
+  private readonly log = inject(LogService);
   ui = inject(UiService);
   private readonly install = inject(InstallService);
   private readonly destroyRef = inject(DestroyRef);
@@ -131,6 +144,13 @@ export class App implements OnInit {
   ngOnInit(): void {
     this.db.init().then(async () => {
       await this.settingsService.loadSettings();
+      // The pages of the database itself, once it is open — the desktop-side
+      // guard reads only its header (see `src-tauri/src/db_guard.rs`), so this is
+      // where SQLite is asked to check its own work. A verdict that is not "ok"
+      // goes to the log the user can hand over: the app is already running by
+      // then, so the useful thing left to do is put it on the record.
+      const damage = await this.db.verify();
+      if (damage) this.log.warn('system', damage);
     });
     this.watchLayoutWidth();
     this.closeDrawerOnNavigate();
@@ -147,6 +167,10 @@ export class App implements OnInit {
     // tells the user if there is something to install. Not awaited: a slow
     // network must never hold up the window.
     void this.updatePrompt.start();
+    // Asks this desktop what pinning means here — and on Windows whether
+    // DeepWork is already on the taskbar — so the one-time offer can be made
+    // after the first-run dialog rather than on top of it.
+    void this.taskbarPin.init();
   }
 
   toggleSidebar() {

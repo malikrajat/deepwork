@@ -302,8 +302,8 @@ function persistCollapsedGroups(value: Record<string, boolean>): void {
                       }}</span>
                       <span class="rail-meta">
                         <span>{{ item.pomodoros }}× pomodoro</span>
-                        <span class="sep">·</span>
-                        <span class="at">{{ item.atLabel }}</span>
+                        <span>·</span>
+                        <span>{{ item.atLabel }}</span>
                       </span>
                     </div>
                     <div class="rail-actions">
@@ -695,7 +695,7 @@ function persistCollapsedGroups(value: Record<string, boolean>): void {
                 }
               </div>
 
-              <div class="panel-new">
+              <div>
                 <input
                   class="panel-search"
                   type="text"

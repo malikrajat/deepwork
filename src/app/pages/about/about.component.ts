@@ -92,7 +92,7 @@ interface DownloadRow extends DownloadTarget {
         role="tabpanel"
         aria-labelledby="tab-developer"
       >
-        <section class="card hero">
+        <section class="card">
           <div class="hero-head">
             <div class="avatar" aria-hidden="true">{{ developer.initials }}</div>
             <div class="hero-who">
@@ -359,7 +359,7 @@ interface DownloadRow extends DownloadTarget {
           </p>
         </section>
 
-        <section class="card update-card">
+        <section class="card">
           <div class="card-header">
             <h2>Check for updates</h2>
             <p class="card-subtitle">
@@ -811,7 +811,6 @@ interface DownloadRow extends DownloadTarget {
 
       /* ── Lists ──────────────────────────────────────────────────────── */
       .option-list,
-      .work-list,
       .contact-list,
       .link-list {
         list-style: none;

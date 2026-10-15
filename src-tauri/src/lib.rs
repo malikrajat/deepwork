@@ -1,4 +1,5 @@
 mod autostart;
+mod db_guard;
 mod downloads;
 mod logging;
 mod opener;
@@ -809,6 +810,27 @@ async fn save_download(file_name: String, bytes: Vec<u8>) -> Result<String, Stri
     Ok(path)
 }
 
+/// Whether the user's database is there, holds data, and can be read — asked
+/// before anything is allowed to open it for writing.
+///
+/// See `db_guard` for why the frontend cannot simply let the SQL plugin create
+/// what it does not find.
+#[tauri::command]
+fn db_preflight(app: AppHandle) -> db_guard::DbReport {
+    db_guard::preflight(&app)
+}
+
+/// Copies the database and its write-ahead log aside, under a timestamped name.
+///
+/// Called by the frontend before the SQL plugin opens the database — the last
+/// moment at which a copy is certainly the state the user left behind. `note`
+/// only names the copy (`launch`, `migrate`): the file it protects is the same
+/// one either way.
+#[tauri::command]
+fn db_backup(app: AppHandle, note: String) -> Option<String> {
+    db_guard::backup(&app, &note)
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     // Installed before anything else can panic, so a failure during startup
@@ -902,6 +924,8 @@ pub fn run() {
             window_set_widget_mode,
             alert_notify,
             save_download,
+            db_preflight,
+            db_backup,
             logging::log_folder,
             logging::open_log_folder,
             logging::log_write,

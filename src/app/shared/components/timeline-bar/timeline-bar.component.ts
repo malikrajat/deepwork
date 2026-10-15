@@ -295,10 +295,6 @@ export class TimelineBarComponent implements OnInit, OnDestroy, AfterViewInit {
     const fractionalHours = now.getHours() + now.getMinutes() / 60 + now.getSeconds() / 3600;
     return fractionalHours * HOUR_HEIGHT_PX;
   });
-  readonly nowTimeLabel = computed(() => {
-    const now = new Date(this.tick());
-    return now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-  });
 
   /**
    * Compute completed session blocks.

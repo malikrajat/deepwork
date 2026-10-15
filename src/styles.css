@@ -182,7 +182,6 @@
   --sidebar-hover-bg: rgba(139, 92, 246, 0.1);
   --sidebar-active-bg: rgba(139, 92, 246, 0.16);
   --sidebar-active-border: rgba(139, 92, 246, 0.35);
-  --input-bg: rgba(255, 255, 255, 0.05);
 
   /* Glassmorphism tokens.
      0.03 white on a #080613 background is a 1.5% luminance step: the cards read
@@ -202,18 +201,14 @@
 
   /* Themed surfaces & controls */
   --control-bg: rgba(255, 255, 255, 0.05);
-  --surface-sidebar: rgba(15, 11, 31, 0.6);
   --surface-float: rgba(15, 11, 31, 0.9);
   --toast-bg: rgba(15, 11, 31, 0.95);
 
   /* Animated clock chart */
   /* The clock is the one chart on the Dashboard and its ring is the shape the
      whole session is drawn against: at 0.04 the track was invisible, so a fresh
-     session looked like a floating pair of hands. The ticks carry the same
-     reasoning a step further down. */
+     session looked like a floating pair of hands. */
   --clock-track: rgba(255, 255, 255, 0.09);
-  --clock-tick-major: rgba(255, 255, 255, 0.32);
-  --clock-tick-minor: rgba(255, 255, 255, 0.14);
 
   /* Spacing */
   --space-xs: 4px;
@@ -387,13 +382,10 @@ html[data-theme='light'] {
   --sidebar-hover-bg: rgba(124, 58, 237, 0.1);
   --sidebar-active-bg: rgba(124, 58, 237, 0.16);
   --sidebar-active-border: rgba(124, 58, 237, 0.4);
-  --surface-sidebar: rgba(255, 255, 255, 0.6);
   --surface-float: rgba(255, 255, 255, 0.92);
   --toast-bg: rgba(255, 255, 255, 0.95);
 
   --clock-track: rgba(15, 23, 42, 0.1);
-  --clock-tick-major: rgba(15, 23, 42, 0.34);
-  --clock-tick-minor: rgba(15, 23, 42, 0.16);
 }
 
 /* "System" theme before Angular resolves it (the inline boot script only sets

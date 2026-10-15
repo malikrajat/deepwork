@@ -5,6 +5,196 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ---
 
+## [2.0.21] – 2026-10-11
+
+### Added
+
+- **DeepWork now asks to be pinned where you can reach it — once, and in your
+  desktop's own words.** Every other app people use all day sits in the taskbar,
+  and DeepWork did not, so keeping the timer in view meant finding it in the Start
+  menu again. It now asks, from inside itself, with a card that offers the two
+  answers a question like this deserves: **Pin to taskbar** and **Not now**. Both
+  are remembered, and the deliberate route back is a re-offer rather than another
+  prompt on the next launch — a card that returns every morning is the nagging
+  kind of reminder, not the helpful kind. The card waits for the first-run
+  "make DeepWork work your way" dialog rather than racing it: being offered the
+  taskbar before being told what the app is would be the wrong question first.
+
+  The three desktops do not treat this question the same way, and the app does not
+  pretend they do. **Windows** has a supported way to ask, so the app asks it:
+  `Windows.UI.Shell.TaskbarManager` answers whether DeepWork is already pinned
+  there, and — from the app's own foreground window, after the user has said yes —
+  raises the shell's own confirmation and does the pinning. That is the same
+  prompt Microsoft To Do shows, and it is the shell's to place, not ours. An app
+  the shell already holds on the taskbar is never asked about again, which is what
+  makes this honest on an upgrade. **macOS** has no equivalent: an app cannot add
+  itself to the Dock, so the card says where the menu is — right-click the running
+  app's Dock tile, **Options → Keep in Dock** — and it speaks of the Dock
+  throughout, with a button that says *Keep in Dock*, because a Mac user being
+  told about a taskbar is how an app looks like a port. **Linux** is the same
+  story with a different name per desktop — *Pin to Dash* on GNOME, *Pin to Task
+  Manager* on KDE, *Pin to Panel* on XFCE — and the card says *panel* throughout.
+  Where the app could not do the pinning itself, the card becomes the instruction
+  rather than closing, and stays up until it is acknowledged: an instruction that
+  vanishes while it is being read is not an instruction.
+
+  The prompt is a card *in* the app rather than a system notification, and that is
+  the honest answer rather than a shortcut. A notification cannot carry these
+  buttons: the toast surfaces on Windows and Linux expose none at all — Windows'
+  own toast XML has no button element, and the interactive ones belong to a
+  different notification framework — and on macOS an action button requires the app
+  to be signed and registered with a notification category, which an unsigned build
+  cannot do. What the feature *does* hand to the system is the part that is
+  genuinely the system's: on Windows the pinning itself is done by Windows' own
+  "Pin to taskbar?" dialog, raised by the shell, which is why the card says where
+  to look rather than trying to be that dialog itself.
+
+### Fixed
+
+- **The pin card froze the whole app.** The card went up and then nothing in
+  DeepWork answered a click — not its own two buttons, not anything behind them —
+  so the only way out was to kill the app. The cause was one mistake in the
+  Windows side of the feature: `RequestPinCurrentAppAsync` and
+  `IsCurrentAppPinnedAsync` may only be *called* from the thread that owns the
+  window, and the code called them there and then **waited** for the answer on that
+  same thread. Waiting for a WinRT operation blocks the thread's message loop, and
+  a loop that is not pumping is a window that does not repaint, does not answer
+  clicks and does not answer the webview — so an app that had merely asked Windows
+  a question stopped responding to everything until Windows replied, which for a
+  request that shows a dialog is as long as the user takes to read it. The two are
+  now split apart: the call is made on the window's thread and returns as soon as
+  the shell has accepted it, and the *answer* is waited for somewhere else — on the
+  command's own thread for the startup check, and on a thread of its own for the
+  pin itself, with the verdict polled back by the frontend. Nothing on the window's
+  thread blocks for longer than the call.
+
+- **The card could be dismissed only by its own buttons — so it now has three ways
+  out, and only one of them depends on anything working.** With the app frozen
+  behind that wait there was no way past the card at all, which turned a question
+  into a wall. It now carries the two answers **and** a close button in its corner,
+  **and** answers to **Escape** — bound on the window rather than on the card, so it
+  works whether or not focus ever reached the component, which is the exit that
+  matters when the app itself is the thing misbehaving. The card also takes focus
+  when it appears, so Tab and Enter reach its controls. Two smaller repairs came
+  with it: the card no longer claims to be a modal dialog (it never was one —
+  `aria-modal="false"` now says so, and there is no backdrop and nothing made
+  `inert`, so clicks anywhere outside it do exactly what they always did), and while
+  Windows' own prompt is on screen the card says so — *"Windows is asking you to
+  confirm. Look for its 'Pin to taskbar?' prompt — it can appear behind this
+  window"* — instead of leaving behind a button that appears to have done nothing.
+
+- **An existing database is no longer at risk from an install or an upgrade.**
+  This is the one piece of state in DeepWork that exists nowhere else, and the
+  stack had two habits that could quietly replace it with an empty database that
+  looks exactly the same:
+
+  - `tauri-plugin-sql` *creates the database when it is missing* and then runs
+    every migration it has not recorded. A file that has gone missing — a moved
+    install, a half-finished upgrade, a folder a sync client dropped it from — is
+    therefore not an error anyone sees. It is a fresh database, and the app
+    carries on as if nothing happened.
+  - The Windows uninstaller offers a check box, **Delete the application data**,
+    which removes `%APPDATA%\com.deepwork.app` — the folder the database lives in.
+    It is unticked by default and an in-place update can never reach it, so
+    upgrades were never the problem; a manual uninstall before a reinstall can
+    tick it, and "the application data" reads like caches and preferences rather
+    than years of finished work.
+
+  All three are addressed. Before anything is allowed to open the database, the
+  file is checked — read-only, so the check cannot itself be the thing that loses
+  the data — and a database that is there, holds data, and cannot be read **stops
+  the app** instead of being replaced with an empty one: the window shows a single
+  card that says nothing has been deleted, names the file, repeats what was found
+  wrong with it, and points at the copies beside it. The check reads SQLite's own
+  header rather than the whole file, because the app already links exactly one
+  copy of SQLite through the SQL plugin, and a second one (`rusqlite`) would
+  either duplicate a large C library inside the binary or fight the first for the
+  same symbols; the deeper `PRAGMA integrity_check` is asked of the SQLite that is
+  already there, once the database is open. A truncated file — a header promising
+  two pages and a disk holding one — is treated as data to protect rather than an
+  empty file to start over, and so is a database whose committed changes are still
+  in its write-ahead log, which SQLite records as the reserved page count `1`:
+  reading that as "one page", or worse as "no pages", is precisely how a database
+  full of tasks would have been recreated over. Every launch that gets that far
+  also copies the database and its write-ahead log into a `backups` folder beside
+  it, named with the date and time, before the migrations can touch anything — and
+  the copies are kept rather than rotated, because a rolling series of them is the
+  only thing that helps after a bad upgrade. Last, the Windows uninstaller now
+  says in plain words, before its own check box appears, where DeepWork keeps
+  everything, that uninstalling does not remove it, and that ticking the box
+  deletes it for good (`src-tauri/installer-hooks.nsh`). Every migration this app
+  has ever shipped adds to the schema; none drops a table or deletes a row.
+
+### Removed
+
+- **Everything in the web app that nothing was using is gone: six dead CSS
+  selectors, four dead custom properties, four unreachable exports, thirteen
+  unused class members and eighteen class attributes that no stylesheet ever
+  styled.** The pass covered `src/**` only — 2,271 selectors and 115 custom
+  properties — and asked of each one whether anything could ever apply it. That
+  question has to be asked per stylesheet, because Angular's default
+  encapsulation means a rule written inside a component's `styles` can only match
+  elements in *that component's* template while `src/styles.css` is global: a
+  class is dead only if the templates that can reach it never use it. Evidence was
+  collected from every template (the 33 components keep theirs inline, so a
+  template use would have been found), from every `[class.x]`, `[class]`,
+  `ngClass`, `classList` and `className` call and `querySelector` string, and from
+  the 71 spec files and the Playwright suites — a class a test selects is a class
+  in use, which is why `.current`, `.delete`, `.edit-btn`, `.focus-btn` and
+  `.cycle-card` are still there. What went was the residue of features that were
+  themselves replaced: the settings page's segmented theme buttons (the theme is a
+  `<select [formField]="settingsForm.theme">` now, and the `activeTheme` signal
+  they wrote to was read by nothing), the About page's `.work-list` selector (the
+  rule still carries `.option-list`, `.contact-list` and `.link-list`), the
+  install banner's `.inline-icon` (the icon is `.banner-icon`), the animated
+  clock's two tick tokens (the ticks paint literal `rgba()` values),
+  `DbService`'s six never-called query methods (`getSessionsSince`,
+  `getHabitEntries`, `getJournalEntry`, `getTaskById`, `getTasksByStatus`,
+  `getTodayTasks`), the schedule service's unused `todayQueue` and `scheduleFor`,
+  the timer's `updateSettings`, the dashboard's `selectedTaskName`, the settings
+  page's `setTheme`, the timeline bar's `nowTimeLabel`, and four exports that
+  nothing imported (`APP_CHANGELOG_URL`, the `UpdateCheck` interface,
+  `sanitizeText`, `escapeHtml`).
+
+  What was *not* removed matters as much. The classic false positives were checked
+  one by one and kept: `.cdk-drag-preview`, `.cdk-drag-placeholder`,
+  `.cdk-drag-animating` and `.cdk-drop-list-dragging` are added at runtime by the
+  CDK's drag-and-drop, so no string in the source can contain them; classes built
+  by concatenation (`'update-row state-' + updates.status()`, `'l' + levelFor(date)`,
+  `class="priority-badge p{{ task.priority }}"`, and `host: { '[class.mobile-open]': … }`)
+  are applied without their full name ever appearing in a template; `handleError`
+  and `ngAfterViewInit` are called by Angular rather than by the app. Three bound
+  state classes with no rules (`.sidebar-collapsed`, `.compact`, `.multi`) were
+  left in place, because a binding that describes state is worth more than a
+  tidy diff — if anything, their missing rules are the thing to look at. The
+  design-token rungs nothing uses yet (`--space-xs`, `--text-3xl`, `--text-4xl`,
+  `--text-7xl`, `--radius-xs`, `--radius-xl`, `--radius-pill`,
+  `--color-accent-tertiary`) were left as well: they are rungs of the type and
+  radius ladders that `tests/unit/visual-crispness.spec.ts` pins as the app's
+  published scale, and deleting rungs from a declared scale is not a cleanup.
+
+  One consequence is worth recording, because it is the reason the editor's
+  unused-CSS count will look large whether or not this app has any: most of the
+  CSS in this repository is **generated**, and 563 selectors of it live outside
+  `src/` — `coverage/base.css` and `coverage/lcov-report/base.css` (104 selectors
+  each), the two `prettify.css` copies (41 each, and `.pln`/`.kwd`/`.typ` belong to
+  the coverage report's own syntax highlighter) and the 273-selector minified
+  bundle in `dist/`. Nothing in `coverage/**/base.css` is DeepWork's. The
+  `dead-css-report.md` in the repository root is an older export from such a scan
+  and is stale: it lists selectors in `playwright-report/trace/*.css` (CodeMirror,
+  xterm) and in a `.kilo/worktrees/axiomatic-piano` copy of this repository, and
+  neither path exists any more. Excluding those folders from the tooling — or
+  deleting them, since `npm test --coverage` and `npm run build` recreate all of
+  it — is what makes that panel quiet.
+
+  Verified after the removals: `npm run lint` 0 errors (warnings 134 → 124, since
+  the six deleted query methods were most of the remaining `any`s), `tsc --noEmit`
+  clean, **1160/1160 unit tests pass**, and the production `ng build` succeeds.
+  Every removed block is written out verbatim, with its anchor, in
+  `docs/dead-code-removed-2.0.21.md`, so any single one can be pasted back.
+
+---
+
 ## [2.0.20] – 2026-10-07
 
 ### Added
