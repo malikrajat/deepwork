@@ -2,8 +2,8 @@
 
    `source(none)` switches off Tailwind's automatic content detection, and that
    matters more than it sounds: detection scans every file in the project for
-   strings that *look* like a utility class, so the mini widget's SVG — a bare
-   "ring" class name — was silently given Tailwind's own ring utility, a 1px
+   strings that *look* like a utility class, so the mini widget's SVG â€” a bare
+   "ring" class name â€” was silently given Tailwind's own ring utility, a 1px
    `currentColor` box-shadow, and the countdown circle grew a pale square
    outline exactly the size of its SVG box. The app writes its own class names
    and uses no Tailwind utilities, so there is nothing to detect; turning the
@@ -16,7 +16,7 @@
    Inter and JetBrains Mono are the two faces the design system asks for, and
    they used to arrive through a `<link>` to fonts.googleapis.com in `index.html`.
    That is a third-party request on every start of an app whose whole promise is
-   that the user's machine is the only place anything happens — and in the
+   that the user's machine is the only place anything happens â€” and in the
    desktop build it is a request that has to succeed before the app looks like
    itself, on a machine that may be offline, or behind a proxy, or simply not
    allowed to talk to Google. Both families are SIL Open Font License 1.1, so
@@ -28,7 +28,7 @@
    a task. Other scripts fall through to the system fonts the stacks in
    `--font-sans` and `--font-mono` already name, which is what a missing glyph
    should do. Both files are variable fonts carrying the whole weight range, so
-   "one file per weight" is four files rather than eleven — 172 kB in total, and
+   "one file per weight" is four files rather than eleven â€” 172 kB in total, and
    hashed into the bundle by the build like any other asset.
 
    The files live in `src/fonts/` rather than `public/` because the build
@@ -38,7 +38,7 @@
    License asks of anyone redistributing the fonts.
 
    The URLs are relative on purpose: the CSS is emitted at the root of the build,
-   so `fonts/…` resolves under whatever base href the build was given — `/` in
+   so `fonts/â€¦` resolves under whatever base href the build was given â€” `/` in
    the desktop app, `/deepwork/` on GitHub Pages. */
 @font-face {
   font-family: 'Inter';
@@ -90,13 +90,13 @@
 
   /* The browser-only "install DeepWork" bar is fixed to the top of the window.
      It is the one thing outside the app shell, so the shell reserves exactly
-     this much room for it — the banner and the shell both read this value, which
+     this much room for it â€” the banner and the shell both read this value, which
      is what keeps them from disagreeing about how tall it is.
 
      The notch is added here rather than in either of those two places. The
      banner is pinned to `top: 0`, which on a phone with `viewport-fit=cover` is
      the very top of the screen, so the strip iOS reserves for the status bar is
-     part of the banner's height — and the shell's reservation has to grow with
+     part of the banner's height â€” and the shell's reservation has to grow with
      it or the first row of the page ends up underneath. On a desktop, and on a
      phone without a cutout, `--safe-top` is 0px and this is the same 48px it
      always was. */
@@ -132,7 +132,7 @@
   --color-danger: #f87171;
   color-scheme: dark;
 
-  /* ─── Status colors ─── */
+  /* â”€â”€â”€ Status colors â”€â”€â”€ */
   --status-todo-color: #9ca3af;
   --status-todo-bg: rgba(107, 114, 128, 0.12);
   --status-in-progress-color: #f59e0b;
@@ -140,7 +140,7 @@
   --status-done-color: #a78bfa;
   --status-done-bg: rgba(139, 92, 246, 0.12);
 
-  /* ─── Task card colours: one per status, the same on Tasks and Today ─── */
+  /* â”€â”€â”€ Task card colours: one per status, the same on Tasks and Today â”€â”€â”€ */
   --status-todo-card-bg: rgba(107, 114, 128, 0.16);
   --status-todo-card-border: rgba(107, 114, 128, 0.34);
   --status-in-progress-card-bg: rgba(245, 158, 11, 0.13);
@@ -148,7 +148,7 @@
   --status-done-card-bg: rgba(139, 92, 246, 0.16);
   --status-done-card-border: rgba(139, 92, 246, 0.38);
 
-  /* ─── Priority colors (aligned with quadrants) ─── */
+  /* â”€â”€â”€ Priority colors (aligned with quadrants) â”€â”€â”€ */
   --priority-p1-color: #f87171;
   --priority-p1-bg: rgba(248, 113, 113, 0.15);
   --priority-p2-color: #fbbf24;
@@ -158,7 +158,7 @@
   --priority-p4-color: #9ca3af;
   --priority-p4-bg: rgba(107, 114, 128, 0.12);
 
-  /* ─── Quadrant colors (aligned with priorities) ─── */
+  /* â”€â”€â”€ Quadrant colors (aligned with priorities) â”€â”€â”€ */
   --quadrant-q1-color: #f87171;
   --quadrant-q1-bg: rgba(248, 113, 113, 0.12);
   --quadrant-q1-border: rgba(248, 113, 113, 0.25);
@@ -172,7 +172,7 @@
   --quadrant-q4-bg: rgba(107, 114, 128, 0.12);
   --quadrant-q4-border: rgba(107, 114, 128, 0.25);
 
-  /* ─── Timer mode colors ─── */
+  /* â”€â”€â”€ Timer mode colors â”€â”€â”€ */
   --timer-work-color: #8b5cf6;
   --timer-break-color: #06b6d4;
   --timer-long-break-color: #34d399;
@@ -223,8 +223,8 @@
   --font-sans: 'Inter', system-ui, -apple-system, sans-serif;
   --font-mono: 'JetBrains Mono', 'Fira Code', monospace;
 
-  /* ─── Type scale: every step is a whole number of pixels ───
-     Fractional sizes — 0.72rem is 11.52px, 0.62rem is 9.92px — land glyph
+  /* â”€â”€â”€ Type scale: every step is a whole number of pixels â”€â”€â”€
+     Fractional sizes â€” 0.72rem is 11.52px, 0.62rem is 9.92px â€” land glyph
      stems on half pixels, and that is what makes small text on a dark surface
      look soft and smudged: the renderer has to smear every stem onto the pixel
      grid. Whole-pixel steps keep titles, labels and numbers crisp at 100%,
@@ -245,7 +245,7 @@
   --text-6xl: 28px;
   --text-7xl: 32px;
 
-  /* ─── One radius ladder for every surface ───
+  /* â”€â”€â”€ One radius ladder for every surface â”€â”€â”€
      Cards, buttons, inputs, chips and panels all round on the same curve, so
      a 12px button inside a 20px card looks like it was designed with it
      rather than next to it. */
@@ -257,29 +257,29 @@
   --radius-2xl: 20px;
   --radius-pill: 999px;
 
-  /* ─── Hairlines ───
+  /* â”€â”€â”€ Hairlines â”€â”€â”€
      A 1px edge is the only width that renders as one crisp line at every
-     scale factor, so every divider and card outline is 1px — and it carries
+     scale factor, so every divider and card outline is 1px â€” and it carries
      enough alpha to actually read as an edge instead of a smudge. Both follow
      the theme through the glass tokens, so the light theme stays lighter. */
   --hairline: 1px solid var(--glass-border);
   --hairline-accent: 1px solid var(--glass-border-accent);
 
-  /* ─── Mobile shell metrics ───
+  /* â”€â”€â”€ Mobile shell metrics â”€â”€â”€
      The app was laid out for the desktop window it was born in. Every rule
      below is what lets the same markup serve a 360px phone as well, and the
-     numbers live here so the three places that have to agree about them — the
-     shell, the sidebar drawer and this file — cannot drift apart.
+     numbers live here so the three places that have to agree about them â€” the
+     shell, the sidebar drawer and this file â€” cannot drift apart.
 
      `--mobile-topbar-height` is the strip the menu button and the brand sit
      in; it only exists below the `--bp-compact` breakpoint. The two numbers
      are comments rather than custom properties because a custom property
-     cannot be read from a media query condition — they are written down here
+     cannot be read from a media query condition â€” they are written down here
      so the next person greps once and finds all of them:
 
-       ≤ 900px  the "compact" layout: the sidebar leaves the row entirely and
+       â‰¤ 900px  the "compact" layout: the sidebar leaves the row entirely and
                 becomes an off-canvas drawer, and the mobile top bar appears
-       ≤ 640px  the "phone" layout: padding collapses, multi-column grids and
+       â‰¤ 640px  the "phone" layout: padding collapses, multi-column grids and
                 toolbars stack, and tap targets grow
 
      The `--safe-*` values are the notch and home-indicator insets iOS reports
@@ -292,11 +292,11 @@
   --safe-bottom: env(safe-area-inset-bottom, 0px);
   --safe-left: env(safe-area-inset-left, 0px);
 
-  /* ─── Large screens ───
+  /* â”€â”€â”€ Large screens â”€â”€â”€
      The same layout, read at the other end of the range. A 4K panel or a
      television is 3840 CSS pixels wide, and a page built as a column simply
      keeps growing until a line of text is two feet long and a task card is a
-     letterbox — or, on a page that caps its own content (About, Settings), the
+     letterbox â€” or, on a page that caps its own content (About, Settings), the
      content sits against the left edge with three thousand empty pixels beside
      it. This is the width past which the page column stops growing and starts
      being centred instead. Chosen to hold a three-column board at a comfortable
@@ -404,7 +404,7 @@ html[data-theme='light'] {
 /* ===== Task board cards =====
    The Tasks board, the Today board and the CDK drag preview all paint from the
    classes below (STATUS_CONFIG.cardClass), so a card's colour is decided only
-   by its status — dragging it to another column recolours it the same way on
+   by its status â€” dragging it to another column recolours it the same way on
    both pages. The components' own styles are layout only, which keeps these
    rules from being overridden by an encapsulated copy. */
 
@@ -472,7 +472,7 @@ html[data-theme='light'] {
 
 /* macOS: the page is drawn under the native title bar (see the comment on
    `--macos-titlebar-height`), so the shell starts below it. The class is put on
-   <html> by `UiService` only while the full window is up — the mini widget has no
+   <html> by `UiService` only while the full window is up â€” the mini widget has no
    title bar, so it reserves nothing. */
 html.macos-native-frame .app-shell {
   padding-top: var(--macos-titlebar-height);
@@ -490,7 +490,7 @@ html.macos-native-frame .app-shell.banner-open {
 }
 
 /* The water reminder is anchored to the top-right of the window and is a
-   question — half of it behind the title bar is not a question. It moves down
+   question â€” half of it behind the title bar is not a question. It moves down
    with everything else. */
 html.macos-native-frame app-water-nudge {
   top: calc(var(--macos-titlebar-height) + 24px);
@@ -501,7 +501,7 @@ html.macos-native-frame app-water-nudge {
    2px and nearly opaque, because the ring is the one outline a user has to be
    able to see against both the near-black surfaces and the light theme, and
    offset so it sits outside the control instead of eating into it. Components
-   that draw a ring of their own still win — their rules carry the encapsulation
+   that draw a ring of their own still win â€” their rules carry the encapsulation
    attribute, which outranks this selector. */
 :focus-visible {
   outline: 2px solid rgba(167, 139, 250, 0.8);
@@ -528,12 +528,12 @@ body {
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   /* Kerning and the font's own ligatures: without them the tight pairs in
-     Inter collide at 11–13px. */
+     Inter collide at 11â€“13px. */
   text-rendering: optimizeLegibility;
   /* Timers, counters, stat columns and table figures share one digit grid, so
      nothing shimmers sideways while a number counts down. */
   font-variant-numeric: tabular-nums;
-  /* Faux-bold — a weight the loaded font does not ship — is smeared onto the
+  /* Faux-bold â€” a weight the loaded font does not ship â€” is smeared onto the
      glyph by the renderer. Refusing it lets the browser step down to the
      nearest real weight, which is the sharper of the two. */
   font-synthesis: none;
@@ -564,8 +564,8 @@ body {
       `dvh` half of this; the pieces here are the ones that belong to content
       rather than to the shell. */
 
-/* Media elements that ship at their own natural width — a screenshot in About,
-   a canvas — are allowed to shrink with their column but never to grow past
+/* Media elements that ship at their own natural width â€” a screenshot in About,
+   a canvas â€” are allowed to shrink with their column but never to grow past
    it. Explicitly sized SVG icons are untouched: `max-width` only ever
    constrains, and every icon in this app is smaller than its container. */
 img,
@@ -588,7 +588,7 @@ svg {
 /* Phone layout: the two size-driven fixes. */
 @media (max-width: 640px) {
   /* `html body` and the `:not()` chain are here to outrank the per-component
-     `font-size: 13px` on the same elements — component styles carry an
+     `font-size: 13px` on the same elements â€” component styles carry an
      encapsulation attribute and land at (0,2,1), so a bare `input` rule would
      simply lose. This is the same technique the light-theme overrides above
      use, and it is why no `!important` appears here. */
@@ -638,8 +638,8 @@ svg {
 /* ===== Very large screens =====
 
    The type scale was set for a person sitting at a laptop. A 2560px monitor and
-   a 3840px television are the same layout read from further away — a sofa, a
-   meeting room, a wall — and at that distance 13px body text is a grey texture
+   a 3840px television are the same layout read from further away â€” a sofa, a
+   meeting room, a wall â€” and at that distance 13px body text is a grey texture
    rather than words.
 
    This raises the ladder the app's newer rules size themselves from, and the
@@ -650,7 +650,7 @@ svg {
    against literal pixels does not.
 
    Every size is a whole pixel and none is below the 10px floor the scale stops
-   at, so the app's own invariant — a label is never a smear — still holds. */
+   at, so the app's own invariant â€” a label is never a smear â€” still holds. */
 @media (min-width: 2560px) {
   :root {
     --text-2xs: 12px;
@@ -934,7 +934,7 @@ input[type='range']::-webkit-slider-thumb {
   -webkit-appearance: none;
   width: 14px;
   height: 14px;
-  /* (4px track − 14px thumb) / 2, so the thumb is centred on the rail. */
+  /* (4px track âˆ’ 14px thumb) / 2, so the thumb is centred on the rail. */
   margin-top: -5px;
   border-radius: 50%;
   background: var(--color-accent-primary);
@@ -980,7 +980,7 @@ html[data-theme='light'] input[type='datetime-local']::-webkit-calendar-picker-i
 /* ===== Light theme: component surface overrides =====
    html[data-theme="light"] .class = specificity (0,2,1)
    Component .class[_ngcontent] = specificity (0,2,0)
-   Global wins — no !important needed                    */
+   Global wins â€” no !important needed                    */
 
 html[data-theme='light'] .chart-card,
 html[data-theme='light'] .habit-card,
@@ -1141,7 +1141,7 @@ html[data-theme='light'] .action-btn {
 
    `UiService` puts `widget-transparent` on <html> for exactly as long as the
    widget is open. Keeping it a class rather than a blanket rule matters twice
-   over — the app window stays opaque while it is a window, and a platform
+   over â€” the app window stays opaque while it is a window, and a platform
    whose window cannot be made transparent keeps the app's dark background
    instead of showing white corners. */
 html.widget-transparent,

@@ -105,14 +105,15 @@ test.describe('Settings', () => {
     await expect(importBtn).toBeEnabled();
   });
 
-  test('keyboard shortcuts section lists 5 shortcut rows', async ({ page }) => {
+  test('keyboard shortcuts section lists all shortcut rows', async ({ page }) => {
     const shortcutsGroup = page.locator('.setting-group').filter({
       has: page.locator('.group-header', { hasText: 'Keyboard Shortcuts' }),
     });
     await expect(shortcutsGroup).toBeVisible({ timeout: 5000 });
 
-    // Exactly 5 keyboard shortcut rows with <kbd> elements
-    await expect(shortcutsGroup.locator('kbd')).toHaveCount(5);
+    // Space, focus mode, the quiet panel, quick add, page navigation, and the
+    // way out — six rows, each with a <kbd>.
+    await expect(shortcutsGroup.locator('kbd')).toHaveCount(6);
   });
 
   test('repeat reminder interval shows seconds label', async ({ page }) => {

@@ -153,6 +153,10 @@ describe('LogService', () => {
     console.error('Angular said no', new Error('bad'));
     console.warn('deprecated thing');
 
+    // Recorded a microtask later: a warning can arrive mid-render, and writing
+    // the log's signal there would abort the render (NG0600).
+    await Promise.resolve();
+
     expect(
       lines(service).some((line) => line.startsWith('error/crash: Angular said no Error: bad')),
     ).toBe(true);

@@ -4,6 +4,7 @@ import { signal, WritableSignal } from '@angular/core';
 import { WaterReminderService } from '../../src/app/core/services/water-reminder.service';
 import { WaterService } from '../../src/app/core/services/water.service';
 import { NotificationService } from '../../src/app/core/services/notification.service';
+import { AttentionService } from '../../src/app/core/services/attention.service';
 import { SettingsService } from '../../src/app/core/services/settings.service';
 import { UiService } from '../../src/app/core/services/ui.service';
 import { AppSettings, DEFAULT_SETTINGS } from '../../src/app/core/models/settings.model';
@@ -186,6 +187,22 @@ describe('WaterReminderService', () => {
       expect(notifications.announce).not.toHaveBeenCalled();
       expect(off.nextAt()).toBeNull();
       expect(off.status()).toBe('Water reminders are off');
+    });
+
+    it('stops for a pause, and restarts a full interval after it', async () => {
+      // The tray's pause is "none of this for a while"; a water reminder that
+      // ignored it would be the one nudge still arriving through a pause.
+      const attention = TestBed.inject(AttentionService);
+      attention.pauseFor(null);
+
+      await service.tick(at(10, 0));
+      expect(notifications.announce).not.toHaveBeenCalled();
+
+      attention.resume();
+      await service.tick(at(10, 1));
+      // The cadence moved forward while it was paused, so the first reminder is
+      // a full interval from the pause rather than the one that was overdue.
+      expect(formatClockTime(service.nextAt()!)).toBe('11:00');
     });
 
     it('asks for reminder hours rather than guessing when they are unreadable', async () => {
