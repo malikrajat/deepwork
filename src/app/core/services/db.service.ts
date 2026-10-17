@@ -108,9 +108,8 @@ export class DbService {
    * nothing to lose by an upgrade.
    *
    * **Safe to call from several places at once**, which it now is: the shell opens
-   * the database as it starts and the pin offer asks whether DeepWork is already
-   * on the taskbar in the same breath, and the second of those needs a database to
-   * record its answer in. The flag below only stopped *repeat* calls — two callers
+   * the database as it starts and the first page or service to need it asks in the
+   * same breath. The flag below only stopped *repeat* calls — two callers
    * arriving together both passed it, both ran the guard, and both then raced to
    * assign `this.db`, so one of them could be left reading settings through a
    * connection that the other had not made yet. The promise is therefore what is
@@ -303,10 +302,6 @@ export class DbService {
         r.desktop_prefs_prompted === undefined || r.desktop_prefs_prompted === null
           ? DEFAULT_SETTINGS.desktopPrefsPrompted
           : r.desktop_prefs_prompted !== 0,
-      taskbarPinPrompted:
-        r.taskbar_pin_prompted === undefined || r.taskbar_pin_prompted === null
-          ? DEFAULT_SETTINGS.taskbarPinPrompted
-          : r.taskbar_pin_prompted !== 0,
       waterReminders:
         r.water_reminders === undefined || r.water_reminders === null
           ? DEFAULT_SETTINGS.waterReminders
@@ -349,8 +344,7 @@ export class DbService {
        water_amount_ml = $16, water_goal_ml = $17,
        water_auto_log_when_minimized = $18,
        alert_shake_ms = $19,
-       carry_forward_tasks = $20,
-       taskbar_pin_prompted = $21
+       carry_forward_tasks = $20
        WHERE id = 1`,
       [
         merged.workDuration,
@@ -373,7 +367,6 @@ export class DbService {
         merged.waterAutoLogWhenMinimized ? 1 : 0,
         merged.alertShakeMs,
         merged.carryForwardTasks ? 1 : 0,
-        merged.taskbarPinPrompted ? 1 : 0,
       ],
     );
   }

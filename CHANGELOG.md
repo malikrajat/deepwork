@@ -5,83 +5,65 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ---
 
-## [2.0.21] – 2026-10-15
+## [2.0.22] – 2026-10-30
 
 ### Added
 
-- **DeepWork now asks to be pinned where you can reach it — once, and in your
-  desktop's own words.** Every other app people use all day sits in the taskbar,
-  and DeepWork did not, so keeping the timer in view meant finding it in the Start
-  menu again. It now asks, from inside itself, with a card that offers the two
-  answers a question like this deserves: **Pin to taskbar** and **Not now**. Both
-  are remembered, and the deliberate route back is a re-offer rather than another
-  prompt on the next launch — a card that returns every morning is the nagging
-  kind of reminder, not the helpful kind. The card waits for the first-run
-  "make DeepWork work your way" dialog rather than racing it: being offered the
-  taskbar before being told what the app is would be the wrong question first.
-
-  The three desktops do not treat this question the same way, and the app does not
-  pretend they do. **Windows** has a supported way to ask, so the app asks it:
-  `Windows.UI.Shell.TaskbarManager` answers whether DeepWork is already pinned
-  there, and — from the app's own foreground window, after the user has said yes —
-  raises the shell's own confirmation and does the pinning. That is the same
-  prompt Microsoft To Do shows, and it is the shell's to place, not ours. An app
-  the shell already holds on the taskbar is never asked about again, which is what
-  makes this honest on an upgrade. **macOS** has no equivalent: an app cannot add
-  itself to the Dock, so the card says where the menu is — right-click the running
-  app's Dock tile, **Options → Keep in Dock** — and it speaks of the Dock
-  throughout, with a button that says *Keep in Dock*, because a Mac user being
-  told about a taskbar is how an app looks like a port. **Linux** is the same
-  story with a different name per desktop — *Pin to Dash* on GNOME, *Pin to Task
-  Manager* on KDE, *Pin to Panel* on XFCE — and the card says *panel* throughout.
-  Where the app could not do the pinning itself, the card becomes the instruction
-  rather than closing, and stays up until it is acknowledged: an instruction that
-  vanishes while it is being read is not an instruction.
-
-  The prompt is a card *in* the app rather than a system notification, and that is
-  the honest answer rather than a shortcut. A notification cannot carry these
-  buttons: the toast surfaces on Windows and Linux expose none at all — Windows'
-  own toast XML has no button element, and the interactive ones belong to a
-  different notification framework — and on macOS an action button requires the app
-  to be signed and registered with a notification category, which an unsigned build
-  cannot do. What the feature *does* hand to the system is the part that is
-  genuinely the system's: on Windows the pinning itself is done by Windows' own
-  "Pin to taskbar?" dialog, raised by the shell, which is why the card says where
-  to look rather than trying to be that dialog itself.
+- **The timeline now says what the session running right now is, and how long it has
+  been going.** A running focus session is drawn inside the time it was booked for —
+  a faint 25-minute span with its end marked — while the part already worked fills
+  in solid inside it, so a session twelve minutes in reads as twelve minutes of a
+  twenty-five minute block rather than as a stub that appeared out of nowhere. The
+  session's own times (`10:15 – 10:40`) are on the card itself, in mono with tabular
+  figures so a column of them lines up, and they are the one thing on it that never
+  shrinks: the task title ellipsises first, because the range is what a timeline is
+  read for. Those times used to live only in the hover tooltip, which is the one
+  gesture a touch screen does not have. The title steps back a shade to let the range
+  lead, the now line — an element that sat in the DOM with `display: none` — is drawn
+  again so the times have something to be read against, and a block shorter than a
+  line of text (under eight minutes) still carries no label.
 
 ### Fixed
 
-- **The pin card froze the whole app.** The card went up and then nothing in
-  DeepWork answered a click — not its own two buttons, not anything behind them —
-  so the only way out was to kill the app. The cause was one mistake in the
-  Windows side of the feature: `RequestPinCurrentAppAsync` and
-  `IsCurrentAppPinnedAsync` may only be *called* from the thread that owns the
-  window, and the code called them there and then **waited** for the answer on that
-  same thread. Waiting for a WinRT operation blocks the thread's message loop, and
-  a loop that is not pumping is a window that does not repaint, does not answer
-  clicks and does not answer the webview — so an app that had merely asked Windows
-  a question stopped responding to everything until Windows replied, which for a
-  request that shows a dialog is as long as the user takes to read it. The two are
-  now split apart: the call is made on the window's thread and returns as soon as
-  the shell has accepted it, and the *answer* is waited for somewhere else — on the
-  command's own thread for the startup check, and on a thread of its own for the
-  pin itself, with the verdict polled back by the frontend. Nothing on the window's
-  thread blocks for longer than the call.
+- **A focus session started without picking a task is no longer filed against the
+  task you last worked on.** The task a session is for was remembered in
+  `localStorage` and read back on every launch with no date attached to it, and a
+  session interrupted before was resumed against the task saved in the timer's own
+  state with no day check either. So starting the day without choosing a task linked
+  the timer — and every session it recorded — to whatever was chosen last, yesterday
+  or a month ago, and the dashboard named that task for work it had nothing to do
+  with. Both now expire with the day: the remembered task carries the date it was
+  chosen on (`focus-task.util.ts`) and a stamp that is not today's reads as "no
+  task", while an interrupted session from an earlier day resumes untasked. A task
+  chosen today still survives the walk from Today's board to the Dashboard, and a
+  running session still shows its name. The untasked session is labelled **Focus**,
+  which is what the fallback always said and what the stale id was hiding.
 
-- **The card could be dismissed only by its own buttons — so it now has three ways
-  out, and only one of them depends on anything working.** With the app frozen
-  behind that wait there was no way past the card at all, which turned a question
-  into a wall. It now carries the two answers **and** a close button in its corner,
-  **and** answers to **Escape** — bound on the window rather than on the card, so it
-  works whether or not focus ever reached the component, which is the exit that
-  matters when the app itself is the thing misbehaving. The card also takes focus
-  when it appears, so Tab and Enter reach its controls. Two smaller repairs came
-  with it: the card no longer claims to be a modal dialog (it never was one —
-  `aria-modal="false"` now says so, and there is no backdrop and nothing made
-  `inert`, so clicks anywhere outside it do exactly what they always did), and while
-  Windows' own prompt is on screen the card says so — *"Windows is asking you to
-  confirm. Look for its 'Pin to taskbar?' prompt — it can appear behind this
-  window"* — instead of leaving behind a button that appears to have done nothing.
+### Removed
+
+- **Pin to taskbar is gone — the card, the service, the Windows side, and the
+  promise all of it made.** It did not work on the machines it was written for, and
+  what the user met instead was a card explaining why not: a Windows that reserves
+  pinning behind a Microsoft-issued feature token, or has no taskbar, or has pinning
+  turned off by policy. What survived the feature's own limits was a question asked
+  in the middle of starting work whose answer was usually a paragraph. Removed with
+  it: the in-app offer and its copy constants, the service that drove it, its model,
+  the `taskbar_pin_status`, `taskbar_pin_support`, `taskbar_pin_request` and
+  `taskbar_pin_result` commands with the whole `src/taskbar.rs` module behind them,
+  the migration that added `taskbar_pin_prompted`, that setting, and the `UI_Shell`,
+  `Foundation` and `windows-future` Windows dependencies that existed only to ask.
+  A database that already carries the column keeps it — every migration this app has
+  shipped adds to the schema and none drops a table, a column or a row — but nothing
+  reads or writes it any more, and a fresh install never creates it. The changelog
+  entries that announced the feature are removed from 2.0.21 with it: a feature that
+  no longer exists, and will never be fixed, does not belong in a list of what
+  changed.
+
+---
+
+## [2.0.21] – 2026-10-15
+
+### Fixed
 
 - **An existing database is no longer at risk from an install or an upgrade.**
   This is the one piece of state in DeepWork that exists nowhere else, and the
