@@ -488,7 +488,7 @@ import { TaskSelectFormModel, createTaskSelectFormDefaults } from '../../shared/
 
       <!-- Desktop behaviour: the same switches as Settings, one click away -->
       <div class="dashboard-prefs animate-fade-in-delay-2">
-        <app-desktop-prefs-panel title="Desktop Behaviour" />
+        <app-desktop-prefs-panel title="App Behaviour" />
       </div>
     </div>
 
