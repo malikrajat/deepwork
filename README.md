@@ -49,7 +49,8 @@ A desktop-first productivity app with a Pomodoro timer at its centre. Everything
 - **Habits**, a **journal** and an **analytics** page that pairs every figure with a plain-language reading of it.
 - **Reminders that ask**: a finished session rings until you answer it, and the water nudge asks a question you reply to rather than announcing a fact.
 - **Desktop manners**: system tray, start-with-system, always-on-top, and a draggable always-on-top mini widget. A stray click on the window's X does not end your session.
-- **The same app in a browser**: the web build at [malikrajat.github.io/deepwork](https://malikrajat.github.io/deepwork/) runs the whole thing and can be installed as a PWA.
+- **Pause, mute and focus everywhere**: the same panel opens from the sidebar, a phone's top bar, Settings and `Ctrl+Shift+Q` — on Windows, macOS, Linux, the installed web app and a plain browser tab alike. A pause holds the timer and every reminder; a mute is sound-only and always ends by itself.
+- **The same app in a browser**: the web build at [malikrajat.github.io/deepwork](https://malikrajat.github.io/deepwork/) runs the whole thing and can be installed as a PWA. In a tab it offers installation (in the window and, once a week, as a system notification); installed, it explains how to start with the computer and offers a floating always-on-top timer where the browser supports one.
 
 ## What DeepWork is not
 
@@ -198,7 +199,7 @@ Tauri does **not** cross-compile: build each platform on that platform, or let C
 
 | Platform         | Command                   | Where the artefacts land                                                                                                                                                                                                         |
 | ---------------- | ------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Windows (64-bit) | `npm run build:windows`   | `src-tauri/target/x86_64-pc-windows-msvc/release/bundle/msi/DeepWork_2.0.22_x64_en-US.msi` and `bundle/nsis/DeepWork_2.0.22_x64-setup.exe`; the bare binary is at `src-tauri/target/x86_64-pc-windows-msvc/release/deepwork.exe` |
+| Windows (64-bit) | `npm run build:windows`   | `src-tauri/target/x86_64-pc-windows-msvc/release/bundle/msi/DeepWork_2.0.23_x64_en-US.msi` and `bundle/nsis/DeepWork_2.0.23_x64-setup.exe`; the bare binary is at `src-tauri/target/x86_64-pc-windows-msvc/release/deepwork.exe` |
 | Windows (32-bit) | `npm run build:windows32` | `src-tauri/target/i686-pc-windows-msvc/release/bundle/` — the same two installers, named `…_x86` (run `rustup target add i686-pc-windows-msvc` once)                                                                               |
 | macOS (Intel)    | `npm run build:mac`       | `src-tauri/target/x86_64-apple-darwin/release/bundle/` — `macos/DeepWork.app` and a `.dmg` whose name carries the version                                                                                                        |
 | macOS (ARM)      | `npm run build:mac-arm`   | `src-tauri/target/aarch64-apple-darwin/release/bundle/` (run `rustup target add aarch64-apple-darwin` once)                                                                                                                      |
