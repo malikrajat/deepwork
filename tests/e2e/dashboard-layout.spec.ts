@@ -43,9 +43,13 @@ async function linkATaskToTheTimer(page: import('@playwright/test').Page): Promi
           createdAt: new Date().toISOString(),
           completedAt: null,
         },
-      ])
+      ]),
     );
     localStorage.setItem('deepwork_focusTaskId', 'e2e-clock-card-task');
+    // The focused task is remembered per day, so a task seeded for this run has
+    // to carry today's stamp as well — without it the app reads it as a task
+    // chosen on an earlier day and deliberately ignores it.
+    localStorage.setItem('deepwork_focusTaskDay', new Date().toISOString().slice(0, 10));
   });
 }
 
@@ -68,7 +72,9 @@ test('the clock card fits its contents at every window size', async ({ page }) =
       return {
         overflowY: getComputedStyle(el).overflowY,
         clipped: el.scrollHeight - el.clientHeight,
-        dial: Math.round(el.querySelector('app-animated-clock')?.getBoundingClientRect().height ?? 0),
+        dial: Math.round(
+          el.querySelector('app-animated-clock')?.getBoundingClientRect().height ?? 0,
+        ),
       };
     });
 

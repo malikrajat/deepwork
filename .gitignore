@@ -62,3 +62,4 @@ src-tauri/target/
 /coverage
 /playwright-report
 /test-results
+.conflict-backup

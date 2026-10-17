@@ -16,7 +16,6 @@ import { DatabaseErrorComponent } from './shared/components/database-error/datab
 import { InstallBannerComponent } from './shared/components/install-banner/install-banner.component';
 import { WelcomePrefsDialogComponent } from './shared/components/welcome-prefs-dialog/welcome-prefs-dialog.component';
 import { MiniWidgetComponent } from './shared/components/mini-widget/mini-widget.component';
-import { PinNudgeComponent } from './shared/components/pin-nudge/pin-nudge.component';
 import { QuickAddComponent } from './shared/components/quick-add/quick-add.component';
 import { UpdatePromptComponent } from './shared/components/update-prompt/update-prompt.component';
 import { WaterNudgeComponent } from './shared/components/water-nudge/water-nudge.component';
@@ -28,7 +27,6 @@ import { SettingsService } from './core/services/settings.service';
 import { DbService } from './core/services/db.service';
 import { UpdatePromptService } from './core/services/update-prompt.service';
 import { NotificationService } from './core/services/notification.service';
-import { TaskbarPinService } from './core/services/taskbar-pin.service';
 import { LogService } from './core/services/log.service';
 import { VisitorCounterService } from './core/services/visitor-counter.service';
 
@@ -71,7 +69,6 @@ const COMPACT_LAYOUT_QUERY = '(max-width: 900px)';
     InstallBannerComponent,
     WelcomePrefsDialogComponent,
     MiniWidgetComponent,
-    PinNudgeComponent,
     QuickAddComponent,
     UpdatePromptComponent,
     WaterNudgeComponent,
@@ -97,7 +94,6 @@ export class App implements OnInit {
   private readonly updatePrompt = inject(UpdatePromptService);
   private readonly notifications = inject(NotificationService);
   private readonly visitors = inject(VisitorCounterService);
-  private readonly taskbarPin = inject(TaskbarPinService);
   private readonly log = inject(LogService);
   ui = inject(UiService);
   private readonly install = inject(InstallService);
@@ -167,10 +163,6 @@ export class App implements OnInit {
     // tells the user if there is something to install. Not awaited: a slow
     // network must never hold up the window.
     void this.updatePrompt.start();
-    // Asks this desktop what pinning means here — and on Windows whether
-    // DeepWork is already on the taskbar — so the one-time offer can be made
-    // after the first-run dialog rather than on top of it.
-    void this.taskbarPin.init();
   }
 
   toggleSidebar() {

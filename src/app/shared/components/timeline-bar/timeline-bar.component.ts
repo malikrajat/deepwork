@@ -15,19 +15,17 @@ import { PomodoroSession } from '../../../core/models/session.model';
 import { TooltipDirective } from '../../directives/tooltip.directive';
 import { TaskService } from '../../../core/services/task.service';
 import { TimerService } from '../../../core/services/timer.service';
+import {
+  HOUR_HEIGHT_PX,
+  MIN_LABEL_HEIGHT_PX,
+  TOTAL_HOURS,
+  TimelineBlock,
+  buildActiveBlock,
+  buildSessionBlocks,
+  timeToPixel,
+} from '../../../core/utils/timeline.util';
 
-interface TimelineBlock {
-  id: string;
-  type: 'work' | 'short-break' | 'long-break';
-  taskName: string;
-  tooltip: string;
-  topPx: number;
-  heightPx: number;
-  active: boolean;
-}
-
-const HOUR_HEIGHT_PX = 60;
-const TOTAL_HOURS = 24;
+/** How often the clock the timeline is drawn against is re-read. */
 const UPDATE_INTERVAL_MS = 1000;
 
 @Component({
@@ -61,14 +59,23 @@ const UPDATE_INTERVAL_MS = 1000;
             [style.height.px]="block.heightPx"
             [appTooltip]="block.tooltip"
           >
-            @if (block.heightPx >= 8) {
-              <span class="block-label" [class.small-label]="block.heightPx < 18">{{ block.taskName }}</span>
+            @if (block.heightPx >= minLabelHeightPx) {
+              <span class="block-label">{{ block.taskName }}</span>
+              <span class="block-time">{{ block.timeLabel }}</span>
             }
           </div>
         }
 
         <!-- Active session block (live) -->
         @if (activeBlock(); as ab) {
+          <!-- The booked span, behind the elapsed bar -->
+          @if (ab.plannedHeightPx; as plannedHeight) {
+            <div
+              class="session-block planned-span"
+              [style.top.px]="ab.topPx"
+              [style.height.px]="plannedHeight"
+            ></div>
+          }
           <div
             class="session-block is-active"
             [class.type-work]="ab.type === 'work'"
@@ -78,195 +85,269 @@ const UPDATE_INTERVAL_MS = 1000;
             [style.height.px]="ab.heightPx"
             [appTooltip]="ab.tooltip"
           >
-            @if (ab.heightPx >= 8) {
-              <span class="block-label" [class.small-label]="ab.heightPx < 18">{{ ab.taskName }}</span>
+            @if (ab.heightPx >= minLabelHeightPx) {
+              <span class="block-label">{{ ab.taskName }}</span>
+              <span class="block-time">{{ ab.timeLabel }}</span>
             }
           </div>
         }
 
         <!-- Current time indicator -->
-        <div class="now-marker" [style.top.px]="nowOffsetPx()">
-        </div>
+        <div class="now-marker" [style.top.px]="nowOffsetPx()"></div>
       </div>
     </div>
   `,
-  styles: [`
-    :host {
-      display: block;
-      height: 100%;
-      overflow: hidden;
-    }
+  styles: [
+    `
+      :host {
+        display: block;
+        height: 100%;
+        overflow: hidden;
+      }
 
-    .timeline-container {
-      position: relative;
-      height: 100%;
-      overflow-y: auto;
-      overflow-x: hidden;
-      scrollbar-width: thin;
-      scrollbar-color: rgba(139,92,246,0.25) transparent;
-    }
-    .timeline-container::-webkit-scrollbar { width: 4px; }
-    .timeline-container::-webkit-scrollbar-track { background: transparent; }
-    .timeline-container::-webkit-scrollbar-thumb {
-      background: rgba(139,92,246,0.25);
-      border-radius: 4px;
-    }
+      .timeline-container {
+        position: relative;
+        height: 100%;
+        overflow-y: auto;
+        overflow-x: hidden;
+        scrollbar-width: thin;
+        scrollbar-color: rgba(139, 92, 246, 0.25) transparent;
+      }
+      .timeline-container::-webkit-scrollbar {
+        width: 4px;
+      }
+      .timeline-container::-webkit-scrollbar-track {
+        background: transparent;
+      }
+      .timeline-container::-webkit-scrollbar-thumb {
+        background: rgba(139, 92, 246, 0.25);
+        border-radius: 4px;
+      }
 
-    .timeline-canvas {
-      position: relative;
-      min-height: 100%;
-    }
+      .timeline-canvas {
+        position: relative;
+        min-height: 100%;
+      }
 
-    /* Hour markers */
-    .hour-marker {
-      position: absolute;
-      left: 0;
-      right: 0;
-      display: flex;
-      align-items: flex-start;
-      pointer-events: none;
-    }
-    .hour-text {
-      width: 36px;
-      flex-shrink: 0;
-      font-size: 10px;
-      font-family: var(--font-mono);
-      color: var(--color-text-muted);
-      text-align: right;
-      padding-right: 6px;
-      line-height: 1;
-      user-select: none;
-    }
-    .hour-marker.is-current .hour-text {
-      color: var(--color-accent-primary);
-      font-weight: 600;
-    }
-    .hour-marker.is-past .hour-text {
-      color: var(--color-text-secondary);
-    }
-    .hour-line {
-      flex: 1;
-      height: 1px;
-      background: var(--glass-border);
-    }
+      /* Hour markers */
+      .hour-marker {
+        position: absolute;
+        left: 0;
+        right: 0;
+        display: flex;
+        align-items: flex-start;
+        pointer-events: none;
+      }
+      .hour-text {
+        width: 36px;
+        flex-shrink: 0;
+        font-size: 10px;
+        font-family: var(--font-mono);
+        color: var(--color-text-muted);
+        text-align: right;
+        padding-right: 6px;
+        line-height: 1;
+        user-select: none;
+      }
+      .hour-marker.is-current .hour-text {
+        color: var(--color-accent-primary);
+        font-weight: 600;
+      }
+      .hour-marker.is-past .hour-text {
+        color: var(--color-text-secondary);
+      }
+      .hour-line {
+        flex: 1;
+        height: 1px;
+        background: var(--glass-border);
+      }
 
-    /* Session blocks */
-    .session-block {
-      position: absolute;
-      left: 42px;
-      right: 6px;
-      border-radius: 0;
-      padding: 2px 6px;
-      display: flex;
-      align-items: center;
-      min-height: 4px;
-      overflow: hidden;
-      cursor: pointer;
-      transition: transform 0.15s, box-shadow 0.15s;
-      z-index: 1;
-    }
-    .session-block:hover {
-      transform: scaleX(1.03);
-      z-index: 3;
-      box-shadow: 0 4px 16px rgba(0,0,0,0.3);
-    }
+      /* Session blocks */
+      .session-block {
+        position: absolute;
+        left: 42px;
+        right: 6px;
+        border-radius: 0;
+        padding: 2px 6px;
+        display: flex;
+        align-items: center;
+        min-height: 4px;
+        overflow: hidden;
+        cursor: pointer;
+        transition:
+          transform 0.15s,
+          box-shadow 0.15s;
+        z-index: 1;
+      }
+      .session-block:hover {
+        transform: scaleX(1.03);
+        z-index: 3;
+        box-shadow: 0 4px 16px rgba(0, 0, 0, 0.3);
+      }
 
-    .session-block.type-work {
-      background: linear-gradient(135deg, rgba(139,92,246,0.3), rgba(124,58,237,0.18));
-      border-left: 3px solid #8b5cf6;
-      border-right: none;
-      border-top: none;
-      border-bottom: none;
-    }
-    .session-block.type-short-break {
-      background: linear-gradient(135deg, rgba(6,182,212,0.25), rgba(6,182,212,0.1));
-      border-left: 3px solid #06b6d4;
-      border-right: none;
-      border-top: none;
-      border-bottom: none;
-    }
-    .session-block.type-long-break {
-      background: linear-gradient(135deg, rgba(52,211,153,0.25), rgba(52,211,153,0.1));
-      border-left: 3px solid #34d399;
-      border-right: none;
-      border-top: none;
-      border-bottom: none;
-    }
+      .session-block.type-work {
+        background: linear-gradient(135deg, rgba(139, 92, 246, 0.3), rgba(124, 58, 237, 0.18));
+        border-left: 3px solid #8b5cf6;
+        border-right: none;
+        border-top: none;
+        border-bottom: none;
+      }
+      .session-block.type-short-break {
+        background: linear-gradient(135deg, rgba(6, 182, 212, 0.25), rgba(6, 182, 212, 0.1));
+        border-left: 3px solid #06b6d4;
+        border-right: none;
+        border-top: none;
+        border-bottom: none;
+      }
+      .session-block.type-long-break {
+        background: linear-gradient(135deg, rgba(52, 211, 153, 0.25), rgba(52, 211, 153, 0.1));
+        border-left: 3px solid #34d399;
+        border-right: none;
+        border-top: none;
+        border-bottom: none;
+      }
 
-    /* Active session pulsing */
-    .session-block.is-active {
-      z-index: 2;
-      animation: glow-pulse 2s ease-in-out infinite;
-    }
-    .session-block.is-active.type-work {
-      background: linear-gradient(135deg, rgba(139,92,246,0.5), rgba(124,58,237,0.3));
-      border-left: 3px solid var(--timer-work-color);
-      border-right: none;
-      border-top: none;
-      border-bottom: none;
-      box-shadow: none;
-    }
-    .session-block.is-active.type-short-break {
-      background: linear-gradient(135deg, rgba(6,182,212,0.4), rgba(6,182,212,0.2));
-      border-left: 3px solid var(--timer-break-color);
-      border-right: none;
-      border-top: none;
-      border-bottom: none;
-      box-shadow: none;
-    }
-    .session-block.is-active.type-long-break {
-      background: linear-gradient(135deg, rgba(52,211,153,0.4), rgba(52,211,153,0.2));
-      border-left: 3px solid var(--timer-long-break-color);
-      border-right: none;
-      border-top: none;
-      border-bottom: none;
-      box-shadow: none;
-    }
-    @keyframes glow-pulse {
-      0%, 100% { opacity: 1; }
-      50% { opacity: 0.82; }
-    }
+      /* Active session pulsing */
+      .session-block.is-active {
+        z-index: 2;
+        animation: glow-pulse 2s ease-in-out infinite;
+      }
+      .session-block.is-active.type-work {
+        background: linear-gradient(135deg, rgba(139, 92, 246, 0.5), rgba(124, 58, 237, 0.3));
+        border-left: 3px solid var(--timer-work-color);
+        border-right: none;
+        border-top: none;
+        border-bottom: none;
+        box-shadow: none;
+      }
+      .session-block.is-active.type-short-break {
+        background: linear-gradient(135deg, rgba(6, 182, 212, 0.4), rgba(6, 182, 212, 0.2));
+        border-left: 3px solid var(--timer-break-color);
+        border-right: none;
+        border-top: none;
+        border-bottom: none;
+        box-shadow: none;
+      }
+      .session-block.is-active.type-long-break {
+        background: linear-gradient(135deg, rgba(52, 211, 153, 0.4), rgba(52, 211, 153, 0.2));
+        border-left: 3px solid var(--timer-long-break-color);
+        border-right: none;
+        border-top: none;
+        border-bottom: none;
+        box-shadow: none;
+      }
+      @keyframes glow-pulse {
+        0%,
+        100% {
+          opacity: 1;
+        }
+        50% {
+          opacity: 0.82;
+        }
+      }
 
-    .block-label {
-      font-size: 10px;
-      font-weight: 600;
-      color: var(--color-text-primary);
-      white-space: nowrap;
-      overflow: hidden;
-      text-overflow: ellipsis;
-      line-height: 1.2;
-      pointer-events: none;
-    }
-    .block-label.small-label {
-      font-size: 10px;
-      line-height: 1;
-    }
+      /* The time the running session is booked for, drawn behind the elapsed bar
+       so "now" has somewhere to be inside of. Breaks never reach the timeline
+       today (sessionBlocks skips them), so this stays the work colour. */
+      .session-block.planned-span {
+        background: rgba(139, 92, 246, 0.07);
+        border-left: 3px solid rgba(139, 92, 246, 0.22);
+        border-right: none;
+        border-top: none;
+        border-bottom: 1px solid rgba(139, 92, 246, 0.28);
+        padding: 0;
+        min-height: 0;
+        z-index: 0;
+        pointer-events: none;
+        animation: none;
+      }
 
-    /* Now marker - hidden */
-    .now-marker {
-      display: none;
-    }
+      /* The title steps back so the session's times can step forward: at equal
+       strength on a 25px block, the range read as an afterthought. */
+      .block-label {
+        flex: 1 1 auto;
+        min-width: 0;
+        font-size: 10px;
+        font-weight: 500;
+        color: var(--color-text-secondary);
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        line-height: 1.2;
+        pointer-events: none;
+      }
 
-    /* ===== Phone layout =====
+      /* The times, on the card rather than only in the tooltip. Mono with tabular
+       figures so a column of blocks lines up and the range does not shuffle
+       sideways as the minutes tick over. */
+      .block-time {
+        flex: 0 0 auto;
+        margin-left: 6px;
+        padding-left: 6px;
+        border-left: 1px solid var(--glass-border);
+        font-family: var(--font-mono);
+        font-size: 10px;
+        font-weight: 600;
+        font-variant-numeric: tabular-nums;
+        color: var(--color-text-primary);
+        line-height: 1.2;
+        white-space: nowrap;
+        pointer-events: none;
+      }
+
+      /* Now marker. It was in the DOM and hidden, which left the card times with
+       nothing to be read against; the dot sits at the edge of the hour gutter
+       where the blocks begin. */
+      .now-marker {
+        position: absolute;
+        left: 0;
+        right: 0;
+        height: 1px;
+        background: linear-gradient(
+          90deg,
+          var(--color-accent-primary) 0%,
+          rgba(139, 92, 246, 0.45) 55%,
+          rgba(139, 92, 246, 0.12) 100%
+        );
+        z-index: 4;
+        pointer-events: none;
+      }
+      .now-marker::before {
+        content: '';
+        position: absolute;
+        left: 36px;
+        top: -2px;
+        width: 5px;
+        height: 5px;
+        border-radius: 50%;
+        background: var(--color-accent-primary);
+        box-shadow: 0 0 6px var(--color-accent-glow);
+      }
+
+      /* ===== Phone layout =====
 
        The day is one tall scroll region, so it is told where its own edges are:
        a flick that reaches midnight must not carry on into the card behind it.
        The 36px hour gutter and the 42px the session blocks start at are also a
        fifth of what a 320px column leaves for the blocks themselves, so both give
        back a few pixels — the labels are four characters wide at most. */
-    @media (max-width: 640px) {
-      .timeline-container {
-        overscroll-behavior-y: contain;
-        -webkit-overflow-scrolling: touch;
+      @media (max-width: 640px) {
+        .timeline-container {
+          overscroll-behavior-y: contain;
+          -webkit-overflow-scrolling: touch;
+        }
+        .hour-text {
+          width: 32px;
+        }
+        .session-block {
+          left: 36px;
+        }
+        .now-marker::before {
+          left: 32px;
+        }
       }
-      .hour-text {
-        width: 32px;
-      }
-      .session-block {
-        left: 36px;
-      }
-    }
-  `],
+    `,
+  ],
 })
 export class TimelineBarComponent implements OnInit, OnDestroy, AfterViewInit {
   // Inputs from parent
@@ -286,98 +367,38 @@ export class TimelineBarComponent implements OnInit, OnDestroy, AfterViewInit {
   readonly hourHeight = HOUR_HEIGHT_PX;
   readonly canvasHeight = TOTAL_HOURS * HOUR_HEIGHT_PX;
   readonly hours = Array.from({ length: TOTAL_HOURS }, (_, i) => i);
+  readonly minLabelHeightPx = MIN_LABEL_HEIGHT_PX;
 
   // Reactive clock signals (updated every second)
   readonly tick = signal(Date.now());
   readonly currentHour = computed(() => new Date(this.tick()).getHours());
-  readonly nowOffsetPx = computed(() => {
-    const now = new Date(this.tick());
-    const fractionalHours = now.getHours() + now.getMinutes() / 60 + now.getSeconds() / 3600;
-    return fractionalHours * HOUR_HEIGHT_PX;
-  });
+  readonly nowOffsetPx = computed(() => timeToPixel(new Date(this.tick())));
 
-  /**
-   * Compute completed session blocks.
-   * Each session is rendered as one or more blocks (spanning hour boundaries).
-   * No merging — every session from the DB is displayed independently,
-   * preserving task names even when the user switches tasks mid-flow.
-   */
+  /** The day's finished sessions, as blocks. */
   readonly sessionBlocks = computed((): TimelineBlock[] => {
-    // Trigger reactivity on tick so positions stay fresh if needed
+    // Read the clock so the blocks are recomputed as the day moves on.
     this.tick();
-    const blocks: TimelineBlock[] = [];
-    const allSessions = this.sessions();
-
-    for (const session of allSessions) {
-      // Only show work sessions on the timeline, skip breaks
-      if (session.type !== 'work') continue;
-      const start = new Date(session.startedAt);
-      const durationSec = session.durationActual;
-      if (durationSec <= 0) continue;
-
-      const end = new Date(start.getTime() + durationSec * 1000);
-      const task = session.taskId
-        ? this.taskService.tasks().find(t => t.id === session.taskId)
-        : null;
-      const taskName = task?.title ?? this.labelForType(session.type);
-      const timeStr = `${this.fmtTime(start)} – ${this.fmtTime(end)}`;
-      const durationMin = Math.round(durationSec / 60);
-      const tooltip = `${taskName}\n${timeStr} (${durationMin}m)`;
-
-      const topPx = this.timeToPixel(start);
-      const heightPx = Math.max(2, (durationSec / 3600) * HOUR_HEIGHT_PX);
-
-      blocks.push({
-        id: session.id,
-        type: session.type,
-        taskName,
-        tooltip,
-        topPx,
-        heightPx,
-        active: false,
-      });
-    }
-
-    return blocks;
+    return buildSessionBlocks(this.sessions(), this.taskService.tasks());
   });
 
   /**
-   * Compute the actively-running session block (if any).
-   * This grows live every second as the timer ticks.
+   * The session running right now. It grows every second as the timer ticks,
+   * and is drawn inside the span it was booked for.
    */
   readonly activeBlock = computed((): TimelineBlock | null => {
-    if (!this.activeRunning() || !this.activeStartedAt()) return null;
-    const elapsed = this.activeElapsedSec();
-    if (elapsed <= 0) return null;
+    if (!this.activeRunning()) return null;
 
-    const type = this.activeType() as TimelineBlock['type'];
-    // Only show work sessions on timeline, skip breaks
-    if (type !== 'work') return null;
-    const start = new Date(this.activeStartedAt()!);
-    const now = new Date(this.tick());
-
-    const activeTaskId = this.timerService.currentTaskId();
-    const task = activeTaskId
-      ? this.taskService.tasks().find(t => t.id === activeTaskId)
-      : null;
-    const taskName = task?.title ?? `${this.labelForType(type)}...`;
-    const timeStr = `${this.fmtTime(start)} – ${this.fmtTime(now)}`;
-    const mins = Math.floor(elapsed / 60);
-    const secs = elapsed % 60;
-    const tooltip = `${taskName}\n${timeStr}\n${mins}m ${secs}s elapsed`;
-
-    const topPx = this.timeToPixel(start);
-    const heightPx = Math.max(4, (elapsed / 3600) * HOUR_HEIGHT_PX);
-
-    return {
-      id: 'active-session',
-      type,
-      taskName,
-      tooltip,
-      topPx,
-      heightPx,
-      active: true,
-    };
+    return buildActiveBlock(
+      {
+        type: this.activeType(),
+        startedAt: this.activeStartedAt(),
+        elapsedSec: this.activeElapsedSec(),
+        plannedSec: this.timerService.totalDuration(),
+        taskId: this.timerService.currentTaskId(),
+      },
+      this.taskService.tasks(),
+      new Date(this.tick()),
+    );
   });
 
   ngOnInit(): void {
@@ -401,24 +422,6 @@ export class TimelineBarComponent implements OnInit, OnDestroy, AfterViewInit {
     const h = hour % 12 || 12;
     const suffix = hour < 12 ? 'a' : 'p';
     return `${h}${suffix}`;
-  }
-
-  /** Convert a Date to a pixel offset from the top of the canvas */
-  private timeToPixel(date: Date): number {
-    const fractionalHours = date.getHours() + date.getMinutes() / 60 + date.getSeconds() / 3600;
-    return fractionalHours * HOUR_HEIGHT_PX;
-  }
-
-  /** Format time for display */
-  private fmtTime(d: Date): string {
-    return d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-  }
-
-  /** Readable label for session type */
-  private labelForType(type: string): string {
-    if (type === 'work') return 'Focus';
-    if (type === 'short-break') return 'Short Break';
-    return 'Long Break';
   }
 
   /** Scroll the timeline so the current time is visible in the upper third */

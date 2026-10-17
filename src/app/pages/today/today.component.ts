@@ -17,6 +17,7 @@ import {
 import { sequenceAfterMove } from '../../shared/components/task-board/task-board.view';
 import { TooltipDirective } from '../../shared/directives/tooltip.directive';
 import { TASK_EDIT_PATH, taskAddQuery, taskEditQuery } from '../../core/utils/task-link.util';
+import { readFocusedTaskId, saveFocusedTaskId } from '../../core/utils/focus-task.util';
 
 /**
  * Today is the same status board as the Tasks page, scoped to the day's list:
@@ -453,7 +454,7 @@ export class TodayComponent implements OnInit {
   readonly focusedTaskId = this.focusedId.asReadonly();
 
   ngOnInit(): void {
-    this.focusedId.set(localStorage.getItem('deepwork_focusTaskId'));
+    this.focusedId.set(readFocusedTaskId());
     this.initAsync();
   }
 
@@ -491,7 +492,7 @@ export class TodayComponent implements OnInit {
   }
 
   focusTask(task: Task): void {
-    localStorage.setItem('deepwork_focusTaskId', task.id);
+    saveFocusedTaskId(task.id);
     this.focusedId.set(task.id);
     this.router.navigate(['/dashboard']);
   }

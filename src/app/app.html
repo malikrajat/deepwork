@@ -15,11 +15,6 @@
     <app-toast />
     <app-update-prompt />
     <app-welcome-prefs-dialog />
-    <!-- The one-time offer to pin DeepWork where the user can reach it in one
-         click. It waits for the first-run dialog rather than racing it — see
-         `TaskbarPinService.visible` — and shows the instruction instead of the
-         question on the desktops that do not let an app pin itself. -->
-    <app-pin-nudge />
     <!-- The visitor dashboard renders from the shell rather than from the settings
          row that opens it. That row sits in a `.setting-group`, which carries a
          `backdrop-filter` — and an element with one becomes the containing block
