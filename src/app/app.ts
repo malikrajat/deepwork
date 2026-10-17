@@ -15,11 +15,15 @@ import { ToastComponent } from './shared/components/toast/toast.component';
 import { DatabaseErrorComponent } from './shared/components/database-error/database-error.component';
 import { InstallBannerComponent } from './shared/components/install-banner/install-banner.component';
 import { WelcomePrefsDialogComponent } from './shared/components/welcome-prefs-dialog/welcome-prefs-dialog.component';
+import { LaunchPromptDialogComponent } from './shared/components/launch-prompt-dialog/launch-prompt-dialog.component';
+import { AttentionBannerComponent } from './shared/components/attention-banner/attention-banner.component';
 import { MiniWidgetComponent } from './shared/components/mini-widget/mini-widget.component';
 import { QuickAddComponent } from './shared/components/quick-add/quick-add.component';
 import { UpdatePromptComponent } from './shared/components/update-prompt/update-prompt.component';
 import { WaterNudgeComponent } from './shared/components/water-nudge/water-nudge.component';
 import { VisitorStatsDialogComponent } from './shared/components/visitor-stats-dialog/visitor-stats-dialog.component';
+import { QuietDialogComponent } from './shared/components/quiet-dialog/quiet-dialog.component';
+import { InstallDialogComponent } from './shared/components/install-dialog/install-dialog.component';
 import { TimerService } from './core/services/timer.service';
 import { UiService } from './core/services/ui.service';
 import { InstallService } from './core/services/install.service';
@@ -29,6 +33,7 @@ import { UpdatePromptService } from './core/services/update-prompt.service';
 import { NotificationService } from './core/services/notification.service';
 import { LogService } from './core/services/log.service';
 import { VisitorCounterService } from './core/services/visitor-counter.service';
+import { QuietService } from './core/services/quiet.service';
 
 const PAGE_ROUTES = [
   '',
@@ -68,11 +73,15 @@ const COMPACT_LAYOUT_QUERY = '(max-width: 900px)';
     DatabaseErrorComponent,
     InstallBannerComponent,
     WelcomePrefsDialogComponent,
+    LaunchPromptDialogComponent,
+    AttentionBannerComponent,
     MiniWidgetComponent,
     QuickAddComponent,
     UpdatePromptComponent,
     WaterNudgeComponent,
     VisitorStatsDialogComponent,
+    QuietDialogComponent,
+    InstallDialogComponent,
   ],
   templateUrl: './app.html',
   styleUrl: './app.css',
@@ -96,6 +105,11 @@ export class App implements OnInit {
   private readonly visitors = inject(VisitorCounterService);
   private readonly log = inject(LogService);
   ui = inject(UiService);
+  /**
+   * Read by the template: the top bar's quiet button shows the state as a dot,
+   * and the dialog it opens is the same component the sidebar and Settings use.
+   */
+  readonly quiet = inject(QuietService);
   private readonly install = inject(InstallService);
   private readonly destroyRef = inject(DestroyRef);
 
@@ -158,7 +172,15 @@ export class App implements OnInit {
     // Asked for once, at the app's own startup rather than on one page's: a
     // finished session has to be able to reach the desktop from wherever the
     // user happens to be, and that includes the pages that never asked.
-    void this.notifications.init();
+    // The install suggestion waits for this to settle: it is posted through the
+    // same notification permission, and offering it before the answer is known
+    // would either fail silently or be recorded as delivered when it was not.
+    void this.notifications.init().then(() => {
+      this.install.startSystemPrompt();
+      // The installed web app asks once how to start at login — the one thing a
+      // browser will not let it set for itself.
+      this.install.maybeExplainStartup();
+    });
     // Asks GitHub whether a newer release exists, once per check interval, and
     // tells the user if there is something to install. Not awaited: a slow
     // network must never hold up the window.
@@ -224,6 +246,7 @@ export class App implements OnInit {
 
   handleKeyboard(event: KeyboardEvent) {
     if (this.handleEscape(event)) return;
+    if (this.handleQuietToggle(event)) return;
     if (this.handleFocusToggle(event)) return;
     if (this.handlePageNavigation(event)) return;
     this.handleSpaceTimer(event);
@@ -231,6 +254,15 @@ export class App implements OnInit {
 
   private handleEscape(event: KeyboardEvent): boolean {
     if (event.key !== 'Escape') return false;
+    // The quiet panel is the topmost layer — it is a modal over whatever page is
+    // open — so Escape closes it before it reaches the drawer or Focus Mode
+    // underneath. Without this, dismissing the panel would also leave a focus
+    // session behind it.
+    if (this.quiet.panelOpen()) {
+      event.preventDefault();
+      this.quiet.close();
+      return true;
+    }
     // The drawer is the topmost layer, so it is what Escape closes first —
     // otherwise dismissing it would also leave Focus Mode behind it.
     if (this.mobileNavOpen()) {
@@ -257,6 +289,23 @@ export class App implements OnInit {
     if (event.ctrlKey && event.shiftKey && event.key === 'F') {
       event.preventDefault();
       this.ui.toggleFocusMode();
+      return true;
+    }
+    return false;
+  }
+
+  /**
+   * The keyboard's way into the quiet panel.
+   *
+   * Pause, mute and focus are one shortcut away on every platform, including the
+   * ones with no tray and no menu bar to find them in. `Q` for quiet, and
+   * deliberately not a browser-reserved combination: Ctrl+Shift+Q is not used by
+   * Chrome, Edge, Firefox or Safari.
+   */
+  private handleQuietToggle(event: KeyboardEvent): boolean {
+    if (event.ctrlKey && event.shiftKey && event.key.toLowerCase() === 'q') {
+      event.preventDefault();
+      this.quiet.togglePanel();
       return true;
     }
     return false;

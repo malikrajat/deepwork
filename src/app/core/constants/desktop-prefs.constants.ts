@@ -10,10 +10,10 @@
 export const START_WITH_SYSTEM_HELP = {
   heading: 'Start with system',
   body:
-    'DeepWork opens by itself when you sign in to your computer and waits as a ' +
-    'small widget in the corner of your screen, also present in the system tray ' +
-    'next to the clock. It will not cover your desktop, and you can start a ' +
-    'session straight from the widget.',
+    'DeepWork opens by itself when you sign in to your computer and waits out of ' +
+    'the way — in the system tray next to the clock, where your desktop has one. ' +
+    'It will not cover your desktop, and you can start a session straight from ' +
+    'the widget.',
   hint: 'You can switch this off any time — here, from the tray menu, or in Settings.',
 } as const;
 
