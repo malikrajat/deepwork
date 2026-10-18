@@ -44,6 +44,23 @@ export class UiService {
   readonly isNativeWidget = computed(() => this.isMiniMode() && this.isTauriEnv);
 
   /**
+   * Bumped when something outside the page asks for the quick-add dialog.
+   *
+   * The system tray's **New task** is the caller: it is built in Rust, so it
+   * cannot open an Angular dialog itself, and it has no way of knowing whether
+   * the page has finished starting. A counter rather than a boolean is what lets
+   * the quick-add component tell a fresh request from one it has already
+   * answered — two clicks in a row are two requests, and the second must not be
+   * swallowed because the signal was already true.
+   */
+  readonly quickAddRequested = signal(0);
+
+  /** Asks the page to open the quick-add dialog. */
+  requestQuickAdd(): void {
+    this.quickAddRequested.update((count) => count + 1);
+  }
+
+  /**
    * True when the window the widget lives in is really transparent.
    *
    * `tauri.conf.json` asks for a transparent window, but only Windows delivers

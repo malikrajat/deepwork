@@ -9,12 +9,15 @@ import { ALERT_SHAKE_OPTIONS, formatShakeDuration } from '../../core/constants/a
 import { DbService } from '../../core/services/db.service';
 import { SettingsService } from '../../core/services/settings.service';
 import { ThemeService } from '../../core/services/theme.service';
-import { InstallService } from '../../core/services/install.service';
 import { NotificationService } from '../../core/services/notification.service';
 import { TaskService } from '../../core/services/task.service';
 import { WaterReminderService } from '../../core/services/water-reminder.service';
+import { AttentionService } from '../../core/services/attention.service';
+import { LaunchPromptService } from '../../core/services/launch-prompt.service';
 import { formatMillilitres, parseTimeOfDay } from '../../core/utils/water.util';
+import { NUDGE_SETTINGS_HELP } from '../../core/constants/nudge.constants';
 import { DesktopPrefsPanelComponent } from '../../shared/components/desktop-prefs-panel/desktop-prefs-panel.component';
+import { QuietPanelComponent } from '../../shared/components/quiet-panel/quiet-panel.component';
 import { LogsPanelComponent } from '../../shared/components/logs-panel/logs-panel.component';
 import { VisitorCounterPanelComponent } from '../../shared/components/visitor-counter-panel/visitor-counter-panel.component';
 import { SettingsFormModel, createSettingsFormDefaults } from '../../shared/models/form.models';
@@ -24,6 +27,7 @@ import { SettingsFormModel, createSettingsFormDefaults } from '../../shared/mode
   imports: [
     FormField,
     DesktopPrefsPanelComponent,
+    QuietPanelComponent,
     LogsPanelComponent,
     VisitorCounterPanelComponent,
   ],
@@ -171,11 +175,7 @@ import { SettingsFormModel, createSettingsFormDefaults } from '../../shared/mode
               <option value="ding">Ding</option>
               <option value="none">None</option>
             </select>
-            <button
-              type="button"
-              class="action-btn"
-              (click)="previewNotificationSound()"
-            >
+            <button type="button" class="action-btn" (click)="previewNotificationSound()">
               Preview
             </button>
           </div>
@@ -244,9 +244,7 @@ import { SettingsFormModel, createSettingsFormDefaults } from '../../shared/mode
             >
               <span class="knob"></span>
             </button>
-            <button type="button" class="action-btn" (click)="testWaterReminder()">
-              Test
-            </button>
+            <button type="button" class="action-btn" (click)="testWaterReminder()">Test</button>
           </div>
         </div>
         <div class="setting-item">
@@ -367,60 +365,108 @@ import { SettingsFormModel, createSettingsFormDefaults } from '../../shared/mode
             <option value="dark">Dark</option>
           </select>
         </div>
-        @if (installService.canInstall()) {
-          <div class="setting-item">
-            <span>Install as desktop app</span>
-            <button class="action-btn install-app-btn" (click)="installService.install()">
-              <svg
-                width="13"
-                height="13"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                stroke-width="2"
-              >
-                <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4" />
-                <polyline points="7,10 12,15 17,10" />
-                <line x1="12" y1="15" x2="12" y2="3" />
-              </svg>
-              Install App
-            </button>
-          </div>
-        }
-        @if (
-          !installService.isDesktopApp &&
-          !installService.canInstall() &&
-          !installService.isInstalled()
-        ) {
-          <div class="setting-item install-hint-item">
-            <span>Install as desktop app</span>
-            <!-- The instruction depends on the browser: only Chromium shows an
-                 install icon in the address bar. See InstallService.hint. -->
-            <span class="install-hint">{{ installService.hint }}</span>
-          </div>
-        }
-        @if (installService.isInstalled()) {
-          <div class="setting-item">
-            <span>Install as desktop app</span>
-            <span class="installed-badge">
-              <svg
-                width="13"
-                height="13"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                stroke-width="2.5"
-              >
-                <polyline points="20,6 9,17 4,12" />
-              </svg>
-              Installed
-            </span>
-          </div>
-        }
       </div>
+      <!-- Focus, pause and mute. The same component the sidebar and the phone's
+           top bar open as a dialog, drawn here as a card so the page that
+           explains the app also explains what it does with its voice. -->
+      <div class="setting-group">
+        <div class="group-header">
+          <svg
+            width="16"
+            height="16"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+          >
+            <path d="M18 8A6 6 0 006 8c0 7-3 9-3 9h18s-3-2-3-9" />
+            <path d="M13.73 21a2 2 0 01-3.46 0" />
+          </svg>
+          <span>Focus &amp; Quiet</span>
+        </div>
+        <app-quiet-panel />
+      </div>
+
       <!-- Desktop behaviour: start with system + always on top -->
       <div class="setting-group">
-        <app-desktop-prefs-panel title="Desktop Behaviour" />
+        <app-desktop-prefs-panel title="App Behaviour" />
+      </div>
+
+      <!-- The two reminders that ask for a desktop favour, and the switch that
+           ends each of them. They live here rather than in the dialog because
+           "not now" must never be the only way to say no for good. -->
+      <div class="setting-group">
+        <div class="group-header">
+          <svg
+            width="16"
+            height="16"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+            stroke-linecap="round"
+          >
+            <path d="M18 8A6 6 0 006 8c0 7-3 9-3 9h18s-3-2-3-9" />
+            <path d="M13.73 21a2 2 0 01-3.46 0" />
+          </svg>
+          <span>Reminders</span>
+        </div>
+        <div class="setting-item">
+          <span>
+            {{ nudgeHelp.startup.label }}
+            <small class="setting-note">{{ nudgeHelp.startup.body }}</small>
+          </span>
+          <div class="toggle-control">
+            <button
+              type="button"
+              class="switch"
+              role="switch"
+              [attr.aria-checked]="settingsService.settings().startupNudge"
+              [class.on]="settingsService.settings().startupNudge"
+              (click)="toggleStartupNudge()"
+            >
+              <span class="knob"></span>
+            </button>
+          </div>
+        </div>
+        <div class="setting-item">
+          <span>
+            {{ nudgeHelp.pin.label }}
+            <small class="setting-note">
+              {{ nudgeHelp.pin.body }}
+              @if (!launch.pin().supported) {
+                <em>This desktop does not report a pinned app, so there is nothing to check.</em>
+              } @else if (launch.pin().pinned) {
+                <em>DeepWork is pinned now, so this reminder is already off.</em>
+              }
+            </small>
+          </span>
+          <div class="toggle-control">
+            <button
+              type="button"
+              class="switch"
+              role="switch"
+              [attr.aria-checked]="settingsService.settings().taskbarPinNudge"
+              [class.on]="settingsService.settings().taskbarPinNudge"
+              [disabled]="!launch.pin().supported"
+              (click)="togglePinNudge()"
+            >
+              <span class="knob"></span>
+            </button>
+          </div>
+        </div>
+        @if (attention.soundMuted()) {
+          <div class="setting-item">
+            <span>
+              Reminder sound is muted
+              <small class="setting-note"
+                >Until {{ attention.muteLabel() }}. The cards still appear; only the sound is
+                off.</small
+              >
+            </span>
+            <button type="button" class="action-btn" (click)="turnSoundOn()">Turn sound on</button>
+          </div>
+        }
       </div>
 
       <div class="setting-group">
@@ -485,6 +531,9 @@ import { SettingsFormModel, createSettingsFormDefaults } from '../../shared/mode
         </div>
         <div class="setting-item"><span>Start/Pause Timer</span><kbd>Space</kbd></div>
         <div class="setting-item"><span>Toggle Focus Mode</span><kbd>Ctrl+Shift+F</kbd></div>
+        <div class="setting-item">
+          <span>Pause / mute / focus panel</span><kbd>Ctrl+Shift+Q</kbd>
+        </div>
         <div class="setting-item"><span>Quick Add Task</span><kbd>Ctrl+N</kbd></div>
         <div class="setting-item"><span>Navigate Pages</span><kbd>Ctrl+1–0</kbd></div>
         <div class="setting-item"><span>Exit Focus / Close</span><kbd>Esc</kbd></div>
@@ -509,13 +558,57 @@ import { SettingsFormModel, createSettingsFormDefaults } from '../../shared/mode
         margin-top: 4px;
         font-size: 14px;
       }
+      /* ===== The page is a wall of cards, not a column =====
+
+         Settings used to be one 560px column pinned to the left of whatever
+         window it was in. That is a column designed for a 1400px laptop, and on
+         a 1920px monitor — the size most desktops actually are — it left two
+         thirds of the page empty while squeezing every label and control into a
+         strip in the middle of it. The user's own words for the result were
+         "synchronised and squeezed in the center", which is exactly what a
+         narrow centred band looks like.
+
+         So the page fills the column the shell gives it, and the cards decide
+         how many of them there are: as many 380px columns as fit, each one
+         growing to share the width evenly. A phone gets one column, a tablet
+         two, a laptop two, a desktop three or four. Nothing is centred and
+         nothing is capped, which is the whole point — the row inside a card is
+         a label and the control answering it, and it reads better with a little
+         air around it than with a screenful of glass.
+
+         The cards flow in columns rather than sitting in a grid, and that is
+         what removes the ragged hole this page used to have. A grid sizes every
+         cell in a row to its tallest card, so a one-row card parked beside a
+         tall one — Appearance beside the water card — left hundreds of pixels
+         of bare page underneath it, and the next row could not begin until the
+         tall card ended. Columns give each card the height its own content asks
+         for and start the next card directly beneath it, so no space is ever
+         reserved for a neighbour and none is wasted. Reading order does not
+         change: the cards run down the first column, then down the second,
+         which is the order they are written in.
+
+         Grid lanes — "grid-template-rows: masonry" — would say this in one
+         declaration, but it is a Safari-only experiment today and this app is
+         drawn by Chromium and WebView2 as well. A settings page is not the
+         place to ship a layout only one engine can draw; multi-column is
+         Baseline and does the same packing.
+
+         "columns: 380px" gives a width, not a count, so the page picks the
+         count: three at 1920px, two on a laptop, one on a phone. A container
+         narrower than 380px still gets exactly one column as wide as itself,
+         which is the phone case. */
       .settings-grid {
-        display: flex;
-        flex-direction: column;
-        gap: var(--space-md);
-        max-width: 560px;
+        columns: 380px;
+        column-gap: var(--space-md);
       }
       .setting-group {
+        /* A card is a single object: a column break between its header and its
+           last row would cut the glass panel in half and put the halves in two
+           different columns. */
+        break-inside: avoid;
+        /* Multi-column has a gutter across the page but none down it, so the
+           card carries the vertical one. */
+        margin-bottom: var(--space-md);
         background: var(--glass-bg);
         backdrop-filter: blur(16px);
         border: 1px solid rgba(139, 92, 246, 0.08);
@@ -655,41 +748,6 @@ import { SettingsFormModel, createSettingsFormDefaults } from '../../shared/mode
         background: rgba(139, 92, 246, 0.12);
         border-color: rgba(139, 92, 246, 0.4);
       }
-      .install-app-btn {
-        display: flex;
-        align-items: center;
-        gap: 6px;
-        background: rgba(139, 92, 246, 0.1);
-        border-color: rgba(139, 92, 246, 0.35);
-      }
-      .install-app-btn:hover {
-        background: rgba(139, 92, 246, 0.22);
-        border-color: rgba(139, 92, 246, 0.6);
-      }
-      .install-hint-item {
-        flex-wrap: wrap;
-        gap: 6px;
-      }
-      .install-hint {
-        display: flex;
-        align-items: center;
-        gap: 4px;
-        font-size: 12px;
-        color: var(--color-text-muted);
-        font-style: italic;
-      }
-      .installed-badge {
-        display: flex;
-        align-items: center;
-        gap: 5px;
-        font-size: 12px;
-        font-weight: 600;
-        color: var(--color-success);
-        padding: 4px 10px;
-        border-radius: 6px;
-        background: rgba(52, 211, 153, 0.1);
-        border: 1px solid rgba(52, 211, 153, 0.2);
-      }
       kbd {
         padding: 3px 8px;
         border-radius: 4px;
@@ -791,38 +849,17 @@ import { SettingsFormModel, createSettingsFormDefaults } from '../../shared/mode
 
       /* ===== Large screens =====
 
-         This is the page the whole pass is for. Its 560px column was sized
-         against the width the design was drawn in, and there was never anything
-         that said where in a wider window it should sit — so on a 3840px screen
-         it sat against the left edge of the shell's own centred band, a strip of
-         cards with fourteen hundred empty pixels to its right. A maximum with no
-         matching auto margin is the whole of that bug; the auto margin is the
-         whole of the fix.
-
-         The column keeps the 560px it was designed at, because a settings row is
-         a label and the control that answers it and neither of them gets better
-         with more room between them. The header is held to the same width and
-         centred with it, so the title sits over the cards rather than over the
-         window. */
-
-      @media (min-width: 1920px) {
-        .page-header,
-        .settings-grid {
-          max-width: 560px;
-          margin-inline: auto;
-        }
-      }
+         There is deliberately nothing here that caps the page or centres it. A
+         max-width with margin-inline: auto is what made this page a narrow
+         strip in the middle of a wide monitor — the grid above already decides
+         how many cards fit, and it would rather use the room than stand in the
+         middle of it. Only the reading distance changes at 2560px, below. */
 
       @media (min-width: 2560px) {
         /* The ladder the shell raises at this breakpoint reaches form controls
            and nothing else on this page: every label, note and value here is a
-           literal. The column takes 80px of the extra room — enough that the
-           120px sliders and two-word labels are not fighting for it at 18px —
-           and the rest stays air. */
-        .page-header,
-        .settings-grid {
-          max-width: 640px;
-        }
+           literal, so the card grows a little to keep its rows legible from a
+           sofa rather than staying thumb-sized on a television. */
         .page-title {
           font-size: 34px;
         }
@@ -838,12 +875,10 @@ import { SettingsFormModel, createSettingsFormDefaults } from '../../shared/mode
         .setting-note {
           font-size: 12px;
         }
-        /* Only the two of these whose desktop size is under the ladder's new
-           floor: an action button already draws at 14px and the install hint at
-           12px, so neither is named here — a rule that made either smaller would
-           be this breakpoint working backwards. */
-        .range-value,
-        .installed-badge {
+        /* Only the control whose desktop size is under the ladder's new floor:
+           an action button already draws at 14px, so naming it here would be
+           this breakpoint working backwards. */
+        .range-value {
           font-size: 14px;
         }
         kbd {
@@ -873,12 +908,14 @@ import { SettingsFormModel, createSettingsFormDefaults } from '../../shared/mode
 })
 export class SettingsComponent implements OnInit {
   settingsService = inject(SettingsService);
-  protected readonly installService = inject(InstallService);
   private readonly db = inject(DbService);
   private readonly theme = inject(ThemeService);
   private readonly notifications = inject(NotificationService);
   private readonly waterReminder = inject(WaterReminderService);
   private readonly taskService = inject(TaskService);
+  private readonly attention = inject(AttentionService);
+  protected readonly launch = inject(LaunchPromptService);
+  protected readonly nudgeHelp = NUDGE_SETTINGS_HELP;
 
   /** The fixed choices the water reminder offers. */
   protected readonly waterIntervalOptions = WATER_INTERVAL_OPTIONS;
@@ -912,6 +949,9 @@ export class SettingsComponent implements OnInit {
   private async initAsync(): Promise<void> {
     await this.db.init();
     await this.settingsService.loadSettings();
+    // The pin switch explains itself with the taskbar's current state, and the
+    // user may have pinned or unpinned DeepWork since the app started.
+    await this.launch.refreshPin();
     // Sync the service settings into our form model
     const s = this.settingsService.settings();
     this.settingsModel.set({
@@ -1007,6 +1047,32 @@ export class SettingsComponent implements OnInit {
   async persist(key: string): Promise<void> {
     const value = (this.settingsModel() as any)[key];
     await this.settingsService.updateField(key as any, value);
+  }
+
+  /**
+   * Ends (or restarts) the startup reminder.
+   *
+   * Turning it back on starts from the next planned reminder rather than the one
+   * that came round an hour ago: a switch that was just flipped is not a reason
+   * to be reminded immediately.
+   */
+  async toggleStartupNudge(): Promise<void> {
+    await this.launch.setStartupNudge(!this.settingsService.settings().startupNudge);
+  }
+
+  /** Ends (or restarts) the pin reminder. */
+  async togglePinNudge(): Promise<void> {
+    await this.launch.setPinNudge(!this.settingsService.settings().taskbarPinNudge);
+  }
+
+  /** Puts the reminder sound back on from Settings, wherever it was muted. */
+  turnSoundOn(): void {
+    this.attention.unmute();
+    this.notifications.showToastMessage(
+      'Sound is back on',
+      'Reminders will ring again when they arrive.',
+      'work',
+    );
   }
 
   async updateNotificationSound(): Promise<void> {

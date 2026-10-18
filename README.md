@@ -50,7 +50,8 @@ A desktop-first productivity app with a Pomodoro timer at its centre. Everything
 - **Time by Task**, the page that groups every focus session by the work it paid for: total hours per task, first and last session, a daily/weekly/monthly/one-off rhythm, and a week/month/year breakdown — with **Today** and a custom calendar range when a particular day or span is what you need.
 - **Reminders that ask**: a finished session rings until you answer it, and the water nudge asks a question you reply to rather than announcing a fact.
 - **Desktop manners**: system tray, start-with-system, always-on-top, and a draggable always-on-top mini widget. A stray click on the window's X does not end your session.
-- **The same app in a browser**: the web build at [malikrajat.github.io/deepwork](https://malikrajat.github.io/deepwork/) runs the whole thing and can be installed as a PWA.
+- **Pause, mute and focus everywhere**: the same panel opens from the sidebar, a phone's top bar, Settings and `Ctrl+Shift+Q` — on Windows, macOS, Linux, the installed web app and a plain browser tab alike. A pause holds the timer and every reminder; a mute is sound-only and always ends by itself.
+- **The same app in a browser**: the web build at [malikrajat.github.io/deepwork](https://malikrajat.github.io/deepwork/) runs the whole thing and can be installed as a PWA. In a tab it offers installation (in the window and, once a week, as a system notification); installed, it explains how to start with the computer and offers a floating always-on-top timer where the browser supports one.
 
 ## What DeepWork is not
 

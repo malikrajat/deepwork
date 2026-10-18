@@ -654,11 +654,23 @@ interface DownloadRow extends DownloadTarget {
       }
 
       /* ── Cards ──────────────────────────────────────────────────────── */
+      /* ===== The page is a grid of cards =====
+
+         The 780px column was right about one thing and wrong about the other:
+         prose does not want to be 1500px wide, but a page does not have to be a
+         single column to keep prose short. Two or three 420–600px cards side by
+         side keep every paragraph at a comfortable line length and use the width
+         of a 1920px monitor instead of leaving it empty on both sides of a strip
+         in the middle. The card is the reading measure; the page is the room.
+
+         min(420px, 100%) rather than a bare 420px for the same reason as
+         Settings: on a 360px phone the track has to be able to become the whole
+         width of the phone rather than force the page sideways. */
       .content {
-        display: flex;
-        flex-direction: column;
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(min(420px, 100%), 1fr));
         gap: var(--space-md);
-        max-width: 780px;
+        align-items: start;
         padding-bottom: var(--space-xl);
       }
       .card {
@@ -1189,9 +1201,26 @@ interface DownloadRow extends DownloadTarget {
 
         /* The avatar keeps its size and the name beside it gives up its 200px
            floor, so the two share the line instead of the name dropping below
-           the avatar on a screen with room for both. */
+           the avatar on a screen with room for both.
+
+           The status pill is the reason this is a grid rather than a wrapping
+           flex row. As a flex row the pill stayed on the same line and the name
+           column — which had just been allowed to shrink — was squeezed to a
+           few characters, so "Senior Lead Software Engineer" was drawn one word
+           per line in a strip beside the avatar. As a two-column grid the name
+           gets every pixel the avatar does not use, and the pill is told to take
+           a row of its own under both of them. */
+        .hero-head {
+          display: grid;
+          grid-template-columns: auto minmax(0, 1fr);
+          align-items: center;
+        }
         .hero-who {
           min-width: 0;
+        }
+        .status-pill {
+          grid-column: 1 / -1;
+          justify-self: start;
         }
 
         /* A 170px title column leaves 76px for the detail beside it at 320px,
@@ -1263,39 +1292,14 @@ interface DownloadRow extends DownloadTarget {
 
       /* ===== Large screens =====
 
-         The prose on this page is capped at 780px because that is where a
-         paragraph stops being a comfortable line, and the cap is right — what was
-         missing was anything that said where the 780px should sit. A max-width
-         with no auto margin leaves its box at the start of the column, so on a
-         3840px screen these cards were a strip against the left edge of the
-         shell's centred band with a thousand empty pixels beside them. Centring
-         is the whole fix and it changes nothing below 1920px, because a maximum
-         the available room never reaches moves nothing.
-
-         The header is held to the same width and centred with it, and so is the
-         tab row below it — the three are siblings on this page rather than a
-         header wrapping the tabs, and centring two of the three would leave the
-         tabs hanging off the left edge of the column they belong to. */
-
-      @media (min-width: 1920px) {
-        .page-header,
-        .tabs,
-        .content {
-          max-width: 780px;
-          margin-inline: auto;
-        }
-      }
+         Nothing is capped or centred here: the grid above decides how many
+         420–600px card tracks fit, and on a 4K screen that is the difference
+         between a narrow strip in the middle of the window and a page that uses
+         the room it was given. What changes at these widths is the reading
+         distance, not the measure — the card still holds about the same number
+         of words per line. */
 
       @media (min-width: 2560px) {
-        /* A television is read from a sofa, so the column takes a little of the
-           room back — 880px at 16px holds about the line length the 780px column
-           holds at 14px — and every literal pixel size this page reads at is
-           restated, since the ladder the shell raises here cannot reach one. */
-        .page-header,
-        .tabs,
-        .content {
-          max-width: 880px;
-        }
         .page-title {
           font-size: 34px;
         }

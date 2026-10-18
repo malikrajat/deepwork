@@ -45,6 +45,36 @@ export interface AppSettings {
   alwaysOnTop: boolean;
   /** Whether the one-time "desktop preferences" dialog has been shown. */
   desktopPrefsPrompted: boolean;
+  /**
+   * Whether the first-run "start with Windows?" dialog has been shown.
+   *
+   * A flag of its own rather than reusing `desktopPrefsPrompted`: the two
+   * dialogs answer different questions and are retired for different reasons.
+   * The prefs dialog is retired by being read; this one is retired by the
+   * answer to it — on, or "not now" — and only the second of those starts the
+   * reminders. One flag for both would make closing the older dialog count as
+   * an answer to the newer question.
+   */
+  launchPrompted: boolean;
+  /**
+   * Whether the app may still remind the user to start DeepWork with the
+   * computer, four or five times a day, after the first-run dialog was
+   * dismissed without turning it on.
+   *
+   * On by default, because the reminder is the whole point of the dialog
+   * having been dismissible; the switch exists so "not now" never has to mean
+   * "not ever" and a user who has decided against it can say so once.
+   */
+  startupNudge: boolean;
+  /**
+   * Whether the app may remind the user to pin DeepWork to the taskbar, three
+   * times a day, while it is not pinned there.
+   *
+   * The reminder can only ever ask: Windows will not let an app pin itself
+   * without a feature token no ordinary build has, so the toast explains the
+   * two clicks and the app checks whether they happened before it speaks again.
+   */
+  taskbarPinNudge: boolean;
   /** Nudge the user to drink water during their working hours. */
   waterReminders: boolean;
   /** `HH:MM` local time — the first minute of the day a reminder may fire. */
@@ -103,6 +133,13 @@ export const DEFAULT_SETTINGS: AppSettings = {
   startWithSystem: false,
   alwaysOnTop: false,
   desktopPrefsPrompted: false,
+  // The launch dialog has not been shown yet in this install, and both of the
+  // reminders that follow it are wanted: a dialog that can be dismissed only
+  // matters if the dismissal is followed by a quieter version of the same
+  // question. See `LaunchPromptService`.
+  launchPrompted: false,
+  startupNudge: true,
+  taskbarPinNudge: true,
   // On by default: the nudge is what the feature is for, and it asks rather than
   // announces — a card that waits for Yes or Not now, inside working hours, on
   // the notification sound the user already chose. Anyone who does not want it

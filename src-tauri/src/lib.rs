@@ -2,6 +2,7 @@ mod autostart;
 mod db_guard;
 mod downloads;
 mod logging;
+mod nudges;
 mod opener;
 mod updates;
 
@@ -1115,6 +1116,29 @@ fn db_backup(app: AppHandle, note: String) -> Option<String> {
     db_guard::backup(&app, &note)
 }
 
+/// Whether DeepWork is already pinned to the taskbar, and whether pinning is
+/// something this platform can answer for at all.
+///
+/// Asked by the reminder before every toast it raises rather than once at
+/// startup, because the user can pin (or unpin) DeepWork at any moment without
+/// telling the app, and a reminder that keeps arriving after they said yes is
+/// the one that gets the feature turned off. See `nudges`.
+#[tauri::command]
+fn nudges_taskbar_pin_state() -> nudges::TaskbarPinState {
+    nudges::taskbar_pin_state()
+}
+
+/// What the desktop says about interrupting the user right now.
+///
+/// The app's own focus mode is a page it draws; this is the operating system's,
+/// and only the operating system knows about quiet hours, a fullscreen game or a
+/// locked screen. Polled while the app runs, and used to hold in-app reminders
+/// without pretending the desktop notification can be made to appear either.
+#[tauri::command]
+fn nudges_quiet_state() -> nudges::QuietState {
+    nudges::quiet_state()
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     // Installed before anything else can panic, so a failure during startup
@@ -1230,6 +1254,8 @@ pub fn run() {
             save_download,
             db_preflight,
             db_backup,
+            nudges_taskbar_pin_state,
+            nudges_quiet_state,
             logging::log_folder,
             logging::open_log_folder,
             logging::log_write,
@@ -1269,9 +1295,16 @@ pub fn run() {
             // Keep the stored startup path valid across reinstalls/moves.
             autostart::refresh_if_enabled();
 
-            // System tray
+            // System tray.
+            //
+            // The menu is the app's smallest surface and it is the one that is
+            // always reachable, so it carries the things a user reaches for
+            // while working somewhere else: the window, a new task, a pause, a
+            // mute that ends by itself, the two desktop switches and the way
+            // out. Every entry either does its work here (the OS and window
+            // state) or tells the frontend to, and nothing in it is a dead end.
             let show_i = MenuItem::with_id(app, "show", "Show", true, None::<&str>)?;
-            let mute_i = CheckMenuItem::with_id(app, "mute", "Mute Reminder Sound", true, false, None::<&str>)?;
+            let new_task_i = MenuItem::with_id(app, "new_task", "New task…", true, None::<&str>)?;
             let start_with_system_i = CheckMenuItem::with_id(
                 app,
                 "start_with_system",
@@ -1290,34 +1323,59 @@ pub fn run() {
                     .unwrap_or(false),
                 None::<&str>,
             )?;
+            let resume_i = MenuItem::with_id(app, "resume", "Resume", true, None::<&str>)?;
             let pause_i = MenuItem::with_id(app, "pause", "Pause", true, None::<&str>)?;
             let pause5_i = MenuItem::with_id(app, "pause5", "Pause for 5 min", true, None::<&str>)?;
             let pause10_i = MenuItem::with_id(app, "pause10", "Pause for 10 min", true, None::<&str>)?;
             let pause15_i = MenuItem::with_id(app, "pause15", "Pause for 15 min", true, None::<&str>)?;
             let pause30_i = MenuItem::with_id(app, "pause30", "Pause for 30 min", true, None::<&str>)?;
+            // A mute that has no end is the one that outlives the reason it was
+            // turned on, so the tray only offers lengths: half an hour, an hour,
+            // four hours or the rest of the day.
+            let mute30_i = MenuItem::with_id(app, "mute30", "Mute sound for 30 min", true, None::<&str>)?;
+            let mute60_i = MenuItem::with_id(app, "mute60", "Mute sound for 1 hour", true, None::<&str>)?;
+            let mute240_i = MenuItem::with_id(app, "mute240", "Mute sound for 4 hours", true, None::<&str>)?;
+            let mute_today_i = MenuItem::with_id(app, "mute_today", "Mute sound until tomorrow", true, None::<&str>)?;
+            let mute_off_i = MenuItem::with_id(app, "mute_off", "Sound on", true, None::<&str>)?;
+            let settings_i = MenuItem::with_id(app, "settings", "Settings", true, None::<&str>)?;
             let exit_i = MenuItem::with_id(app, "exit", "Exit", true, None::<&str>)?;
 
-            let pause_menu = Submenu::with_items(app, "Pause Timer", true, &[
+            let pause_menu = Submenu::with_items(app, "Pause", true, &[
                 &pause_i,
                 &pause5_i,
                 &pause10_i,
                 &pause15_i,
                 &pause30_i,
+                &resume_i,
+            ])?;
+
+            let mute_separator = PredefinedMenuItem::separator(app)?;
+            let mute_menu = Submenu::with_items(app, "Mute sound", true, &[
+                &mute30_i,
+                &mute60_i,
+                &mute240_i,
+                &mute_today_i,
+                &mute_separator,
+                &mute_off_i,
             ])?;
 
             let separator1 = PredefinedMenuItem::separator(app)?;
             let separator2 = PredefinedMenuItem::separator(app)?;
             let separator3 = PredefinedMenuItem::separator(app)?;
+            let separator4 = PredefinedMenuItem::separator(app)?;
 
             let menu = Menu::new(app)?;
             menu.append(&show_i)?;
+            menu.append(&new_task_i)?;
             menu.append(&separator1)?;
-            menu.append(&mute_i)?;
             menu.append(&pause_menu)?;
+            menu.append(&mute_menu)?;
             menu.append(&separator2)?;
             menu.append(&start_with_system_i)?;
             menu.append(&always_on_top_i)?;
             menu.append(&separator3)?;
+            menu.append(&settings_i)?;
+            menu.append(&separator4)?;
             menu.append(&exit_i)?;
 
             // Hand the checkable items to the commands so in-app switches and the
@@ -1379,9 +1437,22 @@ pub fn run() {
                                 // frontend is asked to expand it back.
                                 emit("show");
                             }
-                            "mute" => {
-                                let muted = mute_i.is_checked().unwrap_or(false);
-                                emit(if muted { "mute:true" } else { "mute:false" });
+                            // The two entries that open a particular place in the
+                            // app rather than the app itself. The window is
+                            // brought forward here and the frontend does the rest:
+                            // leaving that to a page nobody has opened yet would
+                            // make the menu item do nothing on a cold tray.
+                            "new_task" => {
+                                if let Some(w) = &window {
+                                    restore(w);
+                                }
+                                emit("new-task");
+                            }
+                            "settings" => {
+                                if let Some(w) = &window {
+                                    restore(w);
+                                }
+                                emit("settings");
                             }
                             "start_with_system" => {
                                 // Flip the real OS state, then tell the app so it
@@ -1423,6 +1494,15 @@ pub fn run() {
                             "pause10" => emit("pause:10"),
                             "pause15" => emit("pause:15"),
                             "pause30" => emit("pause:30"),
+                            "resume" => emit("resume"),
+                            // The mute lengths are the frontend's to remember:
+                            // how long is a setting the app owns, and the tray is
+                            // only one of the places it can be set.
+                            "mute30" => emit("mute:30"),
+                            "mute60" => emit("mute:60"),
+                            "mute240" => emit("mute:240"),
+                            "mute_today" => emit("mute:today"),
+                            "mute_off" => emit("mute:off"),
                             "exit" => {
                                 log::info!(target: logging::SYSTEM, "exiting from the tray menu");
                                 app.exit(0);

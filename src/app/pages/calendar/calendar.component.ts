@@ -2067,40 +2067,25 @@ function persistCollapsedGroups(value: Record<string, boolean>): void {
         }
       }
 
-      /* ===== 1920px and up: a day, not a billboard =====
+      /* ===== 1920px and up: a wider day, not a narrower one =====
 
-         Past 1920px the shell gives this page a column up to 2200px wide. Left
-         alone, the 268px queue rail is swallowed and the day grid stretches a
-         single hour row across two thousand pixels — a two-line focus block
-         becomes a letterbox — while the toolbar's date controls are flung to
-         opposite ends of the window from the title they belong to.
+         Past 1920px the shell gives this page a column up to 2200px wide. The
+         rail is a fixed 268px at laptop widths, which disappears into a row that
+         wide, so it becomes 300px here and 400px at 2560px: the extra room goes
+         into the queue and the timeline remains a real box the drag maths can
+         measure.
 
-         So the header, the toolbar, the week strip and the whole two-column
-         layout are capped at one 1760px band and centred. The timeline is not
-         given a width of its own on top of that: the blocks on it are positioned
-         as percentages of the day grid, and the drag maths that decides which
-         slot a pointer is over measures the grid itself, so the grid has to stay
-         a real box the pointer can be measured against — capping the row it
-         lives in is the shape that leaves that maths alone.
-
-         What the extra room buys is the rail, which stops being a fixed 268px
-         and becomes a 300px column: it is a queue of task titles and reorder
-         buttons, and the reorder button is the first thing to be crushed by the
-         grid taking all of a wider row.
-
-         The 1760px is deliberately below the 2200px column maximum, which is
-         what makes it do something at 1920px and at 3840px alike: at 2560px the
-         column has already reached its own cap, and without this band the day
-         grid would stretch another 250px with it. */
+         What is deliberately *not* here any more is a max-width on the page's
+         bands. That was meant to stop an hour row stretching across two thousand
+         pixels, and instead it did something much worse: this page is a column
+         flex container, and a flex item with margin-inline: auto is sized to
+         fit its contents rather than stretched — so at 1920px the header, the
+         toolbar, the week strip and the whole two-column layout collapsed to the
+         width of the title and sat in the middle of the window with empty glass
+         on both sides. The user's report was "calendar is centred to the page
+         now", and this is why. The day grid now takes the room the shell gives
+         it. */
       @media (min-width: 1920px) {
-        .page-header,
-        .cal-toolbar,
-        .week-strip,
-        .cal-layout {
-          max-width: 1760px;
-          margin-inline: auto;
-        }
-
         /* The one side column here that is not a fixed size in the desktop
            rules, so the wider row goes into it rather than into the grid. The
            timeline's own share is what is left. */
@@ -2111,25 +2096,16 @@ function persistCollapsedGroups(value: Record<string, boolean>): void {
 
       /* ===== 2560px and up: a screen read from across a room =====
 
-         The same day, 160px wider, with the type the ladder raises at this
-         breakpoint actually applied to the few elements that are read rather
-         than glanced at. Sizes come from the ladder and are whole pixels; the
-         pixels that stay literal — the hour row, the check badge, the icon
-         buttons — are ones where the desktop geometry is the point.
+         The same day, with the type the ladder raises at this breakpoint
+         actually applied to the few elements that are read rather than glanced
+         at. Sizes come from the ladder and are whole pixels; the pixels that stay
+         literal — the hour row, the check badge, the icon buttons — are ones
+         where the desktop geometry is the point.
 
-         Nothing here widens the day grid, which is the thing that goes wrong
-         first on a big screen. The band above is what caps it, and a block that
-         is already a metre from the left edge does not get better by being
-         wider: the room the extra 160px buys goes into the queue and the slot
-         panel, which is where the words are. */
+         Nothing here caps the page: it takes the column the shell allows, and
+         the extra room goes into the queue and the slot panel, which is where
+         the words are. */
       @media (min-width: 2560px) {
-        .page-header,
-        .cal-toolbar,
-        .week-strip,
-        .cal-layout {
-          max-width: 1920px;
-        }
-
         /* The rail is a queue of titles with four controls a row, and it is the
            first thing the raised type would crush. */
         .queue-rail {

@@ -40,8 +40,16 @@ import { TooltipDirective } from '../../directives/tooltip.directive';
         appTooltip="Add a task for today"
         aria-label="Add a task for today"
       >
-        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4">
-          <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
+        <svg
+          width="20"
+          height="20"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2.4"
+        >
+          <line x1="12" y1="5" x2="12" y2="19" />
+          <line x1="5" y1="12" x2="19" y2="12" />
         </svg>
       </button>
     }
@@ -55,7 +63,17 @@ import { TooltipDirective } from '../../directives/tooltip.directive';
             <p class="qa-sub">Type it. Everything else is filled in for you.</p>
           </div>
           <button class="qa-close" type="button" (click)="close()" aria-label="Close">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+            <svg
+              width="16"
+              height="16"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+            >
+              <line x1="18" y1="6" x2="6" y2="18" />
+              <line x1="6" y1="6" x2="18" y2="18" />
+            </svg>
           </button>
         </header>
 
@@ -64,15 +82,24 @@ import { TooltipDirective } from '../../directives/tooltip.directive';
           <section class="qa-info">
             <div class="qa-info-line">
               <span class="qa-tag">You give</span>
-              <span>A <strong>title</strong> — plus a description if you want one. Nothing else is needed.</span>
+              <span
+                >A <strong>title</strong> — plus a description if you want one. Nothing else is
+                needed.</span
+              >
             </div>
             <div class="qa-info-line">
               <span class="qa-tag">Limits</span>
-              <span>Title {{ titleMax }} characters · Description {{ descriptionMax }} characters.</span>
+              <span
+                >Title {{ titleMax }} characters · Description
+                {{ descriptionMax }} characters.</span
+              >
             </div>
             <div class="qa-info-line">
               <span class="qa-tag">Saved as</span>
-              <span>Priority <strong>P3 Medium</strong> · Deadline <strong>today</strong> · no quadrant · no repeat · on your <strong>Today</strong> list.</span>
+              <span
+                >Priority <strong>P3 Medium</strong> · Deadline <strong>today</strong> · no quadrant
+                · no repeat · on your <strong>Today</strong> list.</span
+              >
             </div>
           </section>
 
@@ -83,7 +110,8 @@ import { TooltipDirective } from '../../directives/tooltip.directive';
             </div>
 
             <label class="qa-field">
-              <span>Title <em>(required)</em>
+              <span
+                >Title <em>(required)</em>
                 <span class="qa-count">{{ title().length }}/{{ titleMax }}</span>
               </span>
               <input
@@ -96,8 +124,21 @@ import { TooltipDirective } from '../../directives/tooltip.directive';
               />
             </label>
 
-            <button class="qa-advanced-toggle" type="button" [attr.aria-expanded]="advancedOpen()" (click)="advancedOpen.set(!advancedOpen())">
-              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" [class.open]="advancedOpen()">
+            <button
+              class="qa-advanced-toggle"
+              type="button"
+              [attr.aria-expanded]="advancedOpen()"
+              (click)="advancedOpen.set(!advancedOpen())"
+            >
+              <svg
+                width="12"
+                height="12"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2.5"
+                [class.open]="advancedOpen()"
+              >
                 <polyline points="9,6 15,12 9,18" />
               </svg>
               Advanced options
@@ -109,7 +150,8 @@ import { TooltipDirective } from '../../directives/tooltip.directive';
             @if (advancedOpen()) {
               <div class="qa-advanced">
                 <label class="qa-field">
-                  <span>Description <em>(optional)</em>
+                  <span
+                    >Description <em>(optional)</em>
                     <span class="qa-count">{{ description().length }}/{{ descriptionMax }}</span>
                   </span>
                   <textarea
@@ -131,7 +173,11 @@ import { TooltipDirective } from '../../directives/tooltip.directive';
                 </label>
                 <label class="qa-field">
                   <span>Deadline <em>(default today)</em></span>
-                  <input type="date" [value]="deadline()" (change)="deadline.set(inputValue($event))" />
+                  <input
+                    type="date"
+                    [value]="deadline()"
+                    (change)="deadline.set(inputValue($event))"
+                  />
                 </label>
                 <label class="qa-field">
                   <span>Quadrant <em>(default none)</em></span>
@@ -143,7 +189,11 @@ import { TooltipDirective } from '../../directives/tooltip.directive';
                     <option value="neither">Neither</option>
                   </select>
                 </label>
-                <p class="qa-note">Repeat and everything else live in <strong>Tasks → Add Task → Advanced options</strong>. A deadline on another day keeps the task off today's list.</p>
+                <p class="qa-note">
+                  Repeat and everything else live in
+                  <strong>Tasks → Add Task → Advanced options</strong>. A deadline on another day
+                  keeps the task off today's list.
+                </p>
               </div>
             }
           </section>
@@ -151,114 +201,293 @@ import { TooltipDirective } from '../../directives/tooltip.directive';
 
         <footer class="qa-footer">
           <button class="qa-btn ghost" type="button" (click)="close()">Cancel</button>
-          <button class="qa-btn primary" type="button" [disabled]="!title().trim()" (click)="addTask()">
+          <button
+            class="qa-btn primary"
+            type="button"
+            [disabled]="!title().trim()"
+            (click)="addTask()"
+          >
             {{ addLabel() }}
           </button>
         </footer>
       </div>
     }
   `,
-  styles: [`
-    /* Sits above the toast area, so a confirmation never covers the button. */
-    .qa-fab {
-      /* Above page content, below every panel and dialog (they start at 100),
+  styles: [
+    `
+      /* Sits above the toast area, so a confirmation never covers the button. */
+      .qa-fab {
+        /* Above page content, below every panel and dialog (they start at 100),
          so an open form or modal always covers the button. */
-      position: fixed; right: 24px; bottom: 104px; z-index: 80;
-      display: inline-flex; align-items: center; justify-content: center;
-      width: 50px; height: 50px; padding: 0;
-      border-radius: 50%; border: 1px solid rgba(139,92,246,0.45);
-      background: linear-gradient(135deg, #8b5cf6, #7c3aed); color: #fff;
-      cursor: pointer;
-      box-shadow: 0 10px 30px rgba(124,58,237,0.35);
-      transition: transform 0.18s ease, box-shadow 0.18s ease;
-    }
-    .qa-fab:hover { transform: translateY(-2px); box-shadow: 0 14px 34px rgba(124,58,237,0.45); }
-    .qa-fab:focus-visible { outline: 2px solid #fff; outline-offset: 2px; }
-    .qa-backdrop {
-      position: fixed; inset: 0; z-index: 1000;
-      background: rgba(4,2,12,0.62); backdrop-filter: blur(3px);
-    }
-    .qa-dialog {
-      position: fixed; z-index: 1001; top: 50%; left: 50%;
-      transform: translate(-50%, -50%);
-      width: min(620px, 94vw); max-height: 88vh;
-      display: flex; flex-direction: column;
-      background: var(--surface-float); border: 1px solid rgba(139,92,246,0.32);
-      border-radius: 18px; box-shadow: 0 30px 80px rgba(0,0,0,0.55);
-      overflow: hidden;
-    }
-    .qa-header {
-      display: flex; align-items: flex-start; justify-content: space-between; gap: 12px;
-      padding: 18px 20px 14px; border-bottom: 1px solid rgba(139,92,246,0.16);
-    }
-    .qa-header h2 { font-size: 16px; font-weight: 700; }
-    .qa-sub { font-size: 12px; color: var(--color-text-muted); margin-top: 3px; }
-    .qa-close {
-      width: 30px; height: 30px; border-radius: 8px; border: none; background: transparent;
-      color: var(--color-text-muted); cursor: pointer; display: flex; align-items: center; justify-content: center;
-    }
-    .qa-close:hover { background: rgba(139,92,246,0.12); color: var(--color-text-primary); }
+        position: fixed;
+        right: 24px;
+        bottom: 104px;
+        z-index: 80;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 50px;
+        height: 50px;
+        padding: 0;
+        border-radius: 50%;
+        border: 1px solid rgba(139, 92, 246, 0.45);
+        background: linear-gradient(135deg, #8b5cf6, #7c3aed);
+        color: #fff;
+        cursor: pointer;
+        box-shadow: 0 10px 30px rgba(124, 58, 237, 0.35);
+        transition:
+          transform 0.18s ease,
+          box-shadow 0.18s ease;
+      }
+      .qa-fab:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 14px 34px rgba(124, 58, 237, 0.45);
+      }
+      .qa-fab:focus-visible {
+        outline: 2px solid #fff;
+        outline-offset: 2px;
+      }
+      .qa-backdrop {
+        position: fixed;
+        inset: 0;
+        z-index: 1000;
+        background: rgba(4, 2, 12, 0.62);
+        backdrop-filter: blur(3px);
+      }
+      .qa-dialog {
+        position: fixed;
+        z-index: 1001;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        width: min(620px, 94vw);
+        max-height: 88vh;
+        display: flex;
+        flex-direction: column;
+        background: var(--surface-float);
+        border: 1px solid rgba(139, 92, 246, 0.32);
+        border-radius: 18px;
+        box-shadow: 0 30px 80px rgba(0, 0, 0, 0.55);
+        overflow: hidden;
+      }
+      .qa-header {
+        display: flex;
+        align-items: flex-start;
+        justify-content: space-between;
+        gap: 12px;
+        padding: 18px 20px 14px;
+        border-bottom: 1px solid rgba(139, 92, 246, 0.16);
+      }
+      .qa-header h2 {
+        font-size: 16px;
+        font-weight: 700;
+      }
+      .qa-sub {
+        font-size: 12px;
+        color: var(--color-text-muted);
+        margin-top: 3px;
+      }
+      .qa-close {
+        width: 30px;
+        height: 30px;
+        border-radius: 8px;
+        border: none;
+        background: transparent;
+        color: var(--color-text-muted);
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+      }
+      .qa-close:hover {
+        background: rgba(139, 92, 246, 0.12);
+        color: var(--color-text-primary);
+      }
 
-    .qa-body { padding: 16px 20px; overflow-y: auto; display: flex; flex-direction: column; gap: 14px; }
-    .qa-body::-webkit-scrollbar { width: 4px; }
-    .qa-body::-webkit-scrollbar-thumb { background: rgba(139,92,246,0.25); border-radius: 4px; }
+      .qa-body {
+        padding: 16px 20px;
+        overflow-y: auto;
+        display: flex;
+        flex-direction: column;
+        gap: 14px;
+      }
+      .qa-body::-webkit-scrollbar {
+        width: 4px;
+      }
+      .qa-body::-webkit-scrollbar-thumb {
+        background: rgba(139, 92, 246, 0.25);
+        border-radius: 4px;
+      }
 
-    .qa-info {
-      display: flex; flex-direction: column; gap: 7px;
-      padding: 12px 14px; border-radius: 12px;
-      background: rgba(139,92,246,0.08); border: 1px solid rgba(139,92,246,0.18);
-    }
-    .qa-info-line { display: flex; gap: 10px; font-size: 12px; line-height: 1.45; color: var(--color-text-secondary); }
-    .qa-info-line strong { color: var(--color-text-primary); }
-    .qa-tag {
-      flex-shrink: 0; width: 68px; font-size: 11px; font-weight: 700; letter-spacing: 0.04em;
-      text-transform: uppercase; color: var(--timer-work-color); padding-top: 2px;
-    }
+      .qa-info {
+        display: flex;
+        flex-direction: column;
+        gap: 7px;
+        padding: 12px 14px;
+        border-radius: 12px;
+        background: rgba(139, 92, 246, 0.08);
+        border: 1px solid rgba(139, 92, 246, 0.18);
+      }
+      .qa-info-line {
+        display: flex;
+        gap: 10px;
+        font-size: 12px;
+        line-height: 1.45;
+        color: var(--color-text-secondary);
+      }
+      .qa-info-line strong {
+        color: var(--color-text-primary);
+      }
+      .qa-tag {
+        flex-shrink: 0;
+        width: 68px;
+        font-size: 11px;
+        font-weight: 700;
+        letter-spacing: 0.04em;
+        text-transform: uppercase;
+        color: var(--timer-work-color);
+        padding-top: 2px;
+      }
 
-    .qa-preview { display: flex; flex-direction: column; gap: 10px; }
-    .qa-preview-head { display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; }
-    .qa-preview-head h3 { font-size: 13px; font-weight: 700; }
+      .qa-preview {
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+      }
+      .qa-preview-head {
+        display: flex;
+        align-items: baseline;
+        gap: 10px;
+        flex-wrap: wrap;
+      }
+      .qa-preview-head h3 {
+        font-size: 13px;
+        font-weight: 700;
+      }
 
-    .qa-field { display: flex; flex-direction: column; gap: 5px; }
-    .qa-field > span {
-      display: flex; align-items: center; gap: 6px;
-      font-size: 11px; font-weight: 600; color: var(--color-text-muted);
-    }
-    .qa-field em { font-style: normal; font-weight: 400; opacity: 0.8; }
-    .qa-count { margin-left: auto; font-size: 10px; font-variant-numeric: tabular-nums; }
-    .qa-field input, .qa-field textarea, .qa-field select {
-      background: var(--control-bg); border: 1px solid rgba(139,92,246,0.16);
-      border-radius: 10px; padding: 9px 12px; color: var(--color-text-primary);
-      font: inherit; font-size: 13px; outline: none; resize: vertical;
-    }
-    .qa-field input:focus, .qa-field textarea:focus, .qa-field select:focus { border-color: rgba(139,92,246,0.5); }
-    .qa-field select option { background: var(--color-bg-secondary); }
+      .qa-field {
+        display: flex;
+        flex-direction: column;
+        gap: 5px;
+      }
+      .qa-field > span {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        font-size: 11px;
+        font-weight: 600;
+        color: var(--color-text-muted);
+      }
+      .qa-field em {
+        font-style: normal;
+        font-weight: 400;
+        opacity: 0.8;
+      }
+      .qa-count {
+        margin-left: auto;
+        font-size: 10px;
+        font-variant-numeric: tabular-nums;
+      }
+      .qa-field input,
+      .qa-field textarea,
+      .qa-field select {
+        background: var(--control-bg);
+        border: 1px solid rgba(139, 92, 246, 0.16);
+        border-radius: 10px;
+        padding: 9px 12px;
+        color: var(--color-text-primary);
+        font: inherit;
+        font-size: 13px;
+        outline: none;
+        resize: vertical;
+      }
+      .qa-field input:focus,
+      .qa-field textarea:focus,
+      .qa-field select:focus {
+        border-color: rgba(139, 92, 246, 0.5);
+      }
+      .qa-field select option {
+        background: var(--color-bg-secondary);
+      }
 
-    .qa-advanced-toggle {
-      display: flex; align-items: center; gap: 7px; align-self: flex-start;
-      border: none; background: transparent; color: var(--color-text-secondary);
-      font: inherit; font-size: 12px; font-weight: 600; cursor: pointer; padding: 2px 0;
-    }
-    .qa-advanced-toggle:hover { color: var(--color-text-primary); }
-    .qa-advanced-toggle svg { transition: transform 0.2s ease; }
-    .qa-advanced-toggle svg.open { transform: rotate(90deg); }
-    .qa-advanced-summary { font-weight: 400; color: var(--color-text-muted); }
-    .qa-advanced { display: flex; flex-direction: column; gap: 12px; width: 100%; }
-    .qa-note { font-size: 11px; color: var(--color-text-muted); }
-    .qa-note strong { color: var(--color-text-secondary); }
+      .qa-advanced-toggle {
+        display: flex;
+        align-items: center;
+        gap: 7px;
+        align-self: flex-start;
+        border: none;
+        background: transparent;
+        color: var(--color-text-secondary);
+        font: inherit;
+        font-size: 12px;
+        font-weight: 600;
+        cursor: pointer;
+        padding: 2px 0;
+      }
+      .qa-advanced-toggle:hover {
+        color: var(--color-text-primary);
+      }
+      .qa-advanced-toggle svg {
+        transition: transform 0.2s ease;
+      }
+      .qa-advanced-toggle svg.open {
+        transform: rotate(90deg);
+      }
+      .qa-advanced-summary {
+        font-weight: 400;
+        color: var(--color-text-muted);
+      }
+      .qa-advanced {
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+        width: 100%;
+      }
+      .qa-note {
+        font-size: 11px;
+        color: var(--color-text-muted);
+      }
+      .qa-note strong {
+        color: var(--color-text-secondary);
+      }
 
-    .qa-footer {
-      display: flex; justify-content: flex-end; gap: 10px;
-      padding: 14px 20px; border-top: 1px solid rgba(139,92,246,0.16);
-    }
-    .qa-btn { padding: 9px 18px; border-radius: 10px; border: none; font: inherit; font-size: 13px; font-weight: 600; cursor: pointer; }
-    .qa-btn.ghost { background: transparent; color: var(--color-text-muted); }
-    .qa-btn.ghost:hover { color: var(--color-text-primary); }
-    .qa-btn.primary { background: linear-gradient(135deg, #8b5cf6, #7c3aed); color: #fff; }
-    .qa-btn.primary:hover:not(:disabled) { transform: translateY(-1px); box-shadow: 0 6px 18px rgba(139,92,246,0.34); }
-    .qa-btn.primary:disabled { opacity: 0.45; cursor: not-allowed; }
+      .qa-footer {
+        display: flex;
+        justify-content: flex-end;
+        gap: 10px;
+        padding: 14px 20px;
+        border-top: 1px solid rgba(139, 92, 246, 0.16);
+      }
+      .qa-btn {
+        padding: 9px 18px;
+        border-radius: 10px;
+        border: none;
+        font: inherit;
+        font-size: 13px;
+        font-weight: 600;
+        cursor: pointer;
+      }
+      .qa-btn.ghost {
+        background: transparent;
+        color: var(--color-text-muted);
+      }
+      .qa-btn.ghost:hover {
+        color: var(--color-text-primary);
+      }
+      .qa-btn.primary {
+        background: linear-gradient(135deg, #8b5cf6, #7c3aed);
+        color: #fff;
+      }
+      .qa-btn.primary:hover:not(:disabled) {
+        transform: translateY(-1px);
+        box-shadow: 0 6px 18px rgba(139, 92, 246, 0.34);
+      }
+      .qa-btn.primary:disabled {
+        opacity: 0.45;
+        cursor: not-allowed;
+      }
 
-    /* ===== Phone layout =====
+      /* ===== Phone layout =====
 
        The dialog is already 'width: min(620px, 94vw)' with 'max-height: 88vh' and
        a scrolling body, and three things about that don't survive a phone. 'vh'
@@ -272,61 +501,90 @@ import { TooltipDirective } from '../../directives/tooltip.directive';
        The footer is the reason the body must be the part that scrolls: it is
        pinned to the bottom of the dialog by the column layout, so its buttons
        stay reachable however long the advanced section grows. */
-    @media (max-width: 640px) {
-      /* The button floats over the page, so it clears the home indicator and the
+      @media (max-width: 640px) {
+        /* The button floats over the page, so it clears the home indicator and the
          landscape cutout rather than assuming a screen with neither. */
-      .qa-fab {
-        right: calc(16px + var(--safe-right));
-        bottom: calc(104px + var(--safe-bottom));
-      }
-      .qa-dialog {
-        /* '100%' of the window rather than '100vw': 'vw' counts a scrollbar the
+        .qa-fab {
+          right: calc(16px + var(--safe-right));
+          bottom: calc(104px + var(--safe-bottom));
+        }
+        .qa-dialog {
+          /* '100%' of the window rather than '100vw': 'vw' counts a scrollbar the
            page cannot scroll behind, and the dialog is centred so it only has to
            be a little narrower than the window. */
-        width: calc(100% - 24px - var(--safe-left) - var(--safe-right));
-        max-height: calc(100vh - 24px - var(--safe-top) - var(--safe-bottom));
-        max-height: calc(100dvh - 24px - var(--safe-top) - var(--safe-bottom));
-      }
-      .qa-header { padding: 14px 14px 12px; flex-shrink: 0; }
-      /* The one part that may scroll: 'min-height: 0' lets a flex item shrink
+          width: calc(100% - 24px - var(--safe-left) - var(--safe-right));
+          max-height: calc(100vh - 24px - var(--safe-top) - var(--safe-bottom));
+          max-height: calc(100dvh - 24px - var(--safe-top) - var(--safe-bottom));
+        }
+        .qa-header {
+          padding: 14px 14px 12px;
+          flex-shrink: 0;
+        }
+        /* The one part that may scroll: 'min-height: 0' lets a flex item shrink
          below its content, and the automatic minimum of a scroll container is
          already zero — this says which box the shrink is meant to land in. The
          containment is what stops a flick inside the form from being handed on to
          the page behind the dialog. */
-      .qa-body {
-        padding: 14px;
-        min-height: 0;
-        overscroll-behavior-y: contain;
-        -webkit-overflow-scrolling: touch;
-      }
-      .qa-footer { padding: 12px 14px; flex-wrap: wrap; flex-shrink: 0; }
-      .qa-footer .qa-btn { flex: 1 1 auto; }
-      .qa-info { padding: 10px 12px; }
-      /* The section labels are a fixed 68px column, which is a third of the text
+        .qa-body {
+          padding: 14px;
+          min-height: 0;
+          overscroll-behavior-y: contain;
+          -webkit-overflow-scrolling: touch;
+        }
+        .qa-footer {
+          padding: 12px 14px;
+          flex-wrap: wrap;
+          flex-shrink: 0;
+        }
+        .qa-footer .qa-btn {
+          flex: 1 1 auto;
+        }
+        .qa-info {
+          padding: 10px 12px;
+        }
+        /* The section labels are a fixed 68px column, which is a third of the text
          column at this width; the two stack instead. */
-      .qa-info-line { flex-direction: column; gap: 2px; }
-      .qa-tag { width: auto; padding-top: 0; }
-      /* The fields are what this dialog is: the global 16px font on a phone takes
+        .qa-info-line {
+          flex-direction: column;
+          gap: 2px;
+        }
+        .qa-tag {
+          width: auto;
+          padding-top: 0;
+        }
+        /* The fields are what this dialog is: the global 16px font on a phone takes
          them to about 40px, and 44 is the number that turns a tap into a tap. */
-      .qa-field input,
-      .qa-field textarea,
-      .qa-field select { min-height: 44px; }
-      /* The 16px the app asks of every field on a phone, repeated here because
+        .qa-field input,
+        .qa-field textarea,
+        .qa-field select {
+          min-height: 44px;
+        }
+        /* The 16px the app asks of every field on a phone, repeated here because
          the global rule cannot always deliver it: that rule is written as
          'html body textarea' and 'html body select', and a class on the element
          — '.qa-field textarea' — outranks both, so the phone would keep the 13px
          above and iOS would zoom the whole page in on the first tap in the
          description box. */
-      .qa-field textarea,
-      .qa-field select { font-size: 16px; }
+        .qa-field textarea,
+        .qa-field select {
+          font-size: 16px;
+        }
 
-      /* A thumb is not a mouse: the close button, the disclosure that reveals the
+        /* A thumb is not a mouse: the close button, the disclosure that reveals the
          advanced fields, and both footer buttons. */
-      .qa-close { width: 44px; height: 44px; }
-      .qa-advanced-toggle { min-height: 44px; }
-      .qa-btn { min-height: 44px; }
-    }
-  `],
+        .qa-close {
+          width: 44px;
+          height: 44px;
+        }
+        .qa-advanced-toggle {
+          min-height: 44px;
+        }
+        .qa-btn {
+          min-height: 44px;
+        }
+      }
+    `,
+  ],
 })
 export class QuickAddComponent {
   private readonly tasks = inject(TaskService);
@@ -348,16 +606,32 @@ export class QuickAddComponent {
 
   /** The button promises today's list — unless the user moved the deadline. */
   readonly addLabel = computed(() =>
-    !this.deadline() || this.deadline() === createTaskFormDefaults().deadline ? 'Add to Today' : 'Add task'
+    !this.deadline() || this.deadline() === createTaskFormDefaults().deadline
+      ? 'Add to Today'
+      : 'Add task',
   );
 
   private readonly titleInput = viewChild<ElementRef<HTMLInputElement>>('titleInput');
+
+  /** The last tray request this component has answered. */
+  private answeredRequest = 0;
 
   constructor() {
     // The title is the only thing that is always asked for, so it takes focus.
     effect(() => {
       if (!this.open()) return;
       this.titleInput()?.nativeElement.focus();
+    });
+
+    // The system tray's **New task**, which cannot open a dialog from Rust. A
+    // request that arrives while the dialog is already open focuses the title
+    // instead of wiping a half-typed task, exactly as Ctrl+N does.
+    effect(() => {
+      const request = this.ui.quickAddRequested();
+      if (request === this.answeredRequest) return;
+      this.answeredRequest = request;
+      if (this.open()) this.titleInput()?.nativeElement.focus();
+      else this.openDialog();
     });
   }
 
@@ -413,7 +687,9 @@ export class QuickAddComponent {
 
   /** One line telling the user what the hidden defaults will be. */
   advancedSummary(): string {
-    const priorityLabel = { '1': 'P1 Critical', '2': 'P2 High', '3': 'P3 Medium', '4': 'P4 Low' }[this.priority()] ?? 'P3 Medium';
+    const priorityLabel =
+      { '1': 'P1 Critical', '2': 'P2 High', '3': 'P3 Medium', '4': 'P4 Low' }[this.priority()] ??
+      'P3 Medium';
     const due = this.deadline() ? this.deadlineLabel(this.deadline()) : 'no deadline';
     const quadrant = this.quadrant() ? 'in a quadrant' : 'no quadrant';
     return `${priorityLabel} · ${due} · ${quadrant} · no repeat`;

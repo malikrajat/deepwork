@@ -17,6 +17,7 @@ import {
   journalFocusCorrelation,
   localDay,
 } from '../../core/utils/insights.util';
+import { journalText } from '../../core/utils/journal-content.util';
 
 /**
  * Analytics.
@@ -1101,7 +1102,7 @@ export class AnalyticsComponent implements OnInit {
     const match = journalFocusCorrelation(
       byDay,
       this.journal()
-        .filter((entry) => entry.content?.trim())
+        .filter((entry) => journalText(entry.content).length > 0)
         .map((entry) => entry.date),
     );
     return match.journalledDays >= 3 && match.otherDays >= 3 ? match : null;

@@ -57,6 +57,10 @@ windows-sys = { version = "0.61", features = [
     # `SetWindowPos` and the topmost styles, for keeping the window above the
     # others rather than only asking the desktop layer to. See `TopmostKeeper`.
     "Win32_UI_WindowsAndMessaging",
+    # `SHQueryUserNotificationState`, the one documented answer to "would a
+    # notification be welcome right now?" — quiet hours, a fullscreen game, a
+    # presentation and a locked screen all come back through it. See `nudges`.
+    "Win32_UI_Shell",
 ] }
 # WinRT toasts, for the things the notification plugin cannot do on Windows:
 # post under a tag, so the alert's repeat re-raises its own notification instead

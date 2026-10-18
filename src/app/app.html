@@ -12,9 +12,37 @@
   -->
   @if (!ui.isNativeWidget()) {
     <app-install-banner />
+    <!-- The explanation behind the banner's How button, the post-install
+         startup question, and the browser's one always-on-top option. Deferred
+         on idle for the same reason as the quiet panel: it is opened on
+         request, and the request may never come. -->
+    @defer (on idle) {
+      <app-install-dialog />
+    }
     <app-toast />
+    <!-- Why nothing is interrupting: a pause the user started, or a focus mode
+         the machine is in. It sits opposite the card so it explains rather than
+         covers, and it is part of the shell because the state is global. -->
+    <app-attention-banner />
+    <!-- Pause, mute and focus, from any page and any platform. One dialog for
+         all three entry points — the sidebar's footer, the phone's top bar and
+         Ctrl+Shift+Q — so it cannot mean three different things.
+
+         Deferred on idle, like the visitor dashboard below: it is a modal that
+         a visit may never open, and its three blocks of markup are not part of
+         the first paint. The idle trigger means it is ready before the first
+         click reaches a button, and if it is not, the panel's own state is
+         already set — the dialog appears the moment its chunk arrives. -->
+    @defer (on idle) {
+      <app-quiet-dialog />
+    }
     <app-update-prompt />
     <app-welcome-prefs-dialog />
+    <!-- The first-run question about starting with the computer. It is separate
+         from the preferences dialog above because it is asked once, on an
+         install where the answer is not already yes, and because its answer is
+         the one the reminders afterwards follow. -->
+    <app-launch-prompt-dialog />
     <!-- The visitor dashboard renders from the shell rather than from the settings
          row that opens it. That row sits in a `.setting-group`, which carries a
          `backdrop-filter` — and an element with one becomes the containing block
@@ -108,6 +136,36 @@
         </svg>
         <span class="brand-text">DeepWork</span>
       </span>
+
+      <!-- The phone's way into pause, mute and focus. It is in the top bar as
+           well as in the drawer because it is the one control a user reaches
+           for while working, and opening a navigation menu to stop a reminder is
+           the kind of friction that ends with the app muted never to return. -->
+      <button
+        type="button"
+        class="mobile-quiet-btn"
+        [class.active]="quiet.active()"
+        [attr.aria-label]="quiet.statusLabel()"
+        [title]="quiet.statusLabel()"
+        (click)="quiet.togglePanel()"
+      >
+        <svg
+          width="19"
+          height="19"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+          stroke-linecap="round"
+          aria-hidden="true"
+        >
+          <path d="M18 8A6 6 0 006 8c0 7-3 9-3 9h18s-3-2-3-9" />
+          <path d="M13.7 21a2 2 0 01-3.4 0" />
+        </svg>
+        @if (quiet.active()) {
+          <span class="quiet-dot" aria-hidden="true"></span>
+        }
+      </button>
     </header>
   }
 

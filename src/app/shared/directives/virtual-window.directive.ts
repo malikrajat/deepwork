@@ -1,4 +1,13 @@
-import { Directive, ElementRef, OnDestroy, afterNextRender, inject, input, signal } from '@angular/core';
+import {
+  Directive,
+  ElementRef,
+  OnDestroy,
+  afterNextRender,
+  effect,
+  inject,
+  input,
+  signal,
+} from '@angular/core';
 import { windowBounds } from '../../core/utils/virtual-list.util';
 
 @Directive({
@@ -31,6 +40,16 @@ export class VirtualWindowDirective implements OnDestroy {
         this.observer = new ResizeObserver(() => this.measure(element));
         this.observer.observe(element);
       }
+      this.recompute();
+    });
+
+    // The row count arrives after the list has rendered — an entry is loaded, a
+    // search is typed, an entry is deleted — and the window has to follow it.
+    // Without this the slice is computed once against the empty list and stays
+    // empty while the count in the header says otherwise.
+    effect(() => {
+      this.appWindow();
+      this.rowHeight();
       this.recompute();
     });
   }

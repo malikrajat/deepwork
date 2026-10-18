@@ -19,10 +19,15 @@ import { Task, TaskQuadrant, TaskStatus } from '../../core/models/task.model';
 import { QUADRANT_CONFIG, STATUS_CONFIG, STATUS_CYCLE } from '../../core/constants/theme.constants';
 import { TooltipDirective } from '../../shared/directives/tooltip.directive';
 import { TASK_EDIT_PATH, taskAddQuery, taskEditQuery } from '../../core/utils/task-link.util';
+import { buildBoardLayout, sharesFor, splitShares } from '../../core/utils/quadrant-layout.util';
+import type { BoardPlacement } from '../../core/utils/quadrant-layout.util';
 
 const PANE_WIDTH_KEY = 'deepwork_matrix_pane_width';
 const PANE_COLLAPSED_KEY = 'deepwork_matrix_pane_collapsed';
 const QUADRANT_COLLAPSED_KEY = 'deepwork_matrix_collapsed_quadrants';
+/** The share of the board each column and row takes, when it has been dragged. */
+const COLUMN_WEIGHTS_KEY = 'deepwork_matrix_column_weights';
+const ROW_WEIGHTS_KEY = 'deepwork_matrix_row_weights';
 
 const QUADRANT_IDS: readonly TaskQuadrant[] = [
   'urgent-important',
@@ -144,8 +149,12 @@ interface MatrixContextMenu {
           one place. The order of the cards is the order the <strong>Calendar</strong> schedules
           them in — put a task at the top of a quadrant and it runs first, with pomodoro breaks
           reserved between blocks. Drag the <strong>divider</strong> beside the task list to widen
-          it (double-click resets, arrow keys work too), and use the <strong>chevrons</strong> to
-          collapse a quadrant or the task list.
+          it (double-click resets, arrow keys work too), drag the dividers <em>between</em> the
+          quadrants to rebalance them (double-click evens them out), use the
+          <strong>chevrons</strong> to fold a quadrant or the task list away, and the
+          <strong>expand arrows</strong> beside a quadrant's title to give it the whole board —
+          clicking them again puts the layout back. A folded quadrant becomes a strip at the bottom,
+          and the quadrants still open take the space it gave up.
         </p>
       </div>
     }
@@ -164,70 +173,139 @@ interface MatrixContextMenu {
         [class.resizing]="resizing()"
         [style.--pane-width]="effectivePaneWidth() + 'px'"
       >
-        <div class="matrix-grid">
+        <div
+          #grid
+          class="matrix-grid"
+          [class.resizing]="resizingAxis() !== null"
+          [style.grid-template-columns]="layout().columns"
+          [style.grid-template-rows]="layout().rows"
+        >
           @for (q of quadrants; track q.id) {
-            <div class="quadrant" [class]="q.id" [class.is-collapsed]="isQuadrantCollapsed(q.id)">
-              <div class="quadrant-header">
-                <span class="quadrant-dot" [style.background]="q.color"></span>
-                <h3>{{ q.label }}</h3>
-                <span class="quadrant-count">{{ getQuadrantTasks(q.id).length }}</span>
-                <button
-                  class="collapse-btn add-task-btn"
-                  type="button"
-                  (click)="addTask(q.id)"
-                  [attr.aria-label]="'Add a task to ' + q.label"
-                  [appTooltip]="'Add a task to ' + q.label"
-                >
-                  <svg
-                    width="13"
-                    height="13"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    stroke-width="2.4"
+            <div
+              class="quadrant"
+              [class]="q.id"
+              [class.is-collapsed]="isQuadrantCollapsed(q.id)"
+              [class.is-maximized]="maximizedId() === q.id"
+              [style.grid-column]="placement(q.id).column"
+              [style.grid-row]="placement(q.id).row"
+            >
+              @if (isQuadrantCollapsed(q.id)) {
+                <!-- A collapsed quadrant is a strip, not a shrunken box: it is
+                     one line tall and the space it gave up went to the quadrants
+                     that are still open. See buildBoardLayout. -->
+                <div class="quadrant-header quadrant-strip">
+                  <span class="quadrant-dot" [style.background]="q.color"></span>
+                  <h3>{{ q.label }}</h3>
+                  <span class="quadrant-count">{{ getQuadrantTasks(q.id).length }}</span>
+                  <span class="strip-hint">{{ q.desc }}</span>
+                  <button
+                    class="collapse-btn"
+                    type="button"
+                    (click)="expandQuadrant(q.id)"
+                    aria-expanded="false"
+                    [attr.aria-label]="'Expand ' + q.label"
+                    [appTooltip]="'Expand ' + q.label"
                   >
-                    <line x1="12" y1="5" x2="12" y2="19" />
-                    <line x1="5" y1="12" x2="19" y2="12" />
-                  </svg>
-                </button>
-                <button
-                  class="collapse-btn"
-                  type="button"
-                  (click)="toggleQuadrant(q.id)"
-                  [attr.aria-expanded]="!isQuadrantCollapsed(q.id)"
-                  [appTooltip]="
-                    isQuadrantCollapsed(q.id) ? 'Expand ' + q.label : 'Collapse ' + q.label
-                  "
-                >
-                  <svg
-                    width="12"
-                    height="12"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    stroke-width="2.5"
-                  >
-                    @if (isQuadrantCollapsed(q.id)) {
+                    <svg
+                      width="12"
+                      height="12"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      stroke-width="2.5"
+                    >
                       <polyline points="6,9 12,15 18,9" />
-                    } @else {
+                    </svg>
+                  </button>
+                </div>
+              } @else {
+                <div class="quadrant-header">
+                  <span class="quadrant-dot" [style.background]="q.color"></span>
+                  <h3>{{ q.label }}</h3>
+                  <span class="quadrant-count">{{ getQuadrantTasks(q.id).length }}</span>
+                  <button
+                    class="collapse-btn add-task-btn"
+                    type="button"
+                    (click)="addTask(q.id)"
+                    [attr.aria-label]="'Add a task to ' + q.label"
+                    [appTooltip]="'Add a task to ' + q.label"
+                  >
+                    <svg
+                      width="13"
+                      height="13"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      stroke-width="2.4"
+                    >
+                      <line x1="12" y1="5" x2="12" y2="19" />
+                      <line x1="5" y1="12" x2="19" y2="12" />
+                    </svg>
+                  </button>
+                  <!-- Maximise is a shortcut for "collapse the other three":
+                       it is what the drag handles can also do, in one click. -->
+                  <button
+                    class="collapse-btn"
+                    type="button"
+                    (click)="toggleMaximized(q.id)"
+                    [attr.aria-label]="
+                      maximizedId() === q.id ? 'Restore the layout' : 'Maximize ' + q.label
+                    "
+                    [appTooltip]="
+                      maximizedId() === q.id
+                        ? 'Restore the layout you had'
+                        : 'Give ' + q.label + ' the whole board'
+                    "
+                  >
+                    <svg
+                      width="12"
+                      height="12"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      stroke-width="2.2"
+                    >
+                      @if (maximizedId() === q.id) {
+                        <polyline points="4,14 10,14 10,20" />
+                        <polyline points="20,10 14,10 14,4" />
+                        <line x1="14" y1="10" x2="21" y2="3" />
+                        <line x1="3" y1="21" x2="10" y2="14" />
+                      } @else {
+                        <polyline points="15,3 21,3 21,9" />
+                        <polyline points="9,21 3,21 3,15" />
+                        <line x1="21" y1="3" x2="14" y2="10" />
+                        <line x1="3" y1="21" x2="10" y2="14" />
+                      }
+                    </svg>
+                  </button>
+                  <button
+                    class="collapse-btn"
+                    type="button"
+                    (click)="toggleQuadrant(q.id)"
+                    aria-expanded="true"
+                    [appTooltip]="'Collapse ' + q.label"
+                  >
+                    <svg
+                      width="12"
+                      height="12"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      stroke-width="2.5"
+                    >
                       <polyline points="18,15 12,9 6,15" />
-                    }
-                  </svg>
-                </button>
-              </div>
-              <p class="quadrant-desc">{{ q.desc }}</p>
-              <div
-                class="task-drop-zone"
-                [class.is-collapsed]="isQuadrantCollapsed(q.id)"
-                cdkDropList
-                [cdkDropListData]="q.id"
-                [id]="q.id"
-                [cdkDropListConnectedTo]="allIds"
-                (cdkDropListDropped)="onDrop($event)"
-              >
-                @if (isQuadrantCollapsed(q.id)) {
-                  <div class="empty-text">Collapsed · drop a task here</div>
-                } @else {
+                    </svg>
+                  </button>
+                </div>
+                <p class="quadrant-desc">{{ q.desc }}</p>
+                <div
+                  class="task-drop-zone"
+                  cdkDropList
+                  [cdkDropListData]="q.id"
+                  [id]="q.id"
+                  [cdkDropListConnectedTo]="allIds"
+                  (cdkDropListDropped)="onDrop($event)"
+                >
                   @for (task of getQuadrantTasks(q.id); track task.id) {
                     <div
                       class="matrix-card"
@@ -301,8 +379,52 @@ interface MatrixContextMenu {
                   @if (getQuadrantTasks(q.id).length === 0) {
                     <div class="empty-hint">Drop tasks here</div>
                   }
-                }
-              </div>
+                </div>
+              }
+            </div>
+          }
+
+          <!-- The board's own dividers. They are grid items in the tracks the
+               layout reserved for them, which is what makes the drag land where
+               the divider is drawn rather than a few pixels beside it. -->
+          @if (layout().columnSplitter; as splitter) {
+            <div
+              class="board-splitter vertical"
+              role="separator"
+              aria-orientation="vertical"
+              aria-label="Resize the quadrants"
+              tabindex="0"
+              appTooltip="Drag to resize · double-click to even them out"
+              [style.grid-column]="splitter.column"
+              [style.grid-row]="splitter.row"
+              (pointerdown)="onColumnSplitterDown($event)"
+              (pointermove)="onColumnSplitterMove($event)"
+              (pointerup)="onColumnSplitterUp($event)"
+              (pointercancel)="onColumnSplitterUp($event)"
+              (dblclick)="evenColumns()"
+              (keydown)="onColumnSplitterKeydown($event)"
+            >
+              <span class="splitter-grip"></span>
+            </div>
+          }
+          @if (layout().rowSplitter; as row) {
+            <div
+              class="board-splitter horizontal"
+              role="separator"
+              aria-orientation="horizontal"
+              aria-label="Resize the quadrant rows"
+              tabindex="0"
+              appTooltip="Drag to resize · double-click to even them out"
+              [style.grid-row]="row"
+              style="grid-column: 1 / -1"
+              (pointerdown)="onRowSplitterDown($event)"
+              (pointermove)="onRowSplitterMove($event)"
+              (pointerup)="onRowSplitterUp($event)"
+              (pointercancel)="onRowSplitterUp($event)"
+              (dblclick)="evenRows()"
+              (keydown)="onRowSplitterKeydown($event)"
+            >
+              <span class="splitter-grip"></span>
             </div>
           }
         </div>
@@ -737,10 +859,19 @@ interface MatrixContextMenu {
         flex: 1 1 auto;
         min-width: 260px;
         display: grid;
+        /* The real tracks are set from buildBoardLayout as inline styles; these
+           are the same 2x2 shape for the frame before that runs. The gap is 0
+           because the board's own divider tracks are what separate the
+           quadrants now — a gap on top of them would put 25px between two
+           columns and make the divider look like it was floating. */
         grid-template-columns: 1fr 1fr;
         grid-template-rows: 1fr 1fr;
-        gap: 12px;
+        gap: 0;
         min-height: 0;
+      }
+      .matrix-grid.resizing {
+        user-select: none;
+        cursor: col-resize;
       }
       /* min-height:0 lets each grid row stay at 1fr so a full quadrant scrolls
        inside its own box instead of stretching the board. */
@@ -758,6 +889,34 @@ interface MatrixContextMenu {
       }
       .quadrant.is-collapsed {
         border-style: dashed;
+        /* A strip is one line tall, across the whole board, and the margin is
+           what keeps it from touching the row above it now that the grid's gap
+           is spent on the divider tracks. */
+        flex-direction: row;
+        align-items: center;
+        padding: 8px 14px;
+        margin-top: 8px;
+        min-height: 0;
+      }
+      .quadrant.is-maximized {
+        border-color: rgba(139, 92, 246, 0.34);
+      }
+      .quadrant-strip .quadrant-count {
+        margin-left: 0;
+      }
+      .quadrant-strip .collapse-btn {
+        margin-left: auto;
+      }
+      /* The quadrant's own description, reduced to one line in a strip so the
+         four of them still fit across the bottom of the board. */
+      .strip-hint {
+        flex: 1 1 auto;
+        min-width: 0;
+        font-size: 10px;
+        color: var(--color-text-muted);
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
       }
       .quadrant-header {
         display: flex;
@@ -837,10 +996,6 @@ interface MatrixContextMenu {
       }
       .task-drop-zone.cdk-drop-list-dragging {
         background: rgba(139, 92, 246, 0.06);
-      }
-      .task-drop-zone.is-collapsed {
-        align-items: center;
-        justify-content: center;
       }
 
       .matrix-card {
@@ -1177,6 +1332,57 @@ interface MatrixContextMenu {
         outline: none;
       }
 
+      /* The board's own dividers. Each one is a grid item in the track the
+         layout reserved for it, so what is dragged and what is drawn are the
+         same box. The visible grip is a 3px pill; the thing a pointer can hit is
+         the whole track plus a few pixels either side, which is what makes it
+         grabbable without being a 14px stripe down the middle of the board. */
+      .board-splitter {
+        position: relative;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        touch-action: none;
+        z-index: 3;
+      }
+      .board-splitter::before {
+        content: '';
+        position: absolute;
+        inset: -5px;
+      }
+      .board-splitter.vertical {
+        cursor: col-resize;
+        /* The two dividers cross in the middle of a 2x2 board. One of them has
+           to own that pixel; the vertical one does, because the row divider is
+           still grabbable along the rest of its length while the column divider
+           would otherwise be blocked at exactly the point most people aim for. */
+        z-index: 4;
+      }
+      .board-splitter.horizontal {
+        cursor: row-resize;
+      }
+      .board-splitter .splitter-grip {
+        background: rgba(139, 92, 246, 0.28);
+        transition: background 0.2s;
+      }
+      .board-splitter.vertical .splitter-grip {
+        width: 3px;
+        height: 56px;
+      }
+      .board-splitter.horizontal .splitter-grip {
+        width: 56px;
+        height: 3px;
+      }
+      .board-splitter:hover .splitter-grip,
+      .board-splitter:focus-visible .splitter-grip {
+        background: var(--color-accent-primary);
+      }
+      .board-splitter:focus-visible {
+        outline: 2px solid rgba(139, 92, 246, 0.6);
+        outline-offset: -2px;
+        border-radius: 4px;
+      }
+
       /* Unassigned panel */
       .unassigned-panel {
         flex: 0 0 auto;
@@ -1257,9 +1463,29 @@ interface MatrixContextMenu {
           gap: 12px;
         }
         .matrix-grid {
-          grid-template-rows: repeat(4, minmax(160px, auto));
+          /* The compact layout gives up the grid entirely: one quadrant per
+             row, each at least 160px, which is the shape the old fixed
+             'grid-template-rows' was describing. The inline placement the board
+             writes is overridden with '!important' below, because an inline
+             'grid-column' would otherwise place a quadrant in a column that no
+             longer exists. */
+          display: flex;
+          flex-direction: column;
+          gap: 12px;
+          grid-template-rows: none;
+          grid-template-columns: none;
           min-width: 0;
           padding-right: 0;
+        }
+        .matrix-grid > .quadrant {
+          grid-column: auto !important;
+          grid-row: auto !important;
+        }
+        .quadrant.is-collapsed {
+          margin-top: 0;
+        }
+        .board-splitter {
+          display: none;
         }
         .pane-splitter {
           display: none;
@@ -1285,9 +1511,10 @@ interface MatrixContextMenu {
         }
       }
       @media (max-width: 560px) {
-        .matrix-grid {
-          grid-template-columns: 1fr;
-        }
+        /* The board is a flex column from 900px down, so its grid template no
+           longer has a say; this block is kept (empty of the old
+           'grid-template-columns') only to mark where the one-column phone
+           layout begins. Everything that changes shape there is above. */
       }
 
       /* The compact board releases the desktop's fixed-height window.
@@ -1308,14 +1535,11 @@ interface MatrixContextMenu {
       }
 
       @media (max-width: 640px) {
-        /* One quadrant per row. This is the phone breakpoint the shell's own
-           comments describe as the one where multi-column grids stack, and it
-           is also where the compact block's four fixed minmax(160px, auto)
-           rows stop matching the grid: with two columns only two rows are ever
-           filled, so the last two sat empty for 320px under the board. */
-        .matrix-grid {
-          grid-template-columns: 1fr;
-        }
+        /* One quadrant per row. The compact block above already turns the board
+           into a single column with a real gap between the boxes; this is the
+           phone breakpoint where the shell's other grids stack, and the
+           controls below grow for a thumb.
+        */
 
         /* The header's three controls — the progress pill, the guide toggle and
            the calendar link — ask for something close to 360px side by side,
@@ -1540,6 +1764,47 @@ export class MatrixComponent implements OnInit {
   readonly collapsedQuadrants = signal<Record<TaskQuadrant, boolean>>(
     this.readStoredQuadrantCollapse(),
   );
+
+  /**
+   * How the board divides, as shares that always add up to one.
+   *
+   * Kept separately per axis, and kept when a quadrant is collapsed: minimising
+   * Schedule and opening it again must give back the shape the user dragged,
+   * not an even split. See `sharesFor`.
+   */
+  readonly columnWeights = signal<number[]>(this.readStoredWeights(COLUMN_WEIGHTS_KEY));
+  readonly rowWeights = signal<number[]>(this.readStoredWeights(ROW_WEIGHTS_KEY));
+
+  /**
+   * The quadrant that has taken the whole board, if any.
+   *
+   * Not persisted: a maximised quadrant is a moment's choice, and reopening the
+   * app into a board with three quadrants hidden would read as three missing
+   * quadrants rather than as a layout.
+   */
+  readonly maximizedId = signal<TaskQuadrant | null>(null);
+
+  /** Which of the board's own dividers is being dragged, if any. */
+  readonly resizingAxis = signal<'column' | 'row' | null>(null);
+
+  private readonly gridRef = viewChild<ElementRef<HTMLElement>>('grid');
+
+  /** What the board looked like before a maximise, for **Restore**. */
+  private maximizeSnapshot: Record<TaskQuadrant, boolean> | null = null;
+
+  private dragStartPosition = 0;
+  private dragStartShares: number[] = [];
+
+  /** The board for the current collapse states and shares. */
+  readonly layout = computed(() =>
+    buildBoardLayout(
+      QUADRANT_IDS,
+      this.collapsedQuadrants(),
+      this.columnWeights(),
+      this.rowWeights(),
+    ),
+  );
+
   private readonly wrapperWidth = signal(0);
 
   private resizeStartX = 0;
@@ -1809,14 +2074,179 @@ export class MatrixComponent implements OnInit {
     return Math.round(Math.min(Math.max(value, this.minPaneWidth), this.maxPaneWidth()));
   }
 
-  // ── Collapsing ────────────────────────────────────────────────────────────
+  // ── Collapsing, maximising and resizing ───────────────────────────────────
 
   isQuadrantCollapsed(id: TaskQuadrant): boolean {
     return this.collapsedQuadrants()[id] === true;
   }
 
+  /** Where a quadrant sits in the board as it is currently shaped. */
+  placement(id: TaskQuadrant): BoardPlacement {
+    return this.layout().placements[id] ?? { column: '1', row: '1' };
+  }
+
+  /**
+   * Folds a quadrant into a strip, or opens it again.
+   *
+   * Opening one while another is maximised leaves the maximised state, because
+   * the two cannot both be true: the board would have to show a quadrant and
+   * also hide it. The shared board then lays out the open ones side by side.
+   */
   toggleQuadrant(id: TaskQuadrant): void {
-    const next = { ...this.collapsedQuadrants(), [id]: !this.collapsedQuadrants()[id] };
+    if (this.isQuadrantCollapsed(id)) this.expandQuadrant(id);
+    else this.collapseQuadrant(id);
+  }
+
+  collapseQuadrant(id: TaskQuadrant): void {
+    // Collapsing the maximised quadrant ends the maximise rather than leaving a
+    // `Restore` button pointing at a quadrant that is no longer on the board.
+    if (this.maximizedId() === id) {
+      this.maximizedId.set(null);
+      this.maximizeSnapshot = null;
+    }
+    this.applyCollapse({ ...this.collapsedQuadrants(), [id]: true });
+  }
+
+  expandQuadrant(id: TaskQuadrant): void {
+    this.maximizedId.set(null);
+    this.maximizeSnapshot = null;
+    this.applyCollapse({ ...this.collapsedQuadrants(), [id]: false });
+  }
+
+  /**
+   * Gives one quadrant the whole board, or puts back what was there before.
+   *
+   * "Maximise" is the same operation as collapsing the other three, and it is
+   * kept that way on purpose: the layout only ever has one rule to explain, and
+   * the three strips at the bottom are still there to click if the user would
+   * rather have a different quadrant large.
+   */
+  toggleMaximized(id: TaskQuadrant): void {
+    if (this.maximizedId() === id) {
+      this.restoreLayout();
+      return;
+    }
+
+    this.maximizeSnapshot = { ...this.collapsedQuadrants() };
+    const next = { ...this.collapsedQuadrants() };
+    for (const quadrant of QUADRANT_IDS) next[quadrant] = quadrant !== id;
+    this.maximizedId.set(id);
+    this.applyCollapse(next);
+  }
+
+  /** Hands back the layout the maximise was taken from. */
+  restoreLayout(): void {
+    const snapshot = this.maximizeSnapshot ?? this.readStoredQuadrantCollapse();
+    this.maximizedId.set(null);
+    this.maximizeSnapshot = null;
+    this.applyCollapse(snapshot);
+  }
+
+  /**
+   * The vertical divider between the columns.
+   *
+   * The drag is a share of the board's own width, so the same gesture moves the
+   * same amount of board at every window size and never has to be redone after a
+   * resize. `splitShares` keeps the pair's combined share, which is what stops
+   * one drag from pushing the second column off the edge.
+   */
+  onColumnSplitterDown(event: PointerEvent): void {
+    if (event.button !== 0) return;
+    const width = this.gridRef()?.nativeElement.clientWidth ?? 0;
+    if (!width) return;
+    event.preventDefault();
+    this.resizingAxis.set('column');
+    this.dragStartPosition = event.clientX;
+    this.dragStartShares = sharesFor(this.columnWeights(), 2);
+    (event.currentTarget as HTMLElement).setPointerCapture(event.pointerId);
+  }
+
+  onColumnSplitterMove(event: PointerEvent): void {
+    if (this.resizingAxis() !== 'column') return;
+    const width = this.gridRef()?.nativeElement.clientWidth ?? 0;
+    if (!width) return;
+    this.columnWeights.set(
+      splitShares(this.dragStartShares, 0, (event.clientX - this.dragStartPosition) / width),
+    );
+  }
+
+  onColumnSplitterUp(event: PointerEvent): void {
+    if (this.resizingAxis() !== 'column') return;
+    this.resizingAxis.set(null);
+    const target = event.currentTarget as HTMLElement;
+    if (target.hasPointerCapture?.(event.pointerId)) target.releasePointerCapture(event.pointerId);
+    this.persistWeights(COLUMN_WEIGHTS_KEY, this.columnWeights());
+  }
+
+  onColumnSplitterKeydown(event: KeyboardEvent): void {
+    const step = event.shiftKey ? 0.08 : 0.03;
+    if (event.key === 'ArrowLeft') this.nudgeColumns(-step);
+    else if (event.key === 'ArrowRight') this.nudgeColumns(step);
+    else if (event.key === 'Home') this.evenColumns();
+    else if (event.key === 'End') this.evenColumns();
+    else return;
+    event.preventDefault();
+  }
+
+  /** The horizontal divider between the rows, the same way round. */
+  onRowSplitterDown(event: PointerEvent): void {
+    if (event.button !== 0) return;
+    const height = this.gridRef()?.nativeElement.clientHeight ?? 0;
+    if (!height) return;
+    event.preventDefault();
+    this.resizingAxis.set('row');
+    this.dragStartPosition = event.clientY;
+    this.dragStartShares = sharesFor(this.rowWeights(), 2);
+    (event.currentTarget as HTMLElement).setPointerCapture(event.pointerId);
+  }
+
+  onRowSplitterMove(event: PointerEvent): void {
+    if (this.resizingAxis() !== 'row') return;
+    const height = this.gridRef()?.nativeElement.clientHeight ?? 0;
+    if (!height) return;
+    this.rowWeights.set(
+      splitShares(this.dragStartShares, 0, (event.clientY - this.dragStartPosition) / height),
+    );
+  }
+
+  onRowSplitterUp(event: PointerEvent): void {
+    if (this.resizingAxis() !== 'row') return;
+    this.resizingAxis.set(null);
+    const target = event.currentTarget as HTMLElement;
+    if (target.hasPointerCapture?.(event.pointerId)) target.releasePointerCapture(event.pointerId);
+    this.persistWeights(ROW_WEIGHTS_KEY, this.rowWeights());
+  }
+
+  onRowSplitterKeydown(event: KeyboardEvent): void {
+    const step = event.shiftKey ? 0.08 : 0.03;
+    if (event.key === 'ArrowUp') this.nudgeRows(-step);
+    else if (event.key === 'ArrowDown') this.nudgeRows(step);
+    else if (event.key === 'Home' || event.key === 'End') this.evenRows();
+    else return;
+    event.preventDefault();
+  }
+
+  nudgeColumns(delta: number): void {
+    this.columnWeights.set(splitShares(sharesFor(this.columnWeights(), 2), 0, delta));
+    this.persistWeights(COLUMN_WEIGHTS_KEY, this.columnWeights());
+  }
+
+  nudgeRows(delta: number): void {
+    this.rowWeights.set(splitShares(sharesFor(this.rowWeights(), 2), 0, delta));
+    this.persistWeights(ROW_WEIGHTS_KEY, this.rowWeights());
+  }
+
+  evenColumns(): void {
+    this.columnWeights.set([0.5, 0.5]);
+    this.persistWeights(COLUMN_WEIGHTS_KEY, this.columnWeights());
+  }
+
+  evenRows(): void {
+    this.rowWeights.set([0.5, 0.5]);
+    this.persistWeights(ROW_WEIGHTS_KEY, this.rowWeights());
+  }
+
+  private applyCollapse(next: Record<TaskQuadrant, boolean>): void {
     this.collapsedQuadrants.set(next);
     this.persist(QUADRANT_COLLAPSED_KEY, JSON.stringify(next));
   }
@@ -1865,6 +2295,33 @@ export class MatrixComponent implements OnInit {
     } catch {
       return empty;
     }
+  }
+
+  /**
+   * A stored column or row split, repaired into two usable shares.
+   *
+   * The pair is a share of the board rather than two pixel widths, so it survives
+   * a window resize and a different monitor. A store that cannot be read, or
+   * that holds one number, falls back to an even split rather than to a board
+   * with a missing column.
+   */
+  private readStoredWeights(key: string): number[] {
+    const raw = this.read(key);
+    if (!raw) return [0.5, 0.5];
+    try {
+      const parsed = JSON.parse(raw) as unknown;
+      if (!Array.isArray(parsed)) return [0.5, 0.5];
+      const values = parsed
+        .map((value) => Number(value))
+        .filter((value) => Number.isFinite(value) && value > 0);
+      return values.length >= 2 ? values.slice(0, 2) : [0.5, 0.5];
+    } catch {
+      return [0.5, 0.5];
+    }
+  }
+
+  private persistWeights(key: string, weights: number[]): void {
+    this.persist(key, JSON.stringify(weights));
   }
 
   private read(key: string): string | null {

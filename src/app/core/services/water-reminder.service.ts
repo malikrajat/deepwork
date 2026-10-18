@@ -11,6 +11,8 @@ import {
   waterPrefsOf,
 } from '../utils/water.util';
 import { LogService } from './log.service';
+import { NotificationService } from './notification.service';
+import { AttentionService } from './attention.service';
 import { NotificationAction, NotificationService } from './notification.service';
 import { SettingsService } from './settings.service';
 import { UiService } from './ui.service';
@@ -81,6 +83,10 @@ const LAST_ALIVE_KEY = 'deepwork.water.lastAlive.v1';
  *   full interval, rather than firing the moment the window appears. It also
  *   fires at most once per interval: nobody gets a queue of the reminders they
  *   slept through.
+ * - **A pause stops it too.** The tray's pause is the user saying "none of
+ *   this for a while", and a water nudge that ignored it would be the one
+ *   reminder that kept arriving through a pause. The cadence moves forward while
+ *   the pause lasts, so the first reminder afterwards is a full interval away.
  */
 @Injectable({ providedIn: 'root' })
 export class WaterReminderService implements OnDestroy {
@@ -88,6 +94,7 @@ export class WaterReminderService implements OnDestroy {
   private readonly water = inject(WaterService);
   private readonly notifications = inject(NotificationService);
   private readonly ui = inject(UiService);
+  private readonly attention = inject(AttentionService);
   private readonly log = inject(LogService, { optional: true });
 
   /** The only timer this service will ever hold. */
@@ -232,6 +239,16 @@ export class WaterReminderService implements OnDestroy {
       if (!prefs.enabled || !workingHours) {
         // Turning reminders off also takes back a question they are still asking.
         this.nudge.set(null);
+        this.nextAt.set(null);
+        return;
+      }
+
+      // A pause is the user asking for none of this, and water is one of the
+      // things they meant. The cadence is moved forward rather than left
+      // overdue, so the first reminder after the pause is a full interval away
+      // instead of arriving the moment the pause ends.
+      if (this.attention.paused()) {
+        this.remember(now);
         this.nextAt.set(null);
         return;
       }

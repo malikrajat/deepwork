@@ -302,6 +302,18 @@ export class DbService {
         r.desktop_prefs_prompted === undefined || r.desktop_prefs_prompted === null
           ? DEFAULT_SETTINGS.desktopPrefsPrompted
           : r.desktop_prefs_prompted !== 0,
+      launchPrompted:
+        r.launch_prompted === undefined || r.launch_prompted === null
+          ? DEFAULT_SETTINGS.launchPrompted
+          : r.launch_prompted !== 0,
+      startupNudge:
+        r.startup_nudge === undefined || r.startup_nudge === null
+          ? DEFAULT_SETTINGS.startupNudge
+          : r.startup_nudge !== 0,
+      taskbarPinNudge:
+        r.taskbar_pin_nudge === undefined || r.taskbar_pin_nudge === null
+          ? DEFAULT_SETTINGS.taskbarPinNudge
+          : r.taskbar_pin_nudge !== 0,
       waterReminders:
         r.water_reminders === undefined || r.water_reminders === null
           ? DEFAULT_SETTINGS.waterReminders
@@ -344,7 +356,10 @@ export class DbService {
        water_amount_ml = $16, water_goal_ml = $17,
        water_auto_log_when_minimized = $18,
        alert_shake_ms = $19,
-       carry_forward_tasks = $20
+       carry_forward_tasks = $20,
+       launch_prompted = $21,
+       startup_nudge = $22,
+       taskbar_pin_nudge = $23
        WHERE id = 1`,
       [
         merged.workDuration,
@@ -367,6 +382,9 @@ export class DbService {
         merged.waterAutoLogWhenMinimized ? 1 : 0,
         merged.alertShakeMs,
         merged.carryForwardTasks ? 1 : 0,
+        merged.launchPrompted ? 1 : 0,
+        merged.startupNudge ? 1 : 0,
+        merged.taskbarPinNudge ? 1 : 0,
       ],
     );
   }
@@ -956,5 +974,20 @@ function repairSettings(settings: AppSettings): AppSettings {
       typeof settings.carryForwardTasks === 'boolean'
         ? settings.carryForwardTasks
         : DEFAULT_SETTINGS.carryForwardTasks,
+    // The first-run question and the two reminders that follow it are switches
+    // like any other, and a store that says something other than yes or no gets
+    // the default rather than a truthy accident.
+    launchPrompted:
+      typeof settings.launchPrompted === 'boolean'
+        ? settings.launchPrompted
+        : DEFAULT_SETTINGS.launchPrompted,
+    startupNudge:
+      typeof settings.startupNudge === 'boolean'
+        ? settings.startupNudge
+        : DEFAULT_SETTINGS.startupNudge,
+    taskbarPinNudge:
+      typeof settings.taskbarPinNudge === 'boolean'
+        ? settings.taskbarPinNudge
+        : DEFAULT_SETTINGS.taskbarPinNudge,
   };
 }

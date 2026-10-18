@@ -328,13 +328,25 @@ export class LogService {
     const originalWarn = console.warn.bind(console);
     const originalError = console.error.bind(console);
 
+    // Recorded one microtask later, and printed immediately.
+    //
+    // A warning can be raised *while* Angular is rendering — its own HTML
+    // sanitiser warns whenever it strips markup — and `record` writes a signal,
+    // which Angular forbids during a render (NG0600). The throw then abandons
+    // the rest of that template update, so the page silently keeps the old DOM.
+    // The microtask runs as soon as the render pass is over, and the line is
+    // still in the log.
+    const record = (level: 'warn' | 'error', category: 'system' | 'crash', args: unknown[]) => {
+      queueMicrotask(() => this.captureConsole(level, category, args));
+    };
+
     console.warn = (...args: unknown[]) => {
-      this.captureConsole('warn', 'system', args);
+      record('warn', 'system', args);
       originalWarn(...args);
     };
 
     console.error = (...args: unknown[]) => {
-      this.captureConsole('error', 'crash', args);
+      record('error', 'crash', args);
       originalError(...args);
     };
   }
