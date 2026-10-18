@@ -19,6 +19,8 @@ export interface ToastAction {
   run: () => void | Promise<void>;
   /** Drawn as the filled button; at most one action should set it. */
   primary?: boolean;
+}
+
 /** True when running inside the packaged desktop app (Tauri). */
 const IN_TAURI = typeof globalThis !== 'undefined' && '__TAURI_INTERNALS__' in globalThis;
 
@@ -104,6 +106,7 @@ export interface NotificationOptions {
    * handler — clicking it brings the app forward, which is the same first step.
    */
   onClick?: () => void;
+  /**
    * Buttons to put on the notification, in the order they should appear.
    *
    * Windows only: the toast schema is the one surface here that has a button a

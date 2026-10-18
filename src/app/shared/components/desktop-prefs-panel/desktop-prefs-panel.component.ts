@@ -125,57 +125,36 @@ import {
             <span class="knob"></span>
           </button>
         </div>
-      @if (prefs.pinSupported()) {
-        <div class="pref-row">
-          <span class="pref-label">
-            Pin to taskbar
-            <app-info-tip
-              [heading]="pinHelp.heading"
-              [body]="pinHelp.body"
-              [hint]="pinHelp.hint"
-            />
-          </span>
-          @if (prefs.pinned()) {
-            <span class="pref-state">Pinned</span>
-          } @else {
-            <button
-              type="button"
-              class="pin-button"
-              [disabled]="disabled() || prefs.pinBusy()"
-              (click)="askToPin()"
-            >
-              {{ prefs.pinBusy() ? 'Waiting…' : 'Pin' }}
-            </button>
-          }
-        </div>
-      }
 
-      <div class="pref-row">
-        <span class="pref-label">
-          Always on top
-          <app-info-tip
-            [heading]="onTopHelp.heading"
-            [body]="onTopHelp.body"
-            [hint]="onTopHelp.hint"
-          />
-        </span>
-        <button
-          type="button"
-          class="switch"
-          role="switch"
-          [class.on]="prefs.alwaysOnTop()"
-          [attr.aria-checked]="prefs.alwaysOnTop()"
-          [attr.aria-label]="onTopHelp.heading"
-          [disabled]="disabled() || !prefs.alwaysOnTopSupported()"
-          (click)="toggleAlwaysOnTop()"
-        >
-          <span class="knob"></span>
-        </button>
+        @if (prefs.pinSupported()) {
+          <div class="pref-row">
+            <span class="pref-label">
+              Pin to taskbar
+              <app-info-tip
+                [heading]="pinHelp.heading"
+                [body]="pinHelp.body"
+                [hint]="pinHelp.hint"
+              />
+            </span>
+            @if (prefs.pinned()) {
+              <span class="pref-state">Pinned</span>
+            } @else {
+              <button
+                type="button"
+                class="pin-button"
+                [disabled]="disabled() || prefs.pinBusy()"
+                (click)="askToPin()"
+              >
+                {{ prefs.pinBusy() ? 'Waiting…' : 'Pin' }}
+              </button>
+            }
+          </div>
+        }
+
+        @if (prefs.error(); as message) {
+          <p class="pref-error" role="alert">{{ message }}</p>
+        }
       </div>
-
-      @if (prefs.error(); as message) {
-        <p class="pref-error" role="alert">{{ message }}</p>
-      }
 
       <p class="pref-footnote">
         <app-info-tip [heading]="miniHelp.heading" [body]="miniHelp.body" [hint]="miniHelp.hint" />
@@ -381,6 +360,8 @@ import {
         font-weight: 600;
         cursor: pointer;
         white-space: nowrap;
+      }
+
       /* The pin row's action. A pill rather than a switch, because it is a
          request the shell answers rather than a setting the app keeps. */
       .pin-button {
@@ -415,6 +396,8 @@ import {
         font-size: 11px;
         font-style: italic;
         color: var(--color-text-muted);
+      }
+
       .pin-button:hover:not(:disabled) {
         background: rgba(139, 92, 246, 0.42);
       }

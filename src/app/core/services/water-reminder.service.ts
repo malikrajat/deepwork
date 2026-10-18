@@ -11,7 +11,6 @@ import {
   waterPrefsOf,
 } from '../utils/water.util';
 import { LogService } from './log.service';
-import { NotificationService } from './notification.service';
 import { AttentionService } from './attention.service';
 import { NotificationAction, NotificationService } from './notification.service';
 import { SettingsService } from './settings.service';
