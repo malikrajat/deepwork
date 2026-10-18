@@ -196,7 +196,7 @@ export class TaskImportService {
       addToToday: `Yes | No — Yes also adds the task to your Today list, even when the deadline is another day (default: ${IMPORT_DEFAULTS.addToToday}).`,
     };
 
-    const rows = IMPORT_FIELDS.map(field => {
+    const rows = IMPORT_FIELDS.map((field) => {
       const defaultKey = field.key as keyof typeof IMPORT_DEFAULTS;
       const defaultValue =
         field.key === 'deadline' || field.key === 'repeatEndDate'
@@ -204,7 +204,12 @@ export class TaskImportService {
           : defaultKey in IMPORT_DEFAULTS
             ? IMPORT_DEFAULTS[defaultKey]
             : '';
-      return [field.label, field.required ? 'Yes' : 'No', String(defaultValue), details[field.key] ?? ''];
+      return [
+        field.label,
+        field.required ? 'Yes' : 'No',
+        String(defaultValue),
+        details[field.key] ?? '',
+      ];
     });
 
     rows.push(['', '', '', '']);
@@ -214,8 +219,18 @@ export class TaskImportService {
       '',
       '1. Type your tasks in the "Tasks" sheet. Every option is a dropdown and the default value is already selected.',
     ]);
-    rows.push(['', '', '', '2. Hover or click a cell to see what it expects; the same information is in this table.']);
-    rows.push(['', '', '', '3. Save the file, then use Tasks → Import in DeepWork and pick the file.']);
+    rows.push([
+      '',
+      '',
+      '',
+      '2. Hover or click a cell to see what it expects; the same information is in this table.',
+    ]);
+    rows.push([
+      '',
+      '',
+      '',
+      '3. Save the file, then use Tasks → Import in DeepWork and pick the file.',
+    ]);
     rows.push([
       '',
       '',
@@ -286,13 +301,15 @@ export class TaskImportService {
 
     try {
       if (file.size > MAX_FILE_BYTES) {
-        return fatal('That file is larger than 10 MB. Split it into smaller files and import them one at a time.');
+        return fatal(
+          'That file is larger than 10 MB. Split it into smaller files and import them one at a time.',
+        );
       }
 
       const lower = fileName.toLowerCase();
       if (lower.endsWith('.xls')) {
         return fatal(
-          'Legacy .xls workbooks are not supported. In Excel use "Save As → Excel Workbook (.xlsx)", or export the sheet as CSV.'
+          'Legacy .xls workbooks are not supported. In Excel use "Save As → Excel Workbook (.xlsx)", or export the sheet as CSV.',
         );
       }
 
@@ -315,7 +332,9 @@ export class TaskImportService {
           sheetName = 'Text file';
         } else {
           const sheet = pickTaskSheet(parseXlsxWorkbook(buffer));
-          rows = sheet.rows.map(row => row.map(cell => ({ text: cell.text, numeric: cell.numeric })));
+          rows = sheet.rows.map((row) =>
+            row.map((cell) => ({ text: cell.text, numeric: cell.numeric })),
+          );
           format = 'xlsx';
           sheetName = sheet.name;
         }
@@ -327,8 +346,8 @@ export class TaskImportService {
 
       const header = mapHeaders(rows);
       const headerTexts = (rows[header.headerRowIndex] ?? [])
-        .map(cell => (cell?.text ?? '').trim())
-        .filter(text => text !== '');
+        .map((cell) => (cell?.text ?? '').trim())
+        .filter((text) => text !== '');
 
       if (header.missingTitle) {
         const found = headerTexts.length
@@ -343,7 +362,9 @@ export class TaskImportService {
         };
       }
 
-      const existingTitles = new Set(this.taskService.tasks().map(task => normalizeTitle(task.title)));
+      const existingTitles = new Set(
+        this.taskService.tasks().map((task) => normalizeTitle(task.title)),
+      );
       const parsed = parseImportRows(rows, header, { existingTitles });
 
       let readyCount = 0;
@@ -378,18 +399,22 @@ export class TaskImportService {
   }
 
   private cellsFromCsv(text: string): ImportCell[][] {
-    return parseCsv(text).map(row =>
-      row.map(value => {
+    return parseCsv(text).map((row) =>
+      row.map((value) => {
         const trimmed = value.trim();
         const numeric = trimmed !== '' && /^-?\d+(\.\d+)?$/.test(trimmed) ? Number(trimmed) : null;
         return { text: value, numeric };
-      })
+      }),
     );
   }
 
   private readableError(error: unknown): string {
     const message = error instanceof Error ? error.message : String(error);
-    if (/not a valid \.xlsx|not an Excel workbook|malformed|Corrupted|Unsupported compression|Zip64/i.test(message)) {
+    if (
+      /not a valid \.xlsx|not an Excel workbook|malformed|Corrupted|Unsupported compression|Zip64/i.test(
+        message,
+      )
+    ) {
       return `${message} If the file opens in Excel, re-save it with "Save As → Excel Workbook (.xlsx)" and try again.`;
     }
     if (/password|encrypted/i.test(message)) {
@@ -409,18 +434,22 @@ export class TaskImportService {
    * back the next day, so duplicates are written by default and only left out
    * when the user asks for it (`skipDuplicates`).
    */
-  async importRows(preview: ImportPreview, options: ImportCommitOptions = {}): Promise<ImportCommitResult> {
+  async importRows(
+    preview: ImportPreview,
+    options: ImportCommitOptions = {},
+  ): Promise<ImportCommitResult> {
     const skipDuplicates = options.skipDuplicates ?? false;
     const includeWarnings = options.includeWarnings ?? true;
 
-    const selected = preview.rows.filter(row =>
-      this.shouldImport(row, skipDuplicates, includeWarnings)
+    const selected = preview.rows.filter((row) =>
+      this.shouldImport(row, skipDuplicates, includeWarnings),
     );
 
     const highestOrder = this.taskService
       .tasks()
       .reduce((max, task) => (task.todayOrder !== null ? Math.max(max, task.todayOrder) : max), 0);
     let nextTodayOrder = highestOrder + 1;
+    const today = todayIsoDate();
 
     let created = 0;
     let skipped = 0;
@@ -441,6 +470,8 @@ export class TaskImportService {
         tags: row.task.tags,
         recurrence: row.task.recurrence,
         todayOrder: row.task.addToToday ? nextTodayOrder++ : null,
+        // "Add to Today" is for the day the file is imported on, not for ever.
+        todayOrderDate: row.task.addToToday ? today : null,
       };
 
       await this.taskService.createTask(task);

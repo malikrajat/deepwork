@@ -243,9 +243,11 @@ describe('NotificationService', () => {
       body: 'Reminder 3 · Great work! Time for a short break.',
       tag: 'deepwork-alert',
       // An alert has no quote of its own, and it repeats on its own clock, so it
-      // asks for neither the extra line nor the wait.
+      // asks for neither the extra line nor the wait. It asks for no buttons
+      // either: nothing about a finished session needs answering.
       quote: null,
       sticky: false,
+      actions: [],
     });
     expect(plugin.sendNotification).not.toHaveBeenCalled();
   });
@@ -258,17 +260,26 @@ describe('NotificationService', () => {
       quote: 'Small sips, all day. That is the whole trick.',
       tag: NotificationService.WATER_NOTIFICATION_TAG,
       sticky: true,
+      actions: [
+        { id: 'yes', label: 'Yes, drank' },
+        { id: 'no', label: 'Not now' },
+      ],
     });
 
     // The quote is its own field, not the message's last sentence: the shell
     // gives it a smaller line of its own, and the thread posting it is the one
-    // the user will not lose behind another window.
+    // the user will not lose behind another window. The buttons travel with it
+    // as ids and labels — the ids are what `onToastAction` hands back.
     expect(invoke).toHaveBeenCalledWith('alert_notify', {
       title: 'Drink water — 500 ml',
       body: 'Time for 500 ml. Today: 1.0 L of 2.0 L.',
       tag: 'deepwork-water',
       quote: 'Small sips, all day. That is the whole trick.',
       sticky: true,
+      actions: [
+        { id: 'yes', label: 'Yes, drank' },
+        { id: 'no', label: 'Not now' },
+      ],
     });
   });
 

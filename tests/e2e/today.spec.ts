@@ -191,4 +191,40 @@ test.describe('Today Page', () => {
       });
     }
   });
+
+  test('yesterday’s finished tasks are not on today, even with their star still set', async ({
+    page,
+  }) => {
+    // The report: tasks finished on one day were all still sitting in Today the
+    // next morning. Their "Add to Today" star was sticky, and every one of them
+    // qualified, so the empty state never appeared.
+    const yesterday = new Date();
+    yesterday.setDate(yesterday.getDate() - 1);
+    const title = `Finished Yesterday ${Date.now()}`;
+    const staleTask = {
+      id: 'stale-today-task',
+      title,
+      description: '',
+      priority: 3,
+      status: 'done',
+      quadrant: null,
+      deadline: yesterday.toISOString().slice(0, 10),
+      tags: [],
+      recurrence: null,
+      todayOrder: 1,
+      createdAt: yesterday.toISOString(),
+      completedAt: yesterday.toISOString(),
+    };
+
+    await page.addInitScript((task) => {
+      localStorage.setItem('deepwork_tasks', JSON.stringify([task]));
+    }, staleTask);
+
+    await page.goto('/today');
+    await expect(page.locator('.page-title')).toHaveText('Today', { timeout: 8000 });
+    await expect(page.locator('.empty-state h3')).toHaveText('No tasks for today', {
+      timeout: 5000,
+    });
+    await expect(page.locator('.task-card', { hasText: title })).toHaveCount(0);
+  });
 });

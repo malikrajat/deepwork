@@ -1,5 +1,6 @@
 import { Injectable, inject, signal } from '@angular/core';
 import { DbService } from './db.service';
+import { NotificationService } from './notification.service';
 import { SettingsService } from './settings.service';
 
 /** True when running inside the packaged desktop app (Tauri). */
@@ -37,6 +38,7 @@ async function invokeCmd<T>(cmd: string, args?: Record<string, unknown>): Promis
 export class DesktopPrefsService {
   private readonly db = inject(DbService);
   private readonly settings = inject(SettingsService);
+  private readonly notifications = inject(NotificationService);
 
   /** True when the desktop-only switches can actually do something. */
   readonly isDesktopApp = IN_TAURI;
@@ -75,6 +77,24 @@ export class DesktopPrefsService {
    * know whether it is still needed — or shows at all in the browser build.
    */
   readonly ready = signal(false);
+
+  /**
+   * Whether this build can ask the shell to pin DeepWork to the taskbar.
+   *
+   * Windows only, and only where the desktop-app form of the taskbar API
+   * exists — so the row is absent rather than disabled on a Windows that has no
+   * way to answer it. See `taskbar_pin_supported` in `src-tauri/src/lib.rs`.
+   */
+  readonly pinSupported = signal(false);
+
+  /** True once the shell has said DeepWork is pinned. */
+  readonly pinned = signal(false);
+
+  /** True while the shell's own confirmation dialog is up. */
+  readonly pinBusy = signal(false);
+
+  /** Removes the toast-button handler when this service goes away. */
+  private unlistenPinAction: (() => void) | null = null;
 
   /** Last user-facing failure, or null. Cleared on the next successful change. */
   readonly error = signal<string | null>(null);
@@ -141,7 +161,75 @@ export class DesktopPrefsService {
       this.error.set(this.describe(err, 'Could not apply the close behaviour.'));
     }
 
+    // The pin question travels through the notification, so both halves of it
+    // are wired before the row that asks can be clicked: the button press comes
+    // back as a toast action, the shell's answer as an event.
+    this.pinSupported.set(await this.readPinSupported());
+    void this.listenForPinResult();
+    this.unlistenPinAction = this.notifications.onToastAction(
+      NotificationService.PIN_NOTIFICATION_TAG,
+      (action) => {
+        // **Cancel** needs no handler: leaving the notification alone is the
+        // whole of what it asks for.
+        if (action === 'pin') void this.pinToTaskbar();
+      },
+    );
+
     this.ready.set(true);
+  }
+
+  /**
+   * Puts the pin question on the desktop as a notification with a button.
+   *
+   * A notification rather than a dialog inside the window, because the answer
+   * is the shell's to act on: the **Pin** button asks Windows directly, and
+   * Windows draws its own confirmation on top. Nothing is pinned until the user
+   * has agreed to it in that dialog — an app cannot put itself on the taskbar
+   * silently, and no version of this feature should pretend otherwise.
+   */
+  async askToPin(): Promise<void> {
+    if (!IN_TAURI || !this.pinSupported() || this.pinned()) return;
+
+    this.error.set(null);
+    try {
+      await this.notifications.announce(
+        'Pin DeepWork to the taskbar?',
+        'Keep your timer one click away. Windows will ask you to confirm.',
+        {
+          tag: NotificationService.PIN_NOTIFICATION_TAG,
+          sticky: true,
+          actions: [
+            { id: 'pin', label: 'Pin' },
+            { id: 'cancel', label: 'Cancel' },
+          ],
+        },
+      );
+    } catch (err) {
+      this.error.set(this.describe(err, 'Could not ask Windows to pin DeepWork.'));
+    }
+  }
+
+  /**
+   * Asks the shell to pin DeepWork, after the toast's **Pin** was pressed.
+   *
+   * The command returns as soon as the request is scheduled; the answer arrives
+   * on `deepwork:taskbar-pin`, because the user may take as long as they like
+   * over the dialog and nothing should be blocked waiting for them.
+   */
+  private async pinToTaskbar(): Promise<void> {
+    if (!IN_TAURI || this.pinBusy()) return;
+
+    this.pinBusy.set(true);
+    this.error.set(null);
+    try {
+      await invokeCmd('taskbar_pin');
+      // The event is what normally clears this. The timeout is only so that a
+      // request the shell never answers cannot leave the button dead.
+      setTimeout(() => this.pinBusy.set(false), 120_000);
+    } catch (err) {
+      this.pinBusy.set(false);
+      this.error.set(this.describe(err, 'Could not ask Windows to pin DeepWork.'));
+    }
   }
 
   /** Turns "start with the system" on or off. */
@@ -301,6 +389,44 @@ export class DesktopPrefsService {
       // A desktop layer that does not know the question: assume it can, which
       // is what every platform except Wayland answers.
       return true;
+    }
+  }
+
+  /** Asks the desktop layer whether the taskbar takes a pin request here. */
+  private async readPinSupported(): Promise<boolean> {
+    try {
+      return await invokeCmd<boolean>('taskbar_pin_supported');
+    } catch {
+      // A shell from before the command existed, or a desktop without a
+      // taskbar: nothing to offer, so nothing to show.
+      return false;
+    }
+  }
+
+  /**
+   * Listens for the shell's answer to a pin request.
+   *
+   * The three answers are kept apart on purpose: **declined** is the user
+   * saying no in Windows' own dialog, which leaves everything exactly as it was
+   * and needs no message at all; **failed** is the request that could not be
+   * made, which does. The reason for a failure is in `system.log`.
+   */
+  private async listenForPinResult(): Promise<void> {
+    if (!IN_TAURI) return;
+    try {
+      const { listen } = await import('@tauri-apps/api/event');
+      await listen<'pinned' | 'declined' | 'failed'>('deepwork:taskbar-pin', (event) => {
+        this.pinBusy.set(false);
+        this.pinned.set(event.payload === 'pinned');
+
+        if (event.payload === 'failed') {
+          this.error.set(
+            'Windows did not pin DeepWork. You can still pin it yourself: right-click DeepWork in the Start menu, then choose Pin to taskbar.',
+          );
+        }
+      });
+    } catch {
+      // No event channel: the row can still ask, it just cannot report back.
     }
   }
 

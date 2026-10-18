@@ -7,26 +7,22 @@ import {
   ALWAYS_ON_TOP_HELP,
   CLOSE_TO_TRAY_HELP,
   MINI_WIDGET_HELP,
+  PIN_TO_TASKBAR_HELP,
   START_WITH_SYSTEM_HELP,
 } from '../../../core/constants/desktop-prefs.constants';
 
 /**
- * "Start with system", "Always on top" and "Keep running in the tray" — as many
- * of them as the way the app is running can actually honour.
+ * The three desktop switches — "Start with system", "Always on top" and
+ * "Keep running in the tray" — and, where Windows can do it, the pin row.
  *
  * Deliberately one component shown in several places (Settings, the dashboard,
  * and the first-run dialog) so the wording, the behaviour and the error handling
  * cannot drift apart. The system tray offers the desktop switches from Rust as
  * well, and its own **Exit** is what the close behaviour depends on.
  *
- * The three states are not three components because they are the same three
- * questions. On the packaged desktop they are real switches. In an installed web
- * app the browser owns the login item and the window stacking, so the answers are
- * an explanation and the one always-on-top a browser can offer (a floating
- * timer). In a plain tab none of it exists yet — the honest answer is "install
- * it first", with a button that explains how. Showing the same rows with a
- * different right-hand side is what makes the limitation legible instead of
- * looking like a missing feature.
+ * The pin row is not a switch because pinning is not the app's to give: it asks
+ * the shell, the shell asks the user, and the row then reports what the shell
+ * said. It is absent — not disabled — where Windows has no way to answer.
  */
 @Component({
   selector: 'app-desktop-prefs-panel',
@@ -129,6 +125,52 @@ import {
             <span class="knob"></span>
           </button>
         </div>
+      @if (prefs.pinSupported()) {
+        <div class="pref-row">
+          <span class="pref-label">
+            Pin to taskbar
+            <app-info-tip
+              [heading]="pinHelp.heading"
+              [body]="pinHelp.body"
+              [hint]="pinHelp.hint"
+            />
+          </span>
+          @if (prefs.pinned()) {
+            <span class="pref-state">Pinned</span>
+          } @else {
+            <button
+              type="button"
+              class="pin-button"
+              [disabled]="disabled() || prefs.pinBusy()"
+              (click)="askToPin()"
+            >
+              {{ prefs.pinBusy() ? 'Waiting…' : 'Pin' }}
+            </button>
+          }
+        </div>
+      }
+
+      <div class="pref-row">
+        <span class="pref-label">
+          Always on top
+          <app-info-tip
+            [heading]="onTopHelp.heading"
+            [body]="onTopHelp.body"
+            [hint]="onTopHelp.hint"
+          />
+        </span>
+        <button
+          type="button"
+          class="switch"
+          role="switch"
+          [class.on]="prefs.alwaysOnTop()"
+          [attr.aria-checked]="prefs.alwaysOnTop()"
+          [attr.aria-label]="onTopHelp.heading"
+          [disabled]="disabled() || !prefs.alwaysOnTopSupported()"
+          (click)="toggleAlwaysOnTop()"
+        >
+          <span class="knob"></span>
+        </button>
       </div>
 
       @if (prefs.error(); as message) {
@@ -339,6 +381,19 @@ import {
         font-weight: 600;
         cursor: pointer;
         white-space: nowrap;
+      /* The pin row's action. A pill rather than a switch, because it is a
+         request the shell answers rather than a setting the app keeps. */
+      .pin-button {
+        flex: 0 0 auto;
+        padding: 5px 14px;
+        border-radius: 999px;
+        font-size: 12px;
+        font-weight: 600;
+        font-family: inherit;
+        cursor: pointer;
+        color: #ede9fe;
+        background: rgba(139, 92, 246, 0.28);
+        border: 1px solid rgba(139, 92, 246, 0.55);
         transition:
           background 0.2s,
           border-color 0.2s;
@@ -360,6 +415,22 @@ import {
         font-size: 11px;
         font-style: italic;
         color: var(--color-text-muted);
+      .pin-button:hover:not(:disabled) {
+        background: rgba(139, 92, 246, 0.42);
+      }
+      .pin-button:disabled {
+        opacity: 0.45;
+        cursor: not-allowed;
+      }
+      .pin-button:focus-visible {
+        outline: 2px solid rgba(139, 92, 246, 0.8);
+        outline-offset: 2px;
+      }
+      .pref-state {
+        flex: 0 0 auto;
+        font-size: 12px;
+        font-weight: 600;
+        color: var(--color-text-muted, #a1a1aa);
       }
 
       .pref-error {
@@ -467,6 +538,7 @@ export class DesktopPrefsPanelComponent {
   readonly floating = inject(FloatingTimerService);
 
   protected readonly startHelp = START_WITH_SYSTEM_HELP;
+  protected readonly pinHelp = PIN_TO_TASKBAR_HELP;
   protected readonly onTopHelp = ALWAYS_ON_TOP_HELP;
   protected readonly closeHelp = CLOSE_TO_TRAY_HELP;
   protected readonly miniHelp = MINI_WIDGET_HELP;
@@ -488,6 +560,11 @@ export class DesktopPrefsPanelComponent {
 
   async toggleStartWithSystem(): Promise<void> {
     await this.prefs.setStartWithSystem(!this.prefs.startWithSystem());
+  }
+
+  /** Puts the pin question on the desktop; the answer comes back as a button press. */
+  async askToPin(): Promise<void> {
+    await this.prefs.askToPin();
   }
 
   async toggleAlwaysOnTop(): Promise<void> {

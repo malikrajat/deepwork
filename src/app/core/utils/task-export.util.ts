@@ -9,6 +9,7 @@
 import { STATUS_CONFIG, PRIORITY_CONFIG, QUADRANT_CONFIG } from '../constants/theme.constants';
 import { PomodoroSession } from '../models/session.model';
 import { Task } from '../models/task.model';
+import { isPinnedToToday } from './task-day.util';
 import {
   ExportDateField,
   ExportRangeKey,
@@ -102,7 +103,7 @@ export function resolveRange(
   key: ExportRangeKey,
   customFrom: string,
   customTo: string,
-  today = todayIso()
+  today = todayIso(),
 ): ResolvedRange {
   switch (key) {
     case 'today':
@@ -112,7 +113,11 @@ export function resolveRange(
       return { from: yesterday, to: yesterday, label: `Yesterday (${yesterday})` };
     }
     case 'last7':
-      return { from: shiftDays(today, -6), to: today, label: `Last 7 days (${shiftDays(today, -6)} to ${today})` };
+      return {
+        from: shiftDays(today, -6),
+        to: today,
+        label: `Last 7 days (${shiftDays(today, -6)} to ${today})`,
+      };
     case 'thisWeek': {
       const todayDate = parseLocalDate(today) ?? new Date();
       const monday = shiftDays(today, -((todayDate.getDay() + 6) % 7));
@@ -199,13 +204,11 @@ export const TASK_EXPORT_COLUMNS: readonly TaskExportColumn[] = [
  */
 export function buildCsvContent(
   rows: readonly TaskExportRow[],
-  columns: readonly TaskExportColumn[]
+  columns: readonly TaskExportColumn[],
 ): string {
-  const header = columns.map(column => column.label).join(',');
-  const body = rows.map(row =>
-    columns
-      .map(column => `"${String(row[column.key] ?? '').replace(/"/g, '""')}"`)
-      .join(',')
+  const header = columns.map((column) => column.label).join(',');
+  const body = rows.map((row) =>
+    columns.map((column) => `"${String(row[column.key] ?? '').replace(/"/g, '""')}"`).join(','),
   );
   return [header, ...body].join('\r\n');
 }
@@ -284,7 +287,7 @@ function repeatLabel(task: Task): string {
 
   let base: string;
   if (recurrence.frequency === 'weekly') {
-    const days = (recurrence.days ?? []).map(day => REPEAT_DAY_LABELS[day] ?? String(day));
+    const days = (recurrence.days ?? []).map((day) => REPEAT_DAY_LABELS[day] ?? String(day));
     base = days.length ? `Weekly on ${days.join(' ')}` : 'Weekly';
   } else if (recurrence.frequency === 'monthly') {
     const days = recurrence.days ?? [];
@@ -293,7 +296,8 @@ function repeatLabel(task: Task): string {
     base = recurringFrequencyLabel(recurrence.frequency);
   }
 
-  const interval = recurrence.interval && recurrence.interval > 1 ? ` (every ${recurrence.interval})` : '';
+  const interval =
+    recurrence.interval && recurrence.interval > 1 ? ` (every ${recurrence.interval})` : '';
   const until = recurrence.endDate ? ` until ${recurrence.endDate}` : '';
   return `${base}${interval}${until}`;
 }
@@ -321,7 +325,7 @@ export function buildTaskRow(
   task: Task,
   field: ExportDateField,
   focus: TaskFocusMap,
-  today = todayIso()
+  today = todayIso(),
 ): TaskExportRow {
   const date = taskDateFor(task, field) ?? '';
   const createdDate = task.createdAt ? task.createdAt.slice(0, 10) : '';
@@ -354,7 +358,7 @@ export function buildTaskRow(
     ageDays: createdDate ? (daysBetween(createdDate, lastTouch) ?? '') : '',
     focusSessions: taskFocus.sessions,
     focusMinutes: taskFocus.minutes,
-    onTodayList: yesNo(task.todayOrder !== null),
+    onTodayList: yesNo(isPinnedToToday(task, today)),
     taskId: task.id,
   };
 }
@@ -374,10 +378,14 @@ export interface SelectedTasks {
 }
 
 /** Applies the status/priority filters and the date range to the task list. */
-export function selectTasksForExport({ tasks, options, today = todayIso() }: SelectTasksOptions): SelectedTasks {
+export function selectTasksForExport({
+  tasks,
+  options,
+  today = todayIso(),
+}: SelectTasksOptions): SelectedTasks {
   const range = resolveRange(options.range, options.customFrom, options.customTo, today);
 
-  const filtered = tasks.filter(task => {
+  const filtered = tasks.filter((task) => {
     if (options.status !== 'all' && task.status !== options.status) return false;
     if (options.priority !== 'all' && String(task.priority) !== options.priority) return false;
     return true;
@@ -402,7 +410,8 @@ export function selectTasksForExport({ tasks, options, today = todayIso() }: Sel
 }
 
 /** Oldest first within the range (chronological reading order), then priority. */
-export function sortTasksForExport(tasks: readonly Task[], field: ExportDateField): Task[] {  return [...tasks].sort((a, b) => {
+export function sortTasksForExport(tasks: readonly Task[], field: ExportDateField): Task[] {
+  return [...tasks].sort((a, b) => {
     const dateA = taskDateFor(a, field) ?? '';
     const dateB = taskDateFor(b, field) ?? '';
     if (dateA !== dateB) {
@@ -424,12 +433,12 @@ export function buildSummaryRows(
   range: ResolvedRange,
   field: ExportDateField,
   focus: TaskFocusMap = {},
-  generatedAt = new Date()
+  generatedAt = new Date(),
 ): TaskExportRow[] {
-  const countBy = (status: Task['status']) => tasks.filter(task => task.status === status).length;
+  const countBy = (status: Task['status']) => tasks.filter((task) => task.status === status).length;
   const today = toIsoDate(generatedAt);
   const overdue = tasks.filter(
-    task => task.deadline !== null && task.deadline < today && task.status !== 'done'
+    (task) => task.deadline !== null && task.deadline < today && task.status !== 'done',
   ).length;
   const focusTotals = tasks.reduce(
     (totals, task) => {
@@ -440,7 +449,7 @@ export function buildSummaryRows(
       }
       return totals;
     },
-    { sessions: 0, minutes: 0 }
+    { sessions: 0, minutes: 0 },
   );
 
   return [

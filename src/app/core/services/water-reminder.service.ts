@@ -13,6 +13,7 @@ import {
 import { LogService } from './log.service';
 import { NotificationService } from './notification.service';
 import { AttentionService } from './attention.service';
+import { NotificationAction, NotificationService } from './notification.service';
 import { SettingsService } from './settings.service';
 import { UiService } from './ui.service';
 import { WaterService } from './water.service';
@@ -59,7 +60,10 @@ const LAST_ALIVE_KEY = 'deepwork.water.lastAlive.v1';
  *   notification that slides away while the user is heads-down is one that was
  *   never delivered, so on Windows it is posted as a `reminder` toast that waits
  *   on screen until it is dealt with (see `alert_notify`), under a handle of its
- *   own so it cannot take the place of an unanswered completion alert.
+ *   own so it cannot take the place of an unanswered completion alert. It also
+ *   carries the card's two answers as buttons: the toast is where the user is
+ *   looking, and an answer that requires finding the window first is an answer
+ *   that waits.
  * - **The notification is paired with one card that has to be answered.** A
  *   notification on a busy desktop is easy to miss, however it sounds, so the
  *   reminder also raises a card carrying a motivational line and two answers —
@@ -127,6 +131,15 @@ export class WaterReminderService implements OnDestroy {
   /** Counts nudges so each one is new to the view, and walks the quote list. */
   private nudgeCount = 0;
 
+  /**
+   * Removes the toast-button handler when this service goes away.
+   *
+   * The handler is registered once, in {@link start}, and answers the two
+   * buttons on the reminder's notification exactly as the card's own buttons
+   * do — one question, two surfaces, one answer.
+   */
+  private unlistenToast: (() => void) | null = null;
+
   /** The stored preferences, as one object. */
   readonly prefs = computed<WaterPrefs>(() => waterPrefsOf(this.settingsService.settings()));
 
@@ -162,7 +175,28 @@ export class WaterReminderService implements OnDestroy {
   start(): void {
     if (this.running) return;
     this.running = true;
+    this.listenForAnswers();
     void this.tick();
+  }
+
+  /**
+   * Wires the notification's **Yes** and **Not now** to the same answer the
+   * card's buttons give.
+   *
+   * Registered once and kept for the life of the service rather than around
+   * each reminder: the toast can be answered at any moment, including after the
+   * next tick has already looked at the clock, and a handler that only existed
+   * while a post was in flight would miss exactly the late answers a persistent
+   * notification is there to collect.
+   */
+  private listenForAnswers(): void {
+    if (this.unlistenToast) return;
+    this.unlistenToast = this.notifications.onToastAction(
+      NotificationService.WATER_NOTIFICATION_TAG,
+      (action) => {
+        if (action === 'yes' || action === 'no') void this.answerNudge(action);
+      },
+    );
   }
 
   /**
@@ -354,9 +388,13 @@ export class WaterReminderService implements OnDestroy {
     this.notifications.chime();
 
     // The notification carries the same two lines the card shows — the message,
-    // and the quote set apart from it — so the nudge reads the same in the app
-    // and in the OS notification.
-    await this.say(title, body, quote, now);
+    // and the quote set apart from it — and the same two answers as buttons, so
+    // the nudge reads the same in the app and in the OS notification, and can be
+    // answered in either place without going to find the other.
+    await this.say(title, body, quote, now, [
+      { id: 'yes', label: 'Yes, drank' },
+      { id: 'no', label: 'Not now' },
+    ]);
   }
 
   /**
@@ -416,12 +454,19 @@ export class WaterReminderService implements OnDestroy {
    * toast puts it on a line of its own, and every surface the app falls back to
    * gets a blank line before it.
    */
-  private async say(title: string, body: string, quote: string, now: Date): Promise<void> {
+  private async say(
+    title: string,
+    body: string,
+    quote: string,
+    now: Date,
+    actions?: NotificationAction[],
+  ): Promise<void> {
     try {
       await this.notifications.announce(title, body, {
         quote,
         tag: NotificationService.WATER_NOTIFICATION_TAG,
         sticky: true,
+        actions,
       });
       const total = formatMillilitres(this.water.totalMl());
       const goal = formatMillilitres(this.prefs().goalMl);
@@ -534,6 +579,8 @@ export class WaterReminderService implements OnDestroy {
 
   ngOnDestroy(): void {
     this.stop();
+    this.unlistenToast?.();
+    this.unlistenToast = null;
   }
 }
 

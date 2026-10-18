@@ -55,9 +55,7 @@
                 "output": "icons"
               }
             ],
-            "styles": [
-              "src/styles.css"
-            ],
+            "styles": ["src/styles.css"],
             "outputPath": "./dist/deepwork/"
           },
           "configurations": {
@@ -65,7 +63,7 @@
               "budgets": [
                 {
                   "type": "initial",
-                  "maximumWarning": "600kB",
+                  "maximumWarning": "620kB",
                   "maximumError": "1MB"
                 },
                 {

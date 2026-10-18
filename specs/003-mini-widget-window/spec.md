@@ -51,15 +51,23 @@ is not forgotten at the start of the day.
   rings, the ring pulses and the silence button sits inside it, and start/pause,
   skip and stop each answer the alert as well. Expanding does not answer it — the
   card is waiting in the full window, with its own close button.
-- **AC-11** The widget window draws **no frame of its own**, on any of its four
-  sides. Windows reserves a hairline of non-client area around every top-level
-  window, borderless and transparent ones included, and colours it from the
-  system — which around a 136×76 widget reads as a white line the app never drew.
-  Entering the widget takes that band away
-  (`DwmExtendFrameIntoClientArea` with -1 margins) and tells Windows 11 to draw no
-  border at all (`DWMWA_BORDER_COLOR` = `DWMWA_COLOR_NONE`); leaving it hands back
-  the ordinary frame. Neither call is fatal if it fails, and both write their
-  result to the system log.
+- **AC-11** The widget window has the **card's own shape**, not the card's shape
+  drawn inside a rectangle. Three things would otherwise draw a larger rectangle
+  around a round-cornered card, and each is dealt with at its source: Windows'
+  hairline border goes with `DWMWA_BORDER_COLOR` = `DWMWA_COLOR_NONE`; the frame
+  is never extended into the client area
+  (`DwmExtendFrameIntoClientArea`), because a frame is filled with the system
+  colour and that fill showed through the card's four corners as white wedges;
+  and the four corner lunes themselves are **removed** with `SetWindowRgn` and an
+  `CreateRoundRectRgn` of the card's size and 18px radius, so no pixel exists
+  outside the card for a frame, a background or a shadow to occupy. Non-client
+  rendering is deliberately left enabled: disabling it takes DWM's composition
+  with it, the window falls back to its white background, and the corners come
+  back white. `Window.setShadow()` is never called at runtime either — on Windows
+  it recomputes the window styles from flags that include a caption, which puts
+  the widget's title bar back. The region is cleared before the window grows back,
+  so the full window is never left clipped to a widget. None of the calls is fatal
+  if it fails, and all of them write their result to the system log.
 - **AC-12** A finished session is announced — tone, card and system notification —
   **whenever and wherever it finishes**: every session type (focus, short break,
   long break) goes through `TimerService`, so the alert does not depend on the
@@ -72,8 +80,9 @@ is not forgotten at the start of the day.
   no part of the window — title bar included — is left off the edge of the screen
   however far the widget was dragged while it was open, and a window that was
   maximised when it shrank comes back maximised.
-- **AC-7** The widget fills the whole window while it is open; no app chrome,
-  banners, toasts or dialogs are clipped into it.
+- **AC-7** The widget's card is the whole of its window, edge to edge; no app
+  chrome, banners, toasts or dialogs are clipped into it, and no strip of window
+  is left around the card for the desktop shell to fill, outline or shadow.
 - **AC-8** A login launch (`--autostart`) opens the full window at its normal size
   without stealing focus; the tray icon still appears.
 - **AC-9** The browser/PWA build keeps working: mini mode stays a floating panel

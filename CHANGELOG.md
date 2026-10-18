@@ -5,13 +5,53 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ---
 
-## [2.0.23] – 2026-10-24
+## [3.0.0] – 2026-10-18
 
 > **Progress.** This entry was written as the work landed, not after it: each
 > section below describes something that is finished and running in this
 > release, and the code it names is where it lives. Nothing here is a plan.
 
 ### Added
+
+- **Time by Task: the work your focus actually goes to.** A new **Time by Task**
+  page groups every focus session by the work it paid for, so a daily routine
+  that arrives as a new task row each day — *Code review* on Monday, *Code
+  review* on Tuesday — adds up under one row instead of scattering across the
+  task list.
+  Each row carries the figure the user actually asks for, **till today**: total
+  time, sessions and active days, first and last session, and its rhythm —
+  repeats daily/weekly/monthly, multi-day, or one-off. A **Today / This week /
+  This month / This year / All time / Custom** switch moves the window, with
+  Custom taking two dates so a single unusual day or any arbitrary span can be
+  read. The row's chart divides that window into days, weeks, months or years,
+  and opening the row raises a detail sheet with the breakdown table, the
+  averages and the individual sessions behind the total. Repeating work is
+  detected from the gaps between days worked (a configured recurrence wins when
+  there is one), so a routine kept on one task still reads as repeating.
+
+  **The list is virtualised.** A user with hundreds of tasks no longer builds
+  hundreds of cards: only the fixed-height rows inside the scroll viewport (plus
+  a small overscan) exist in the DOM, and the detail sheet is what lets the rows
+  stay fixed-height. A bar is one **solid colour that means what the work is** —
+  violet repeats, amber is one-off, blue is multi-day, slate is untasked — and
+  the current day/week/month/year is marked with a ring rather than a second
+  fill colour. The legend above the list names every colour and the ring, so a
+  bar never asks the user to guess what two shades mean.
+
+  A **What this says** card turns the numbers into a reading: which work took
+  most of the period, how much of it repeats, how consistently the steadiest
+  task shows up, and whether the average block is long enough to think about
+  splitting. Time the timer recorded without a task is shown as **Untasked
+  focus** rather than hidden, and says how to attribute it next time. With no
+  sessions the page explains what will appear and links to the Dashboard.
+
+  Sessions now keep the task's title as a **snapshot**
+  (`013_add_session_task_title.sql`): `sessions.task_id` is cleared when a task
+  is deleted, and the page must still know which work the hours were for. The
+  migration backfills the sessions already in the database from the task they
+  point at; no duration or date is changed. The page lives at `/time`, in the
+  sidebar after Analytics as **Time by Task**, as `Ctrl+7` (`time.component.ts`,
+  `time-report.util.ts`, `time-report.model.ts`, `specs/016-time-by-task`).
 
 - **The first launch asks one question, and then stops asking it.** A full
   dialog — not a card in the corner — offers to start DeepWork with the computer,
@@ -168,9 +208,12 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   compact layout below 900px gives the grid up entirely: one quadrant per row,
   the inline placement overridden, and the dividers hidden.
 
-- **The version is 2.0.23**, in every file that spells it out, and the release
+- **The version is 3.0.0**, in every file that spells it out, and the release
   keeps the 2.0.22 removal of desktop pinning: this release asks the user to pin
-  DeepWork; it still does not try to do it for them.
+  DeepWork; it still does not try to do it for them. The major number is
+  deliberate — Time by Task is a new question the app can answer, not a
+  refinement of today's page — and this release carries the work that had been
+  staged as 2.0.23, which was never tagged.
 
 - **A page is not a narrow column in the middle of a monitor.** Settings and
   About used to be a single 560px and 780px column, with an auto margin added for
@@ -245,6 +288,42 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   line of text (under eight minutes) still carries no label.
 
 ### Fixed
+
+- **The mini widget is one rounded card — no white corners, and no rectangle
+  drawn around it.** The card was already round-cornered, so the four white wedges
+  were never the card. They were whatever the desktop shell put in the pixels the
+  card leaves empty at its corners, and there were three such things: the frame
+  fill (`DwmExtendFrameIntoClientArea`, since removed from `paint_widget_frame`);
+  the hairline Windows draws around every top-level window (now
+  `DWMWA_BORDER_COLOR` = none); and the window's own drop shadow, which follows
+  the *window* rather than the card. Each was chased to its source, and the
+  conclusion is that chasing them one by one is the wrong shape of fix: a window
+  that is a rectangle, holding a card that is not, will always leave that corner
+  to somebody. So the corners are **removed** instead — `SetWindowRgn` clips the
+  window to a rounded rectangle of the card's own size and 18px radius, with no
+  pixel left outside it for a frame, a background or a shadow to occupy. An
+  intermediate pass kept a 16px transparent ring around the card so the page could
+  draw its own shadow; that ring was itself a strip for the shell to outline, and
+  the larger rectangle it produced is why it is gone. Two calls had to be taken
+  back out for good measure: `DWMWA_NCRENDERING_POLICY` = disabled, which takes
+  DWM's composition with it and turns the four corners white, and
+  `Window.setShadow()`, which recomputes the window styles on Windows and puts the
+  title bar back.
+
+- **Yesterday's work no longer follows you into Today.** "Add to Today" is a
+  one-day instruction, but it was stored as a position (`today_order`) that was
+  written once and never expired: a task finished on Monday was still on
+  Tuesday's board, and an import whose rows had answered "Add to Today" left its
+  whole backlog there every morning — which is why Today never reached its own
+  empty state. The star now carries the local day it was set on
+  (`today_order_date`, migration `012_add_today_order_date.sql`), and the daily
+  upkeep clears stars from another day — including the ones written before a day
+  existed to carry — in one quiet write that leaves the tasks themselves alone.
+  A task dated today, or written today, is still on today's board; yesterday's
+  is not, finished or not. The star on a card, the export's **On Today List**
+  column and the importer all read the same day-scoped rule
+  (`task-day.util.ts`, `isPinnedToToday`), so they cannot disagree about what
+  today holds.
 
 - **A focus session started without picking a task is no longer filed against the
   task you last worked on.** The task a session is for was remembered in

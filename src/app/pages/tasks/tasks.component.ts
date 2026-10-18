@@ -37,6 +37,7 @@ import {
   createSearchFormDefaults,
 } from '../../shared/models/form.models';
 import { noXss, trimmedRequired, futureDate } from '../../shared/validators/form-validators';
+import { isPinnedToToday } from '../../core/utils/task-day.util';
 import {
   TaskDateGroup,
   groupAddDate,
@@ -1672,7 +1673,7 @@ export class TasksComponent implements OnInit {
   }
 
   async toggleToday(task: Task): Promise<void> {
-    if (task.todayOrder !== null) {
+    if (isPinnedToToday(task)) {
       await this.taskService.removeFromToday(task.id);
     } else {
       await this.taskService.addToToday(task.id);

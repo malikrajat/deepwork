@@ -20,7 +20,12 @@ interface NavItem {
   changeDetection: ChangeDetectionStrategy.OnPush,
   host: { '[class.mobile-open]': 'mobileOpen()' },
   template: `
-    <nav id="app-navigation" class="sidebar" [class.collapsed]="collapsed()" aria-label="Main navigation">
+    <nav
+      id="app-navigation"
+      class="sidebar"
+      [class.collapsed]="collapsed()"
+      aria-label="Main navigation"
+    >
       <div class="sidebar-header">
         @if (!collapsed()) {
           <div class="brand">
@@ -69,7 +74,12 @@ interface NavItem {
              the control that belongs there and this one is not laid out at all;
              inside the drawer there is nothing to collapse to, so the equivalent
              action is to close the drawer. -->
-        <button class="close-btn" type="button" (click)="closeMobile.emit()" aria-label="Close navigation">
+        <button
+          class="close-btn"
+          type="button"
+          (click)="closeMobile.emit()"
+          aria-label="Close navigation"
+        >
           <svg
             width="18"
             height="18"
@@ -645,6 +655,11 @@ export class SidebarComponent {
       path: 'analytics',
       label: 'Analytics',
       icon: '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>',
+    },
+    {
+      path: 'time',
+      label: 'Time by Task',
+      icon: '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 3v18h18"/><rect x="7" y="12" width="3" height="6" rx="0.5"/><rect x="12" y="8" width="3" height="10" rx="0.5"/><rect x="17" y="5" width="3" height="13" rx="0.5"/></svg>',
     },
     {
       path: 'habits',

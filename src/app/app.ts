@@ -42,6 +42,7 @@ const PAGE_ROUTES = [
   'calendar',
   'tasks',
   'analytics',
+  'time',
   'habits',
   'journal',
   'settings',

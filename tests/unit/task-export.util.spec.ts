@@ -43,6 +43,7 @@ function taskOf(overrides: Partial<Task> = {}): Task {
     tags: ['work'],
     recurrence: null,
     todayOrder: null,
+    todayOrderDate: null,
     createdAt: '2026-09-20T09:05:00.000Z',
     completedAt: null,
     updatedAt: null,
@@ -200,6 +201,7 @@ describe('task export: one row per task', () => {
       deadline: '2026-09-24',
       tags: ['work', 'urgent'],
       todayOrder: 3,
+      todayOrderDate: TODAY,
       createdAt: '2026-09-20T09:05:00.000Z',
       completedAt: '2026-09-21T18:30:00.000Z',
       recurrence: { frequency: 'weekly', interval: 2, days: [1, 3], endDate: '2026-12-01' },
@@ -229,6 +231,17 @@ describe('task export: one row per task', () => {
     });
     expect(String(row.quadrant)).toContain('Q2');
     expect(String(row.ageDays)).toBe('1');
+  });
+
+  it('does not report a star from another day as being on today’s list', () => {
+    const row = buildTaskRow(
+      taskOf({ todayOrder: 3, todayOrderDate: '2026-09-20' }),
+      'deadline',
+      {},
+      TODAY,
+    );
+
+    expect(row.onTodayList).toBe('No');
   });
 
   it('flags an overdue task and counts the days it is late', () => {

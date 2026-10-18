@@ -1133,11 +1133,16 @@ html[data-theme='light'] .action-btn {
 }
 
 /* ===== Mini widget window =====
-   The desktop build now creates its window with `transparent: true` (see
-   `src-tauri/tauri.conf.json`). That is the whole reason the 136x76 widget can
-   be a round-cornered card instead of a square box: its corners are genuinely
-   empty, so the desktop shows through them, exactly like the floating panel in
-   the browser build.
+   The desktop build creates its window with `transparent: true` (see
+   `src-tauri/tauri.conf.json`). That is the whole reason the widget's card can be
+   round-cornered instead of a square box: its corners are genuinely empty, so the
+   desktop shows through them, exactly like the floating panel in the browser
+   build.
+
+   The card is the whole window, edge to edge, and `shadow: false` keeps the
+   desktop shell from drawing a drop shadow around the *window* — around a
+   rectangle, that is, rather than around the card. A window with room to spare
+   around its card is a window that will paint, outline or shadow that room.
 
    `UiService` puts `widget-transparent` on <html> for exactly as long as the
    widget is open. Keeping it a class rather than a blanket rule matters twice

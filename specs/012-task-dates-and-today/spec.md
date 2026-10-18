@@ -58,8 +58,10 @@ user's behalf: a row typed today is already on today's list by its deadline.
   written today**, is on today.
 - **AC-4** A task whose deadline is **in the past** and is still open stays on
   today: overdue work is still on the user's plate.
-- **AC-5** `todayOrder !== null` (**Add to Today**) puts a task on today whatever
-  its deadline says, because it is the user's own instruction.
+- **AC-5** `todayOrder !== null` with `todayOrderDate` set to today (**Add to
+  Today**) puts a task on today whatever its deadline says, because it is the
+  user's own instruction — for that day only; a star from an earlier day is not
+  today's. An older star with no date at all is treated as expired.
 - **AC-6** The import template's **Add to Today** default is `No`, and its column
   hint, the *Deadline* hint and the *Instructions* sheet each say that the deadline
   decides the day and that `Yes` is what pulls a later-dated row onto today.
