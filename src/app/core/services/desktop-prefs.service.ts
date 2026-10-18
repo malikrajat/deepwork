@@ -169,9 +169,19 @@ export class DesktopPrefsService {
     this.unlistenPinAction = this.notifications.onToastAction(
       NotificationService.PIN_NOTIFICATION_TAG,
       (action) => {
-        // **Cancel** needs no handler: leaving the notification alone is the
-        // whole of what it asks for.
-        if (action === 'pin') void this.pinToTaskbar();
+        // One tag, three ways of asking the same question: the first-run row's
+        // **Pin** / **Cancel**, and the reminder's **Yes** / **Not now**. They
+        // all end with the notification taken down, because a question that has
+        // been answered must not stay on screen asking.
+        if (action === 'pin' || action === 'yes') {
+          void this.pinNow().finally(() =>
+            this.notifications.dismissSystemNotification(NotificationService.PIN_NOTIFICATION_TAG),
+          );
+          return;
+        }
+        // **Cancel** / **Not now** need no handler beyond leaving the app as it
+        // is: the notification is the only thing that changes.
+        void this.notifications.dismissSystemNotification(NotificationService.PIN_NOTIFICATION_TAG);
       },
     );
 
@@ -182,10 +192,10 @@ export class DesktopPrefsService {
    * Puts the pin question on the desktop as a notification with a button.
    *
    * A notification rather than a dialog inside the window, because the answer
-   * is the shell's to act on: the **Pin** button asks Windows directly, and
-   * Windows draws its own confirmation on top. Nothing is pinned until the user
-   * has agreed to it in that dialog — an app cannot put itself on the taskbar
-   * silently, and no version of this feature should pretend otherwise.
+   * is the shell's to act on: **Yes** asks Windows directly, and Windows draws
+   * its own confirmation on top. Nothing is pinned until the user has agreed to
+   * it in that dialog — an app cannot put itself on the taskbar silently, and no
+   * version of this feature should pretend otherwise.
    */
   async askToPin(): Promise<void> {
     if (!IN_TAURI || !this.pinSupported() || this.pinned()) return;
@@ -199,8 +209,11 @@ export class DesktopPrefsService {
           tag: NotificationService.PIN_NOTIFICATION_TAG,
           sticky: true,
           actions: [
-            { id: 'pin', label: 'Pin' },
-            { id: 'cancel', label: 'Cancel' },
+            // The same two answers the reminder asks with: the row in Settings,
+            // the first-run setup and the reminder are one question, so they
+            // must not answer with three different pairs of words.
+            { id: 'yes', label: 'Yes, pin it' },
+            { id: 'no', label: 'Not now' },
           ],
         },
       );
@@ -214,10 +227,12 @@ export class DesktopPrefsService {
    *
    * The command returns as soon as the request is scheduled; the answer arrives
    * on `deepwork:taskbar-pin`, because the user may take as long as they like
-   * over the dialog and nothing should be blocked waiting for them.
+   * over the dialog and nothing should be blocked waiting for them. Returns
+   * whether the request could be made — not whether the user then agreed, which
+   * is the event's business.
    */
-  private async pinToTaskbar(): Promise<void> {
-    if (!IN_TAURI || this.pinBusy()) return;
+  private async pinToTaskbar(): Promise<boolean> {
+    if (!IN_TAURI || this.pinBusy()) return false;
 
     this.pinBusy.set(true);
     this.error.set(null);
@@ -226,10 +241,24 @@ export class DesktopPrefsService {
       // The event is what normally clears this. The timeout is only so that a
       // request the shell never answers cannot leave the button dead.
       setTimeout(() => this.pinBusy.set(false), 120_000);
+      return true;
     } catch (err) {
       this.pinBusy.set(false);
       this.error.set(this.describe(err, 'Could not ask Windows to pin DeepWork.'));
+      return false;
     }
+  }
+
+  /**
+   * The **Yes** on a pin reminder: asks Windows straight away.
+   *
+   * The reminder's toast and its card both come here, so the two surfaces cannot
+   * disagree about what yes means. Nothing is pinned silently — the request is
+   * what raises Windows' own confirmation, exactly as the row in Settings does.
+   */
+  async pinNow(): Promise<boolean> {
+    if (!IN_TAURI || !this.pinSupported() || this.pinned()) return false;
+    return this.pinToTaskbar();
   }
 
   /** Turns "start with the system" on or off. */
@@ -345,6 +374,23 @@ export class DesktopPrefsService {
     if (this.prompted()) return;
     this.prompted.set(true);
     await this.persist({ desktopPrefsPrompted: true });
+  }
+
+  /**
+   * Puts the first-run dialog back on the list, so it can be seen again.
+   *
+   * Two callers need this. The shell uses it when a database from an older
+   * version already carries "the preferences dialog has been seen" but has never
+   * been asked the newer first-run question — closing a dialog before the
+   * question existed is not an answer to it, so the whole setup is offered once
+   * more. Settings uses it for the deliberate case: someone who wants to read
+   * the introduction again.
+   */
+  async reopenFirstRun(): Promise<void> {
+    if (!IN_TAURI) return;
+    this.error.set(null);
+    this.prompted.set(false);
+    await this.persist({ desktopPrefsPrompted: false });
   }
 
   // ──────────────────────────────────────────────────────────────────────────

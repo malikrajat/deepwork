@@ -47,3 +47,32 @@
       "DeepWork keeps everything on this computer, in:$\r$\n$\r$\n$APPDATA\${BUNDLEID}$\r$\n$\r$\nYour tasks, completed sessions, journal and settings are all in that folder — nothing is stored anywhere else, and uninstalling DeepWork does not remove it.$\r$\n$\r$\nThe next page offers 'Delete the application data'. Ticking it deletes that folder and everything in it, for good.$\r$\n$\r$\nIf you plan to install DeepWork again, leave it unticked: your work will still be here."
   ${EndIf}
 !macroend
+
+; ## NSIS_HOOK_POSTINSTALL
+;
+; Runs after Tauri has copied the files, on an install **and** on a reinstall
+; over an existing one — which is the point. The first-run setup is once-only,
+; and "once" is recorded in the database, so a reinstall over a database that
+; has already answered it would never show it again. That is correct for the
+; user and wrong for the installer's own promise: a fresh installation is a
+; fresh start, and someone who installs again should meet the setup again.
+;
+; So the installer leaves one marker beside the database and the app consumes it
+; on its next launch. Only the two "already offered" flags are put back — tasks,
+; sessions, water, journal and every other choice are untouched.
+;
+; The `$UpdateMode` guard is deliberate and is the same one the uninstall hook
+; uses: the app's own silent updater should not interrupt an update with a
+; setup wizard the user did not ask for. A manual install or reinstall is a
+; person choosing to install, and does get it.
+;
+; `CreateDirectory` first, because a first-ever install has no data folder yet;
+; NSIS treats "already exists" as success.
+!macro NSIS_HOOK_POSTINSTALL
+  ${If} $UpdateMode <> 1
+    CreateDirectory "$APPDATA\${BUNDLEID}"
+    FileOpen $0 "$APPDATA\${BUNDLEID}\just-installed" w
+    FileWrite $0 "1"
+    FileClose $0
+  ${EndIf}
+!macroend

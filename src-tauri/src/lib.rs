@@ -1,5 +1,6 @@
 mod autostart;
 mod db_guard;
+mod db_migrations;
 mod downloads;
 mod logging;
 mod nudges;
@@ -12,7 +13,6 @@ use tauri::{
     tray::TrayIconBuilder,
     AppHandle, Emitter, Manager, WebviewWindow, WindowEvent, Wry,
 };
-use tauri_plugin_sql::{Migration, MigrationKind};
 
 /// Checkable tray items that must mirror the app's desktop preferences.
 ///
@@ -798,14 +798,56 @@ fn show_toast(
         .map_err(|err| err.to_string())?;
 
     // Kept only after the shell has taken it: a toast that could not be posted
-    // is not one whose buttons can be pressed.
-    if !actions.is_empty() {
-        if let Some(handles) = app.try_state::<ToastHandles>() {
-            if let Ok(mut live) = handles.0.lock() {
+    // is not one whose buttons can be pressed. Whatever object the tag held
+    // before is dropped at the same moment — Windows has just replaced that
+    // toast, and keeping the old object would let a button on a notification
+    // that is no longer on screen answer a question that has been replaced
+    // (a water reminder replaced by its own auto-counted version, say).
+    if let Some(handles) = app.try_state::<ToastHandles>() {
+        if let Ok(mut live) = handles.0.lock() {
+            live.remove(tag);
+            if !actions.is_empty() {
                 live.insert(tag.to_string(), toast);
             }
         }
     }
+    Ok(())
+}
+
+/// Takes a toast out of the notification centre, by the tag it was posted under.
+///
+/// This is the other half of `sticky`: a reminder that waits on screen until the
+/// user does something has to *stop* waiting once they have done it, or the
+/// question answered in the app would stay on the desktop as if it had not been.
+/// Windows only, because Windows is the only platform whose toast the app owns
+/// after posting it — elsewhere the notification has already been handed to the
+/// OS and the app has no handle left to close.
+///
+/// A tag with no live toast is not an error: the user may have already dismissed
+/// it, or a plain notification was posted under it (which is not held, because it
+/// has no button to answer).
+#[cfg(windows)]
+#[tauri::command]
+fn toast_dismiss(app: AppHandle, tag: String) -> Result<(), String> {
+    use windows::core::HSTRING;
+    use windows::UI::Notifications::ToastNotificationManager;
+
+    let toast = app
+        .try_state::<ToastHandles>()
+        .and_then(|handles| handles.0.lock().ok().and_then(|mut live| live.remove(&tag)));
+    let Some(toast) = toast else {
+        return Ok(());
+    };
+
+    ToastNotificationManager::CreateToastNotifierWithId(&HSTRING::from(alert_app_id(&app)))
+        .and_then(|notifier| notifier.Hide(&toast))
+        .map_err(|err| err.to_string())
+}
+
+/// Everywhere else the app does not own the notification once posted.
+#[cfg(not(windows))]
+#[tauri::command]
+fn toast_dismiss(_app: AppHandle, _tag: String) -> Result<(), String> {
     Ok(())
 }
 
@@ -1116,6 +1158,36 @@ fn db_backup(app: AppHandle, note: String) -> Option<String> {
     db_guard::backup(&app, &note)
 }
 
+/// Takes the installer's "this is a fresh install" marker, if it left one.
+///
+/// The first-run setup is recorded in the database, which survives a reinstall
+/// by design — the user's tasks are in the same folder. That means a reinstall
+/// would otherwise never show the setup again. The NSIS installer writes one
+/// marker beside the database (`installer-hooks.nsh`), and this hands it to the
+/// frontend once and deletes it, so the reset happens exactly once per install.
+///
+/// A silent update from the app's own updater does not write the marker, so an
+/// update never interrupts the user with a setup wizard. No marker is not an
+/// error: it is the ordinary launch of an app that was installed long ago.
+#[tauri::command]
+fn first_run_take_marker(app: AppHandle) -> bool {
+    let Ok(dir) = app.path().app_config_dir() else {
+        return false;
+    };
+    let marker = dir.join("just-installed");
+    match std::fs::remove_file(&marker) {
+        Ok(()) => {
+            log::info!(target: logging::SYSTEM, "fresh install: the first-run setup will be offered again");
+            true
+        }
+        Err(err) if err.kind() == std::io::ErrorKind::NotFound => false,
+        Err(err) => {
+            log::warn!(target: logging::SYSTEM, "fresh-install marker could not be read: {err}");
+            false
+        }
+    }
+}
+
 /// Whether DeepWork is already pinned to the taskbar, and whether pinning is
 /// something this platform can answer for at all.
 ///
@@ -1146,86 +1218,9 @@ pub fn run() {
     // is, the line goes to the system temp directory rather than nowhere.
     logging::install_panic_hook();
 
-    let migrations = vec![
-        Migration {
-            version: 1,
-            description: "create initial tables",
-            sql: include_str!("../migrations/001_initial.sql"),
-            kind: MigrationKind::Up,
-        },
-        Migration {
-            version: 2,
-            description: "add missing settings columns",
-            sql: include_str!("../migrations/002_add_settings_columns.sql"),
-            kind: MigrationKind::Up,
-        },
-        Migration {
-            version: 3,
-            description: "add task updated_at",
-            sql: include_str!("../migrations/003_add_task_updated_at.sql"),
-            kind: MigrationKind::Up,
-        },
-        Migration {
-            version: 4,
-            description: "add calendar reminder setting",
-            sql: include_str!("../migrations/004_add_calendar_reminders.sql"),
-            kind: MigrationKind::Up,
-        },
-        Migration {
-            version: 5,
-            description: "add desktop preference settings",
-            sql: include_str!("../migrations/005_add_desktop_prefs.sql"),
-            kind: MigrationKind::Up,
-        },
-        Migration {
-            version: 6,
-            description: "add water intake log and reminder settings",
-            sql: include_str!("../migrations/006_add_water_intake.sql"),
-            kind: MigrationKind::Up,
-        },
-        Migration {
-            version: 7,
-            description: "add water auto-log setting for the mini widget",
-            sql: include_str!("../migrations/007_add_water_autolog.sql"),
-            kind: MigrationKind::Up,
-        },
-        Migration {
-            version: 8,
-            description: "close the window into the system tray",
-            sql: include_str!("../migrations/008_close_to_tray.sql"),
-            kind: MigrationKind::Up,
-        },
-        Migration {
-            version: 9,
-            description: "how long the mini widget shakes for",
-            sql: include_str!("../migrations/009_alert_shake.sql"),
-            kind: MigrationKind::Up,
-        },
-        Migration {
-            version: 10,
-            description: "carry unfinished work forward, or close it",
-            sql: include_str!("../migrations/010_carry_forward_tasks.sql"),
-            kind: MigrationKind::Up,
-        },
-        Migration {
-            version: 11,
-            description: "ask about starting with Windows, and remind until it is on",
-            sql: include_str!("../migrations/011_launch_prompt_and_nudges.sql"),
-            kind: MigrationKind::Up,
-        },
-        Migration {
-            version: 12,
-            description: "make Add to Today apply to one day",
-            sql: include_str!("../migrations/012_add_today_order_date.sql"),
-            kind: MigrationKind::Up,
-        },
-        Migration {
-            version: 13,
-            description: "remember the task title on a focus session",
-            sql: include_str!("../migrations/013_add_session_task_title.sql"),
-            kind: MigrationKind::Up,
-        },
-    ];
+    // One list, in `db_migrations`, because the repair command compares the same
+    // bytes this build embeds with the hashes in the database. See that module.
+    let migrations = db_migrations::migrations();
 
     tauri::Builder::default()
         .plugin(
@@ -1249,11 +1244,14 @@ pub fn run() {
             window_set_close_behavior,
             window_set_widget_mode,
             alert_notify,
+            toast_dismiss,
             taskbar_pin_supported,
             taskbar_pin,
             save_download,
             db_preflight,
             db_backup,
+            db_migrations::db_repair_migrations,
+            first_run_take_marker,
             nudges_taskbar_pin_state,
             nudges_quiet_state,
             logging::log_folder,

@@ -58,6 +58,15 @@ export interface ToastNotification {
    * no buttons at all.
    */
   actions?: ToastAction[];
+  /**
+   * The handle this card belongs to, when it is a question rather than news.
+   *
+   * The same tag its OS notification is posted under. It is what lets
+   * {@link NotificationService.dismissSystemNotification} take the card down
+   * when the question was answered on the desktop — without touching a
+   * completion alert that happens to be showing at the same moment.
+   */
+  tag?: string;
   type: TimerType;
   visible: boolean;
 }
@@ -401,8 +410,9 @@ export class NotificationService implements OnDestroy {
     type: TimerType,
     quote: string | null = null,
     actions: ToastAction[] = [],
+    tag?: string,
   ): void {
-    this.showToast(title, body, type, quote, actions);
+    this.showToast(title, body, type, quote, actions, tag);
   }
 
   /**
@@ -439,6 +449,35 @@ export class NotificationService implements OnDestroy {
   async announce(title: string, body: string, options: NotificationOptions = {}): Promise<void> {
     await this.init();
     await this.sendNotification(title, body, 0, options);
+  }
+
+  /**
+   * Takes back a system notification the app posted with buttons.
+   *
+   * A question posted as a `reminder` toast waits on screen until it is dealt
+   * with, which is the point — but once it *has* been answered, in the app or on
+   * the toast, leaving it there would ask the user a question they have already
+   * answered. Windows is the only platform where this can do anything: the app
+   * keeps the toast object it posted (see `ToastHandles` in `lib.rs`), and the
+   * shell will close it on request. Elsewhere the notification belongs to the OS
+   * from the moment it is posted, and a no-op is the honest answer.
+   *
+   * A tag with no live toast is not an error, so this never throws.
+   */
+  async dismissSystemNotification(tag: string): Promise<void> {
+    // The card is the same question asked in the app, so it goes too — but only
+    // when it is this question's card. A completion alert ringing at the same
+    // moment is somebody else's message and must not be silenced by an answer to
+    // this one.
+    if (this.toast()?.tag === tag) this.toast.set(null);
+    if (!IN_TAURI) return;
+    try {
+      const { invoke } = await import('@tauri-apps/api/core');
+      await invoke('toast_dismiss', { tag });
+    } catch {
+      // A shell from before the command existed. The toast will be dismissed by
+      // the user (or by Windows) instead; nothing in the app depends on it.
+    }
   }
 
   /** Plays the chosen sound from a user interaction without changing settings. */
@@ -489,6 +528,7 @@ export class NotificationService implements OnDestroy {
     type: TimerType,
     quote: string | null = null,
     actions: ToastAction[] = [],
+    tag?: string,
   ): void {
     // Set null first to force Angular to destroy and re-create the element (re-triggers animation)
     this.toast.set(null);
@@ -497,7 +537,16 @@ export class NotificationService implements OnDestroy {
     }
     this.toastTimeoutId = setTimeout(() => {
       this.toastCounter++;
-      this.toast.set({ id: this.toastCounter, title, body, quote, actions, type, visible: true });
+      this.toast.set({
+        id: this.toastCounter,
+        title,
+        body,
+        quote,
+        actions,
+        tag,
+        type,
+        visible: true,
+      });
       this.toastTimeoutId = null;
     }, 50);
   }

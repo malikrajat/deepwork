@@ -78,18 +78,18 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   ever". The two switches live in Settings → Reminders
   (`migrations/011_launch_prompt_and_nudges.sql`).
 
-- **A taskbar reminder that checks before it speaks.** Windows will not let an
-  app pin itself without a feature token no ordinary build has, so this asks
+- **A taskbar reminder that can do the click it asks for.** Windows will not let
+  an app pin itself without a feature token no ordinary build has, so this asks
   rather than pretends: three reminders a day, only while DeepWork is *not*
-  pinned, and each one names the two clicks precisely — right-click DeepWork in
-  the Start menu, choose **Pin to taskbar**, or do the same on its taskbar icon
-  if it is already open. What makes the reminder possible at all is that the
-  app can read the folder Windows keeps pinned shortcuts in
+  pinned. **Yes** on the notification (or **Pin now** on its card) calls the
+  documented taskbar request, and Windows draws its own confirmation — nothing is
+  pinned until the user agrees to it there. What makes the reminder honest at all
+  is that the app can read the folder Windows keeps pinned shortcuts in
   (`%APPDATA%\Microsoft\Internet Explorer\Quick Launch\User Pinned\TaskBar`):
   the shortcut's own name is checked, and so are its bytes, in both the plain
   and the UTF-16 form a `.lnk` stores its target in, so a renamed shortcut still
-  counts. The taskbar is re-read before every reminder and again when **Got it**
-  is pressed, which is what makes "already pinned" silence the feature instead
+  counts. The taskbar is re-read before every reminder and again after an
+  answer, which is what makes "already pinned" silence the feature instead
   of nagging through it. It is Windows-only and reports itself as unsupported
   elsewhere, because a reminder whose answer can never be observed should not
   exist (`src-tauri/src/nudges.rs`, `nudges_taskbar_pin_state`).
@@ -185,6 +185,63 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   applications through Document Picture-in-Picture, where the browser has it
   (`floating-timer.service.ts`). Settings gained an **App Behaviour** card that
   tells this same truth in place of switches the browser would ignore.
+
+- **Every question on the desktop can now be answered where it is asked.** The
+  startup and taskbar reminders used to arrive as plain notifications and ask the
+  user to go and find the app; they now carry the same two buttons their cards
+  have — **Yes** and **Not now** — and stay on screen until one of them is
+  pressed. **Yes** on the startup reminder writes the login item, **Yes** on the
+  taskbar reminder raises Windows' own pin confirmation, and both answers take
+  the notification down again, because a question that has been answered must not
+  stay on screen asking. The water reminder gets the same treatment: **Yes, drank**
+  logs the glass and **Not now** closes it, from the card or from the notification,
+  and either way the notification is withdrawn
+  (`launch-prompt.service.ts`, `water-reminder.service.ts`,
+  `NotificationService.dismissSystemNotification`, and `toast_dismiss` with
+  `ToastHandles` in `lib.rs`).
+
+- **A first-run setup that can be seen again.** The first-run question was
+  genuinely once-only, which also meant it could not be shown a second time — and
+  an install whose database predated the question had already dismissed the
+  preferences dialog, so it met neither half of the flow. That case is now
+  recognised: when `launch_prompted` is unset but the older preferences dialog has
+  been seen, the whole setup is offered again, preferences first and the startup
+  question second, exactly as on a fresh install. Settings → Reminders carries a
+  **Show setup** button for the deliberate case, and the installer now leaves a
+  one-line marker beside the database on a manual install or reinstall — never on
+  the app's own silent update — so installing again shows the setup again instead
+  of being retired by flags the old installation wrote
+  (`LaunchPromptService.reopenSetup`, `DesktopPrefsService.reopenFirstRun`,
+  `first_run_take_marker`, `NSIS_HOOK_POSTINSTALL`).
+
+### Fixed
+
+- **The first-run dialog was not appearing on an existing install — because the
+  app was silently not using its database.** `sqlx` records a SHA-384 of every
+  migration it applies and refuses to start when one of them hashes differently.
+  A Windows checkout with `core.autocrlf=true` rewrites `\n` to `\r\n`, which is
+  not a change to the schema but *is* a different hash; the SQL plugin then handed
+  the frontend no connection, and `DbService` answered by falling back to
+  localStorage. The app looked fine, but every task, setting and first-run flag
+  came from a different store than the user's real `deepwork.db`, which sat on
+  disk unused. Three things fix it, and each is the reason the next one is safe:
+
+  1. `.gitattributes` pins `src-tauri/migrations/*.sql` to LF, so the bytes a
+     build embeds are the same on every machine.
+  2. `db_repair_migrations` runs before the plugin opens the file and rewrites a
+     recorded hash that differs only by the *other* line ending. A hash that
+     matches neither is left alone, so a migration whose content really changed
+     still stops the startup. The repair calls the SQLite the app already links
+     (no second copy), runs after the launch backup, and logs what it changed
+     (`src-tauri/src/db_migrations.rs`).
+  3. A database that is present, holds data and still cannot be opened is now
+     reported instead of replaced by localStorage. The database error card shows
+     the plugin's own reason. A failed open from an app initializer used to throw,
+     which meant a blank window rather than the card; the guard now sets the
+     failure and lets the shell render it (`DbService`, `DatabaseErrorComponent`).
+
+  With the database actually open, migrations 11–13 apply, `launch_prompted`
+  arrives at 0, and the setup described above appears.
 
 ### Changed
 

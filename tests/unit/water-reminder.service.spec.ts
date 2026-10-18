@@ -33,13 +33,14 @@ describe('WaterReminderService', () => {
     init: vi.fn(),
     // The notification's own two buttons. `start` wires them to `answerNudge`,
     // and the test that presses one reads the handler back off this mock.
-    onToastAction: vi.fn(
-      (_tag: string, _handler: (action: string) => void) => () => undefined,
-    ),
+    onToastAction: vi.fn((_tag: string, _handler: (action: string) => void) => () => undefined),
     // Present so the suite can prove the water feature never borrows the
     // Pomodoro's toast.
     fireTimerComplete: vi.fn(async () => undefined),
     showToastMessage: vi.fn(),
+    // The notification is taken down once the question has an answer.
+    dismissSystemNotification: vi.fn(async () => undefined),
+    dismiss: vi.fn(),
   };
   const water = {
     ensureToday: vi.fn(async () => undefined),
@@ -87,6 +88,7 @@ describe('WaterReminderService', () => {
     notifications.onToastAction.mockClear();
     notifications.fireTimerComplete.mockClear();
     notifications.showToastMessage.mockClear();
+    notifications.dismissSystemNotification.mockClear();
     water.ensureToday.mockClear();
     water.log.mockClear();
     service = build();
@@ -376,6 +378,9 @@ describe('WaterReminderService', () => {
 
       expect(water.log).toHaveBeenCalledWith(500);
       expect(service.nudge()).toBeNull();
+      // The notification asked the same question; once it is answered it is
+      // taken down, so it cannot stay on screen asking again.
+      expect(notifications.dismissSystemNotification).toHaveBeenCalledWith('deepwork-water');
     });
 
     it('closes without logging anything when answered Not now', async () => {

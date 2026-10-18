@@ -334,6 +334,12 @@ export class WaterReminderService implements OnDestroy {
     this.nudge.set(null);
     this.now.set(now);
 
+    // The notification asked the same question and waited for the same answer.
+    // Once it has one — here or on the toast itself — it is taken down: a
+    // reminder that stays on screen after it was answered is a reminder the user
+    // learns to ignore.
+    await this.notifications.dismissSystemNotification(NotificationService.WATER_NOTIFICATION_TAG);
+
     if (answer === 'yes') {
       try {
         await this.water.log(open.amountMl);

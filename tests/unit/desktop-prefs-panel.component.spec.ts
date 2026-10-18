@@ -138,13 +138,12 @@ describe('DesktopPrefsPanelComponent', () => {
 
   it('explains each switch and the mini widget', () => {
     const src = readFileSync(SOURCE, 'utf8');
-    // The desktop branch carries one explainer per switch plus the mini widget;
-    // the other two branches explain what they can and cannot do with their own
-    // tips, so this is a floor rather than an exact count.
-    expect((src.match(/<app-info-tip/g) ?? []).length).toBeGreaterThanOrEqual(4);
-    // Five <app-info-tip> explainers: start-with-system, pinning to the taskbar,
-    // always-on-top, keeping the window in the tray, and the widget.
-    expect((src.match(/<app-info-tip/g) ?? []).length).toBe(5);
+    // Three branches — the desktop app, an installed web app and a plain tab —
+    // each explain what they can and cannot do with their own tips, so this is
+    // a floor rather than an exact count: the desktop branch alone carries one
+    // per switch (start-with-system, always-on-top, the tray, pinning) plus the
+    // widget.
+    expect((src.match(/<app-info-tip/g) ?? []).length).toBeGreaterThanOrEqual(5);
     expect(src).toContain('startHelp');
     expect(src).toContain('pinHelp');
     expect(src).toContain('onTopHelp');

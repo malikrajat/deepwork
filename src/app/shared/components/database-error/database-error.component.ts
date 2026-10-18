@@ -56,7 +56,7 @@ import { DbService } from '../../../core/services/db.service';
             <dt>File</dt>
             <dd>{{ failure.report.path }}</dd>
             <dt>What DeepWork found</dt>
-            <dd>{{ failure.report.unreadable }}</dd>
+            <dd>{{ failure.reason || failure.report.unreadable }}</dd>
           </dl>
 
           <p class="db-error-advice">

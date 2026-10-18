@@ -22,6 +22,11 @@ log = "0.4"
 # moving every value after it. Tauri already depends on serde, so this asks for
 # the derive it does not enable itself.
 serde = { version = "1", features = ["derive"] }
+# SHA-384, because that is the hash sqlx records for each migration. The repair
+# in `src/db_migrations.rs` recomputes it from the bytes this build embeds, to
+# notice a hash that differs only because a checkout rewrote the line endings.
+# Pure Rust, no C, and no second copy of SQLite.
+sha2 = "0.10"
 # Deliberately *not* a SQLite binding. The database guard (`src/db_guard.rs`)
 # reads the file's own header and nothing else: the app already links one SQLite
 # through `tauri-plugin-sql`, and a second copy of the library — which is what a

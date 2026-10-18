@@ -828,6 +828,7 @@ version = "3.0.0"
 dependencies = [
  "log",
  "serde",
+ "sha2",
  "tauri",
  "tauri-build",
  "tauri-plugin-log",

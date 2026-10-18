@@ -14,6 +14,7 @@ import { TaskService } from '../../core/services/task.service';
 import { WaterReminderService } from '../../core/services/water-reminder.service';
 import { AttentionService } from '../../core/services/attention.service';
 import { LaunchPromptService } from '../../core/services/launch-prompt.service';
+import { DesktopPrefsService } from '../../core/services/desktop-prefs.service';
 import { formatMillilitres, parseTimeOfDay } from '../../core/utils/water.util';
 import { NUDGE_SETTINGS_HELP } from '../../core/constants/nudge.constants';
 import { DesktopPrefsPanelComponent } from '../../shared/components/desktop-prefs-panel/desktop-prefs-panel.component';
@@ -455,6 +456,20 @@ import { SettingsFormModel, createSettingsFormDefaults } from '../../shared/mode
             </button>
           </div>
         </div>
+        @if (desktop.isDesktopApp) {
+          <div class="setting-item">
+            <span>
+              First-time setup
+              <small class="setting-note">
+                The introduction — start with your computer, pin to the taskbar, the tray and the
+                mini widget — is shown once. This puts it back, exactly as a new install sees it.
+              </small>
+            </span>
+            <button type="button" class="action-btn" (click)="reopenFirstRunSetup()">
+              Show setup
+            </button>
+          </div>
+        }
         @if (attention.soundMuted()) {
           <div class="setting-item">
             <span>
@@ -915,6 +930,7 @@ export class SettingsComponent implements OnInit {
   private readonly taskService = inject(TaskService);
   private readonly attention = inject(AttentionService);
   protected readonly launch = inject(LaunchPromptService);
+  protected readonly desktop = inject(DesktopPrefsService);
   protected readonly nudgeHelp = NUDGE_SETTINGS_HELP;
 
   /** The fixed choices the water reminder offers. */
@@ -1063,6 +1079,17 @@ export class SettingsComponent implements OnInit {
   /** Ends (or restarts) the pin reminder. */
   async togglePinNudge(): Promise<void> {
     await this.launch.setPinNudge(!this.settingsService.settings().taskbarPinNudge);
+  }
+
+  /**
+   * Puts the first-run introduction back on screen.
+   *
+   * The setup is once-only by design, which is exactly what makes it impossible
+   * to show someone again. This is the deliberate door: the preferences dialog
+   * and then the startup question, in the order a fresh install asks them.
+   */
+  async reopenFirstRunSetup(): Promise<void> {
+    await this.launch.reopenSetup();
   }
 
   /** Puts the reminder sound back on from Settings, wherever it was muted. */

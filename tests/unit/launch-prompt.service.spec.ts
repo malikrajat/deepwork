@@ -1,6 +1,7 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { TestBed } from '@angular/core/testing';
 import { signal } from '@angular/core';
+import { invoke } from '@tauri-apps/api/core';
 import { LaunchPromptService } from '../../src/app/core/services/launch-prompt.service';
 import { SettingsService } from '../../src/app/core/services/settings.service';
 import { DesktopPrefsService } from '../../src/app/core/services/desktop-prefs.service';
@@ -41,6 +42,11 @@ describe('LaunchPromptService', () => {
     showToastMessage: vi.fn(),
     dismiss: vi.fn(),
     init: vi.fn(),
+    // The system notification is taken down when its question is answered.
+    dismissSystemNotification: vi.fn(async () => undefined),
+    // One handler per reminder tag; the test that presses a button reads the
+    // handler back off this mock.
+    onToastAction: vi.fn((_tag: string, _handler: (action: string) => void) => () => undefined),
   };
 
   function build(overrides: Partial<AppSettings> = {}, options: { prompted?: boolean } = {}) {
@@ -68,6 +74,8 @@ describe('LaunchPromptService', () => {
       startWithSystem,
       init: vi.fn(async () => undefined),
       setStartWithSystem: vi.fn(async (enabled: boolean) => startWithSystem.set(enabled)),
+      pinNow: vi.fn(async () => true),
+      reopenFirstRun: vi.fn(async () => prompted.set(false)),
       error: signal<string | null>(null),
     };
     const attention = {
@@ -131,6 +139,9 @@ describe('LaunchPromptService', () => {
     it('retires the question when the setting is switched on elsewhere', async () => {
       const service = build({ launchPrompted: false }, { prompted: true });
       await service.init();
+      // The setup is offered again first (see the test below), so dismiss the
+      // preferences half before expecting this question on screen.
+      prompted.set(true);
       expect(service.visible()).toBe(true);
 
       // The switch in the preferences dialog, the tray or Settings.
@@ -164,6 +175,50 @@ describe('LaunchPromptService', () => {
       expect(startWithSystem()).toBe(true);
       expect(settings().launchPrompted).toBe(true);
       expect(service.visible()).toBe(false);
+      expect(notifications.dismissSystemNotification).toHaveBeenCalledWith(
+        NotificationService.STARTUP_NOTIFICATION_TAG,
+      );
+    });
+
+    it('re-offers the setup on an install that predates the question', async () => {
+      // The preferences dialog was dismissed by an older version, which never
+      // asked this one. Closing a dialog is not an answer to a question that did
+      // not exist yet, so the whole setup is offered again.
+      const service = build({ launchPrompted: false }, { prompted: true });
+      await service.init();
+
+      const prefs = TestBed.inject(DesktopPrefsService) as unknown as {
+        reopenFirstRun: ReturnType<typeof vi.fn>;
+      };
+      expect(prefs.reopenFirstRun).toHaveBeenCalledTimes(1);
+      // The preferences dialog is now the one on screen; this question waits.
+      expect(service.visible()).toBe(false);
+
+      prompted.set(true);
+      expect(service.visible()).toBe(true);
+    });
+
+    it('puts the setup back on the first launch after an install', async () => {
+      // The installer leaves a marker beside the database; the shell hands it
+      // over once. It has to put back exactly the two "already offered" flags,
+      // even though the database (with every task and setting) survived.
+      vi.mocked(invoke)
+        .mockResolvedValueOnce({ pinned: false, supported: true } as never)
+        .mockResolvedValueOnce(true as never);
+
+      const service = build({ launchPrompted: true }, { prompted: true });
+      await service.init();
+
+      expect(settings().launchPrompted).toBe(false);
+      const prefs = TestBed.inject(DesktopPrefsService) as unknown as {
+        reopenFirstRun: ReturnType<typeof vi.fn>;
+      };
+      expect(prefs.reopenFirstRun).toHaveBeenCalledTimes(1);
+      // The preferences dialog comes first, exactly as on a fresh install.
+      expect(service.visible()).toBe(false);
+
+      prompted.set(true);
+      expect(service.visible()).toBe(true);
     });
   });
 
@@ -178,11 +233,41 @@ describe('LaunchPromptService', () => {
       expect(notifications.announce).toHaveBeenCalledTimes(1);
       expect(notifications.announce.mock.calls[0][2]).toMatchObject({
         tag: NotificationService.STARTUP_NOTIFICATION_TAG,
+        // A question that waits, with the same two answers the card has: an OS
+        // notification that slides away is a reminder that was never delivered.
+        sticky: true,
+        actions: [
+          { id: 'yes', label: 'Yes, start with Windows' },
+          { id: 'no', label: 'Not now' },
+        ],
       });
       expect(notifications.showToastMessage).toHaveBeenCalledTimes(1);
       // Two answers on the card: turn it on, or stop being asked.
       const actions = notifications.showToastMessage.mock.calls[0][4] as unknown[];
       expect(actions).toHaveLength(2);
+    });
+
+    it('turns startup on from the notification’s own Yes', async () => {
+      const service = build();
+      await service.init();
+      const plan = nudgePlanFor(localDayKey(new Date()));
+      await service.tick(at(plan.startup[0]));
+
+      // One handler per tag: the startup question answers the startup tag.
+      const call = notifications.onToastAction.mock.calls.find(
+        ([tag]) => tag === NotificationService.STARTUP_NOTIFICATION_TAG,
+      );
+      expect(call).toBeDefined();
+      const [, press] = call!;
+
+      press('yes');
+      await vi.advanceTimersByTimeAsync(0);
+
+      expect(startWithSystem()).toBe(true);
+      expect(settings().launchPrompted).toBe(true);
+      expect(notifications.dismissSystemNotification).toHaveBeenCalledWith(
+        NotificationService.STARTUP_NOTIFICATION_TAG,
+      );
     });
 
     it('says nothing when the plan is already behind the clock', async () => {
