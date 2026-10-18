@@ -70,7 +70,7 @@ import {
     }
     .info-btn:focus-visible { outline: 2px solid rgba(139, 92, 246, 0.8); outline-offset: 2px; }
     .info-popover {
-      position: absolute; top: calc(100% + 8px); right: 0; z-index: 60;
+      position: absolute; top: calc(100% + 8px); left: 0; right: auto; z-index: 70;
       width: 272px; padding: 12px 14px;
       border-radius: 12px;
       background: rgba(24, 20, 38, 0.97);
@@ -95,16 +95,17 @@ import {
 
     /* ===== Narrow layout =====
 
-       The popover is 272px wide and anchored to the right-hand edge of its own
-       18px button, which assumes there is a card's worth of room to the left of
-       that button. Every row this tip is opened from is anchored to the left of
-       its card, so at a narrow width the button sits ~200px from the left and the
-       popover's left edge lands off the screen — where the shell's own
-       'overflow-x: hidden' on the content column clips it, leaving a truncated
-       card and no way to read the rest of it.
+       On a desktop the popover opens to the **right** of the 18px button. It used
+       to open to the left, anchored to the button's right edge — which was fine
+       on a wide Settings card and wrong on the dashboard, where the card starts
+       at the content column's left edge: the 272px panel ran back under the
+       sidebar, and the shell's 'overflow-x: hidden' cut it off at the column
+       boundary, so half the explanation was simply not there. Opening right
+       keeps the whole panel inside the content column it belongs to.
 
-       The tip therefore stops being the anchor and the row it is drawn in becomes
-       one, which every consumer of this component does in its own stylesheet (the
+       Below 900px the button does not have a card's worth of room on either side,
+       so the tip stops being the anchor and the row it is drawn in becomes one,
+       which every consumer of this component does in its own stylesheet (the
        desktop preferences panel puts 'position: relative' on the rows and the
        footnote for exactly this). The popover then spans that row: it is the full
        width of the card it belongs to, and it reads as a band under the setting it

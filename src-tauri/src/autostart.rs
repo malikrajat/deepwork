@@ -46,11 +46,20 @@ pub fn set_enabled(enabled: bool) -> Result<(), String> {
 /// Upgrades can move the binary (a new versioned install directory, a moved
 /// `.app`); without this the OS would keep launching a stale path. Doing nothing
 /// when the feature is off keeps "off" honest.
+///
+/// It writes **only when the stored command no longer matches this executable**.
+/// A launch is not a reason to touch the registry: rewriting a `Run` value on
+/// every start is, to a security product watching behaviour, indistinguishable
+/// from malware establishing persistence — and Defender's behavioural model
+/// quarantined exactly that. The entry is user-initiated (the Settings switch,
+/// the first-run dialog or the tray); this function's only job is the path after
+/// a move, and there is nothing to do while the path is already right.
 pub fn refresh_if_enabled() {
-    if is_enabled() {
-        if let Err(err) = platform::set_enabled(true) {
-            log::warn!("autostart: could not refresh the startup entry: {err}");
-        }
+    if !is_enabled() || platform::entry_is_current() {
+        return;
+    }
+    if let Err(err) = platform::set_enabled(true) {
+        log::warn!("autostart: could not refresh the startup entry: {err}");
     }
 }
 
@@ -87,6 +96,20 @@ mod platform {
             .open_subkey_with_flags(RUN_KEY, KEY_READ)
             .and_then(|key| key.get_value::<String, _>(APP_LABEL))
             .is_ok()
+    }
+
+    /// True when the stored command already launches this executable.
+    ///
+    /// The comparison is exact because both sides are produced by the same
+    /// [`launch_command`] formatter: `"<path>" --autostart`.
+    pub fn entry_is_current() -> bool {
+        let stored = RegKey::predef(HKEY_CURRENT_USER)
+            .open_subkey_with_flags(RUN_KEY, KEY_READ)
+            .and_then(|key| key.get_value::<String, _>(APP_LABEL));
+        match (stored, launch_command()) {
+            (Ok(stored), Ok(expected)) => stored == expected,
+            _ => false,
+        }
     }
 
     pub fn set_enabled(enabled: bool) -> Result<(), String> {
@@ -132,6 +155,21 @@ mod platform {
 
     pub fn is_enabled() -> bool {
         desktop_path().is_some_and(|path| path.exists())
+    }
+
+    /// True when the desktop entry's `Exec=` already launches this executable.
+    pub fn entry_is_current() -> bool {
+        let Some(path) = desktop_path() else {
+            return false;
+        };
+        let Ok(body) = fs::read_to_string(path) else {
+            return false;
+        };
+        let Ok(expected) = launch_command() else {
+            return false;
+        };
+        body.lines()
+            .any(|line| line.strip_prefix("Exec=") == Some(expected.as_str()))
     }
 
     pub fn set_enabled(enabled: bool) -> Result<(), String> {
@@ -201,6 +239,23 @@ mod platform {
         plist_path().is_some_and(|path| path.exists())
     }
 
+    /// True when the LaunchAgent already names this executable and the flag.
+    pub fn entry_is_current() -> bool {
+        let Some(path) = plist_path() else {
+            return false;
+        };
+        let Ok(body) = fs::read_to_string(path) else {
+            return false;
+        };
+        let Ok(exe) = super::executable_path() else {
+            return false;
+        };
+        body.contains(&format!(
+            "<string>{}</string>",
+            xml_escape(&exe.display().to_string())
+        )) && body.contains(super::AUTOSTART_FLAG)
+    }
+
     pub fn set_enabled(enabled: bool) -> Result<(), String> {
         let path = plist_path().ok_or("Cannot determine your home folder.")?;
 
@@ -253,6 +308,10 @@ mod platform {
 #[cfg(not(any(windows, target_os = "linux", target_os = "macos")))]
 mod platform {
     pub fn is_enabled() -> bool {
+        false
+    }
+
+    pub fn entry_is_current() -> bool {
         false
     }
 

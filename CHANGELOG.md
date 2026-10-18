@@ -220,6 +220,26 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Fixed
 
+- **The app no longer rewrites the Windows startup entry on every launch.**
+  `refresh_if_enabled` used to re-`set` the `HKCU\…\Run\DeepWork` value at every
+  start, even when it already pointed at the running executable. To a behavioural
+  antivirus model that is indistinguishable from malware establishing
+  persistence: Defender quarantined the installed build as
+  `Behavior:Win32/Persistence.A!ml`, taking the executable, both shortcuts and
+  the Run value with it. The refresh now compares the stored command with the
+  one it would write and does nothing when they match — the entry is written
+  only when the path really changed after a move, and when the user asks for it
+  (`autostart.rs`).
+
+- **The App Behaviour explainers no longer open underneath the sidebar.** Each
+  info icon's popover was anchored to the button's right edge, so its 272px panel
+  ran leftwards; on the dashboard, where the card begins at the content column's
+  left edge, the panel went back under the navigation and the content column's
+  `overflow-x: hidden` cut it in half. It now opens to the **right** of the
+  button, inside the column that owns it. Below 900px the popover still becomes
+  the full-width band under its row, where there is no side to open towards
+  (`info-tip.component.ts`).
+
 - **The pin reminder no longer ends in "Windows did not pin DeepWork".** Pressing
   **Yes** on a Windows that reserves programmatic pinning returned
   `IsPinningAllowed = false`, which the app reported as a failure even though

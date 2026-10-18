@@ -117,4 +117,13 @@ describe('InfoTipComponent', () => {
     expect(src).toContain('document:keydown.escape');
     expect(src).toContain('document:click');
   });
+
+  it('opens to the right of its button so the sidebar cannot cover it', () => {
+    // The dashboard's App Behaviour card starts at the content column's left
+    // edge. A popover anchored to the button's right edge ran back under the
+    // sidebar, where the content column's `overflow-x: hidden` cut it off.
+    const src = readFileSync(SOURCE, 'utf8');
+    expect(src).toContain('left: 0; right: auto');
+    expect(src).not.toContain('right: 0; z-index: 60');
+  });
 });
