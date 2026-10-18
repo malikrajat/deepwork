@@ -6,7 +6,12 @@ import { InstallService } from '../../../core/services/install.service';
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     @if (install.isVisible()) {
-      <div class="install-banner" role="banner" aria-label="Install DeepWork as an app">
+      <div
+        class="install-banner"
+        [class.highlight]="install.highlighted()"
+        role="region"
+        aria-label="Install DeepWork as an app"
+      >
         <div class="banner-content">
           <svg
             class="banner-icon"
@@ -21,20 +26,24 @@ import { InstallService } from '../../../core/services/install.service';
             <polyline points="7,10 12,15 17,10" />
             <line x1="12" y1="15" x2="12" y2="3" />
           </svg>
-          @if (install.canInstall()) {
-            <span class="banner-text">
-              Install <strong>DeepWork</strong> as an app for faster access and full offline use
-            </span>
+          @if (install.isMobile()) {
+            <!-- Two lines is the whole budget beside two controls at 320px: the
+                 dialog behind How carries the rest of the sentence. -->
+            <span class="banner-text"> Add <strong>DeepWork</strong> to your home screen </span>
           } @else {
-            <!-- One sentence from InstallService, because how to install
-                 depends on the browser: Chromium has an address-bar icon,
-                 Safari installs from its File menu, and Firefox cannot. -->
-            <span class="banner-text">{{ install.hint }}</span>
+            <span class="banner-text">
+              Install <strong>DeepWork</strong> as an app for its own window, offline use and one
+              click from the desktop
+            </span>
           }
         </div>
         <div class="banner-actions">
           @if (install.canInstall()) {
             <button class="btn-install" (click)="install.install()">Install</button>
+          } @else {
+            <!-- No native prompt in this browser: the honest answer is the
+                 dialog that explains how this browser installs a web app. -->
+            <button class="btn-install" (click)="install.openDialog('install')">How</button>
           }
           <button class="btn-dismiss" (click)="install.dismiss()" aria-label="Dismiss">
             <svg
@@ -60,7 +69,7 @@ import { InstallService } from '../../../core/services/install.service';
         top: 0;
         left: 0;
         right: 0;
-        z-index: 1000;
+        z-index: 120;
         /* One explicit height, shared with the app shell through the custom
          property: the shell holds exactly this much room open at the top, so the
          banner can never end up on top of the sidebar's collapse button. */
@@ -100,6 +109,22 @@ import { InstallService } from '../../../core/services/install.service';
         to {
           transform: translateY(0);
           opacity: 1;
+        }
+      }
+      /* A system notification pointed at this bar; it says so for a few seconds
+         so the click has an answer. The slide-in animation is restated because a
+         second animation declaration replaces the first rather than adding to
+         it. */
+      .install-banner.highlight {
+        animation:
+          slide-down 0.3s ease-out both,
+          banner-glow 1.1s ease-in-out 4;
+      }
+      @keyframes banner-glow {
+        50% {
+          box-shadow:
+            0 0 0 2px rgba(139, 92, 246, 0.85),
+            0 4px 26px rgba(139, 92, 246, 0.45);
         }
       }
       .banner-content {
