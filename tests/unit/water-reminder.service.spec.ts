@@ -30,6 +30,11 @@ describe('WaterReminderService', () => {
     announce: vi.fn(async () => undefined),
     chime: vi.fn(),
     init: vi.fn(),
+    // The notification's own two buttons. `start` wires them to `answerNudge`,
+    // and the test that presses one reads the handler back off this mock.
+    onToastAction: vi.fn(
+      (_tag: string, _handler: (action: string) => void) => () => undefined,
+    ),
     // Present so the suite can prove the water feature never borrows the
     // Pomodoro's toast.
     fireTimerComplete: vi.fn(async () => undefined),
@@ -78,6 +83,7 @@ describe('WaterReminderService', () => {
     miniMode = signal(false);
     notifications.announce.mockClear();
     notifications.chime.mockClear();
+    notifications.onToastAction.mockClear();
     notifications.fireTimerComplete.mockClear();
     notifications.showToastMessage.mockClear();
     water.ensureToday.mockClear();
@@ -275,6 +281,12 @@ describe('WaterReminderService', () => {
         quote: nudge!.quote,
         tag: 'deepwork-water',
         sticky: true,
+        // The same two answers the card offers, so the question can be answered
+        // where the user is looking rather than by finding the window first.
+        actions: [
+          { id: 'yes', label: 'Yes, drank' },
+          { id: 'no', label: 'Not now' },
+        ],
       });
       expect(service.status()).toBe('Waiting for your answer');
     });
@@ -327,6 +339,26 @@ describe('WaterReminderService', () => {
       expect(water.log).toHaveBeenCalledWith(150);
       expect(small.nudge()).toBeNull();
       expect(formatClockTime(small.nextAt()!)).toBe('12:05');
+    });
+
+    it('takes the same two answers from the notification’s own buttons', async () => {
+      service.start();
+      // The first pass settles before the clock is moved, so the reminder is
+      // armed exactly as it is in the app.
+      await vi.advanceTimersByTimeAsync(0);
+      await service.tick(at(10, 0));
+      await service.tick(at(11, 0));
+
+      // One handler, registered under the water reminder's own handle, so a pin
+      // prompt's buttons can never log a glass.
+      const [tag, press] = notifications.onToastAction.mock.calls[0];
+      expect(tag).toBe('deepwork-water');
+
+      press('yes');
+      await vi.advanceTimersByTimeAsync(0);
+
+      expect(water.log).toHaveBeenCalledWith(500);
+      expect(service.nudge()).toBeNull();
     });
 
     it('closes without logging anything when answered Not now', async () => {

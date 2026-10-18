@@ -4,6 +4,21 @@ import { SettingsService } from './settings.service';
 import { NotificationSound } from '../models/settings.model';
 import { BREAK_QUOTES, FOCUS_QUOTES, TASK_QUOTES, quoteAt } from '../constants/alert.constants';
 
+/** True when running inside the packaged desktop app (Tauri). */
+const IN_TAURI = typeof globalThis !== 'undefined' && '__TAURI_INTERNALS__' in globalThis;
+
+/**
+ * What the shell reports when a toast's button is pressed.
+ *
+ * Mirrors `ToastActionEvent` in `src-tauri/src/lib.rs`: the tag says which
+ * message was answered, and the action is the button's own id rather than its
+ * label.
+ */
+interface ToastActionPayload {
+  tag: string;
+  action: string;
+}
+
 export interface ToastNotification {
   id: number;
   title: string;
@@ -20,6 +35,19 @@ export interface ToastNotification {
   quote: string | null;
   type: TimerType;
   visible: boolean;
+}
+
+/**
+ * One button a system notification offers.
+ *
+ * `id` is what the handler is given when the button is pressed — the app's own
+ * vocabulary (`yes`, `no`, `pin`, `cancel`) rather than the sentence the button
+ * wears, so a label can be reworded without its handler changing. `label` is
+ * what the button says.
+ */
+export interface NotificationAction {
+  id: string;
+  label: string;
 }
 
 /** What a notification asks of the shell, beyond the words it says. */
@@ -44,6 +72,19 @@ export interface NotificationOptions {
    * as they always do.
    */
   sticky?: boolean;
+  /**
+   * Buttons to put on the notification, in the order they should appear.
+   *
+   * Windows only: the toast schema is the one surface here that has a button a
+   * desktop app can hear. Everywhere else the options are ignored and the
+   * notification is the plain one it has always been, which is why a message
+   * that *needs* an answer must always have another way of being answered (the
+   * water reminder's card, the Settings row for pinning).
+   *
+   * A press is reported through {@link NotificationService.onToastAction}, by
+   * the tag the notification was posted under.
+   */
+  actions?: NotificationAction[];
 }
 
 /**
@@ -100,6 +141,7 @@ export class NotificationService implements OnDestroy {
    */
   static readonly WATER_NOTIFICATION_TAG = 'deepwork-water';
   static readonly UPDATE_NOTIFICATION_TAG = 'deepwork-update';
+  static readonly PIN_NOTIFICATION_TAG = 'deepwork-pin';
 
   private readonly settingsService = inject(SettingsService);
 
@@ -135,6 +177,16 @@ export class NotificationService implements OnDestroy {
   /** Toast state — consumed by the toast component */
   readonly toast = signal<ToastNotification | null>(null);
   private toastCounter = 0;
+
+  /**
+   * Whoever answers a toast's buttons, by the tag that toast was posted under.
+   *
+   * A tag is the notification's identity, so it is also the right key here: the
+   * water reminder answers `deepwork-water`, the pin prompt answers
+   * `deepwork-pin`, and neither can fire the other's handler. One handler per
+   * tag, because two would be two answers to the same question.
+   */
+  private readonly actionHandlers = new Map<string, (action: string) => void>();
 
   /**
    * True while a completion alert is still unanswered — and therefore still
@@ -206,6 +258,27 @@ export class NotificationService implements OnDestroy {
         this.permissionGranted = Notification.permission === 'granted';
       }
     }
+
+    // Before any toast is posted, because the shell only tells a session about
+    // a press it was already listening for. See `listenForToastActions`.
+    await this.listenForToastActions();
+  }
+
+  /**
+   * Answers a button on the notification posted under `tag`.
+   *
+   * The handler receives the button's id (`yes`, `pin`, …) rather than its
+   * label, so the wording of a button is free to change. Registering a second
+   * handler for the same tag replaces the first: a question has one answerer.
+   *
+   * Returns a function that unregisters it, for the services that hold one for
+   * their lifetime and want it gone with them.
+   */
+  onToastAction(tag: string, handler: (action: string) => void): () => void {
+    this.actionHandlers.set(tag, handler);
+    return () => {
+      if (this.actionHandlers.get(tag) === handler) this.actionHandlers.delete(tag);
+    };
   }
 
   /**
@@ -330,6 +403,31 @@ export class NotificationService implements OnDestroy {
     this.playSound();
   }
 
+  /**
+   * Starts listening for a pressed toast button.
+   *
+   * One listener for the whole app rather than one per notification: the shell
+   * does not know who "owns" a toast — it reports the press to the process —
+   * and the tag on the event is what sorts it out afterwards. Registered from
+   * {@link init} so it is in place before the first toast that carries a button
+   * is posted: the shell only tells a session about a press it was already
+   * listening for.
+   */
+  private async listenForToastActions(): Promise<void> {
+    if (!IN_TAURI) return;
+    try {
+      const { listen } = await import('@tauri-apps/api/event');
+      await listen<ToastActionPayload>('deepwork:toast-action', (event) => {
+        const { tag, action } = event.payload ?? {};
+        if (typeof tag !== 'string' || typeof action !== 'string') return;
+        this.actionHandlers.get(tag)?.(action);
+      });
+    } catch {
+      // A shell from before the event existed: the buttons are still drawn, they
+      // just cannot answer. The in-app surface is the fallback in that case.
+    }
+  }
+
   private showToast(
     title: string,
     body: string,
@@ -392,6 +490,7 @@ export class NotificationService implements OnDestroy {
         tag: options.tag ?? NotificationService.ALERT_NOTIFICATION_TAG,
         quote,
         sticky: options.sticky ?? false,
+        actions: options.actions ?? [],
       });
       return;
     } catch {

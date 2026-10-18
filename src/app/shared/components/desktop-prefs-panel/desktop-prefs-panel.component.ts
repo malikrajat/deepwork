@@ -5,17 +5,22 @@ import {
   ALWAYS_ON_TOP_HELP,
   CLOSE_TO_TRAY_HELP,
   MINI_WIDGET_HELP,
+  PIN_TO_TASKBAR_HELP,
   START_WITH_SYSTEM_HELP,
 } from '../../../core/constants/desktop-prefs.constants';
 
 /**
  * The three desktop switches — "Start with system", "Always on top" and
- * "Keep running in the tray".
+ * "Keep running in the tray" — and, where Windows can do it, the pin row.
  *
  * Deliberately one component shown in several places (Settings, the dashboard,
  * and the first-run dialog) so the wording, the behaviour and the error handling
  * cannot drift apart. The system tray offers the first two of them from Rust as
  * well, and its own **Exit** is what the close behaviour depends on.
+ *
+ * The pin row is not a switch because pinning is not the app's to give: it asks
+ * the shell, the shell asks the user, and the row then reports what the shell
+ * said. It is absent — not disabled — where Windows has no way to answer.
  */
 @Component({
   selector: 'app-desktop-prefs-panel',
@@ -63,6 +68,31 @@ import {
           <span class="knob"></span>
         </button>
       </div>
+
+      @if (prefs.pinSupported()) {
+        <div class="pref-row">
+          <span class="pref-label">
+            Pin to taskbar
+            <app-info-tip
+              [heading]="pinHelp.heading"
+              [body]="pinHelp.body"
+              [hint]="pinHelp.hint"
+            />
+          </span>
+          @if (prefs.pinned()) {
+            <span class="pref-state">Pinned</span>
+          } @else {
+            <button
+              type="button"
+              class="pin-button"
+              [disabled]="disabled() || prefs.pinBusy()"
+              (click)="askToPin()"
+            >
+              {{ prefs.pinBusy() ? 'Waiting…' : 'Pin' }}
+            </button>
+          }
+        </div>
+      }
 
       <div class="pref-row">
         <span class="pref-label">
@@ -222,6 +252,41 @@ import {
         outline-offset: 2px;
       }
 
+      /* The pin row's action. A pill rather than a switch, because it is a
+         request the shell answers rather than a setting the app keeps. */
+      .pin-button {
+        flex: 0 0 auto;
+        padding: 5px 14px;
+        border-radius: 999px;
+        font-size: 12px;
+        font-weight: 600;
+        font-family: inherit;
+        cursor: pointer;
+        color: #ede9fe;
+        background: rgba(139, 92, 246, 0.28);
+        border: 1px solid rgba(139, 92, 246, 0.55);
+        transition:
+          background 0.2s,
+          border-color 0.2s;
+      }
+      .pin-button:hover:not(:disabled) {
+        background: rgba(139, 92, 246, 0.42);
+      }
+      .pin-button:disabled {
+        opacity: 0.45;
+        cursor: not-allowed;
+      }
+      .pin-button:focus-visible {
+        outline: 2px solid rgba(139, 92, 246, 0.8);
+        outline-offset: 2px;
+      }
+      .pref-state {
+        flex: 0 0 auto;
+        font-size: 12px;
+        font-weight: 600;
+        color: var(--color-text-muted, #a1a1aa);
+      }
+
       .pref-error {
         margin: 10px 0 0;
         font-size: 12px;
@@ -290,6 +355,7 @@ export class DesktopPrefsPanelComponent {
   readonly prefs = inject(DesktopPrefsService);
 
   protected readonly startHelp = START_WITH_SYSTEM_HELP;
+  protected readonly pinHelp = PIN_TO_TASKBAR_HELP;
   protected readonly onTopHelp = ALWAYS_ON_TOP_HELP;
   protected readonly closeHelp = CLOSE_TO_TRAY_HELP;
   protected readonly miniHelp = MINI_WIDGET_HELP;
@@ -301,6 +367,11 @@ export class DesktopPrefsPanelComponent {
 
   async toggleStartWithSystem(): Promise<void> {
     await this.prefs.setStartWithSystem(!this.prefs.startWithSystem());
+  }
+
+  /** Puts the pin question on the desktop; the answer comes back as a button press. */
+  async askToPin(): Promise<void> {
+    await this.prefs.askToPin();
   }
 
   async toggleAlwaysOnTop(): Promise<void> {

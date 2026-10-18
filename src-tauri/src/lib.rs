@@ -618,6 +618,43 @@ fn window_set_widget_mode(app: AppHandle, window: WebviewWindow, widget: bool) {
     log::info!(target: logging::SYSTEM, "mini widget {widget}");
 }
 
+/// One button a toast offers, as the frontend describes it.
+///
+/// `id` is what comes back when the button is pressed — the page's own
+/// vocabulary (`yes`, `no`, `pin`, `cancel`) rather than the sentence the button
+/// happens to wear, so rewording a label cannot break its handler. `label` is
+/// what the button says.
+#[derive(Clone, serde::Deserialize)]
+struct ToastAction {
+    id: String,
+    label: String,
+}
+
+/// What a pressed toast button reports back to the page.
+///
+/// The tag says which message was answered — the frontend keeps one handler per
+/// tag, so a water reminder's **Yes** cannot be mistaken for a pin prompt's.
+#[cfg(windows)]
+#[derive(Clone, serde::Serialize)]
+struct ToastActionEvent {
+    tag: String,
+    action: String,
+}
+
+/// The toasts the app has posted and not yet replaced, one per tag.
+///
+/// Windows raises `Activated` on the `ToastNotification` **object**, so a toast
+/// dropped the moment `Show` returns is a toast whose buttons cannot do
+/// anything: the click reaches the shell, the shell looks for the process that
+/// owns the app id, and that process has nothing left to call. Holding one
+/// object per tag is the whole of what makes a button work; holding *one* per
+/// tag is what keeps an alert that repeats every few minutes from accumulating
+/// them, since a post replaces both the toast on screen and the object here.
+#[cfg(windows)]
+struct ToastHandles(
+    std::sync::Mutex<std::collections::HashMap<String, windows::UI::Notifications::ToastNotification>>,
+);
+
 /// Posts the completion alert as a toast the OS re-raises instead of stacking.
 ///
 /// The notification plugin cannot do this on Windows: its desktop path goes
@@ -644,6 +681,12 @@ fn window_set_widget_mode(app: AppHandle, window: WebviewWindow, widget: bool) {
 /// it repeats itself anyway. A shell that will not take the scenario still gets
 /// told: the long duration goes next (25 seconds rather than 7), and the ordinary
 /// toast after that.
+///
+/// `actions` are the toast's buttons, in the order they should appear — the
+/// page's ids and labels, posted as foreground actions so a press reaches
+/// `deepwork:toast-action`. A message that asks a question passes them; one
+/// that only tells the user something passes none, and the toast is the plain
+/// one it has always been.
 #[cfg(windows)]
 #[tauri::command]
 fn alert_notify(
@@ -653,9 +696,11 @@ fn alert_notify(
     tag: String,
     quote: Option<String>,
     sticky: Option<bool>,
+    actions: Option<Vec<ToastAction>>,
 ) -> Result<(), String> {
     let quote = quote.as_deref();
     let sticky = sticky.unwrap_or(false);
+    let actions = actions.unwrap_or_default();
 
     // What is asked for, then what is left if the shell refuses it: the waiting
     // toast, then a long-lived one for a shell that takes the duration but not
@@ -670,7 +715,12 @@ fn alert_notify(
 
     let mut last = Err("no toast was posted".to_string());
     for attribute in attributes {
-        match show_toast(&app, &toast_xml(&title, &body, quote, attribute), &tag) {
+        match show_toast(
+            &app,
+            &toast_xml(&title, &body, quote, attribute, &actions),
+            &tag,
+            &actions,
+        ) {
             Ok(()) => return Ok(()),
             Err(err) => last = Err(err),
         }
@@ -680,11 +730,25 @@ fn alert_notify(
 
 /// Posts one toast document under `tag`, replacing the toast that tag is
 /// already holding.
+///
+/// `actions` is what decides whether the toast is listened to at all: a plain
+/// notification has nothing to report, so it is posted without a handler and
+/// without being kept alive. A toast with buttons is kept in `ToastHandles` for
+/// the reason described there — the button press is delivered to the object,
+/// not to the process.
 #[cfg(windows)]
-fn show_toast(app: &AppHandle, xml: &str, tag: &str) -> Result<(), String> {
-    use windows::core::HSTRING;
+fn show_toast(
+    app: &AppHandle,
+    xml: &str,
+    tag: &str,
+    actions: &[ToastAction],
+) -> Result<(), String> {
+    use windows::core::{Interface, HSTRING};
     use windows::Data::Xml::Dom::XmlDocument;
-    use windows::UI::Notifications::{ToastNotification, ToastNotificationManager};
+    use windows::Foundation::TypedEventHandler;
+    use windows::UI::Notifications::{
+        ToastActivatedEventArgs, ToastNotification, ToastNotificationManager,
+    };
 
     let document = XmlDocument::new().map_err(|err| err.to_string())?;
     document
@@ -696,9 +760,52 @@ fn show_toast(app: &AppHandle, xml: &str, tag: &str) -> Result<(), String> {
     toast.SetTag(&handle).map_err(|err| err.to_string())?;
     toast.SetGroup(&handle).map_err(|err| err.to_string())?;
 
+    if !actions.is_empty() {
+        // The press arrives as the action's own `arguments` string — the id the
+        // page gave the button — and leaves again as one event. The tag travels
+        // with it so the page can tell which of its messages was answered.
+        let app_for_action = app.clone();
+        let tag_for_action = tag.to_string();
+        toast
+            .Activated(&TypedEventHandler::new(
+                move |_sender: windows::core::Ref<'_, ToastNotification>,
+                      args: windows::core::Ref<'_, windows::core::IInspectable>| {
+                    if let Some(args) = args.as_ref() {
+                        if let Ok(args) = args.cast::<ToastActivatedEventArgs>() {
+                            if let Ok(argument) = args.Arguments() {
+                                let argument = argument.to_string();
+                                if !argument.is_empty() {
+                                    let _ = app_for_action.emit(
+                                        "deepwork:toast-action",
+                                        ToastActionEvent {
+                                            tag: tag_for_action.clone(),
+                                            action: argument,
+                                        },
+                                    );
+                                }
+                            }
+                        }
+                    }
+                    Ok(())
+                },
+            ))
+            .map_err(|err| err.to_string())?;
+    }
+
     ToastNotificationManager::CreateToastNotifierWithId(&HSTRING::from(alert_app_id(app)))
         .and_then(|notifier| notifier.Show(&toast))
-        .map_err(|err| err.to_string())
+        .map_err(|err| err.to_string())?;
+
+    // Kept only after the shell has taken it: a toast that could not be posted
+    // is not one whose buttons can be pressed.
+    if !actions.is_empty() {
+        if let Some(handles) = app.try_state::<ToastHandles>() {
+            if let Ok(mut live) = handles.0.lock() {
+                live.insert(tag.to_string(), toast);
+            }
+        }
+    }
+    Ok(())
 }
 
 /// The toast's own XML: the title, the message, the quote when there is one, and
@@ -708,8 +815,46 @@ fn show_toast(app: &AppHandle, xml: &str, tag: &str) -> Result<(), String> {
 /// second, and it carries `placement="attribution"` — the toast's own smaller,
 /// muted line — so the two read as two things on every Windows version rather
 /// than as one run-on message.
+/// The buttons, as the `<actions>` block the schema puts between `<visual>` and
+/// `<audio>`.
+///
+/// `activationType="foreground"` on purpose: it is the one activation kind a
+/// toast posted without a registered COM activator can actually deliver. The
+/// cost is that a press brings the window forward — which is what a pin request
+/// needs anyway, since the shell will only draw its consent dialog for an app
+/// that is already in front. `background` would send the press back without
+/// interrupting the user, but a desktop app can only receive that through an
+/// activator registered in the installer, which this app does not have.
+///
+/// Five is the schema's limit. More than that is not "one more button": the
+/// document is rejected, so the extra ones are dropped here rather than taking
+/// the notification with them.
 #[cfg(windows)]
-fn toast_xml(title: &str, body: &str, quote: Option<&str>, attributes: &str) -> String {
+fn toast_actions_xml(actions: &[ToastAction]) -> String {
+    if actions.is_empty() {
+        return String::new();
+    }
+
+    let mut xml = String::from("<actions>");
+    for action in actions.iter().take(5) {
+        xml.push_str(&format!(
+            "<action content=\"{}\" arguments=\"{}\" activationType=\"foreground\"/>",
+            escape_xml(&action.label),
+            escape_xml(&action.id)
+        ));
+    }
+    xml.push_str("</actions>");
+    xml
+}
+
+#[cfg(windows)]
+fn toast_xml(
+    title: &str,
+    body: &str,
+    quote: Option<&str>,
+    attributes: &str,
+    actions: &[ToastAction],
+) -> String {
     let mut texts = format!(
         "<text>{}</text><text>{}</text>",
         escape_xml(title),
@@ -723,7 +868,8 @@ fn toast_xml(title: &str, body: &str, quote: Option<&str>, attributes: &str) -> 
     }
 
     format!(
-        "<toast{attributes}><visual><binding template=\"ToastGeneric\">{texts}</binding></visual><audio silent=\"true\"/></toast>"
+        "<toast{attributes}><visual><binding template=\"ToastGeneric\">{texts}</binding></visual>{}<audio silent=\"true\"/></toast>",
+        toast_actions_xml(actions)
     )
 }
 
@@ -733,9 +879,12 @@ fn toast_xml(title: &str, body: &str, quote: Option<&str>, attributes: &str) -> 
 /// which is why the body carries the count (see `NotificationService`), so they
 /// are at least not identical copies of each other.
 ///
-/// `sticky` and `tag` have nowhere to go here — the plugin takes neither — and
-/// the quote becomes a paragraph of its own after a blank line, which is the
-/// separation a one-string surface can offer.
+/// `sticky`, `tag` and `actions` have nowhere to go here — the plugin takes
+/// none of them, and neither macOS's notification framework nor the freedesktop
+/// protocol offers a button a desktop app can receive without its own delegate
+/// or notification server on the other end. The quote becomes a paragraph of its
+/// own after a blank line, which is the separation a one-string surface can
+/// offer.
 #[cfg(not(windows))]
 #[tauri::command]
 fn alert_notify(
@@ -745,6 +894,7 @@ fn alert_notify(
     _tag: String,
     quote: Option<String>,
     _sticky: Option<bool>,
+    _actions: Option<Vec<ToastAction>>,
 ) -> Result<(), String> {
     use tauri_plugin_notification::NotificationExt;
 
@@ -804,6 +954,129 @@ fn escape_xml(text: &str) -> String {
         }
     }
     escaped
+}
+
+/// Whether this build can ask the shell to pin DeepWork to the taskbar.
+///
+/// The taskbar is a WinRT class that was written for packaged apps, and a Win32
+/// process reaches it through the marker interface Microsoft added for desktop
+/// apps (`ITaskbarManagerDesktopAppSupportStatics`). The marker is what is asked
+/// for here: if the activation factory does not offer it, the version of Windows
+/// underneath has no desktop-app support at all, and a pin button would be a
+/// button that does nothing.
+///
+/// Asked once by the frontend so the setting can be absent rather than disabled:
+/// there is no useful thing to say to a user whose Windows cannot do this.
+#[cfg(windows)]
+#[tauri::command]
+fn taskbar_pin_supported() -> bool {
+    use windows::core::factory;
+    use windows::UI::Shell::{ITaskbarManagerDesktopAppSupportStatics, TaskbarManager};
+
+    factory::<TaskbarManager, ITaskbarManagerDesktopAppSupportStatics>().is_ok()
+}
+
+#[cfg(not(windows))]
+#[tauri::command]
+fn taskbar_pin_supported() -> bool {
+    false
+}
+
+/// Asks the shell to pin DeepWork to the taskbar.
+///
+/// Deliberately *not* a silent pin, because there is no such thing: Windows
+/// shows its own consent dialog, and the answer comes back as a
+/// `deepwork:taskbar-pin` event carrying `true` or `false`. What this command
+/// does is put the window in front — the request is only allowed from a
+/// foreground app — and hand the request to the main thread, which is the
+/// thread the dialog is drawn on.
+///
+/// Returns as soon as the request is scheduled. The user may sit on the dialog
+/// for as long as they like, and a command that waited for the answer would hold
+/// a message loop hostage while they did.
+#[cfg(windows)]
+#[tauri::command]
+fn taskbar_pin(app: AppHandle) -> Result<(), String> {
+    let app_for_main = app.clone();
+    app.run_on_main_thread(move || {
+        // The press arrives with the window still in the background on some
+        // setups; `restore` is the app's own rule for "bring it back", and the
+        // request needs it to have happened first.
+        if let Some(window) = app_for_main.get_webview_window("main") {
+            restore(&window);
+            let _ = window.set_focus();
+        }
+        request_pin(app_for_main);
+    })
+    .map_err(|err| format!("could not reach the main thread: {err}"))
+}
+
+/// Everywhere else the taskbar does not exist, or does not take requests.
+#[cfg(not(windows))]
+#[tauri::command]
+fn taskbar_pin(_app: AppHandle) -> Result<(), String> {
+    Err("Pinning to the taskbar is a Windows feature.".to_string())
+}
+
+/// Issues the pin request and reports the answer as an event.
+///
+/// The operation is waited on through a completion handler rather than
+/// `get()`: the latter blocks the calling thread on an event, and the calling
+/// thread here is the one that has to keep pumping messages for the shell's
+/// consent dialog to be drawn at all. Blocking it would trade a pin for a
+/// freeze that never resolves.
+///
+/// The answer is a word rather than a boolean, because a user who read the
+/// dialog and said no has not had a failure: `declined` leaves the app exactly
+/// as it was and says nothing, while `failed` is the request that could not be
+/// made and is worth telling them about.
+#[cfg(windows)]
+fn request_pin(app: AppHandle) {
+    use windows::UI::Shell::TaskbarManager;
+    use windows_future::AsyncOperationCompletedHandler;
+
+    let outcome: Result<(), String> = (|| {
+        let manager = TaskbarManager::GetDefault().map_err(|err| err.to_string())?;
+        // A group policy can forbid pinning outright, in which case the request
+        // is refused without ever showing the dialog — say so in the log rather
+        // than leaving a button that appears to have been ignored.
+        match manager.IsPinningAllowed() {
+            Ok(true) => {}
+            Ok(false) => return Err("the taskbar does not allow pinning right now".to_string()),
+            Err(err) => return Err(err.to_string()),
+        }
+
+        let request = manager
+            .RequestPinCurrentAppAsync()
+            .map_err(|err| err.to_string())?;
+        let app_for_result = app.clone();
+        // The handler holds its own reference to the operation: the shell may
+        // take minutes over its dialog, and a request whose only handle was
+        // dropped the moment it was made is a request with nothing left to
+        // collect the answer. The pair is released together when the operation
+        // completes.
+        let answered = request.clone();
+        request
+            .SetCompleted(&AsyncOperationCompletedHandler::new(
+                move |_request, _status| {
+                    let answer = if answered.GetResults().unwrap_or(false) {
+                        "pinned"
+                    } else {
+                        "declined"
+                    };
+                    log::info!(target: logging::SYSTEM, "taskbar pin answered: {answer}");
+                    let _ = app_for_result.emit("deepwork:taskbar-pin", answer);
+                    Ok(())
+                },
+            ))
+            .map_err(|err| err.to_string())?;
+        Ok(())
+    })();
+
+    if let Err(err) = outcome {
+        log::warn!(target: logging::SYSTEM, "taskbar pin unavailable: {err}");
+        let _ = app.emit("deepwork:taskbar-pin", "failed");
+    }
 }
 
 /// Writes a generated file (task export, Excel template) into the user's
@@ -952,6 +1225,8 @@ pub fn run() {
             window_set_close_behavior,
             window_set_widget_mode,
             alert_notify,
+            taskbar_pin_supported,
+            taskbar_pin,
             save_download,
             db_preflight,
             db_backup,
@@ -1058,6 +1333,13 @@ pub fn run() {
             // Whether the window is the widget. Off until the frontend says
             // otherwise, which is when it reshapes the window into one.
             app.manage(WidgetMode(AtomicBool::new(false)));
+            // The toasts whose buttons are still worth listening to. Managed
+            // before the frontend can post one, since the store is what keeps a
+            // button's press from having nowhere to land. See `ToastHandles`.
+            #[cfg(windows)]
+            app.manage(ToastHandles(std::sync::Mutex::new(
+                std::collections::HashMap::new(),
+            )));
             // Above the others for as long as the user asks for it — and put
             // back there whenever the OS drops it, which is the half that a
             // single `set_always_on_top` never covered. See `TopmostKeeper`.
@@ -1220,4 +1502,76 @@ pub fn run() {
         })
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
+}
+
+/// The toast document, pinned down without a desktop to show it on.
+///
+/// The XML is the one part of the notification path that cannot be exercised by
+/// clicking something: a malformed document costs the notification silently, and
+/// the only place the mistake would show up is a machine the developer is not
+/// sitting at. These tests are the stand-in for that machine.
+#[cfg(all(test, windows))]
+mod toast_tests {
+    use super::*;
+
+    fn action(id: &str, label: &str) -> ToastAction {
+        ToastAction {
+            id: id.to_string(),
+            label: label.to_string(),
+        }
+    }
+
+    #[test]
+    fn a_message_with_no_buttons_has_no_actions_block() {
+        let xml = toast_xml("Title", "Body", None, "", &[]);
+        assert!(!xml.contains("<actions>"));
+        // The silent audio element is what keeps the app's own tone the only
+        // sound an alert makes; it has to survive every shape of the document.
+        assert!(xml.contains(r#"<audio silent="true"/>"#));
+    }
+
+    #[test]
+    fn buttons_come_after_the_visual_and_before_the_audio() {
+        let xml = toast_xml("Title", "Body", None, "", &[action("yes", "Yes, drank")]);
+        let visual = xml.find("</visual>").expect("the visual block");
+        let actions = xml.find("<actions>").expect("the actions block");
+        let audio = xml.find("<audio").expect("the audio element");
+
+        // The schema orders these; a document that does not is rejected whole.
+        assert!(visual < actions, "actions must follow the visual block");
+        assert!(actions < audio, "actions must precede the audio element");
+        assert!(xml.contains(
+            r#"<action content="Yes, drank" arguments="yes" activationType="foreground"/>"#
+        ));
+    }
+
+    #[test]
+    fn button_labels_and_ids_cannot_end_the_document() {
+        let xml = toast_xml("T", "B", None, "", &[action("a&b", r#"Say "hi""#)]);
+        assert!(xml.contains(r#"arguments="a&amp;b""#));
+        assert!(xml.contains(r#"content="Say &quot;hi&quot;""#));
+    }
+
+    #[test]
+    fn a_sixth_button_is_dropped_rather_than_taking_the_toast_with_it() {
+        let actions: Vec<ToastAction> = (0..6)
+            .map(|index| action(&format!("a{index}"), "Button"))
+            .collect();
+        let xml = toast_xml("T", "B", None, "", &actions);
+
+        assert_eq!(xml.matches("<action ").count(), 5);
+        assert!(!xml.contains(r#"arguments="a5""#));
+    }
+
+    #[test]
+    fn a_waiting_toast_keeps_the_scenario_that_makes_it_wait() {
+        let xml = toast_xml("T", "B", None, r#" duration="long" scenario="reminder""#, &[]);
+        assert!(xml.contains(r#"scenario="reminder""#));
+    }
+
+    #[test]
+    fn the_quote_is_a_line_of_its_own_and_is_escaped() {
+        let xml = toast_xml("T", "B", Some("A & B"), "", &[]);
+        assert!(xml.contains(r#"<text placement="attribution">A &amp; B</text>"#));
+    }
 }

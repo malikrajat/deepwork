@@ -14,6 +14,9 @@ const makeMockPrefs = (
     onTopSupported?: boolean;
     closeToTray?: boolean;
     busy?: boolean;
+    pinSupported?: boolean;
+    pinned?: boolean;
+    pinBusy?: boolean;
   } = {},
 ) => ({
   isDesktopApp: options.desktop ?? true,
@@ -21,11 +24,15 @@ const makeMockPrefs = (
   alwaysOnTop: signal(options.onTop ?? false),
   alwaysOnTopSupported: signal(options.onTopSupported ?? true),
   closeToTray: signal(options.closeToTray ?? true),
+  pinSupported: signal(options.pinSupported ?? false),
+  pinned: signal(options.pinned ?? false),
+  pinBusy: signal(options.pinBusy ?? false),
   error: signal<string | null>(null),
   busy: signal(options.busy ?? false),
   setStartWithSystem: vi.fn().mockResolvedValue(undefined),
   setAlwaysOnTop: vi.fn().mockResolvedValue(undefined),
   setCloseToTray: vi.fn().mockResolvedValue(undefined),
+  askToPin: vi.fn().mockResolvedValue(undefined),
 });
 
 const SOURCE = resolve(
@@ -131,14 +138,27 @@ describe('DesktopPrefsPanelComponent', () => {
 
   it('explains each switch and the mini widget', () => {
     const src = readFileSync(SOURCE, 'utf8');
-    // Four <app-info-tip> explainers: start-with-system, always-on-top, keeping
-    // the window in the tray, and the widget.
-    expect((src.match(/<app-info-tip/g) ?? []).length).toBe(4);
+    // Five <app-info-tip> explainers: start-with-system, pinning to the taskbar,
+    // always-on-top, keeping the window in the tray, and the widget.
+    expect((src.match(/<app-info-tip/g) ?? []).length).toBe(5);
     expect(src).toContain('startHelp');
+    expect(src).toContain('pinHelp');
     expect(src).toContain('onTopHelp');
     expect(src).toContain('closeHelp');
     expect(src).toContain('miniHelp');
     expect(src).toContain('mini widget');
+  });
+
+  it('offers pinning only where the desktop can act on it', async () => {
+    // Absent, not disabled: a Windows without the taskbar API has no useful
+    // thing to say about pinning, so the row is not drawn at all.
+    const src = readFileSync(SOURCE, 'utf8');
+    expect(src).toContain('@if (prefs.pinSupported())');
+    expect(src).toContain('prefs.askToPin');
+
+    setup({ pinSupported: true });
+    await panel.askToPin();
+    expect(prefs.askToPin).toHaveBeenCalled();
   });
 
   it('tells the user where the real Exit lives', () => {

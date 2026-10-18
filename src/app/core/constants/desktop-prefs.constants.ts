@@ -35,6 +35,17 @@ export const CLOSE_TO_TRAY_HELP = {
   hint: 'To quit DeepWork completely, right-click the tray icon and choose Exit. Turning this off makes the X quit straight away again.',
 } as const;
 
+export const PIN_TO_TASKBAR_HELP = {
+  heading: 'Pin to taskbar',
+  body:
+    'Keeps DeepWork next to your other apps, one click away. Asking puts a ' +
+    'notification on your desktop with a Pin button — pressing it asks Windows ' +
+    'to pin the app, and Windows shows its own confirmation before anything ' +
+    'changes.',
+  hint:
+    'Cancel changes nothing. You can also pin DeepWork yourself from the Start menu, which is what the notification is there to save you finding.',
+} as const;
+
 export const MINI_WIDGET_HELP = {
   heading: 'Mini widget',
   body:

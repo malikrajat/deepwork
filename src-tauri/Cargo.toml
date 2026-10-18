@@ -58,15 +58,28 @@ windows-sys = { version = "0.61", features = [
     # others rather than only asking the desktop layer to. See `TopmostKeeper`.
     "Win32_UI_WindowsAndMessaging",
 ] }
-# WinRT toasts, for the one thing the notification plugin cannot do on Windows:
+# WinRT toasts, for the things the notification plugin cannot do on Windows:
 # post under a tag, so the alert's repeat re-raises its own notification instead
-# of stacking one copy per interval. See `alert_notify` in `src/lib.rs`. The two
-# features are the API itself and the XML document it is handed: the toast is
-# built as markup and parsed by `XmlDocument`.
+# of stacking one copy per interval, and carry buttons whose press reports back
+# into the app. See `alert_notify` in `src/lib.rs`.
+#
+# `UI_Notifications` and `Data_Xml_Dom` are the API itself and the XML document
+# it is handed — the toast is built as markup and parsed by `XmlDocument`.
+# `Foundation` is `TypedEventHandler`, which is how a button press is heard
+# (the toast's `Activated` event). `UI_Shell` is `TaskbarManager`, the one
+# documented way to ask the shell to pin the app.
 windows = { version = "0.61", features = [
-    "UI_Notifications",
     "Data_Xml_Dom",
+    "Foundation",
+    "UI_Notifications",
+    "UI_Shell",
 ] }
+# The `IAsyncOperation` a pin request returns. A direct dependency because the
+# completion handler is a type this crate has to name: `windows` re-exports the
+# operation but not its handler. Waiting on the operation with `get()` instead
+# would block the thread the shell's own consent dialog is drawn on, which is
+# the one thread that must stay free for the request to complete.
+windows-future = "0.2"
 
 [profile.release]
 panic = "abort"
