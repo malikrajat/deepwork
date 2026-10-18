@@ -167,6 +167,52 @@
   -webkit-text-fill-color: transparent;
 }
 
+/* The phone's quiet button: the right end of the top bar, a target a thumb can
+   hit, and a dot when something is held. The dot is drawn inside the button
+   rather than as a separate element so it never becomes a second tap target. */
+.mobile-quiet-btn {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  flex-shrink: 0;
+  margin-left: auto;
+  padding: 0;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--glass-border);
+  background: var(--glass-bg);
+  color: var(--color-text-secondary);
+  cursor: pointer;
+  transition:
+    background 0.2s,
+    border-color 0.2s,
+    color 0.2s;
+}
+
+.mobile-quiet-btn:hover {
+  background: var(--glass-bg-hover);
+  color: var(--color-text-primary);
+}
+
+.mobile-quiet-btn.active {
+  border-color: var(--sidebar-active-border);
+  background: var(--sidebar-active-bg);
+  color: var(--color-text-primary);
+}
+
+.quiet-dot {
+  position: absolute;
+  top: 7px;
+  right: 8px;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--color-accent-secondary);
+  box-shadow: 0 0 0 2px var(--sidebar-bg);
+}
+
 @keyframes nav-backdrop-in {
   from {
     opacity: 0;

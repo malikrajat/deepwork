@@ -131,9 +131,10 @@ describe('DesktopPrefsPanelComponent', () => {
 
   it('explains each switch and the mini widget', () => {
     const src = readFileSync(SOURCE, 'utf8');
-    // Four <app-info-tip> explainers: start-with-system, always-on-top, keeping
-    // the window in the tray, and the widget.
-    expect((src.match(/<app-info-tip/g) ?? []).length).toBe(4);
+    // The desktop branch carries one explainer per switch plus the mini widget;
+    // the other two branches explain what they can and cannot do with their own
+    // tips, so this is a floor rather than an exact count.
+    expect((src.match(/<app-info-tip/g) ?? []).length).toBeGreaterThanOrEqual(4);
     expect(src).toContain('startHelp');
     expect(src).toContain('onTopHelp');
     expect(src).toContain('closeHelp');
@@ -152,11 +153,14 @@ describe('DesktopPrefsPanelComponent', () => {
     expect(copy).toContain('choose Exit');
   });
 
-  it('surfaces failures and the browser fallback message', () => {
+  it('surfaces failures and the install fallback message', () => {
     const src = readFileSync(SOURCE, 'utf8');
     expect(src).toContain('prefs.error()');
     expect(src).toContain('role="alert"');
-    expect(src).toContain('!prefs.isDesktopApp');
+    // Outside the desktop app the rows that cannot be honoured are answered by
+    // the installation they depend on, not by a switch that would do nothing.
+    expect(src).toContain('install.isInstalled()');
+    expect(src).toContain("install.openDialog('install')");
   });
 
   it('turns the always-on-top switch off where the desktop cannot honour it', () => {

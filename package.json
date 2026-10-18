@@ -1,6 +1,6 @@
 {
   "name": "deepwork-app",
-  "version": "2.0.22",
+  "version": "2.0.23",
   "scripts": {
     "ng": "ng",
     "start": "ng serve --port 4999",
@@ -52,6 +52,7 @@
     "@angular/forms": "^22.2.1",
     "@angular/platform-browser": "^22.2.1",
     "@angular/router": "^22.2.1",
+    "@codewithrajat/rm-ng-editor": "^1.0.0",
     "@lucide/angular": "^1.50.0",
     "@tauri-apps/plugin-notification": "^2.3.3",
     "@tauri-apps/plugin-sql": "^2.4.0",

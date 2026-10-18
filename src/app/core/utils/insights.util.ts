@@ -9,6 +9,8 @@
  * invented metrics — and every function takes `now` so results are deterministic.
  */
 
+import { countWords, journalText } from './journal-content.util';
+
 export interface SessionLike {
   type: string;
   durationActual: number;
@@ -291,9 +293,8 @@ export function buildHabitStats(
 
 // ── Journal ─────────────────────────────────────────────────────────────────
 
-function countWords(text: string): number {
-  const trimmed = text.trim();
-  return trimmed ? trimmed.split(/\s+/).length : 0;
+function countJournalWords(content: string): number {
+  return countWords(journalText(content));
 }
 
 export function buildJournalStats(journal: JournalLike[], now: Date, weeks = 12): JournalStats {
@@ -302,7 +303,7 @@ export function buildJournalStats(journal: JournalLike[], now: Date, weeks = 12)
   let words = 0;
 
   for (const entry of journal) {
-    const wordsInEntry = countWords(entry.content);
+    const wordsInEntry = countJournalWords(entry.content);
     if (wordsInEntry === 0) continue;
     byDate.set(entry.date, wordsInEntry);
     words += wordsInEntry;
@@ -644,7 +645,9 @@ export function buildAnalytics(input: {
       habits,
       journal,
       journalDays: new Set(
-        input.journal.filter(entry => entry.content.trim().length > 0).map(entry => entry.date)
+        input.journal
+          .filter((entry) => journalText(entry.content).length > 0)
+          .map((entry) => entry.date),
       ),
       streak,
       overdueTasks,

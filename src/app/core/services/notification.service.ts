@@ -1,8 +1,25 @@
 import { computed, effect, Injectable, inject, signal, OnDestroy } from '@angular/core';
 import { TimerType } from '../models/session.model';
 import { SettingsService } from './settings.service';
+import { AttentionService } from './attention.service';
 import { NotificationSound } from '../models/settings.model';
 import { BREAK_QUOTES, FOCUS_QUOTES, TASK_QUOTES, quoteAt } from '../constants/alert.constants';
+
+/**
+ * A button on a card.
+ *
+ * Some of what the app has to say is not a message but a question — "start with
+ * Windows?", "want DeepWork on the taskbar?" — and a question whose only control
+ * is a close button can only ever be answered "not now". An action is a label
+ * and what it does; the card runs it, and the action itself decides whether the
+ * card stays up.
+ */
+export interface ToastAction {
+  label: string;
+  run: () => void | Promise<void>;
+  /** Drawn as the filled button; at most one action should set it. */
+  primary?: boolean;
+}
 
 export interface ToastNotification {
   id: number;
@@ -18,6 +35,14 @@ export interface ToastNotification {
    * the quote on a line of its own (see `ToastComponent` and `alert_notify`).
    */
   quote: string | null;
+  /**
+   * The buttons the card offers, in order. Empty for a plain message.
+   *
+   * Optional so a card written by an older caller — or by a test that only
+   * cares about the words — still draws; the template treats a missing list as
+   * no buttons at all.
+   */
+  actions?: ToastAction[];
   type: TimerType;
   visible: boolean;
 }
@@ -44,6 +69,15 @@ export interface NotificationOptions {
    * as they always do.
    */
   sticky?: boolean;
+  /**
+   * What a click does, where the platform supports one.
+   *
+   * The page's own Notification API is the surface this reaches: the install
+   * suggestion uses it to bring the user back to the banner that explains what
+   * to do. A desktop shell owns its notification once posted and is given no
+   * handler — clicking it brings the app forward, which is the same first step.
+   */
+  onClick?: () => void;
 }
 
 /**
@@ -100,8 +134,25 @@ export class NotificationService implements OnDestroy {
    */
   static readonly WATER_NOTIFICATION_TAG = 'deepwork-water';
   static readonly UPDATE_NOTIFICATION_TAG = 'deepwork-update';
+  /**
+   * The two suggestions. Handles of their own so a reminder can be replaced by
+   * the next one of its kind without touching the water question, the update
+   * notice or an unanswered completion alert — which on Windows would otherwise
+   * be the notification a startup reminder quietly took the place of.
+   */
+  static readonly STARTUP_NOTIFICATION_TAG = 'deepwork-startup';
+  static readonly PIN_NOTIFICATION_TAG = 'deepwork-pin';
 
   private readonly settingsService = inject(SettingsService);
+  /**
+   * The one place that decides whether the app may speak.
+   *
+   * The sound used to answer to a switch of its own, which is how a mute with no
+   * end became possible. It now asks this service, which knows about the timed
+   * mute, the tray's pause and the desktop's quiet state, so the bell and the
+   * cards cannot disagree about whether now is a good moment.
+   */
+  private readonly attention = inject(AttentionService);
 
   private repeatWorker: Worker | null = null;
   private repeatFallbackId: ReturnType<typeof setInterval> | null = null;
@@ -162,9 +213,6 @@ export class NotificationService implements OnDestroy {
    * stop reading it the moment `ringing` goes false.
    */
   readonly alertPulse = signal(0);
-
-  /** Mutes the reminder sound (toggled from the system tray) */
-  readonly muted = signal(false);
 
   /**
    * How long the alert's shake lasts, in milliseconds, as the user chose it.
@@ -266,14 +314,23 @@ export class NotificationService implements OnDestroy {
     this.toast.set(null);
   }
 
-  /** Shows a one-off toast (used by tray actions like timer auto-resume) */
+  /**
+   * Shows a one-off card, and optionally the buttons it is asking with.
+   *
+   * Used by the tray's own confirmations (a resumed timer, a mute that ends by
+   * itself later) and by the two reminders that ask for a desktop favour. The
+   * actions are closures rather than ids because the card is a view of a
+   * decision already made by the service that raised it — there is no router
+   * between the two, and there is nothing to serialise.
+   */
   showToastMessage(
     title: string,
     body: string,
     type: TimerType,
     quote: string | null = null,
+    actions: ToastAction[] = [],
   ): void {
-    this.showToast(title, body, type, quote);
+    this.showToast(title, body, type, quote, actions);
   }
 
   /**
@@ -323,8 +380,7 @@ export class NotificationService implements OnDestroy {
    * The water reminder calls this when it asks its question: a notification
    * should sound like the app's other notifications, and answer to the same two
    * controls — the **Notification sound** list in Settings (where `none` means
-   * silent) and the tray's **Mute Reminder Sound** switch — instead of inventing
-   * a tone of its own.
+   * silent) and the tray's timed mute — instead of inventing a tone of its own.
    */
   chime(): void {
     this.playSound();
@@ -335,6 +391,7 @@ export class NotificationService implements OnDestroy {
     body: string,
     type: TimerType,
     quote: string | null = null,
+    actions: ToastAction[] = [],
   ): void {
     // Set null first to force Angular to destroy and re-create the element (re-triggers animation)
     this.toast.set(null);
@@ -343,7 +400,7 @@ export class NotificationService implements OnDestroy {
     }
     this.toastTimeoutId = setTimeout(() => {
       this.toastCounter++;
-      this.toast.set({ id: this.toastCounter, title, body, quote, type, visible: true });
+      this.toast.set({ id: this.toastCounter, title, body, quote, actions, type, visible: true });
       this.toastTimeoutId = null;
     }, 50);
   }
@@ -418,11 +475,19 @@ export class NotificationService implements OnDestroy {
         // `requireInteraction` is the browser's version of "stay until answered",
         // which is the rule this whole service is built around, and `tag` is its
         // version of the handle that makes a repeat replace rather than stack.
-        new Notification(title, {
+        const posted = new Notification(title, {
           body: withQuote(text, quote),
           tag: options.tag ?? NotificationService.ALERT_NOTIFICATION_TAG,
           requireInteraction: true,
         });
+        // A click on a browser notification is all the user gets: it should do
+        // what clicking a desktop toast does — bring them to the app — plus
+        // whatever the caller wants to happen once they are there.
+        posted.onclick = () => {
+          globalThis.focus?.();
+          options.onClick?.();
+          posted.close();
+        };
       }
     } catch {
       // No notification surface here at all — the tone and the card still run.
@@ -433,7 +498,10 @@ export class NotificationService implements OnDestroy {
     sound = this.settingsService.settings().notificationSound,
     ignoreMute = false,
   ): void {
-    if (this.muted() && !ignoreMute) return;
+    // The timed mute lives in `AttentionService`; it silences the tone only,
+    // which is what the tray's mute has always meant and now also says when it
+    // will end.
+    if (this.attention.soundMuted() && !ignoreMute) return;
     if (sound === 'none') return;
 
     try {

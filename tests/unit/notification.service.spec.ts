@@ -2,6 +2,7 @@ import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { TestBed } from '@angular/core/testing';
 import { signal } from '@angular/core';
 import { NotificationService } from '../../src/app/core/services/notification.service';
+import { AttentionService } from '../../src/app/core/services/attention.service';
 import { SettingsService } from '../../src/app/core/services/settings.service';
 import { DEFAULT_SETTINGS } from '../../src/app/core/models/settings.model';
 import {
@@ -36,6 +37,9 @@ describe('NotificationService', () => {
   beforeEach(() => {
     vi.useFakeTimers();
     vi.clearAllMocks();
+    // A mute is remembered across a launch, so one test's mute must not follow
+    // the next test's service into silence.
+    localStorage.clear();
     mockSettings = makeMockSettings();
     TestBed.configureTestingModule({
       providers: [NotificationService, { provide: SettingsService, useValue: mockSettings }],
@@ -372,7 +376,7 @@ describe('NotificationService', () => {
   it('previews the selected sound even while reminders are muted', () => {
     const playDing = vi.spyOn(svc as any, 'playDing');
     (svc as any).audioContext = { close: vi.fn() };
-    svc.muted.set(true);
+    TestBed.inject(AttentionService).muteFor(30);
 
     svc.previewSound('ding');
 
@@ -388,14 +392,29 @@ describe('NotificationService', () => {
     expect(playBell).toHaveBeenCalledWith((svc as any).audioContext);
   });
 
-  it('chime() stays silent while reminders are muted', () => {
+  it('chime() stays silent while the timed mute is on', () => {
     const playBell = vi.spyOn(svc as any, 'playBell');
     (svc as any).audioContext = { close: vi.fn() };
-    svc.muted.set(true);
+    TestBed.inject(AttentionService).muteFor(30);
 
     svc.chime();
 
     expect(playBell).not.toHaveBeenCalled();
+  });
+
+  it('rings again once the timed mute is over', () => {
+    // The point of the timed mute: it ends by itself, and nothing has to
+    // remember to turn the sound back on.
+    const playBell = vi.spyOn(svc as any, 'playBell');
+    (svc as any).audioContext = { close: vi.fn() };
+    const attention = TestBed.inject(AttentionService);
+    attention.muteFor(30);
+
+    vi.advanceTimersByTime(30 * 60_000 + 20_000);
+
+    expect(attention.soundMuted()).toBe(false);
+    svc.chime();
+    expect(playBell).toHaveBeenCalled();
   });
 
   it('chime() stays silent when the chosen sound is none', () => {

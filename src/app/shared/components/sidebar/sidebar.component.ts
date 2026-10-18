@@ -4,6 +4,7 @@ import { toSignal } from '@angular/core/rxjs-interop';
 import { filter, map, startWith } from 'rxjs';
 import { SafeHtmlPipe } from '../../pipes/safe-html.pipe';
 import { UpdateService } from '../../../core/services/update.service';
+import { QuietService } from '../../../core/services/quiet.service';
 import { APP_VERSION } from '../../../core/constants/app-info.constants';
 import { formatVersion } from '../../../core/utils/version.util';
 
@@ -105,8 +106,46 @@ interface NavItem {
         }
       </ul>
 
-      @if (!collapsed()) {
-        <div class="sidebar-footer">
+      <div class="sidebar-footer">
+        <!-- Pause, mute and focus, one tap from the navigation. It is also in the
+             phone's top bar and Settings; this is the copy a desktop user meets
+             without opening anything, and on a Linux session whose desktop does
+             not draw tray icons it is the only one there is. -->
+        <button
+          type="button"
+          class="quiet-btn"
+          [class.active]="quiet.active()"
+          [class.collapsed]="collapsed()"
+          [attr.aria-label]="quiet.statusLabel()"
+          [title]="quiet.statusLabel()"
+          (click)="openQuiet()"
+        >
+          <span class="quiet-icon" aria-hidden="true">
+            <svg
+              width="17"
+              height="17"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+              stroke-linecap="round"
+            >
+              <path d="M18 8A6 6 0 006 8c0 7-3 9-3 9h18s-3-2-3-9" />
+              <path d="M13.7 21a2 2 0 01-3.4 0" />
+            </svg>
+            @if (quiet.active()) {
+              <span class="quiet-dot" aria-hidden="true"></span>
+            }
+          </span>
+          @if (!collapsed()) {
+            <span class="quiet-text">
+              <span class="quiet-name">{{ quiet.statusLabel() }}</span>
+              <span class="quiet-hint">Pause · mute · focus</span>
+            </span>
+          }
+        </button>
+
+        @if (!collapsed()) {
           <a
             class="version-badge"
             routerLink="/about"
@@ -123,8 +162,8 @@ interface NavItem {
               <span class="update-pill">Update</span>
             }
           </a>
-        </div>
-      }
+        }
+      </div>
     </nav>
   `,
   styles: [
@@ -291,8 +330,79 @@ interface NavItem {
         overflow: hidden;
       }
       .sidebar-footer {
+        display: flex;
+        flex-direction: column;
+        gap: var(--space-sm);
         padding: var(--space-md) var(--space-sm);
         border-top: 1px solid var(--glass-border);
+      }
+      /* The quiet control is a row, not an icon floating in the footer: it is a
+         state as much as a button, and "Paused until 14:30" has to be readable
+         without opening it. Collapsed, it keeps its icon and its dot. */
+      .quiet-btn {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        width: 100%;
+        min-height: 40px;
+        padding: 8px 10px;
+        border-radius: 10px;
+        border: 1px solid var(--glass-border);
+        background: var(--glass-bg);
+        color: var(--color-text-secondary);
+        font: inherit;
+        text-align: left;
+        cursor: pointer;
+        transition:
+          background 0.2s,
+          border-color 0.2s,
+          color 0.2s;
+      }
+      .quiet-btn:hover {
+        background: var(--glass-bg-hover);
+        color: var(--color-text-primary);
+      }
+      .quiet-btn.active {
+        border-color: var(--sidebar-active-border);
+        background: var(--sidebar-active-bg);
+        color: var(--color-text-primary);
+      }
+      .quiet-btn.collapsed {
+        justify-content: center;
+        padding: 8px;
+      }
+      .quiet-icon {
+        position: relative;
+        display: inline-flex;
+        flex: 0 0 auto;
+      }
+      .quiet-dot {
+        position: absolute;
+        top: -2px;
+        right: -3px;
+        width: 7px;
+        height: 7px;
+        border-radius: 50%;
+        background: var(--color-accent-secondary);
+        box-shadow: 0 0 0 2px var(--sidebar-bg);
+      }
+      .quiet-text {
+        display: flex;
+        flex-direction: column;
+        min-width: 0;
+        line-height: 1.25;
+      }
+      .quiet-name {
+        font-size: 12px;
+        font-weight: 600;
+        color: inherit;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+      .quiet-hint {
+        font-size: 10px;
+        color: var(--color-text-muted);
       }
       .version-badge {
         display: flex;
@@ -409,6 +519,13 @@ interface NavItem {
           margin-bottom: var(--space-lg);
         }
 
+        /* The quiet row is a control in the drawer, where the finger is, so it
+           takes the same thumb-sized height as a navigation row. */
+        .quiet-btn {
+          min-height: 46px;
+          padding: 10px 12px;
+        }
+
         .toggle-btn {
           display: none;
         }
@@ -450,6 +567,19 @@ interface NavItem {
 export class SidebarComponent {
   private readonly router = inject(Router);
   protected readonly updates = inject(UpdateService);
+  protected readonly quiet = inject(QuietService);
+
+  /**
+   * Opens the quiet panel, closing the drawer underneath it.
+   *
+   * The drawer is a navigation surface and the panel is a modal over it; leaving
+   * the drawer open would mean dismissing the panel lands back on a menu the
+   * user had already finished with.
+   */
+  openQuiet(): void {
+    this.closeMobile.emit();
+    this.quiet.open();
+  }
 
   /** The running version, shown at the foot of the sidebar and linked to About. */
   readonly versionLabel = formatVersion(APP_VERSION);
