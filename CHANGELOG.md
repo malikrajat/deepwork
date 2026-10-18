@@ -243,6 +243,16 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   With the database actually open, migrations 11–13 apply, `launch_prompted`
   arrives at 0, and the setup described above appears.
 
+- **Notifications no longer wear PowerShell's name and icon.** A toast is only
+  drawn with an app's own identity when Windows can resolve the app id it was
+  posted under. A build run from `target/` has no Start-menu shortcut of its own
+  and used to fall back to PowerShell's app id even on a machine where DeepWork
+  was installed — so its notifications came up as PowerShell. It now borrows the
+  installed app's identity whenever the Start-menu entry exists, and falls back to
+  PowerShell only on a machine with no installed copy at all (`alert_app_id` and
+  `app_id_is_registered` in `lib.rs`). The installed build was already using the
+  bundle id; this makes the development build match it.
+
 ### Changed
 
 - **A pause now covers reminders as well as the timer.** Pausing from the tray

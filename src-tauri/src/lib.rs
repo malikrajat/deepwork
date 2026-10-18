@@ -854,6 +854,14 @@ fn toast_dismiss(_app: AppHandle, _tag: String) -> Result<(), String> {
 /// The toast's own XML: the title, the message, the quote when there is one, and
 /// whatever `attributes` the caller wants on the `<toast>` element itself.
 ///
+/// The typography is Windows': the first `<text>` is the title and is drawn bold
+/// and larger, the second is the body and is smaller, and
+/// `placement="attribution"` is the quieter line at the foot. The toast schema
+/// has **no** font family, size, weight or italic attribute — those exist for
+/// adaptive tiles, not for a toast's text — so the app's own type (an italic
+/// quote, a title two steps above its body) is what the in-app card is for. The
+/// system notification gets the same hierarchy the platform allows.
+///
 /// The quote is a third `<text>` node rather than a sentence appended to the
 /// second, and it carries `placement="attribution"` — the toast's own smaller,
 /// muted line — so the two read as two things on every Windows version rather
@@ -958,10 +966,13 @@ fn alert_notify(
 ///
 /// An installed DeepWork has a Start-menu shortcut carrying the bundle
 /// identifier, and Windows only shows a toast whose app id it can resolve — so
-/// that is the id to use. A binary still sitting in `target/` (a `tauri dev`
-/// session, or a build run straight from the build folder) has no such shortcut,
-/// and would otherwise post into nothing: those builds post as PowerShell, which
-/// is the same fallback `notify-rust` takes when it is given no app id at all.
+/// that is the id to use, and it is also where the notification's app name and
+/// icon come from. A binary still sitting in `target/` has no shortcut of its
+/// own: on a machine where DeepWork *is* installed, it borrows the installed
+/// app's identity, so a development build's notifications still say DeepWork and
+/// wear the app's icon instead of PowerShell's. Only a build on a machine with no
+/// installed copy falls back to PowerShell, because an unresolvable app id posts
+/// into nothing.
 #[cfg(windows)]
 fn alert_app_id(app: &AppHandle) -> String {
     /// Windows' own PowerShell AUMID — the one app id every Windows install can
@@ -969,15 +980,40 @@ fn alert_app_id(app: &AppHandle) -> String {
     const POWERSHELL_APP_ID: &str =
         r"{1AC14E77-02E7-4E5D-B744-2EB1AE5198B7}\WindowsPowerShell\v1.0\powershell.exe";
 
+    let installed = app_id_is_registered(app);
     let in_build_dir = std::env::current_exe()
         .ok()
         .and_then(|exe| exe.parent().map(|dir| dir.to_string_lossy().to_lowercase()))
         .is_some_and(|dir| dir.replace('\\', "/").contains("/target/"));
-    if in_build_dir {
+
+    if in_build_dir && !installed {
+        log::warn!(
+            target: logging::SYSTEM,
+            "notifications will use PowerShell's app id: DeepWork has no installed Start-menu shortcut"
+        );
         POWERSHELL_APP_ID.to_string()
     } else {
         app.config().identifier.clone()
     }
+}
+
+/// Whether this machine has a Start-menu entry for DeepWork.
+///
+/// The shortcut is what Windows resolves the bundle identifier against, and its
+/// icon is the one the notification's attribution area draws. Its presence is
+/// therefore the same question as "would `com.deepwork.app` work here?".
+#[cfg(windows)]
+fn app_id_is_registered(app: &AppHandle) -> bool {
+    let Some(app_data) = std::env::var_os("APPDATA") else {
+        return false;
+    };
+    std::path::PathBuf::from(app_data)
+        .join("Microsoft")
+        .join("Windows")
+        .join("Start Menu")
+        .join("Programs")
+        .join(format!("{}.lnk", app.package_info().name))
+        .exists()
 }
 
 /// Escapes the five characters that would otherwise end or corrupt the toast's
