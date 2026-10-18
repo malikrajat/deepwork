@@ -38,12 +38,12 @@ export const CLOSE_TO_TRAY_HELP = {
 export const PIN_TO_TASKBAR_HELP = {
   heading: 'Pin to taskbar',
   body:
-    'Keeps DeepWork next to your other apps, one click away. Asking puts a ' +
-    'notification on your desktop with a Pin button — pressing it asks Windows ' +
-    'to pin the app, and Windows shows its own confirmation before anything ' +
-    'changes.',
-  hint:
-    'Cancel changes nothing. You can also pin DeepWork yourself from the Start menu, which is what the notification is there to save you finding.',
+    'Keeps DeepWork next to your other apps, one click away. Where Windows allows ' +
+    'an app to ask, the button posts a notification whose Yes raises the shell’s ' +
+    'own pin confirmation. Where Windows reserves pinning for apps it has ' +
+    'packaged — the usual case on Windows 11 — the same button opens the ' +
+    'installed-app list, and Pin to taskbar is on DeepWork’s right-click menu.',
+  hint: 'You can always do it yourself: right-click DeepWork in the Start menu, then choose Pin to taskbar.',
 } as const;
 
 export const MINI_WIDGET_HELP = {

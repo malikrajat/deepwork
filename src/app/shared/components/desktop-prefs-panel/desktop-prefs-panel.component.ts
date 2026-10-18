@@ -145,7 +145,13 @@ import {
                 [disabled]="disabled() || prefs.pinBusy()"
                 (click)="askToPin()"
               >
-                {{ prefs.pinBusy() ? 'Waiting…' : 'Pin' }}
+                @if (prefs.pinBusy()) {
+                  Waiting…
+                } @else if (prefs.pinAllowed()) {
+                  Pin
+                } @else {
+                  Show me
+                }
               </button>
             }
           </div>
@@ -226,7 +232,10 @@ import {
 
       <p class="pref-footnote">
         <app-info-tip [heading]="miniHelp.heading" [body]="miniHelp.body" [hint]="miniHelp.hint" />
-        <span>The browser's own window controls and menus still apply; nothing is hidden from them.</span>
+        <span
+          >The browser's own window controls and menus still apply; nothing is hidden from
+          them.</span
+        >
       </p>
     } @else {
       <!-- ===== A tab =====
@@ -247,7 +256,10 @@ import {
       </p>
       <ul class="pref-list">
         <li><span class="pref-list-name">Start with system</span> after installation</li>
-        <li><span class="pref-list-name">Always on top</span> in the desktop app, or as a floating timer here</li>
+        <li>
+          <span class="pref-list-name">Always on top</span> in the desktop app, or as a floating
+          timer here
+        </li>
       </ul>
       @if (install.isDismissed()) {
         <p class="pref-footnote">

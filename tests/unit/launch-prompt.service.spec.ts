@@ -247,6 +247,35 @@ describe('LaunchPromptService', () => {
       expect(actions).toHaveLength(2);
     });
 
+    it('offers the app list when Windows will not let the app pin itself', async () => {
+      // The taskbar API exists but says no (the usual unpackaged Windows 11
+      // answer). The reminder must not offer a Yes that ends in an error: it
+      // offers the two manual clicks instead.
+      vi.mocked(invoke)
+        .mockResolvedValueOnce({ pinned: false, supported: true, allowed: false } as never)
+        .mockResolvedValueOnce(false as never)
+        .mockResolvedValueOnce({ pinned: false, supported: true, allowed: false } as never);
+
+      const service = build({ startupNudge: false });
+      await service.init();
+      const plan = nudgePlanFor(localDayKey(new Date()));
+
+      await service.tick(at(plan.pin[0]));
+
+      const options = notifications.announce.mock.calls[0][2] as {
+        actions: { id: string; label: string }[];
+      };
+      expect(options.actions).toEqual([
+        { id: 'yes', label: 'Yes, show me' },
+        { id: 'no', label: 'Not now' },
+      ]);
+      expect(notifications.announce.mock.calls[0][1]).toContain('does not let an app pin itself');
+      const actions = notifications.showToastMessage.mock.calls[0][4] as {
+        label: string;
+      }[];
+      expect(actions[0].label).toBe('Show me');
+    });
+
     it('turns startup on from the notification’s own Yes', async () => {
       const service = build();
       await service.init();

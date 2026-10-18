@@ -5,7 +5,11 @@ import { NotificationService } from './notification.service';
 import type { NotificationAction, ToastAction } from './notification.service';
 import { AttentionService } from './attention.service';
 import { LogService } from './log.service';
-import { STARTUP_NUDGES, TASKBAR_PIN_NUDGES } from '../constants/nudge.constants';
+import {
+  STARTUP_NUDGES,
+  TASKBAR_PIN_MANUAL,
+  TASKBAR_PIN_NUDGES,
+} from '../constants/nudge.constants';
 import { dueNudge, localDayKey, minutesOfDay, nudgePlanFor } from '../utils/nudge-schedule.util';
 import type { NudgePlan } from '../utils/nudge-schedule.util';
 
@@ -39,6 +43,13 @@ interface FiredCounts {
 export interface TaskbarPinState {
   pinned: boolean;
   supported: boolean;
+  /**
+   * Whether Windows will accept a pin request from this app at all.
+   *
+   * False on a normal unpackaged Windows 11 install; the reminder then offers to
+   * open the app list rather than a **Yes** that cannot finish.
+   */
+  allowed: boolean;
 }
 
 /**
@@ -76,7 +87,11 @@ export class LaunchPromptService implements OnDestroy {
   readonly dialogOpen = signal(false);
 
   /** Whether DeepWork is on the taskbar, as of the last check. */
-  readonly pin = signal<TaskbarPinState>({ pinned: false, supported: IN_TAURI });
+  readonly pin = signal<TaskbarPinState>({
+    pinned: false,
+    supported: IN_TAURI,
+    allowed: false,
+  });
 
   /** The last failure from the settings side, shown inside the dialog. */
   readonly error = signal<string | null>(null);
@@ -329,23 +344,26 @@ export class LaunchPromptService implements OnDestroy {
   /** Re-reads the taskbar, for Settings and after an answer. */
   async refreshPin(): Promise<void> {
     if (!this.prefs.isDesktopApp) {
-      this.pin.set({ pinned: true, supported: false });
+      this.pin.set({ pinned: true, supported: false, allowed: false });
       return;
     }
     try {
       const { invoke } = await import('@tauri-apps/api/core');
-      const state = await invoke<{ pinned?: boolean; supported?: boolean }>(
-        'nudges_taskbar_pin_state',
-      );
+      const state = await invoke<{
+        pinned?: boolean;
+        supported?: boolean;
+        allowed?: boolean;
+      }>('nudges_taskbar_pin_state');
       this.pin.set({
         pinned: state?.pinned === true,
         supported: state?.supported !== false,
+        allowed: state?.allowed === true,
       });
     } catch (error) {
       // A desktop that cannot answer gets the answer that does not nag: the
       // reminder is only worth having if the app can tell when it is done.
       this.log?.warn('system', `taskbar pin state unavailable: ${describe(error)}`);
-      this.pin.set({ pinned: true, supported: false });
+      this.pin.set({ pinned: true, supported: false, allowed: false });
     }
   }
 
@@ -409,16 +427,20 @@ export class LaunchPromptService implements OnDestroy {
     if (!state.supported || state.pinned) return;
 
     const copy = TASKBAR_PIN_NUDGES[index % TASKBAR_PIN_NUDGES.length];
+    // On a Windows that refuses programmatic pinning, the reminder still asks —
+    // but its Yes opens the list where the two clicks live instead of promising
+    // a pin the shell will reject.
+    const allowed = state.allowed;
     await this.deliver(
       copy.title,
-      copy.body,
-      copy.system,
+      allowed ? copy.body : TASKBAR_PIN_MANUAL.body,
+      allowed ? copy.system : TASKBAR_PIN_MANUAL.system,
       NotificationService.PIN_NOTIFICATION_TAG,
       [
-        { id: 'yes', label: 'Yes, pin it' },
+        { id: 'yes', label: allowed ? 'Yes, pin it' : TASKBAR_PIN_MANUAL.action },
         { id: 'no', label: 'Not now' },
       ],
-      this.pinActions(),
+      this.pinActions(allowed),
     );
   }
 
@@ -536,21 +558,26 @@ export class LaunchPromptService implements OnDestroy {
   /**
    * The two answers a pin reminder offers on its card.
    *
-   * **Pin now** is the answer the notification's **Yes** gives too: it asks
-   * Windows, which shows its own confirmation before anything changes. **Stop
-   * asking** ends the reminders. Neither of them pins the app silently, because
-   * no ordinary build can.
+   * **Pin now** is the answer the notification's **Yes** gives too — when the
+   * shell will take the request. Where it will not, the same button is labelled
+   * **Show me** and opens the installed-app list, because a button that ends in
+   * "Windows did not pin DeepWork" is worse than one that says where the button
+   * is. **Stop asking** ends the reminders either way.
    */
-  private pinActions(): ToastAction[] {
+  private pinActions(allowed: boolean): ToastAction[] {
     return [
       {
-        label: 'Pin now',
+        label: allowed ? 'Pin now' : TASKBAR_PIN_MANUAL.card,
         primary: true,
         run: async () => {
           await this.notifications.dismissSystemNotification(
             NotificationService.PIN_NOTIFICATION_TAG,
           );
-          await this.prefs.pinNow();
+          if (allowed) {
+            await this.prefs.pinNow();
+          } else {
+            await this.prefs.showPinHelper();
+          }
           await this.refreshPin();
         },
       },

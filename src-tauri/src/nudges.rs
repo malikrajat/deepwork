@@ -31,6 +31,14 @@ pub struct TaskbarPinState {
     /// False on a platform where pinning is not a thing the app can read, so
     /// the frontend does not offer a reminder it could never retire.
     pub supported: bool,
+    /// True when this Windows will even accept a programmatic pin request.
+    ///
+    /// It is a separate answer from [`TaskbarPinState::supported`]: the taskbar
+    /// API can exist (the desktop-app marker interface is there) and still say
+    /// "no" — Windows 11 reserves programmatic pinning for apps it has packaged
+    /// itself, and `IsPinningAllowed` is how it says so. The frontend offers the
+    /// two manual clicks in that case rather than a **Yes** that cannot work.
+    pub allowed: bool,
 }
 
 /// What the desktop says about interrupting the user right now.
@@ -64,6 +72,7 @@ pub fn taskbar_pin_state() -> TaskbarPinState {
         return TaskbarPinState {
             pinned: false,
             supported: true,
+            allowed: pinning_allowed(),
         };
     };
     let folder = PathBuf::from(app_data).join(PINNED_FOLDER);
@@ -84,6 +93,26 @@ pub fn taskbar_pin_state() -> TaskbarPinState {
     TaskbarPinState {
         pinned,
         supported: true,
+        allowed: pinning_allowed(),
+    }
+}
+
+/// Whether this Windows will accept a programmatic pin request at all.
+///
+/// `TaskbarManager` is a WinRT class written for packaged apps; a Win32 process
+/// reaches it through the desktop-app marker interface, which is why
+/// `taskbar_pin_supported` can be true, and `IsPinningAllowed` then reports
+/// whether the shell will actually honour a request. On a normal Windows 11
+/// machine with an unpackaged DeepWork the answer is false: the shell keeps
+/// pinning for apps it can identify as packaged. The app says so instead of
+/// offering a **Yes** that ends in an error.
+#[cfg(windows)]
+fn pinning_allowed() -> bool {
+    use windows::UI::Shell::TaskbarManager;
+
+    match TaskbarManager::GetDefault() {
+        Ok(manager) => manager.IsPinningAllowed().unwrap_or(false),
+        Err(_) => false,
     }
 }
 
@@ -196,6 +225,7 @@ pub fn taskbar_pin_state() -> TaskbarPinState {
     TaskbarPinState {
         pinned: true,
         supported: false,
+        allowed: false,
     }
 }
 

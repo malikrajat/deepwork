@@ -84,6 +84,22 @@ export const TASKBAR_PIN_NUDGES = [
   },
 ] as const;
 
+/**
+ * What the pin reminder says on a Windows that will not accept a request.
+ *
+ * Windows 11 reserves programmatic pinning for apps it has packaged itself. The
+ * app can open the list where the two clicks live, and that is what **Yes** does
+ * there — a button that ends in "Windows did not pin DeepWork" is worse than one
+ * that says where the button is.
+ */
+export const TASKBAR_PIN_MANUAL = {
+  body: 'Windows does not let an app pin itself here. Choose Yes and the app list opens — right-click DeepWork, then choose Pin to taskbar.',
+  system:
+    'Windows does not let an app pin itself here. Choose Yes and the app list opens; right-click DeepWork → Pin to taskbar.',
+  action: 'Yes, show me',
+  card: 'Show me',
+} as const;
+
 /** One line for Settings, under the switch that ends the reminders. */
 export const NUDGE_SETTINGS_HELP = {
   startup: {
@@ -92,7 +108,7 @@ export const NUDGE_SETTINGS_HELP = {
   },
   pin: {
     label: 'Remind me to pin DeepWork to the taskbar',
-    body: 'Three short reminders a day while DeepWork is not pinned. Choose Yes and Windows asks you to confirm the pin — an app cannot do it silently.',
+    body: 'Three short reminders a day while DeepWork is not pinned. Choose Yes and Windows asks you to confirm the pin — or opens the app list where Windows keeps that decision.',
   },
 } as const;
 

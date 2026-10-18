@@ -1097,6 +1097,31 @@ fn taskbar_pin(_app: AppHandle) -> Result<(), String> {
     Err("Pinning to the taskbar is a Windows feature.".to_string())
 }
 
+/// Opens the list of installed apps, where the user can pin DeepWork themselves.
+///
+/// The honest half of the pin feature: Windows 11 keeps programmatic pinning for
+/// apps it has packaged itself, so an unpackaged DeepWork cannot do it even when
+/// the taskbar API exists. `shell:AppsFolder` is the same list the Start menu's
+/// "All apps" is built from, and the context menu there has **Pin to taskbar**.
+/// This is what the notification's **Yes** opens when the shell has said no to
+/// the request — better than a button that ends in an error message.
+#[tauri::command]
+fn open_pin_helper() -> Result<(), String> {
+    #[cfg(windows)]
+    {
+        std::process::Command::new("explorer.exe")
+            .arg("shell:AppsFolder")
+            .spawn()
+            .map(|_| ())
+            .map_err(|err| format!("Could not open the app list: {err}"))
+    }
+
+    #[cfg(not(windows))]
+    {
+        Err("Pinning to the taskbar is a Windows feature.".to_string())
+    }
+}
+
 /// Issues the pin request and reports the answer as an event.
 ///
 /// The operation is waited on through a completion handler rather than
@@ -1283,6 +1308,7 @@ pub fn run() {
             toast_dismiss,
             taskbar_pin_supported,
             taskbar_pin,
+            open_pin_helper,
             save_download,
             db_preflight,
             db_backup,

@@ -87,6 +87,17 @@ export class DesktopPrefsService {
    */
   readonly pinSupported = signal(false);
 
+  /**
+   * Whether Windows will actually accept a pin request from this app.
+   *
+   * A taskbar API can exist and still refuse: Windows 11 reserves programmatic
+   * pinning for apps it has packaged itself, and `IsPinningAllowed` is how the
+   * shell says so. When this is false the app stops pretending: **Yes** opens
+   * the installed-app list and the user does the two clicks Windows wants. See
+   * `pinning_allowed` in `src-tauri/src/nudges.rs`.
+   */
+  readonly pinAllowed = signal(false);
+
   /** True once the shell has said DeepWork is pinned. */
   readonly pinned = signal(false);
 
@@ -164,7 +175,10 @@ export class DesktopPrefsService {
     // The pin question travels through the notification, so both halves of it
     // are wired before the row that asks can be clicked: the button press comes
     // back as a toast action, the shell's answer as an event.
-    this.pinSupported.set(await this.readPinSupported());
+    const pinState = await this.readPinState();
+    this.pinSupported.set(pinState.supported !== false);
+    this.pinAllowed.set(pinState.allowed === true);
+    this.pinned.set(pinState.pinned === true);
     void this.listenForPinResult();
     this.unlistenPinAction = this.notifications.onToastAction(
       NotificationService.PIN_NOTIFICATION_TAG,
@@ -189,16 +203,21 @@ export class DesktopPrefsService {
   }
 
   /**
-   * Puts the pin question on the desktop as a notification with a button.
+   * Offers the pin, or shows the two clicks Windows requires.
    *
-   * A notification rather than a dialog inside the window, because the answer
-   * is the shell's to act on: **Yes** asks Windows directly, and Windows draws
-   * its own confirmation on top. Nothing is pinned until the user has agreed to
-   * it in that dialog — an app cannot put itself on the taskbar silently, and no
-   * version of this feature should pretend otherwise.
+   * A notification rather than a dialog inside the window when the shell will
+   * accept a request: **Yes** asks Windows directly, and Windows draws its own
+   * confirmation on top. Where the shell will not accept one — an unpackaged app
+   * on Windows 11 — a **Yes** that ends in an error would be worse than no
+   * button, so this opens the installed-app list instead and says what to click.
    */
   async askToPin(): Promise<void> {
     if (!IN_TAURI || !this.pinSupported() || this.pinned()) return;
+
+    if (!this.pinAllowed()) {
+      await this.showPinHelper();
+      return;
+    }
 
     this.error.set(null);
     try {
@@ -219,6 +238,33 @@ export class DesktopPrefsService {
       );
     } catch (err) {
       this.error.set(this.describe(err, 'Could not ask Windows to pin DeepWork.'));
+    }
+  }
+
+  /**
+   * Opens the installed-app list, where **Pin to taskbar** lives.
+   *
+   * `shell:AppsFolder` is the same list the Start menu's "All apps" is built
+   * from; right-clicking DeepWork there is exactly the action the app cannot
+   * perform for itself. Used by the row, the notification's **Yes** and the
+   * reminder's card when `pinAllowed` is false.
+   */
+  async showPinHelper(): Promise<void> {
+    this.error.set(null);
+    try {
+      await invokeCmd('open_pin_helper');
+      this.notifications.showToastMessage(
+        'Pin DeepWork to the taskbar',
+        'Right-click DeepWork in the list, then choose “Pin to taskbar”. Windows keeps this one for you.',
+        'work',
+      );
+    } catch (err) {
+      this.error.set(this.describe(err, 'Could not open the app list.'));
+      this.notifications.showToastMessage(
+        'Pin DeepWork to the taskbar',
+        'Right-click DeepWork in the Start menu, then choose “Pin to taskbar”.',
+        'work',
+      );
     }
   }
 
@@ -258,6 +304,10 @@ export class DesktopPrefsService {
    */
   async pinNow(): Promise<boolean> {
     if (!IN_TAURI || !this.pinSupported() || this.pinned()) return false;
+    if (!this.pinAllowed()) {
+      await this.showPinHelper();
+      return false;
+    }
     return this.pinToTaskbar();
   }
 
@@ -438,14 +488,30 @@ export class DesktopPrefsService {
     }
   }
 
-  /** Asks the desktop layer whether the taskbar takes a pin request here. */
-  private async readPinSupported(): Promise<boolean> {
+  /**
+   * Asks the desktop layer what the taskbar can do here.
+   *
+   * Three answers in one call: whether the API exists, whether DeepWork is
+   * already pinned, and — the one this feature needed — whether Windows will
+   * even accept a request. A shell from before the extra field existed simply
+   * reads `allowed` as undefined, which is false, so the app offers the manual
+   * route instead of a button that cannot work.
+   */
+  private async readPinState(): Promise<{
+    pinned?: boolean;
+    supported?: boolean;
+    allowed?: boolean;
+  }> {
     try {
-      return await invokeCmd<boolean>('taskbar_pin_supported');
+      const state = await invokeCmd<{
+        pinned?: boolean;
+        supported?: boolean;
+        allowed?: boolean;
+      } | null>('nudges_taskbar_pin_state');
+      return state ?? {};
     } catch {
-      // A shell from before the command existed, or a desktop without a
-      // taskbar: nothing to offer, so nothing to show.
-      return false;
+      // A desktop without a taskbar: nothing to offer, so nothing to show.
+      return { pinned: false, supported: false, allowed: false };
     }
   }
 

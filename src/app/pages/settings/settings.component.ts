@@ -437,6 +437,11 @@ import { SettingsFormModel, createSettingsFormDefaults } from '../../shared/mode
               {{ nudgeHelp.pin.body }}
               @if (!launch.pin().supported) {
                 <em>This desktop does not report a pinned app, so there is nothing to check.</em>
+              } @else if (!launch.pin().allowed) {
+                <em>
+                  Windows does not let an app pin itself here; Yes opens the app list so you can
+                  right-click DeepWork and choose Pin to taskbar.
+                </em>
               } @else if (launch.pin().pinned) {
                 <em>DeepWork is pinned now, so this reminder is already off.</em>
               }

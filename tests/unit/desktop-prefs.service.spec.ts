@@ -115,6 +115,31 @@ describe('DesktopPrefsService (desktop shell)', () => {
     expect(svc.ready()).toBe(true);
   });
 
+  it('shows the app list instead of requesting a pin Windows will refuse', async () => {
+    // The usual unpackaged Windows 11 answer: the taskbar API exists, pinned is
+    // false, and `allowed` is false. Pressing **Pin** must not call `taskbar_pin`
+    // and end in an error; it opens the list where the two clicks live.
+    hoisted.invoke.mockImplementation((cmd: string) => {
+      switch (cmd) {
+        case 'autostart_is_enabled':
+          return Promise.resolve(false);
+        case 'nudges_taskbar_pin_state':
+          return Promise.resolve({ pinned: false, supported: true, allowed: false });
+        default:
+          return Promise.resolve(undefined);
+      }
+    });
+    setup();
+    await svc.init();
+
+    expect(svc.pinAllowed()).toBe(false);
+    const pinned = await svc.pinNow();
+
+    expect(pinned).toBe(false);
+    expect(hoisted.invoke).toHaveBeenCalledWith('open_pin_helper', undefined);
+    expect(hoisted.invoke).not.toHaveBeenCalledWith('taskbar_pin', undefined);
+  });
+
   it('init() trusts the OS over stale stored state', async () => {
     // The startup entry can be added or removed outside the app — by hand, or by
     // another tool — so the OS wins over whatever was stored last time.

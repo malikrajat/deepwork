@@ -78,13 +78,16 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   ever". The two switches live in Settings → Reminders
   (`migrations/011_launch_prompt_and_nudges.sql`).
 
-- **A taskbar reminder that can do the click it asks for.** Windows will not let
-  an app pin itself without a feature token no ordinary build has, so this asks
-  rather than pretends: three reminders a day, only while DeepWork is *not*
-  pinned. **Yes** on the notification (or **Pin now** on its card) calls the
-  documented taskbar request, and Windows draws its own confirmation — nothing is
-  pinned until the user agrees to it there. What makes the reminder honest at all
-  is that the app can read the folder Windows keeps pinned shortcuts in
+- **A taskbar reminder that tells the truth about pinning.** Windows 11 keeps
+  programmatic pinning for apps it has packaged itself: the taskbar API can exist
+  (the desktop-app marker interface is there) and still answer
+  `IsPinningAllowed = false`. The reminder now asks the shell first. Where the
+  request would be accepted, **Yes** (or **Pin now**) raises Windows' own
+  confirmation. Where it would not — the usual unpackaged case — the same button
+  becomes **Yes, show me** and opens the installed-app list, where right-clicking
+  DeepWork offers **Pin to taskbar**. The Settings row does the same. What makes
+  the reminder honest at all is that the app can read the folder Windows keeps
+  pinned shortcuts in
   (`%APPDATA%\Microsoft\Internet Explorer\Quick Launch\User Pinned\TaskBar`):
   the shortcut's own name is checked, and so are its bytes, in both the plain
   and the UTF-16 form a `.lnk` stores its target in, so a renamed shortcut still
@@ -92,7 +95,7 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   answer, which is what makes "already pinned" silence the feature instead
   of nagging through it. It is Windows-only and reports itself as unsupported
   elsewhere, because a reminder whose answer can never be observed should not
-  exist (`src-tauri/src/nudges.rs`, `nudges_taskbar_pin_state`).
+  exist (`src-tauri/src/nudges.rs`, `nudges_taskbar_pin_state`, `open_pin_helper`).
 
 - **Quadrants that give their space away.** Collapsing a quadrant used to hide
   its contents while its share of the board stayed exactly where it was, which
@@ -190,8 +193,9 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   startup and taskbar reminders used to arrive as plain notifications and ask the
   user to go and find the app; they now carry the same two buttons their cards
   have — **Yes** and **Not now** — and stay on screen until one of them is
-  pressed. **Yes** on the startup reminder writes the login item, **Yes** on the
-  taskbar reminder raises Windows' own pin confirmation, and both answers take
+  pressed. **Yes** on the startup reminder writes the login item; **Yes** on the
+  taskbar reminder raises Windows' own pin confirmation where the shell allows
+  the request, and opens the app list where it does not; and every answer takes
   the notification down again, because a question that has been answered must not
   stay on screen asking. The water reminder gets the same treatment: **Yes, drank**
   logs the glass and **Not now** closes it, from the card or from the notification,
@@ -215,6 +219,18 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   `first_run_take_marker`, `NSIS_HOOK_POSTINSTALL`).
 
 ### Fixed
+
+- **The pin reminder no longer ends in "Windows did not pin DeepWork".** Pressing
+  **Yes** on a Windows that reserves programmatic pinning returned
+  `IsPinningAllowed = false`, which the app reported as a failure even though
+  nothing was wrong with the request. It now asks that question first: when the
+  answer is no, the reminder says so up front, its **Yes** becomes **Yes, show
+  me**, and it opens `shell:AppsFolder` — the same list the Start menu's All apps
+  is built from — where right-clicking DeepWork offers **Pin to taskbar**. The
+  Settings row's button follows the same rule, and the fixed error is reserved
+  for a request the shell actually failed. The API can exist and still refuse;
+  the app now tells the difference (`pinning_allowed`, `open_pin_helper`,
+  `DesktopPrefsService.showPinHelper`).
 
 - **The first-run dialog was not appearing on an existing install — because the
   app was silently not using its database.** `sqlx` records a SHA-384 of every
