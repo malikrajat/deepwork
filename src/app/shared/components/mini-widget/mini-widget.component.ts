@@ -59,30 +59,32 @@ const RING_GRADIENT: Record<TimerType, string> = {
  *
  * Every part of the surface is picked for sharpness rather than glow:
  *
- * - The surface fills its window edge to edge **and is rounded, in every build**.
- *   That combination is what makes the corners empty rather than painted: the
- *   window is created transparent (`tauri.conf.json`), `UiService` clears the page
- *   behind it while the widget is up, so the desktop shows through the four
- *   corners exactly as it does behind the browser build's floating panel. The
- *   radius is deliberately on the *surface* and not on what it holds —
- *   `overflow: hidden` clips the ring, the bell and the buttons to the rounded
- *   frame rather than rounding four separate things.
+ * - The card is rounded, and the window behind it is transparent, in every build.
+ *   The radius belongs to the *surface* and not to what it holds — `overflow:
+ *   hidden` clips the ring, the bell and the buttons to the rounded frame rather
+ *   than rounding four separate things.
  *
- *   (It used to fill a square window on purpose: rounding the card then left the
+ *   The card is also the **whole window**, edge to edge, and the window itself is
+ *   clipped to the card's rounded outline (`SetWindowRgn`, see
+ *   `paint_widget_frame` in `src-tauri/src/lib.rs`). Both halves matter: a window
+ *   bigger than the card leaves a strip for the desktop shell to fill (a frame
+ *   material, the window's background, a shadow), and a rectangular window
+ *   holding a rounded card leaves four corner lunes for it to fill. There is
+ *   neither a strip nor a lune left, so the corners are simply not there.
+ *
+ *   (It once filled a square window on purpose: rounding the card then left the
  *   desktop at the corners *inside* the hairline Windows draws around every
  *   window, which read as a rounded widget wearing a square outline — the one
- *   shape worse than either. That hairline is now removed while the widget is up,
- *   see the border bullet below, so the corners are empty again and the radius
- *   belongs to the widget itself rather than only to the browser's panel.)
- * - No border and no outer glow: the only edge is a 1px inset hairline, so
- *   nothing draws a second rectangle around the ring.
+ *   shape worse than either.)
+ * - No border and no outer glow on the card itself: the only edge is a 1px inset
+ *   hairline, so nothing draws a second rectangle around the ring.
  * - The window's own border is taken away while the widget is up, not painted
  *   around it: Windows draws a hairline frame around every top-level window and
  *   colours it from the OS, which on a light setup came out as a white outline —
  *   and an outline is exactly what a rounded card cannot have, since it squares
  *   off the four corners the radius just opened. `UiService` has the shell drop
  *   that band and ask Windows 11 for rounded window corners of its own — see
- *   `window_paint_widget_frame` in `src-tauri/src/lib.rs`.
+ *   `paint_widget_frame` in `src-tauri/src/lib.rs`.
  * - A finished session turns the whole widget one colour (`alerting`) — surface,
  *   ring, bell and buttons — and settles back to the default over 450ms when the
  *   user answers: an alert worth stopping whatever you are doing has to be
@@ -279,16 +281,19 @@ const RING_GRADIENT: Record<TimerType, string> = {
 
     /* The widget: the same rounded card in both builds.
 
-       The shrunken window *is* the widget, edge to edge, and it is round
-       cornered — the window is transparent and the page behind it is cleared
-       while the widget is up (html.widget-transparent), so outside each corner
-       is the desktop, exactly as outside the browser build's floating panel.
-       overflow: hidden below is what keeps the rounding the frame's: the
-       content is clipped by the rounded surface instead of being rounded itself.
+       The card fills its window edge to edge. That is the whole trick: a window
+       that is bigger than the card leaves a strip for the desktop shell to paint
+       — a frame material, a border, or the window's own drop shadow — and any of
+       those draws a second, larger rectangle around the widget. With no strip
+       there is nothing to draw: what is on screen is the card and the desktop at
+       its four corners, exactly as the browser build's floating panel sits in its
+       page.
 
-       It is the surface that is rounded, and nothing inside it: the ring, the
-       bell and the four buttons are clipped by this frame, so the widget reads as
-       one rounded object rather than as round-cornered controls in a square box. */
+       It is the surface that is rounded, and nothing inside it: overflow: hidden
+       below is what keeps the rounding the frame's, so the ring, the bell and the
+       four buttons are clipped by the rounded surface instead of being rounded
+       themselves. That is the difference between one rounded widget and
+       round-cornered controls in a square box. */
     .mini-widget {
       position: fixed;
       inset: 0;
@@ -305,7 +310,10 @@ const RING_GRADIENT: Record<TimerType, string> = {
          widget itself as well. */
       background: #0c0918;
       /* A hairline along the edge reads as an edge. The old 1px border plus
-         inset glow drew a bright square around the circle instead. */
+         inset glow drew a bright square around the circle instead. There is no
+         outer shadow on purpose: the window is exactly this card, so anything
+         drawn outside it is clipped away — and a window shadow of its own is what
+         used to outline a larger rectangle behind the widget. */
       box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.07);
       /* The alert changes the surface itself, and it changes it *slowly* — one
          property, one curve, nothing stacked behind the content. */
@@ -342,8 +350,9 @@ const RING_GRADIENT: Record<TimerType, string> = {
 
     /* Browser build: a floating panel instead of a native window. It floats over
        the app rather than filling a window, so it needs its own size, its own
-       depth and its own blur — the radius it shares with the native widget is
-        already on .mini-widget, because the two are meant to look like the same
+       position, its own depth and its own blur. Its shadow can spread here,
+       because there is a page around it rather than a window edge; the radius is
+       the one on .mini-widget, since the two builds are meant to be the same
        object. */
     .mini-widget.floating {
       inset: auto;

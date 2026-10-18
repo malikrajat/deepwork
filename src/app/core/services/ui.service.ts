@@ -11,9 +11,13 @@ import type { Window as TauriWindow } from '@tauri-apps/api/window';
  * relaxed before the widget can shrink.
  *
  * 136x76 is the ring (60), the gaps and padding (8 + 8 + 8) and the 2x2 grid of
- * 24px controls the widget answers its alerts with (52). The browser build's
- * floating panel is the same shape, and `tests/unit/visual-crispness.spec.ts`
- * holds the two together.
+ * 24px controls the widget answers its alerts with (52). It is also the whole
+ * window: the card fills it edge to edge, so there is no strip of window around
+ * the card for the desktop shell to paint, outline or shadow — see
+ * `MiniWidgetComponent` for why that matters, and `paint_widget_frame` for the
+ * two frame calls that make the corners empty. The browser build's floating panel
+ * is the same shape, and `tests/unit/visual-crispness.spec.ts` holds the two
+ * together.
  */
 const WIDGET_SIZE = { width: 136, height: 76 } as const;
 
@@ -248,6 +252,12 @@ export class UiService {
       // Minimum first, otherwise the resize is clamped back to 800x600.
       await win.setMinSize(new LogicalSize(WIDGET_SIZE.width, WIDGET_SIZE.height));
       await win.setResizable(false);
+      // The window's own drop shadow is taken away at window *creation*
+      // (`shadow: false` in `tauri.conf.json`) and by the frame calls in
+      // `paint_widget_frame`, never by `setShadow()` here: on Windows that
+      // re-applies the window styles, and the desktop layer recomputes them from
+      // flags that include `WS_CAPTION` — which put the widget's title bar back on
+      // screen the one time it was tried.
       await win.setDecorations(false);
       await win.setSize(new LogicalSize(WIDGET_SIZE.width, WIDGET_SIZE.height));
 
@@ -295,6 +305,15 @@ export class UiService {
       const { LogicalSize, PhysicalPosition, PhysicalSize } = await import('@tauri-apps/api/dpi');
       const win = getCurrentWindow();
 
+      // First, before anything grows: the widget's window is clipped to the
+      // card's rounded shape, and a window that is still clipped when it is
+      // resized back to 1200x800 would show only the corner of itself. Setting
+      // the mode off hands the window its rectangle back — the border and the
+      // shape are the desktop layer's again rather than the widget's — and it
+      // stops being a widget to that layer, which is what lets the user's own
+      // always-on-top choice apply to it again below.
+      await this.setWidgetMode(false);
+
       // The title bar has to come back before the window grows again, otherwise
       // the restored window looks like a widget with a full app inside it.
       await win.setDecorations(true);
@@ -331,12 +350,6 @@ export class UiService {
       // A window that was maximised when it shrank goes back maximised: the fit
       // above has already put it where the OS expects to un-maximise it to.
       if (this.savedMaximized) await win.maximize();
-
-      // The widget is over: the window's own border belongs to Windows again,
-      // rather than to the widget's surface colour — and it stops being a widget
-      // to the desktop layer, which is what lets the user's own always-on-top
-      // choice apply to it again below.
-      await this.setWidgetMode(false);
 
       // Hand the window back with the user's own always-on-top choice applied,
       // instead of assuming "off".
@@ -394,14 +407,15 @@ export class UiService {
   /**
    * Tells the desktop shell that the window is — or is no longer — the widget.
    *
-   * Windows keeps a hairline border around every top-level window, a
-   * decoration-less, transparent one included, and colours it from the system,
-   * which around a 136x76 widget reads as a white line the app never drew, on all
-   * four sides. `window_set_widget_mode` removes the band the border lives in and
-   * tells Windows 11 to draw no border at all — and, in the same call, puts the
-   * widget on top and keeps it there: a widget is the one shape of this app with
-   * nowhere else to be. Leaving hands both back, so the full window keeps the
-   * frame it always had and the always-on-top the user chose.
+   * The window is exactly the card, so the only thing around the card is the
+   * shell's own doing: Windows keeps a hairline border around every top-level
+   * window and colours it from the system, and it draws a drop shadow around an
+   * undecorated window as well. Both follow the *window*, so both would show as a
+   * rectangle around a round-cornered card. `window_set_widget_mode` takes them
+   * away (it also tells Windows 11 to draw no border at all) and, in the same
+   * call, puts the widget on top and keeps it there: a widget is the one shape of
+   * this app with nowhere else to be. Leaving hands both back, so the full window
+   * keeps the frame it always had and the always-on-top the user chose.
    *
    * Best effort: a border that cannot be repainted is a cosmetic loss, never a
    * reason to leave the widget half-built, so the failure is logged and dropped.

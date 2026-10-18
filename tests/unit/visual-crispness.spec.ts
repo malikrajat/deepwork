@@ -22,6 +22,7 @@ const widget = read(WIDGET);
 const clock = read(CLOCK);
 const uiService = read(UI_SERVICE);
 const styles = read('src/styles.css');
+const libRs = read('src-tauri/src/lib.rs');
 
 /** Every TypeScript and CSS file under `src/`, so the type scale covers all of them. */
 function sourceFiles(): string[] {
@@ -66,14 +67,23 @@ describe('Shapes are drawn, not blurred', () => {
     // The window is sized in `UiService` and the browser build's floating panel
     // in CSS, and nothing else ties the two together: a widget that grew a
     // control in one and not the other is a clipped button on screen.
+    //
+    // They are also the same size for a second reason: the card fills its window
+    // edge to edge, because a window with room to spare around the card is a
+    // window that will paint, outline or shadow that room — which is a larger
+    // rectangle around a rounded widget.
     const windowSize = /const WIDGET_SIZE = \{ width: (\d+), height: (\d+) \}/.exec(uiService);
     const panelSize = /\.mini-widget\.floating \{[^}]*width: (\d+)px;[^}]*height: (\d+)px;/s.exec(
       widget,
     );
+    const cardInset = /\.mini-widget \{[^}]*inset: (\d+)(?:px)?;/.exec(widget);
 
     expect(windowSize, 'WIDGET_SIZE not found in ui.service.ts').not.toBeNull();
     expect(panelSize, '.mini-widget.floating size not found in the widget').not.toBeNull();
     expect([panelSize![1], panelSize![2]]).toEqual([windowSize![1], windowSize![2]]);
+    // The card has no inset of its own: it is the window.
+    expect(cardInset, 'the card inset not found in the widget').not.toBeNull();
+    expect(cardInset![1]).toBe('0');
   });
 });
 
@@ -156,7 +166,7 @@ describe('No square box around the widget', () => {
     // the four buttons to the rounded frame instead of rounding four separate
     // things, which is the difference between a rounded widget and rounded
     // controls in a square box.
-    expect(widget).toMatch(/\.mini-widget\s*{[^}]*box-shadow: inset/);
+    expect(widget).toMatch(/\.mini-widget\s*{[^}]*box-shadow:[^;]*inset 0 0 0 1px/s);
     expect(widget).toMatch(/\.mini-widget\s*{[^}]*border-radius: 18px;/);
     expect(widget).toMatch(/\.mini-widget\s*{[^}]*overflow: hidden;/);
     // ...and the browser build's panel does not carry a second radius of its own:
@@ -165,11 +175,40 @@ describe('No square box around the widget', () => {
     expect(widget).not.toMatch(/\.mini-widget\s*{[^}]*\n\s*border:\s/);
   });
 
-  it('asks for a transparent window and clears the page behind it', () => {
+  it('removes the window corners instead of painting them over', () => {
+    // Three separate things used to draw a second, larger rectangle around a
+    // round-cornered card. Two are taken away, and the third is removed outright:
+    //
+    // - the frame fill, which came from extending the frame into the client area
+    //   and showed through the card's four corners as white wedges;
+    expect(libRs).not.toMatch(/DwmExtendFrameIntoClientArea\s*\(/);
+    // - the hairline border Windows draws around every top-level window;
+    expect(libRs).toMatch(/DWMWA_BORDER_COLOR/);
+    // - and the corners themselves: the window is clipped to the card's own
+    //   rounded shape, so there is no pixel outside the card for a frame, a
+    //   background or a shadow to be drawn in.
+    expect(libRs).toMatch(/CreateRoundRectRgn/);
+    expect(libRs).toMatch(/SetWindowRgn/);
+    // Non-client rendering stays ON. Disabling it takes DWM's composition with
+    // it, the window falls back to its white background, and the four corners
+    // come back white — which is exactly what it looked like the once it was
+    // tried.
+    expect(libRs).not.toMatch(/DWMNCRP_DISABLED/);
+    // The card itself draws no outer shadow: it fills the window edge to edge, so
+    // an outer shadow could only be clipped into a hard line.
+    expect(widget).not.toMatch(/\.mini-widget\s*{[^}]*box-shadow:[^;]*rgba\(0, 0, 0, 0\.55\)/s);
+  });
+
+  it('asks for a transparent window, no window shadow, and clears the page behind it', () => {
     const config = JSON.parse(read('src-tauri/tauri.conf.json')) as {
-      app: { windows: Array<{ transparent?: boolean }> };
+      app: { windows: Array<{ transparent?: boolean; shadow?: boolean }> };
     };
     expect(config.app.windows[0].transparent).toBe(true);
+    // A decorated window keeps its shadow whatever this says; it is here so the
+    // *undecorated* widget never gets one, and so it is set at creation rather
+    // than re-applied at runtime — a runtime change recomputes the window styles
+    // and puts the title bar back.
+    expect(config.app.windows[0].shadow).toBe(false);
     // The class is what makes the rounded corners empty rather than painted, and
     // it is claimed only while the widget is open and only where transparency
     // actually works — which is why the toggle is called with an explicit force
@@ -218,7 +257,7 @@ describe('Edges and text are legible on the dark surfaces', () => {
   });
 
   it('defines the widget edge with a hairline that follows its radius', () => {
-    expect(widget).toContain('box-shadow: inset 0 0 0 1px');
+    expect(widget).toContain('inset 0 0 0 1px rgba(255, 255, 255, 0.07)');
   });
 
   it('themes the platform sliders and checkboxes instead of leaving them default', () => {

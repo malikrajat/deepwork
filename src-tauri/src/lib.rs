@@ -302,44 +302,52 @@ fn always_on_top_supported() -> bool {
     !unsupported
 }
 
-/// Takes the window's own frame away while it is the widget, and hands it back.
+/// Shapes the window like the card while it is the widget, and hands it back.
 ///
-/// Windows keeps a hairline border around every top-level window — a
-/// borderless, transparent one included. It reserves that line as *non-client*
-/// area and draws it in the system's colour, so around a 136x76 widget it reads
-/// as a white outline the app never drew, on all four sides, with the corners
-/// cut away from it.
+/// The widget's surface is a 136x76 rectangle with 18px corners, and the *window*
+/// is a rectangle. The pixels between the two — four narrow lunes at the corners,
+/// between the card's arc and the window's corner — are the whole of this
+/// function's reason to exist: every way of making a transparent window on
+/// Windows leaves *something* to fill the client area where the page is empty,
+/// and whatever that something is (a frame material, the window's background
+/// brush, a border) it appears in those four corners as the one shape a
+/// round-cornered card must never wear — a second, larger angle behind it.
 ///
-/// Three calls, because none of them is enough on its own:
+/// So the corners are not painted, coloured or shadowed: they are **removed**.
+/// `SetWindowRgn` cuts the window to a rounded rectangle of the card's own size
+/// and radius, which leaves no pixel outside the card for anything to be drawn
+/// in. The desktop shows at the corners because there is no corner there.
 ///
-/// - `DwmExtendFrameIntoClientArea` with `-1` on every side pushes the client
-///   area over the whole window, which is what removes the 1px band itself. This
-///   is the call that matters: the band exists on every Windows version, and no
-///   colouring of it makes it go away.
-/// - `DWMWA_BORDER_COLOR` = `DWMWA_COLOR_NONE` tells Windows 11 to draw no
-///   border at all, which covers the case where the attribute is what the border
-///   is waiting for. Windows 10 does not know the attribute and ignores it.
-/// - `DWMWA_WINDOW_CORNER_PREFERENCE` = `DWMWCP_ROUND` asks Windows 11 to round
-///   the window's own corners, which is what the widget's surface is rounded to
-///   match. It matters when the surface does not reach the window's edge — a
-///   shadow, a stray pixel of the page behind — and it is free where it does not:
-///   Windows 10 ignores it, and the call is logged either way.
+/// The region is inset by one pixel so that the cut falls *inside* the card's
+/// antialiased edge: a region is not antialiased, and clipping just inside the
+/// card means the hard boundary is made of the card's own opaque pixels rather
+/// than of its half-covered ones.
 ///
-/// Leaving the widget gives both back: the normal window keeps its ordinary
-/// frame and its ordinary square corners, and the widget never draws one.
+/// This is also why nothing here tries to turn the window's own drop shadow or
+/// its non-client rendering off any more. Disabling non-client rendering took
+/// the DWM composition with it, and the window fell back to its white background
+/// — the four corners came back as pure white. A shaped window has nothing for a
+/// shadow to frame, and `shadow: false` in `tauri.conf.json` keeps the desktop
+/// layer from drawing one around the rectangle before the shape is applied.
 ///
-/// Best effort throughout — a frame that cannot be removed is a cosmetic loss,
+/// Leaving the widget clears the region, because a region left behind would keep
+/// the full window shaped like a widget. Windows owns the region once it has been
+/// set; the one created here is only destroyed if setting it failed.
+///
+/// Best effort throughout — a shape that cannot be applied is a cosmetic loss,
 /// never a reason to leave the widget half-built — but the result is written
-/// down, because "the line is still there" is otherwise impossible to tell apart
-/// from "the call never took".
+/// down: "the corners are still there" is otherwise impossible to tell apart from
+/// "the call never took".
 #[cfg(windows)]
 fn paint_widget_frame(window: &WebviewWindow, widget: bool) {
     use windows_sys::Win32::Graphics::Dwm::{
-        DwmExtendFrameIntoClientArea, DwmSetWindowAttribute, DWMWA_BORDER_COLOR,
-        DWMWA_COLOR_DEFAULT, DWMWA_COLOR_NONE, DWMWA_WINDOW_CORNER_PREFERENCE, DWMWCP_DEFAULT,
-        DWMWCP_ROUND,
+        DwmSetWindowAttribute, DWMWA_BORDER_COLOR, DWMWA_COLOR_DEFAULT, DWMWA_COLOR_NONE,
     };
-    use windows_sys::Win32::UI::Controls::MARGINS;
+    use windows_sys::Win32::Graphics::Gdi::{CreateRoundRectRgn, DeleteObject, SetWindowRgn};
+
+    /// The card's own radius, in logical pixels — `border-radius: 18px` on
+    /// `.mini-widget`, in `MiniWidgetComponent`.
+    const CARD_RADIUS: f64 = 18.0;
 
     let Ok(handle) = window.hwnd() else {
         return;
@@ -350,26 +358,6 @@ fn paint_widget_frame(window: &WebviewWindow, widget: bool) {
     } else {
         DWMWA_COLOR_DEFAULT
     };
-    // The widget's surface is a rounded card (see `MiniWidgetComponent`), so the
-    // window it sits in is asked for the same shape. The full window goes back to
-    // whatever the system prefers — usually round on Windows 11, which is what a
-    // decorated app window should be.
-    let corners = if widget { DWMWCP_ROUND } else { DWMWCP_DEFAULT };
-    let margins = if widget {
-        MARGINS {
-            cxLeftWidth: -1,
-            cxRightWidth: -1,
-            cyTopHeight: -1,
-            cyBottomHeight: -1,
-        }
-    } else {
-        MARGINS {
-            cxLeftWidth: 0,
-            cxRightWidth: 0,
-            cyTopHeight: 0,
-            cyBottomHeight: 0,
-        }
-    };
 
     unsafe {
         let border = DwmSetWindowAttribute(
@@ -378,16 +366,38 @@ fn paint_widget_frame(window: &WebviewWindow, widget: bool) {
             &color as *const u32 as *const core::ffi::c_void,
             std::mem::size_of::<u32>() as u32,
         );
-        let frame = DwmExtendFrameIntoClientArea(handle.0, &margins);
-        let rounding = DwmSetWindowAttribute(
-            handle.0,
-            DWMWA_WINDOW_CORNER_PREFERENCE as u32,
-            &corners as *const i32 as *const core::ffi::c_void,
-            std::mem::size_of::<i32>() as u32,
-        );
+        // The region is in physical pixels and the radius has to be too.
+        let rgn = if widget {
+            match (window.inner_size(), window.scale_factor()) {
+                (Ok(size), Ok(scale)) => {
+                    let radius = (CARD_RADIUS * scale).round().max(1.0) as i32;
+                    let region = CreateRoundRectRgn(
+                        1,
+                        1,
+                        size.width as i32 - 1,
+                        size.height as i32 - 1,
+                        radius * 2,
+                        radius * 2,
+                    );
+                    // The desktop layer takes ownership of a region it accepted,
+                    // so this is only freed when it did not take it.
+                    if SetWindowRgn(handle.0, region, 1) == 0 {
+                        let _ = DeleteObject(region);
+                        "rejected"
+                    } else {
+                        "applied"
+                    }
+                }
+                _ => "unmeasurable",
+            }
+        } else {
+            // No region at all: `None` hands the window its rectangle back.
+            SetWindowRgn(handle.0, std::ptr::null_mut(), 1);
+            "cleared"
+        };
         log::info!(
             target: logging::SYSTEM,
-            "widget frame: widget={widget} border=0x{border:08x} frame=0x{frame:08x} corners=0x{rounding:08x}"
+            "widget frame: widget={widget} border=0x{border:08x} shape={rgn}"
         );
     }
 }
@@ -585,9 +595,10 @@ fn window_set_close_behavior(app: AppHandle, keep_in_tray: bool) {
 /// Called by the frontend as the window becomes the widget and as it turns back
 /// into a window (see `UiService`). Two things follow from it, and they are one
 /// command because they are one fact: the widget's frame is taken away — its
-/// surface fills the window edge to edge, so the frame Windows draws in the
-/// system's colour is the one thing that would stand out from it — and the widget
-/// is put on top, where nothing else may take it off while it is up.
+/// surface leaves its own corners empty and keeps a transparent ring around
+/// itself for its own shadow, and a frame drawn in the system's colour is the one
+/// thing that would stand out around that — and the widget is put on top, where
+/// nothing else may take it off while it is up.
 #[tauri::command]
 fn window_set_widget_mode(app: AppHandle, window: WebviewWindow, widget: bool) {
     if let Some(mode) = window.try_state::<WidgetMode>() {
@@ -897,6 +908,24 @@ pub fn run() {
             version: 10,
             description: "carry unfinished work forward, or close it",
             sql: include_str!("../migrations/010_carry_forward_tasks.sql"),
+            kind: MigrationKind::Up,
+        },
+        Migration {
+            version: 11,
+            description: "ask about starting with Windows, and remind until it is on",
+            sql: include_str!("../migrations/011_launch_prompt_and_nudges.sql"),
+            kind: MigrationKind::Up,
+        },
+        Migration {
+            version: 12,
+            description: "make Add to Today apply to one day",
+            sql: include_str!("../migrations/012_add_today_order_date.sql"),
+            kind: MigrationKind::Up,
+        },
+        Migration {
+            version: 13,
+            description: "remember the task title on a focus session",
+            sql: include_str!("../migrations/013_add_session_task_title.sql"),
             kind: MigrationKind::Up,
         },
     ];

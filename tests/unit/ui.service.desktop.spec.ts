@@ -17,6 +17,7 @@ import { DesktopPrefsService } from '../../src/app/core/services/desktop-prefs.s
 const hoisted = vi.hoisted(() => {
   const win = {
     setDecorations: vi.fn().mockResolvedValue(undefined),
+    setShadow: vi.fn().mockResolvedValue(undefined),
     setResizable: vi.fn().mockResolvedValue(undefined),
     setMinSize: vi.fn().mockResolvedValue(undefined),
     setSize: vi.fn().mockResolvedValue(undefined),
@@ -118,6 +119,11 @@ describe('UiService (desktop window frame)', () => {
     await svc.enterMiniMode();
     expect(frameCalls()).toContain(false);
     expect(hoisted.win.setResizable).toHaveBeenCalledWith(false);
+    // The window's own shadow is not touched here on purpose: `setShadow()` on
+    // Windows re-applies the window styles, and the desktop layer recomputes them
+    // from flags that include a caption — which put the widget's title bar back.
+    // It is taken away at creation (`shadow: false`) and by the DWM calls instead.
+    expect(hoisted.win.setShadow).not.toHaveBeenCalled();
 
     await svc.exitMiniMode();
 
@@ -125,6 +131,7 @@ describe('UiService (desktop window frame)', () => {
     // "decorated", whatever happened in between.
     expect(frameCalls().at(-1)).toBe(true);
     expect(hoisted.win.setResizable).toHaveBeenCalledWith(true);
+    expect(hoisted.win.setShadow).not.toHaveBeenCalled();
   });
 
   it('forces the frame when the window says it has none', async () => {

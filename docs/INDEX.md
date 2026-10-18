@@ -38,6 +38,7 @@ Central reference for all guidance files in this repository.
 | `specs/013-carry-forward-and-offline-ai/` | Carrying unfinished work forward or closing it when its day passes, and saying where the analysis runs                               |
 | `specs/014-task-completion-quote/`        | The line of encouragement on the card raised when a task is finished                                                                 |
 | `specs/015-responsive-layout/`            | The app on any screen: the drawer below 900px, the phone layout below 640px, the centred column above 1920px, and the four breakpoints that decide it |
+| `specs/016-time-by-task/`                 | The Time by Task page: focus sessions grouped by the work they paid for, all-time totals, first/last, repeat rhythm, Today/custom ranges, week/month/year breakdowns, colour legend and a virtualised list |
 
 ---
 

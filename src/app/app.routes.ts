@@ -34,6 +34,10 @@ export const routes: Routes = [
       import('./pages/analytics/analytics.component').then((m) => m.AnalyticsComponent),
   },
   {
+    path: 'time',
+    loadComponent: () => import('./pages/time/time.component').then((m) => m.TimeComponent),
+  },
+  {
     path: 'habits',
     loadComponent: () => import('./pages/habits/habits.component').then((m) => m.HabitsComponent),
   },

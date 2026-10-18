@@ -47,6 +47,7 @@ A desktop-first productivity app with a Pomodoro timer at its centre. Everything
 - **Focus timer** with an animated ring, work/short-break/long-break cycle and configurable lengths.
 - **Tasks** in an Eisenhower matrix, a Jira-style status board, dated sections, and a daily **Today** view.
 - **Habits**, a **journal** and an **analytics** page that pairs every figure with a plain-language reading of it.
+- **Time by Task**, the page that groups every focus session by the work it paid for: total hours per task, first and last session, a daily/weekly/monthly/one-off rhythm, and a week/month/year breakdown — with **Today** and a custom calendar range when a particular day or span is what you need.
 - **Reminders that ask**: a finished session rings until you answer it, and the water nudge asks a question you reply to rather than announcing a fact.
 - **Desktop manners**: system tray, start-with-system, always-on-top, and a draggable always-on-top mini widget. A stray click on the window's X does not end your session.
 - **The same app in a browser**: the web build at [malikrajat.github.io/deepwork](https://malikrajat.github.io/deepwork/) runs the whole thing and can be installed as a PWA.
@@ -96,6 +97,7 @@ If a release publishes a SHA-256 checksum, compare it before installing — `Get
 | **Calendar**  | Your quadrants scheduled into focus blocks — the day planned as pomodoros, at the block length and long-break cadence your timer settings define.                                                                                                        |
 | **Tasks**     | The status board (To Do / In Progress / Done) filed into date sections — Today, Tomorrow, Next week, later months, and behind them Yesterday, Last week and the months before. Add, edit, delete, search, sort, import from Excel/CSV and export to CSV. |
 | **Analytics** | Focus, task, habit and journal figures with trends and streaks, plus a plain-language reading of each one. The "what should I change?" half, not only the charts.                                                                                        |
+| **Time by Task** | Every focus session grouped by the work it paid for — including a daily task that arrives as a new row every day. All-time time/sessions/days, first and last session, repeat rhythm, a Today filter, a custom calendar range, and a week/month/year breakdown with a reading of the numbers. The list is virtualised, so only the rows in view exist in the page. |
 | **Habits**    | Daily habits with the current streak, the personal best and a check-in strip per habit.                                                                                                                                                                  |
 | **Journal**   | Dated entries with word counts, a weekly words chart — and the writing-versus-focus correlation, surfaced on Analytics.                                                                                                                                  |
 | **Settings**  | Timer lengths, notification sound and repeat interval, alert shake length, water reminder, desktop behaviour, logs and diagnostics, JSON backup export/import, and the web build's visitor counter with its details popup.                                                                                                                                                  |
@@ -150,6 +152,10 @@ Short versions of the things that surprise people. Each is real behaviour, not a
 
 **A task's own date decides the day it belongs to** — deadline, or the day it was written when it has no deadline. Dragging a card to Done never makes it jump into another date section, and an import for the rest of the week waits in its own sections instead of crowding today. Where a title would qualify for today twice over, Today shows one card, not two.
 
+**Time by Task groups the work, not the row.** A daily routine is a new task every day, so counting rows would answer the wrong question. The page groups sessions by task title: *Code review* on Monday and *Code review* on Tuesday become one line with one all-time total, one first session and one last, and one rhythm. A task renamed later moves its history under the new name; a deleted task keeps the title recorded on its sessions (`013_add_session_task_title.sql`), so its hours do not turn into untasked time. The page is deliberately honest about the edge: time recorded without a task appears as **Untasked focus**, with the one sentence that fixes it next time.
+
+**The list is a window, not a page.** A user with hundreds of tasks should not pay for hundreds of cards: the list renders only the rows inside its scroll viewport (plus a small overscan) and keeps the rest out of the DOM, so scrolling is cheap however long the history gets. A row is a fixed-height summary; opening it raises a detail sheet with the breakdown table, stats and recent sessions, which is also what keeps the row height — and therefore the virtualisation — exact. The **Today** tab is one click, and **Custom** opens two date fields: pick the same day twice for a single day, or two dates for any span. Bars are one solid colour each, and the colour means what the work is: violet for repeating work, amber for one-off, blue for multi-day, slate for untasked. The only second mark is a ring around the bar for the current day/week/month/year, and the legend above the list says both.
+
 **Editing a task from wherever it is read.** The app has exactly one task form, on the Tasks page, and every card that shows a task now carries the way into it — a pencil on a board card and on an Eisenhower Matrix card, a **✎** on a Calendar rail card, **Edit** in the Calendar's slot panel, **Edit task** on the dashboard's current-focus card, and **Edit task** at the top of the Matrix's right-click menu. Each one opens that same panel with the task already in its fields, so a title or a date can be corrected the moment it is noticed, without hunting for the page that owns it. Adding works the same way: a **+** in a date section's header (Today, Tomorrow, or a month ahead) opens the form already dated for that section, every Matrix quadrant has a **+** that adds straight into it, and Today's header carries **Add task** for a task that also lands on today's list.
 
 ## Keyboard shortcuts
@@ -157,7 +163,7 @@ Short versions of the things that surprise people. Each is real behaviour, not a
 | Keys                 | What they do                                                                                                |
 | -------------------- | ----------------------------------------------------------------------------------------------------------- |
 | `Ctrl+N`             | Add a task for today from any page (the browser takes this key for a new window; the desktop app does not). |
-| `Ctrl+1` … `Ctrl+0`  | Jump to Dashboard, Today, Matrix, Calendar, Tasks, Analytics, Habits, Journal, Settings, About.             |
+| `Ctrl+1` … `Ctrl+0`  | Jump to Dashboard, Today, Matrix, Calendar, Tasks, Analytics, Time by Task, Habits, Journal, Settings. About has no number — open it from the version badge. |
 | `Ctrl+Shift+F`       | Toggle focus mode.                                                                                          |
 | `Space`              | Start or pause the timer (Dashboard, when you are not typing in a field).                                   |
 | `Esc`                | Leave the mini widget, leave focus mode, or close a dialog.                                                 |
@@ -198,7 +204,7 @@ Tauri does **not** cross-compile: build each platform on that platform, or let C
 
 | Platform         | Command                   | Where the artefacts land                                                                                                                                                                                                         |
 | ---------------- | ------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Windows (64-bit) | `npm run build:windows`   | `src-tauri/target/x86_64-pc-windows-msvc/release/bundle/msi/DeepWork_2.0.22_x64_en-US.msi` and `bundle/nsis/DeepWork_2.0.22_x64-setup.exe`; the bare binary is at `src-tauri/target/x86_64-pc-windows-msvc/release/deepwork.exe` |
+| Windows (64-bit) | `npm run build:windows`   | `src-tauri/target/x86_64-pc-windows-msvc/release/bundle/msi/DeepWork_3.0.0_x64_en-US.msi` and `bundle/nsis/DeepWork_3.0.0_x64-setup.exe`; the bare binary is at `src-tauri/target/x86_64-pc-windows-msvc/release/deepwork.exe` |
 | Windows (32-bit) | `npm run build:windows32` | `src-tauri/target/i686-pc-windows-msvc/release/bundle/` — the same two installers, named `…_x86` (run `rustup target add i686-pc-windows-msvc` once)                                                                               |
 | macOS (Intel)    | `npm run build:mac`       | `src-tauri/target/x86_64-apple-darwin/release/bundle/` — `macos/DeepWork.app` and a `.dmg` whose name carries the version                                                                                                        |
 | macOS (ARM)      | `npm run build:mac-arm`   | `src-tauri/target/aarch64-apple-darwin/release/bundle/` (run `rustup target add aarch64-apple-darwin` once)                                                                                                                      |
@@ -251,12 +257,12 @@ Coverage is measured over **every** file in `src/app`, whether or not a test imp
 ```
 src/                 Angular frontend
   app/core/          services, constants, pure utilities (the measured logic layer)
-  app/pages/         Dashboard, Today, Matrix, Calendar, Tasks, Analytics, Habits, Journal, Settings, About
+  app/pages/         Dashboard, Today, Matrix, Calendar, Tasks, Analytics, Time by Task, Habits, Journal, Settings, About
   app/shared/        components, directives, pipes used by more than one page
 src-tauri/           Rust side: tray, autostart, window/db/logging, downloads, update fetch, opener
 public/              PWA manifest, service worker, favicons, font licences
 tests/unit/          Vitest specs      tests/e2e/   Playwright specs
-specs/               Feature specifications (Spec Kit), 001 → 014
+specs/               Feature specifications (Spec Kit), 001 → 016
 docs/                Developer documentation — start at docs/INDEX.md
 scripts/             version bump + coverage summary
 ```

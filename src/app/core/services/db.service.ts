@@ -415,11 +415,12 @@ export class DbService {
       return;
     }
     await this.execute(
-      `INSERT INTO sessions (id, task_id, type, duration_planned, duration_actual, started_at, completed_at, interrupted)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
+      `INSERT INTO sessions (id, task_id, task_title, type, duration_planned, duration_actual, started_at, completed_at, interrupted)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)`,
       [
         session.id,
         session.taskId,
+        session.taskTitle ?? null,
         session.type,
         session.durationPlanned,
         session.durationActual,
@@ -444,6 +445,7 @@ export class DbService {
     return rows.map((r) => ({
       id: r.id,
       taskId: r.task_id,
+      taskTitle: r.task_title ?? null,
       type: r.type,
       durationPlanned: r.duration_planned,
       durationActual: r.duration_actual,
@@ -461,6 +463,7 @@ export class DbService {
     return rows.map((r) => ({
       id: r.id,
       taskId: r.task_id,
+      taskTitle: r.task_title ?? null,
       type: r.type,
       durationPlanned: r.duration_planned,
       durationActual: r.duration_actual,
@@ -616,8 +619,8 @@ export class DbService {
       return;
     }
     await this.execute(
-      `INSERT INTO tasks (id, title, description, priority, status, quadrant, deadline, tags, recurrence, today_order, created_at, completed_at, updated_at)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)`,
+      `INSERT INTO tasks (id, title, description, priority, status, quadrant, deadline, tags, recurrence, today_order, today_order_date, created_at, completed_at, updated_at)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)`,
       [
         task.id,
         task.title,
@@ -629,6 +632,7 @@ export class DbService {
         JSON.stringify(task.tags),
         task.recurrence ? JSON.stringify(task.recurrence) : null,
         task.todayOrder,
+        task.todayOrderDate ?? null,
         task.createdAt,
         task.completedAt,
         task.updatedAt ?? task.createdAt,
@@ -646,7 +650,8 @@ export class DbService {
     }
     await this.execute(
       `UPDATE tasks SET title=$1, description=$2, priority=$3, status=$4, quadrant=$5,
-       deadline=$6, tags=$7, recurrence=$8, today_order=$9, completed_at=$10, updated_at=$11 WHERE id=$12`,
+       deadline=$6, tags=$7, recurrence=$8, today_order=$9, today_order_date=$10,
+       completed_at=$11, updated_at=$12 WHERE id=$13`,
       [
         task.title,
         task.description,
@@ -657,6 +662,7 @@ export class DbService {
         JSON.stringify(task.tags),
         task.recurrence ? JSON.stringify(task.recurrence) : null,
         task.todayOrder,
+        task.todayOrderDate ?? null,
         task.completedAt,
         task.updatedAt ?? task.createdAt,
         task.id,
@@ -671,6 +677,33 @@ export class DbService {
       return;
     }
     await this.execute('DELETE FROM tasks WHERE id = $1', [id]);
+  }
+
+  /**
+   * Forgets "Add to Today" stars that were for another day.
+   *
+   * `today_order` is a position on one day's board, and `today_order_date` says
+   * which day. A star from an earlier day — or a legacy star with no date at
+   * all — is not today's, and leaving it in the row makes the database claim a
+   * task is on a list it is not on. The daily upkeep clears both halves in one
+   * write rather than rewriting every task. `updated_at` is deliberately not
+   * touched: this is housekeeping, not the user editing a task.
+   */
+  async clearStaleTodayPins(today: string): Promise<void> {
+    if (this.isBrowser) {
+      const tasks = this.lsGet<Task[]>('tasks', []).map((task) =>
+        task.todayOrder !== null && task.todayOrderDate !== today
+          ? { ...task, todayOrder: null, todayOrderDate: null }
+          : task,
+      );
+      this.lsSet('tasks', tasks);
+      return;
+    }
+    await this.execute(
+      `UPDATE tasks SET today_order = NULL, today_order_date = NULL
+       WHERE today_order IS NOT NULL AND (today_order_date IS NULL OR today_order_date <> $1)`,
+      [today],
+    );
   }
 
   async searchTasks(query: string): Promise<Task[]> {
@@ -873,6 +906,7 @@ export class DbService {
       tags: typeof r.tags === 'string' ? JSON.parse(r.tags) : (r.tags ?? []),
       recurrence: this.parseRecurrence(r.recurrence),
       todayOrder: r.today_order ?? r.todayOrder ?? null,
+      todayOrderDate: r.today_order_date ?? r.todayOrderDate ?? null,
       createdAt: r.created_at ?? r.createdAt,
       completedAt: r.completed_at ?? r.completedAt ?? null,
       updatedAt:

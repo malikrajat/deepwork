@@ -49,6 +49,8 @@ export class TimerService implements OnDestroy {
 
   private intervalId: ReturnType<typeof setInterval> | null = null;
   private startedAt: string | null = null;
+  /** The linked task's title, passed with `linkTask` by the page that chose it. */
+  private currentTaskTitle: string | null = null;
   private lastTickTime: number = 0;
   private persistIntervalId: ReturnType<typeof setInterval> | null = null;
   private onCompleteCallback: ((completedType: TimerType) => void) | null = null;
@@ -76,6 +78,10 @@ export class TimerService implements OnDestroy {
       // means. Restoring it regardless was one of the two ways a task chose weeks
       // ago came back and named work it had nothing to do with (see CHANGELOG).
       this.currentTaskId.set(isNewDay ? null : saved.taskId);
+      // The saved state carries the id, not the name. A session resumed from an
+      // earlier day is untasked anyway; one resumed today is named by the Time
+      // page from the task row.
+      this.currentTaskTitle = null;
       this.remainingSeconds.set(remaining);
       this.activeStartedAt.set(saved.startedAt);
       this.startedAt = saved.startedAt;
@@ -168,8 +174,9 @@ export class TimerService implements OnDestroy {
     this.log.info('flow', 'timer reset');
   }
 
-  linkTask(taskId: string | null): void {
+  linkTask(taskId: string | null, taskTitle: string | null = null): void {
     this.currentTaskId.set(taskId);
+    this.currentTaskTitle = taskId ? taskTitle : null;
   }
 
   private tick(): void {
@@ -255,9 +262,16 @@ export class TimerService implements OnDestroy {
     const wallClockElapsed = Math.floor((Date.now() - new Date(this.startedAt).getTime()) / 1000);
     const actual = Math.max(1, Math.min(wallClockElapsed, planned));
 
+    const taskId = this.currentTaskId();
+    // Snapshot the name, not only the id: a deleted task clears `taskId` in the
+    // sessions table, and the Time page must still know which work the hours
+    // paid for.
+    const taskTitle = taskId ? this.currentTaskTitle : null;
+
     const session: PomodoroSession = {
       id: crypto.randomUUID(),
-      taskId: this.currentTaskId(),
+      taskId,
+      taskTitle,
       type: this.timerType(),
       durationPlanned: planned,
       durationActual: actual,

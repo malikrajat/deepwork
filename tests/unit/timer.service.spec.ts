@@ -159,6 +159,18 @@ describe('TimerService', () => {
     expect(svc.remainingSeconds()).toBe(DEFAULT_SETTINGS.workDuration);
   });
 
+  it('stop() records the linked task’s name on the session', async () => {
+    await svc.init();
+    svc.linkTask('task-abc', 'Code review');
+    svc.start();
+    vi.advanceTimersByTime(5000);
+    svc.stop();
+
+    expect(mockDb.saveSession).toHaveBeenCalledWith(
+      expect.objectContaining({ taskId: 'task-abc', taskTitle: 'Code review' }),
+    );
+  });
+
   it('tick reduces remainingSeconds by 1 per second', async () => {
     await svc.init();
     svc.start();

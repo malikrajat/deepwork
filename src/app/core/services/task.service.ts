@@ -9,6 +9,7 @@ import {
   normalizeTaskTitle,
 } from '../models/task.model';
 import { QUADRANT_CONFIG, STATUS_CYCLE } from '../constants/theme.constants';
+import { isPinnedToToday, localDayKey, taskDayKey, writtenDayKey } from '../utils/task-day.util';
 
 @Injectable({ providedIn: 'root' })
 export class TaskService {
@@ -35,10 +36,11 @@ export class TaskService {
    * - A task that is **overdue** stays. It is still on the user's plate, and
    *   today's board is where a slipping task should keep showing up.
    * - **Add to Today** (`todayOrder`) always wins, because it is the user saying
-   *   so by hand — from the star on a card, or from the importer's own column.
+   *   so by hand — but only for the day it was said on. See
+   *   {@link isPinnedToToday}: a star from yesterday is not today's.
    */
   private static isOnToday(task: Task, today: string): boolean {
-    if (task.todayOrder !== null) return true;
+    if (isPinnedToToday(task, today)) return true;
     return TaskService.datedToday(task, today);
   }
 
@@ -50,8 +52,9 @@ export class TaskService {
    * the same work exists twice — see {@link withoutRepeats}.
    */
   private static datedToday(task: Task, today: string): boolean {
-    if (task.deadline !== null && task.deadline > today) return false;
-    return task.deadline === today || task.createdAt.startsWith(today);
+    const deadline = task.deadline?.slice(0, 10) ?? '';
+    if (deadline !== '' && deadline > today) return false;
+    return deadline === today || writtenDayKey(task) === today;
   }
 
   /**
@@ -109,7 +112,7 @@ export class TaskService {
   }
 
   readonly todayTasks = computed(() => {
-    const today = new Date().toISOString().slice(0, 10);
+    const today = localDayKey();
     return this.todayOrdered(this.todaysTasks(today).filter((t) => t.status !== 'done'));
   });
 
@@ -120,7 +123,7 @@ export class TaskService {
    * for the dashboard and the timer.
    */
   readonly todayBoardTasks = computed(() => {
-    const today = new Date().toISOString().slice(0, 10);
+    const today = localDayKey();
     return this.todayOrdered(this.todaysTasks(today));
   });
 
@@ -152,6 +155,9 @@ export class TaskService {
       tags: data.tags ?? [],
       recurrence: data.recurrence ?? null,
       todayOrder: data.todayOrder ?? null,
+      // A star created without a day cannot mean today, so it is stamped with
+      // the day it is written on.
+      todayOrderDate: data.todayOrder != null ? (data.todayOrderDate ?? localDayKey()) : null,
       createdAt: now,
       completedAt: null,
       updatedAt: now,
@@ -214,22 +220,26 @@ export class TaskService {
   async addToToday(taskId: string): Promise<void> {
     const task = this.tasks().find((t) => t.id === taskId);
     if (!task) return;
-    if (task.todayOrder !== null) return;
+    const today = localDayKey();
+    // A star left from an earlier day does not count as "already there": this
+    // click is today's instruction, and it replaces yesterday's position.
+    if (isPinnedToToday(task, today)) return;
     const maxOrder = Math.max(0, ...this.todayTasks().map((t) => t.todayOrder ?? 0));
-    await this.updateTask({ ...task, todayOrder: maxOrder + 1 });
+    await this.updateTask({ ...task, todayOrder: maxOrder + 1, todayOrderDate: today });
   }
 
   async removeFromToday(taskId: string): Promise<void> {
     const task = this.tasks().find((t) => t.id === taskId);
     if (!task) return;
-    await this.updateTask({ ...task, todayOrder: null });
+    await this.updateTask({ ...task, todayOrder: null, todayOrderDate: null });
   }
 
   async reorderToday(reorderedIds: string[]): Promise<void> {
+    const today = localDayKey();
     const updates = reorderedIds
       .map((id, idx) => {
         const task = this.tasks().find((t) => t.id === id);
-        return task ? { ...task, todayOrder: idx + 1 } : null;
+        return task ? { ...task, todayOrder: idx + 1, todayOrderDate: today } : null;
       })
       .filter(Boolean) as Task[];
 
@@ -250,12 +260,12 @@ export class TaskService {
   }
 
   getTasksByQuadrant(quadrant: TaskQuadrant): Task[] {
-    const today = new Date().toISOString().slice(0, 10);
+    const today = localDayKey();
     return this.todaysTasks(today).filter((t) => t.quadrant === quadrant && t.status !== 'done');
   }
 
   getUnassignedTasks(): Task[] {
-    const today = new Date().toISOString().slice(0, 10);
+    const today = localDayKey();
     return this.todaysTasks(today).filter((t) => t.quadrant === null && t.status !== 'done');
   }
 
@@ -270,12 +280,45 @@ export class TaskService {
    * fires when the user has turned carry-forward off.
    */
   async runDailyUpkeep(): Promise<void> {
-    // Closing comes first: a task that expired overnight must not be swept into
+    // A star belongs to the day it was set on, so yesterday's go first: they are
+    // no longer today's work, and none of the steps below should read them as if
+    // they were.
+    await this.expireTodayPins();
+    // Closing comes next: a task that expired overnight must not be swept into
     // today's quadrant question by the reset below, or have a recurring instance
     // generated from it.
     await this.closeExpiredTasks();
     await this.dailyReset();
     await this.generateRecurringInstances();
+  }
+
+  /**
+   * Clears "Add to Today" stars that belonged to an earlier day.
+   *
+   * The star is a one-day instruction (see `isPinnedToToday`), so a row carrying
+   * one from an earlier day — or, from an older build, one with no day at all —
+   * is a claim the app no longer honours. The write is quiet and bulk-written by
+   * the database, because this is housekeeping applied to a whole backlog at
+   * once, not the user touching each task.
+   *
+   * Returns how many stars were cleared, which is what the tests read.
+   */
+  async expireTodayPins(): Promise<number> {
+    const today = localDayKey();
+    const stale = this.tasks().filter(
+      (task) => task.todayOrder !== null && !isPinnedToToday(task, today),
+    );
+    if (!stale.length) return 0;
+
+    await this.db.clearStaleTodayPins(today);
+    this.tasks.update((list) =>
+      list.map((task) =>
+        task.todayOrder !== null && !isPinnedToToday(task, today)
+          ? { ...task, todayOrder: null, todayOrderDate: null }
+          : task,
+      ),
+    );
+    return stale.length;
   }
 
   /**
@@ -303,7 +346,7 @@ export class TaskService {
     if (this.settings.settings().carryForwardTasks) return 0;
 
     const now = new Date().toISOString();
-    const today = new Date().toISOString().slice(0, 10);
+    const today = localDayKey();
     const expired = this.tasks().filter(
       (task) => task.status !== 'done' && TaskService.ownDay(task) < today,
     );
@@ -322,8 +365,7 @@ export class TaskService {
    * was written rather than being treated as expired on the spot.
    */
   private static ownDay(task: Task): string {
-    const deadline = task.deadline?.slice(0, 10) ?? '';
-    return /^\d{4}-\d{2}-\d{2}$/.test(deadline) ? deadline : task.createdAt.slice(0, 10);
+    return taskDayKey(task);
   }
 
   /**
@@ -332,16 +374,18 @@ export class TaskService {
    * gets its quadrant cleared, so the user must re-prioritize daily.
    */
   async dailyReset(): Promise<void> {
-    const today = new Date().toISOString().slice(0, 10);
+    const today = localDayKey();
     const allTasks = this.tasks();
 
-    const tasksToReset = allTasks.filter(
-      (t) =>
+    const tasksToReset = allTasks.filter((t) => {
+      const writtenToday = writtenDayKey(t) === today;
+      return (
         t.quadrant !== null &&
         t.status !== 'done' &&
         !t.deadline?.startsWith(today) &&
-        !t.createdAt.startsWith(today),
-    );
+        !writtenToday
+      );
+    });
 
     for (const task of tasksToReset) {
       // Clearing yesterday's quadrant is housekeeping, not activity.
@@ -358,7 +402,7 @@ export class TaskService {
    */
   async generateRecurringInstances(): Promise<void> {
     const today = new Date();
-    const todayStr = today.toISOString().slice(0, 10);
+    const todayStr = localDayKey(today);
     const allTasks = this.tasks();
 
     // Find template tasks with recurrence configured
@@ -372,8 +416,7 @@ export class TaskService {
 
       // Check if instance already exists for today
       const instanceExists = allTasks.some(
-        (t) =>
-          t.title === template.title && t.id !== template.id && t.createdAt.startsWith(todayStr),
+        (t) => t.title === template.title && t.id !== template.id && writtenDayKey(t) === todayStr,
       );
       if (instanceExists) continue;
 

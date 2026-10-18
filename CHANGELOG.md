@@ -5,7 +5,271 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ---
 
-## [2.0.22] – 2026-10-17
+## [3.0.0] – 2026-10-18
+
+> **Progress.** This entry was written as the work landed, not after it: each
+> section below describes something that is finished and running in this
+> release, and the code it names is where it lives. Nothing here is a plan.
+
+### Added
+
+- **Time by Task: the work your focus actually goes to.** A new **Time by Task**
+  page groups every focus session by the work it paid for, so a daily routine
+  that arrives as a new task row each day — *Code review* on Monday, *Code
+  review* on Tuesday — adds up under one row instead of scattering across the
+  task list.
+  Each row carries the figure the user actually asks for, **till today**: total
+  time, sessions and active days, first and last session, and its rhythm —
+  repeats daily/weekly/monthly, multi-day, or one-off. A **Today / This week /
+  This month / This year / All time / Custom** switch moves the window, with
+  Custom taking two dates so a single unusual day or any arbitrary span can be
+  read. The row's chart divides that window into days, weeks, months or years,
+  and opening the row raises a detail sheet with the breakdown table, the
+  averages and the individual sessions behind the total. Repeating work is
+  detected from the gaps between days worked (a configured recurrence wins when
+  there is one), so a routine kept on one task still reads as repeating.
+
+  **The list is virtualised.** A user with hundreds of tasks no longer builds
+  hundreds of cards: only the fixed-height rows inside the scroll viewport (plus
+  a small overscan) exist in the DOM, and the detail sheet is what lets the rows
+  stay fixed-height. A bar is one **solid colour that means what the work is** —
+  violet repeats, amber is one-off, blue is multi-day, slate is untasked — and
+  the current day/week/month/year is marked with a ring rather than a second
+  fill colour. The legend above the list names every colour and the ring, so a
+  bar never asks the user to guess what two shades mean.
+
+  A **What this says** card turns the numbers into a reading: which work took
+  most of the period, how much of it repeats, how consistently the steadiest
+  task shows up, and whether the average block is long enough to think about
+  splitting. Time the timer recorded without a task is shown as **Untasked
+  focus** rather than hidden, and says how to attribute it next time. With no
+  sessions the page explains what will appear and links to the Dashboard.
+
+  Sessions now keep the task's title as a **snapshot**
+  (`013_add_session_task_title.sql`): `sessions.task_id` is cleared when a task
+  is deleted, and the page must still know which work the hours were for. The
+  migration backfills the sessions already in the database from the task they
+  point at; no duration or date is changed. The page lives at `/time`, in the
+  sidebar after Analytics as **Time by Task**, as `Ctrl+7` (`time.component.ts`,
+  `time-report.util.ts`, `time-report.model.ts`, `specs/016-time-by-task`).
+
+- **The first launch asks one question, and then stops asking it.** A full
+  dialog — not a card in the corner — offers to start DeepWork with the computer,
+  and it leads with what that is worth rather than with the setting: *your focus
+  timer is ready the moment you sign in, no app to find, nothing to forget*. The
+  question is only asked when the answer is not already yes: an install whose
+  startup entry already exists retires the dialog without showing it, and the
+  browser build retires it too, because a login item is not a thing a tab has.
+  It also waits for the older desktop-preferences dialog to be dealt with, so a
+  first run is one question at a time instead of two modals stacked on each
+  other (`launch-prompt-dialog.component.ts`, `launch-prompt.service.ts`).
+
+  **Not now** is an answer, not a refusal: it retires the dialog and starts the
+  quieter version of the same question — four or five reminders spread across
+  the working day, each of them in the app **and** as a desktop notification.
+  The day's times are made from the date itself (`nudge-schedule.util.ts`), so a
+  reload cannot re-roll them, and they stay between 09:30 and 20:30, at least 75
+  minutes apart. A reminder that came round more than two and a half hours ago
+  is counted as passed instead of delivered in a burst on the way in, and the
+  first one after **Not now** waits an hour and a quarter rather than arriving in
+  the same minute as the dismissal. Turning the setting on — here, in Settings,
+  from the preferences dialog or from the tray — ends the reminders for good, and
+  each one carries a **Stop asking** button so "not now" never has to mean "not
+  ever". The two switches live in Settings → Reminders
+  (`migrations/011_launch_prompt_and_nudges.sql`).
+
+- **A taskbar reminder that checks before it speaks.** Windows will not let an
+  app pin itself without a feature token no ordinary build has, so this asks
+  rather than pretends: three reminders a day, only while DeepWork is *not*
+  pinned, and each one names the two clicks precisely — right-click DeepWork in
+  the Start menu, choose **Pin to taskbar**, or do the same on its taskbar icon
+  if it is already open. What makes the reminder possible at all is that the
+  app can read the folder Windows keeps pinned shortcuts in
+  (`%APPDATA%\Microsoft\Internet Explorer\Quick Launch\User Pinned\TaskBar`):
+  the shortcut's own name is checked, and so are its bytes, in both the plain
+  and the UTF-16 form a `.lnk` stores its target in, so a renamed shortcut still
+  counts. The taskbar is re-read before every reminder and again when **Got it**
+  is pressed, which is what makes "already pinned" silence the feature instead
+  of nagging through it. It is Windows-only and reports itself as unsupported
+  elsewhere, because a reminder whose answer can never be observed should not
+  exist (`src-tauri/src/nudges.rs`, `nudges_taskbar_pin_state`).
+
+- **Quadrants that give their space away.** Collapsing a quadrant used to hide
+  its contents while its share of the board stayed exactly where it was, which
+  is why minimising Schedule never made Do First any bigger. A collapsed
+  quadrant is now a one-line strip across the bottom of the board and the
+  quadrants still open re-flow into the room it gave up; three open quadrants
+  put the first one across the top with the other two side by side underneath;
+  two sit side by side; one takes the board. The chevron collapses, and a second
+  control maximises — which is the same thing as collapsing the other three, so
+  there is one rule to understand rather than two — with **Restore the layout**
+  handing back exactly what was there before. The dividers between columns and
+  rows are draggable, by keyboard (arrow keys, Home/End to even them out) and by
+  double-click, and a drag moves the boundary rather than resizing one side: the
+  pair keeps its combined share, neither can be pushed below 15%, and the split
+  is remembered as a share of the board rather than as pixels, so it survives a
+  window resize and comes back when a quadrant is reopened
+  (`quadrant-layout.util.ts`, `matrix.component.ts`).
+
+- **A mute with an end.** The tray's mute is no longer a switch that stays where
+  it was left: it is 30 minutes, an hour, four hours or the rest of today, and
+  it says when it ends in the confirmation and on the Settings page. It mutes
+  the **sound only** — cards still arrive, because the user asked for quiet, not
+  for blindness — and it puts the sound back by itself, including after a
+  restart: the mute is remembered as an instant, so it expires even if nobody
+  opens the app again to switch it off. `AttentionService` owns it, which is
+  also why the reminder bell and the reminders themselves can no longer disagree
+  about whether the app is allowed to speak (`attention.service.ts`).
+
+- **A tray menu for the work, not just for the window.** **New task** opens the
+  quick-add form from wherever the app is (expanding the widget first, because a
+  136x76 frame cannot hold a form), **Settings** brings the full window up on the
+  right page, and **Pause** now offers 5, 10, 15 or 30 minutes and a **Resume**
+  that restarts only a timer the pause itself had stopped. The mute moved into a
+  submenu of its own lengths, and the existing **Start with system** and
+  **Always on top** ticks are still there beside **Exit**
+  (`src-tauri/src/lib.rs`, `tray-menu.service.ts`, `ui.service.ts`).
+
+- **Focus mode is respected instead of fought.** Windows is asked, through
+  `SHQueryUserNotificationState`, whether a notification is welcome right now,
+  and the answer covers Focus Assist's quiet hours, a fullscreen game,
+  presentation mode and a locked screen. When the answer is "no", the
+  suggestion cards are held; the desktop notification is still posted, because
+  the operating system that asked for quiet is the same one that decides what
+  DND does with a notification, and holding both would turn a focus mode someone
+  forgot to leave into an app that never speaks again. A session's own
+  completion alert still arrives — the timer is what the user asked for, and it
+  is still their timer — and the banner says so. It also says which of the two
+  situations holds the suggestions, and offers **Resume** to end a pause the
+  user started. A desktop that cannot answer is treated as normal rather than as
+  permanently quiet (`nudges_quiet_state`, `attention-banner.component.ts`).
+
+- **Cards can answer back.** The toast grew optional buttons
+  (`ToastAction`), which is what lets a reminder offer **Turn on** or **Stop
+  asking** instead of only a close cross. A card without actions draws exactly
+  as it did before, and on a phone the answers take the 44px a thumb needs.
+
+- **Pause, mute and focus on every surface, not only in the tray.** Those three
+  are the app's own "leave me alone" controls, and until now the only way in was
+  the system tray: fine on Windows and macOS, and no way in at all on a Linux
+  session whose desktop does not draw tray icons, in a browser tab or on a phone.
+  A **Focus & reminders** panel now opens from the sidebar's footer, from the
+  phone's top bar, from Settings and from `Ctrl+Shift+Q`, and it is the same panel
+  in all four places because it is the same service behind them
+  (`quiet.service.ts`). The tray menu is one more caller, so Windows, macOS and
+  Linux cannot disagree about what "Pause for 30 minutes" does: it stops the
+  timer, holds the cards and the system notifications, and restarts only a timer
+  it stopped. A mute stays sound-only and always has an end. Focus mode is
+  deliberately *not* a pause — it hides the navigation and leaves every reminder
+  running, because a focus session is exactly when the completion alert matters.
+
+- **The app knows how it is running, and asks for the right thing.** Three modes
+  are now distinguished and every install surface reads them from one service:
+  the **desktop app**, an **installed web app**, and a **browser tab**
+  (`install.service.ts`). A tab is offered installation at the top of the window
+  and, once a week at most and only when notifications are permitted, as a system
+  notification for the person who has the tab behind their work; the bar's
+  **How** explains the one route this particular browser has — Chromium's address
+  bar, Safari's File menu, a phone's Share sheet, or the honest "this browser
+  cannot" — instead of printing an instruction two of the three browsers do not
+  have (`install-dialog.component.ts`). On a phone the same dialog speaks about a
+  home screen, full screen and offline use, because that is what installing means
+  there.
+
+- **The question that follows installation: shall it open with the computer?**
+  An installed web app is not allowed to write a login item or raise its own
+  window, so the app asks once and shows exactly where the setting lives on
+  Windows, macOS and Linux, with one line for a phone — where the answer is "it
+  does not, here is what you get instead". It also offers the one always-on-top a
+  browser *can* give: a small floating timer window kept above other
+  applications through Document Picture-in-Picture, where the browser has it
+  (`floating-timer.service.ts`). Settings gained an **App Behaviour** card that
+  tells this same truth in place of switches the browser would ignore.
+
+### Changed
+
+- **A pause now covers reminders as well as the timer.** Pausing from the tray
+  used to stop the clock and leave the reminders free to interrupt; it now holds
+  them too — the startup and taskbar suggestions, and the water nudge, which
+  restarts its own cadence from the pause rather than arriving overdue the
+  moment it ends. The banner says so. What was held is not lost: the count is
+  kept and mentioned when the pause ends, and the next reminder arrives on its
+  normal schedule. Auto-resume from **Pause for…** ends the whole pause, not
+  only the timer.
+
+- **Settings gained a Reminders group.** Both suggestions can be switched off
+  for good, the pin switch explains itself as unsupported where it is, a pinned
+  taskbar is reported as such, and a live mute shows when it ends with a
+  **Turn sound on** beside it.
+
+- **The board's spacing now comes from its own dividers.** The grid's 12px gap
+  is gone and the 8px divider track between two tracks is the gap, which is what
+  makes the thing a pointer grabs the same box the divider is drawn in. The
+  compact layout below 900px gives the grid up entirely: one quadrant per row,
+  the inline placement overridden, and the dividers hidden.
+
+- **The version is 3.0.0**, in every file that spells it out, and the release
+  keeps the 2.0.22 removal of desktop pinning: this release asks the user to pin
+  DeepWork; it still does not try to do it for them. The major number is
+  deliberate — Time by Task is a new question the app can answer, not a
+  refinement of today's page — and this release carries the work that had been
+  staged as 2.0.23, which was never tagged.
+
+- **A page is not a narrow column in the middle of a monitor.** Settings and
+  About used to be a single 560px and 780px column, with an auto margin added for
+  very wide screens — so at 1920px, the size most desktops actually are, they
+  were a strip in the middle with nine hundred pixels of nothing on either side.
+  Both now fill the page column with cards: as many 380–600px columns as fit —
+  one on a phone, two on a laptop, three or four on a monitor — and the paragraph
+  keeps its reading measure *inside* the card, so a wide page does not mean a
+  two-foot line. Settings packs those cards in columns rather than rows, because
+  a grid sizes every card in a row to the tallest one: a one-row Appearance card
+  beside the water card left four hundred pixels of bare page under itself, and
+  the next row could not begin until the tall card ended. Each card now starts
+  one gutter below the card above it, so the page has no holes, and the cards
+  still flow in the order they are written — down the first column, then down
+  the second. Calendar had the subtler version of the same bug: a
+  `max-width` with `margin-inline: auto` on children of a flex column sizes them
+  to their contents rather than stretching them, so the header, toolbar, week
+  strip and day grid collapsed into the middle at 1920px. Those bands are gone
+  and the day takes the column it is given. On a phone nothing is capped and
+  nothing is centred: one column, the full width minus the app's own 16px gutter.
+  The About hero was the other shape of the problem — the avatar, the name and
+  the status pill shared one flex line, and the name column was squeezed to a
+  few characters so "Senior Lead Software Engineer" was drawn one word per line.
+  It is a two-column grid now, with the pill on a row of its own under both
+  (`layout-width.spec.ts`).
+
+### Progress recorded with the work
+
+- Startup question and its daily reminders — landed, with the plan arithmetic
+  covered by a year-long invariant test.
+- Taskbar reminder, manual-steps copy and the pinned check — landed.
+- Fold, maximise, restore and draggable quadrant dividers — landed, and verified
+  in a browser at 1440px and at the 800px minimum: the drag moved a 391px column
+  by exactly 120px, the pair kept its total, and the narrow board stacked into
+  one column with no horizontal overflow.
+- Timed mute, pause covering reminders, tray additions — landed.
+- Focus-mode gate and the banner that explains it — landed.
+- Quiet panel on the sidebar, the phone top bar, Settings and `Ctrl+Shift+Q`,
+  with the tray delegating to the same service — landed, and driven end to end in
+  a browser: pause from the panel, the attention banner explains it, Resume from
+  the panel ends it, and Settings reads the same state after a reload.
+- Install mode detection, the bar's browser-specific explanation, the system
+  suggestion (rate-limited, permission-aware, pause-aware) and the post-install
+  startup question with per-OS steps — landed. The floating timer is offered only
+  where Document Picture-in-Picture exists; the service is inert everywhere else.
+- Settings, About and Calendar measured at 1920, 1400 and 390: three card
+  columns packed to the 16px gutter with no bare strip inside a column, prose
+  under 800px inside its card, the calendar column above 1400px, and exactly
+  358px of content in a 390px viewport with one column.
+- `npm run lint`, the unit suite (1,259 tests) and `ng build` all pass, as does
+  the full Playwright suite including the new `quiet-controls`, `install` and
+  `layout-width` specs; the Rust side is unchanged this round.
+
+---
+
+## [2.0.22] – 2026-10-30
 
 ### Added
 
@@ -24,6 +288,42 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   line of text (under eight minutes) still carries no label.
 
 ### Fixed
+
+- **The mini widget is one rounded card — no white corners, and no rectangle
+  drawn around it.** The card was already round-cornered, so the four white wedges
+  were never the card. They were whatever the desktop shell put in the pixels the
+  card leaves empty at its corners, and there were three such things: the frame
+  fill (`DwmExtendFrameIntoClientArea`, since removed from `paint_widget_frame`);
+  the hairline Windows draws around every top-level window (now
+  `DWMWA_BORDER_COLOR` = none); and the window's own drop shadow, which follows
+  the *window* rather than the card. Each was chased to its source, and the
+  conclusion is that chasing them one by one is the wrong shape of fix: a window
+  that is a rectangle, holding a card that is not, will always leave that corner
+  to somebody. So the corners are **removed** instead — `SetWindowRgn` clips the
+  window to a rounded rectangle of the card's own size and 18px radius, with no
+  pixel left outside it for a frame, a background or a shadow to occupy. An
+  intermediate pass kept a 16px transparent ring around the card so the page could
+  draw its own shadow; that ring was itself a strip for the shell to outline, and
+  the larger rectangle it produced is why it is gone. Two calls had to be taken
+  back out for good measure: `DWMWA_NCRENDERING_POLICY` = disabled, which takes
+  DWM's composition with it and turns the four corners white, and
+  `Window.setShadow()`, which recomputes the window styles on Windows and puts the
+  title bar back.
+
+- **Yesterday's work no longer follows you into Today.** "Add to Today" is a
+  one-day instruction, but it was stored as a position (`today_order`) that was
+  written once and never expired: a task finished on Monday was still on
+  Tuesday's board, and an import whose rows had answered "Add to Today" left its
+  whole backlog there every morning — which is why Today never reached its own
+  empty state. The star now carries the local day it was set on
+  (`today_order_date`, migration `012_add_today_order_date.sql`), and the daily
+  upkeep clears stars from another day — including the ones written before a day
+  existed to carry — in one quiet write that leaves the tasks themselves alone.
+  A task dated today, or written today, is still on today's board; yesterday's
+  is not, finished or not. The star on a card, the export's **On Today List**
+  column and the importer all read the same day-scoped rule
+  (`task-day.util.ts`, `isPinnedToToday`), so they cannot disagree about what
+  today holds.
 
 - **A focus session started without picking a task is no longer filed against the
   task you last worked on.** The task a session is for was remembered in

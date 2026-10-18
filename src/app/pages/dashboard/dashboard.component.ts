@@ -1557,7 +1557,8 @@ export class DashboardComponent implements OnInit, OnDestroy {
 
   startTimer(): void {
     this.notifications.dismiss();
-    this.timer.linkTask(this.selectedTaskId() || null);
+    const taskId = this.selectedTaskId() || null;
+    this.timer.linkTask(taskId, this.linkedTaskTitle(taskId));
     this.timer.start();
     this.loadTodaySessions();
   }
@@ -1606,14 +1607,21 @@ export class DashboardComponent implements OnInit, OnDestroy {
     this.selectedTaskId.set(taskId);
     this.taskSelectModel.update((m) => ({ ...m, taskId }));
     saveFocusedTaskId(taskId);
-    this.timer.linkTask(taskId || null);
+    this.timer.linkTask(taskId || null, this.linkedTaskTitle(taskId || null));
   }
 
   onTaskSelect(): void {
     const taskId = this.taskSelectModel().taskId;
     this.selectedTaskId.set(taskId);
     saveFocusedTaskId(taskId);
-    this.timer.linkTask(taskId || null);
+    this.timer.linkTask(taskId || null, this.linkedTaskTitle(taskId || null));
+  }
+
+  /** The title travels with the id so a session keeps its work's name. */
+  private linkedTaskTitle(taskId: string | null): string | null {
+    return taskId
+      ? (this.taskService.tasks().find((task) => task.id === taskId)?.title ?? null)
+      : null;
   }
 
   quadrantLabel(quadrant: string | null): string {

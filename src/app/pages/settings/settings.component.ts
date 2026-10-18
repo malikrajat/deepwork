@@ -486,7 +486,7 @@ import { SettingsFormModel, createSettingsFormDefaults } from '../../shared/mode
         <div class="setting-item"><span>Start/Pause Timer</span><kbd>Space</kbd></div>
         <div class="setting-item"><span>Toggle Focus Mode</span><kbd>Ctrl+Shift+F</kbd></div>
         <div class="setting-item"><span>Quick Add Task</span><kbd>Ctrl+N</kbd></div>
-        <div class="setting-item"><span>Navigate Pages</span><kbd>Ctrl+1–8</kbd></div>
+        <div class="setting-item"><span>Navigate Pages</span><kbd>Ctrl+1–0</kbd></div>
         <div class="setting-item"><span>Exit Focus / Close</span><kbd>Esc</kbd></div>
       </div>
     </div>

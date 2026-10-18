@@ -443,8 +443,11 @@ describe('TaskImportService', () => {
       );
       await service.importRows(preview);
       expect(created[0].todayOrder).toBe(5);
+      expect(created[0].todayOrderDate).toBe(todayIsoDate());
       expect(created[1].todayOrder).toBeNull();
+      expect(created[1].todayOrderDate).toBeNull();
       expect(created[2].todayOrder).toBe(6);
+      expect(created[2].todayOrderDate).toBe(todayIsoDate());
     });
 
     it('keeps a row dated for another day off today unless it asks to be there', async () => {
@@ -465,6 +468,8 @@ describe('TaskImportService', () => {
       expect(created[0].todayOrder).toBeNull();
       expect(created[1].deadline).toBe(tomorrowIso);
       expect(created[1].todayOrder).not.toBeNull();
+      // A row pinned to today is pinned for the day it was imported, not for ever.
+      expect(created[1].todayOrderDate).toBe(todayIsoDate());
     });
 
     it('carries recurrence across', async () => {
