@@ -204,6 +204,20 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   `NotificationService.dismissSystemNotification`, and `toast_dismiss` with
   `ToastHandles` in `lib.rs`).
 
+- **The completion alert can be answered from the desktop notification.** A
+  session that runs out now posts **Pause**, **Next**, **Resume** and **Hold up**
+  as buttons on its toast, so the clock can be driven without bringing the window
+  forward. Pause pauses whatever is running when it is pressed — the toast waits
+  in the notification centre long after the alert was raised — Next skips to the
+  next session, Resume starts the one that is waiting, and Hold up closes the
+  alert and leaves the clock exactly as it was. Every answer stops the ring and
+  takes the toast back, and the buttons are re-posted with every repeat: Windows
+  replaces the notification it is holding, so a repeat without them would strip
+  the answers mid-question. The card in the full window draws the same four from
+  the same list, which is what keeps the alert answerable on the platforms whose
+  toast cannot report a press (`NotificationService.ALERT_ACTIONS` and
+  `onAlertAction`, `TimerService`, `toast.component.ts`).
+
 - **A first-run setup that can be seen again.** The first-run question was
   genuinely once-only, which also meant it could not be shown a second time — and
   an install whose database predated the question had already dismissed the

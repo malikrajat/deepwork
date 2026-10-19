@@ -3,13 +3,12 @@
 //! Two questions live here, and both exist so the app can be quieter than it
 //! would otherwise be:
 //!
-//! - **Is DeepWork already pinned to the taskbar?** The app cannot pin itself —
-//!   Windows reserves that for a shortcut Windows itself creates, and the
-//!   programmatic route that used to be attempted needed a feature token no
-//!   ordinary build has (see the 2.0.22 changelog). What it *can* do is look at
-//!   the folder Windows keeps pinned shortcuts in, which is enough to stop
-//!   reminding someone who has already done it, and to keep reminding someone
-//!   who has not.
+//! - **Is DeepWork already pinned to the taskbar?** The app can ask Windows to
+//!   pin it, but only where the shell accepts the request — and that is the
+//!   shell's answer to give, not the app's to assume. What the app can also do,
+//!   cheaply and without asking anyone, is read the folder Windows keeps pinned
+//!   shortcuts in: enough to stop reminding someone who has already done it, and
+//!   to keep reminding someone who has not.
 //! - **Is now a moment when a notification is welcome?** Windows answers that
 //!   itself through `SHQueryUserNotificationState`, and the answer covers
 //!   Focus Assist's quiet hours, a fullscreen game, presentation mode and a
@@ -31,13 +30,14 @@ pub struct TaskbarPinState {
     /// False on a platform where pinning is not a thing the app can read, so
     /// the frontend does not offer a reminder it could never retire.
     pub supported: bool,
-    /// True when this Windows will even accept a programmatic pin request.
+    /// True when Windows would take a pin request from this app right now.
     ///
-    /// It is a separate answer from [`TaskbarPinState::supported`]: the taskbar
-    /// API can exist (the desktop-app marker interface is there) and still say
-    /// "no" — Windows 11 reserves programmatic pinning for apps it has packaged
-    /// itself, and `IsPinningAllowed` is how it says so. The frontend offers the
-    /// two manual clicks in that case rather than a **Yes** that cannot work.
+    /// A separate answer from [`TaskbarPinState::supported`], which only says the
+    /// API exists. `IsPinningAllowed` also accounts for the moment: a request is
+    /// only allowed from an app that is in front and that the shell can match to
+    /// an app list entry, and a policy can forbid pinning outright. The frontend
+    /// reads it fresh whenever the user asks, and offers the two manual clicks
+    /// rather than a **Yes** that cannot work.
     pub allowed: bool,
 }
 
@@ -101,11 +101,15 @@ pub fn taskbar_pin_state() -> TaskbarPinState {
 ///
 /// `TaskbarManager` is a WinRT class written for packaged apps; a Win32 process
 /// reaches it through the desktop-app marker interface, which is why
-/// `taskbar_pin_supported` can be true, and `IsPinningAllowed` then reports
-/// whether the shell will actually honour a request. On a normal Windows 11
-/// machine with an unpackaged DeepWork the answer is false: the shell keeps
-/// pinning for apps it can identify as packaged. The app says so instead of
-/// offering a **Yes** that ends in an error.
+/// `taskbar_pin_supported` can be true. `IsPinningAllowed` then answers the
+/// narrower question: whether *this* request, from *this* app, right now, would
+/// be honoured. It says no when a policy forbids pinning, when the shell cannot
+/// match the process to an app list entry, or when the app is not in front.
+///
+/// That last pair is why the process declares its own identity at startup
+/// (`identify_to_the_shell` in `lib.rs`) and why the frontend asks again at the
+/// moment of the click: a request from an app the shell cannot name is a request
+/// it answers by showing the user the executable's folder instead.
 #[cfg(windows)]
 fn pinning_allowed() -> bool {
     use windows::UI::Shell::TaskbarManager;

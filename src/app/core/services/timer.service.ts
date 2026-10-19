@@ -56,6 +56,29 @@ export class TimerService implements OnDestroy {
   private onCompleteCallback: ((completedType: TimerType) => void) | null = null;
   private _initialized = false;
 
+  constructor() {
+    // The completion alert's own buttons are the app's clock controls, so the
+    // clock is what answers them. Registered once, here, because a toast lives in
+    // the notification centre long after the alert stops ringing: **Pause** has
+    // to stop a session the user started since, and **Resume** the next one.
+    //
+    // **Hold up** never arrives — closing the alert is `NotificationService`'s
+    // own job, and it does that before asking the clock anything.
+    this.notifications.onAlertAction((action) => {
+      switch (action) {
+        case 'pause':
+          this.pause();
+          break;
+        case 'next':
+          this.skip();
+          break;
+        case 'resume':
+          this.start();
+          break;
+      }
+    });
+  }
+
   async init(): Promise<void> {
     if (this._initialized) return;
     this._initialized = true;

@@ -33,6 +33,12 @@ motion happening inside a panel that is otherwise still. So the alert now walks 
 palette, one entry per repeat, and it is the whole widget that moves on the beat of
 every tone (AC-12, AC-13).
 
+One surface was still asking the question with no way to answer it: the **system
+notification**. It now carries the same four answers the card does — **Pause**,
+**Next**, **Resume** and **Hold up** — so the clock can be driven from the desktop,
+and the card draws them as well, which is what keeps the alert answerable on the
+platforms whose toast cannot report a press (AC-14).
+
 ## Relationship to `001-create-deepwork` and `003-mini-widget-window`
 
 | Criterion         | Now                                                                                                                                                                                                                                    |
@@ -63,6 +69,14 @@ every tone (AC-12, AC-13).
 6. **Come back to the app.** The user presses the expand arrow. The full window
    returns **with the card still on it**, in the alert's current colour, because
    that is what they came to read.
+7. **Answer it from the desktop.** The user is in another window when the toast
+   appears. They press **Resume** on it: the next session starts, the tone stops
+   and the toast is taken back — no window to bring forward. **Next** skips to the
+   session after this one instead, and **Pause** pauses whatever is running when
+   it is pressed.
+8. **Go quiet from the desktop without deciding.** The user presses **Hold up**.
+   The alert closes and the clock is left exactly as it was: nothing started,
+   nothing skipped, nothing paused.
 
 ## Acceptance criteria
 
@@ -134,14 +148,30 @@ every tone (AC-12, AC-13).
   repeat, which is what replays its entry animation. So the same three things —
   tone, notification, colour and motion — happen whether the user is looking at the
   app or at the widget.
+- **AC-14** The alert offers four answers — **Pause**, **Next**, **Resume**,
+  **Hold up**, in that order — on its Windows toast and on its card, from **one**
+  list (`NotificationService.ALERT_ACTIONS`): the toast gets ids and labels, the
+  card gets the same ids behind closures, so a button can never mean one thing on
+  the desktop and another in the app. A press reports the button's **id**, never
+  its label, so wording is free to change. **Pause** pauses the session that is
+  running when it is pressed, **Next** skips to the next session type, and
+  **Resume** starts the session that is waiting (`NotificationService`,
+  `onAlertAction`, answered by `TimerService`); **Hold up** closes the alert and
+  leaves the clock untouched. Every answer stops the ring, and every answer takes
+  the alert's notification back (`toast_dismiss`) — a question that has been
+  answered must not stay on screen asking. The buttons travel with **every**
+  repeat: Windows replaces the toast it is holding, so a repeat posted without
+  them would silently strip the answers mid-question.
 
 ## Out of scope
 
-- Action buttons on the system notification (Windows toasts through this plugin
-  have no "Snooze / Start break" affordance to hook into).
-- Withdrawing the system notification when the alert is answered: on Windows and
-  macOS the OS owns it from the moment it is posted, and every other app leaves it
-  to the notification centre.
+- Action buttons on macOS and Linux. Neither platform's notification surface
+  reports a press back to a desktop app without its own delegate or notification
+  server, so the four answers live on the card there.
+- Withdrawing the alert's notification on macOS and Linux: the OS owns it from the
+  moment it is posted, and every other app leaves it to the notification centre. On
+  Windows the app keeps the toast handle, so an answered alert is taken back there
+  (`toast_dismiss`).
 - Changing the cadence. The interval the user configured is still the interval
   the tone repeats at.
 - Replacing the notification on platforms with no handle for it. macOS and Linux
@@ -153,6 +183,7 @@ every tone (AC-12, AC-13).
 | Piece                                            | File                                                                                                                    |
 | ------------------------------------------------ | ----------------------------------------------------------------------------------------------------------------------- |
 | The alert: ring, repeat, `ringing`, `dismiss()`  | `src/app/core/services/notification.service.ts`                                                                         |
+| The four answers, and the clock behind them      | `NotificationService.ALERT_ACTIONS` / `onAlertAction`, and `TimerService`'s constructor                                 |
 | The palette, and which entry a pulse is on       | `src/app/core/constants/alert.constants.ts`                                                                             |
 | The tagged Windows toast, and the plugin fallback | `src-tauri/src/lib.rs` (`alert_notify`), `src-tauri/Cargo.toml`                                                         |
 | The trigger: a session finishing, on any page    | `src/app/core/services/timer.service.ts`                                                                                |

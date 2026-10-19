@@ -33,7 +33,7 @@ Central reference for all guidance files in this repository.
 | `specs/008-visual-crispness/`             | Whole-pixel type, blur-free shapes, and the mini widget's rounded card                                                               |
 | `specs/009-water-reminders/`              | The water reminder, and today's water tally on the dashboard                                                                         |
 | `specs/010-water-nudge/`                  | The reminder as a card that asks Yes/No, and the wider glass and cadence choices                                                     |
-| `specs/011-completion-alert/`             | The finished-session alert, answered from the mini widget, and its repeat: the tagged OS notification, the shake and the colour walk |
+| `specs/011-completion-alert/`             | The finished-session alert, answered from the mini widget, the card or the OS notification, and its repeat: the tagged OS notification, the shake and the colour walk |
 | `specs/012-task-dates-and-today/`         | The task's own date deciding the day it belongs to: imports for tomorrow, and today                                                  |
 | `specs/013-carry-forward-and-offline-ai/` | Carrying unfinished work forward or closing it when its day passes, and saying where the analysis runs                               |
 | `specs/014-task-completion-quote/`        | The line of encouragement on the card raised when a task is finished                                                                 |

@@ -88,13 +88,14 @@ export class DesktopPrefsService {
   readonly pinSupported = signal(false);
 
   /**
-   * Whether Windows will actually accept a pin request from this app.
+   * Whether Windows would accept a pin request from this app *right now*.
    *
-   * A taskbar API can exist and still refuse: Windows 11 reserves programmatic
-   * pinning for apps it has packaged itself, and `IsPinningAllowed` is how the
-   * shell says so. When this is false the app stops pretending: **Yes** opens
-   * the installed-app list and the user does the two clicks Windows wants. See
-   * `pinning_allowed` in `src-tauri/src/nudges.rs`.
+   * A taskbar API can exist and still refuse: a policy can forbid pinning, the
+   * shell may not be able to match the running process to an app list entry,
+   * and a request is only allowed from an app that is in front. When this is
+   * false the app stops pretending: **Yes** opens the installed-app list and the
+   * user does the two clicks Windows wants. It is re-read whenever the user
+   * asks, because the answer is about the moment — see `refreshPinState`.
    */
   readonly pinAllowed = signal(false);
 
@@ -175,10 +176,7 @@ export class DesktopPrefsService {
     // The pin question travels through the notification, so both halves of it
     // are wired before the row that asks can be clicked: the button press comes
     // back as a toast action, the shell's answer as an event.
-    const pinState = await this.readPinState();
-    this.pinSupported.set(pinState.supported !== false);
-    this.pinAllowed.set(pinState.allowed === true);
-    this.pinned.set(pinState.pinned === true);
+    await this.refreshPinState();
     void this.listenForPinResult();
     this.unlistenPinAction = this.notifications.onToastAction(
       NotificationService.PIN_NOTIFICATION_TAG,
@@ -207,12 +205,19 @@ export class DesktopPrefsService {
    *
    * A notification rather than a dialog inside the window when the shell will
    * accept a request: **Yes** asks Windows directly, and Windows draws its own
-   * confirmation on top. Where the shell will not accept one — an unpackaged app
-   * on Windows 11 — a **Yes** that ends in an error would be worse than no
-   * button, so this opens the installed-app list instead and says what to click.
+   * confirmation on top. Where the shell will not accept one — a policy that
+   * forbids pinning, or a build Windows cannot match to an app list entry — a
+   * **Yes** that ends in an error would be worse than no button, so this opens
+   * the installed-app list instead and says what to click.
+   *
+   * The shell's answer is asked *now*, not remembered from startup: see
+   * {@link settlePinState}.
    */
   async askToPin(): Promise<void> {
     if (!IN_TAURI || !this.pinSupported() || this.pinned()) return;
+
+    await this.settlePinState();
+    if (this.pinned()) return;
 
     if (!this.pinAllowed()) {
       await this.showPinHelper();
@@ -304,11 +309,49 @@ export class DesktopPrefsService {
    */
   async pinNow(): Promise<boolean> {
     if (!IN_TAURI || !this.pinSupported() || this.pinned()) return false;
+
+    await this.settlePinState();
+    if (this.pinned()) return false;
+
     if (!this.pinAllowed()) {
       await this.showPinHelper();
       return false;
     }
     return this.pinToTaskbar();
+  }
+
+  /**
+   * Re-reads what the taskbar says about pinning DeepWork right now.
+   *
+   * Three answers, and all three can change while the app runs: whether the API
+   * exists, whether DeepWork is already pinned, and whether the shell would take
+   * a request at this moment. The last one is why this is a method rather than a
+   * field — `IsPinningAllowed` is about the present, not about the shell's mood
+   * at startup. See `nudges::taskbar_pin_state`.
+   */
+  async refreshPinState(): Promise<void> {
+    if (!IN_TAURI) return;
+    const state = await this.readPinState();
+    this.pinSupported.set(state.supported !== false);
+    this.pinAllowed.set(state.allowed === true);
+    this.pinned.set(state.pinned === true);
+  }
+
+  /**
+   * The state, read once and then once more after a moment.
+   *
+   * The second read is for the one case the first cannot see: a request is only
+   * allowed from an app that is *in front*, and the notification's **Yes** can
+   * arrive while the window is still coming forward. A quarter of a second is
+   * enough for that to finish and far too short to notice; without it, a perfectly
+   * pinnable app answers "not allowed" and the user is sent to the app list to do
+   * by hand what the button could have done.
+   */
+  private async settlePinState(): Promise<void> {
+    await this.refreshPinState();
+    if (this.pinAllowed() || this.pinned()) return;
+    await new Promise((resolve) => setTimeout(resolve, 250));
+    await this.refreshPinState();
   }
 
   /** Turns "start with the system" on or off. */

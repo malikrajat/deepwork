@@ -149,8 +149,9 @@ export interface NotificationOptions {
  * `notificationRepeatInterval` seconds until the user answers, because a Pomodoro
  * that finishes while the user is reading somewhere else should not be missed.
  * Anything that counts as an answer — the toast's close button in the full
- * window, or any of the mini widget's controls while the window is shrunk — ends
- * the ring.
+ * window, one of the four answers on the card or on the Windows toast
+ * (**Pause**, **Next**, **Resume**, **Hold up**), or any of the mini widget's
+ * controls while the window is shrunk — ends the ring.
  *
  * Everything that repeats hangs off one signal, {@link alertPulse}: the tone, the
  * card, the widget's shake and the colour both surfaces take for that repeat. One
@@ -173,6 +174,27 @@ export class NotificationService implements OnDestroy {
    */
   private static readonly ALERT_NOTIFICATION_TAG = 'deepwork-alert';
   private static readonly ALERT_NOTIFICATION_ID = 7301;
+
+  /**
+   * The four answers the completion alert offers, in the order they are drawn.
+   *
+   * They travel as ids and labels because that is what a toast can carry: the
+   * id is what comes back when a button is pressed, the label is the sentence it
+   * wears, so rewording a button never changes what it does. The same list is
+   * posted to Windows and drawn on the card, which is what keeps the two
+   * surfaces one question instead of two that happen to agree.
+   *
+   * The clock comes first and the way out last: **Pause**, **Next** and
+   * **Resume** each answer the alert and then act on the timer, and **Hold up**
+   * is the "not now" — it closes the alert and leaves the clock exactly as it
+   * was. See {@link runAlertAction}.
+   */
+  private static readonly ALERT_ACTIONS: NotificationAction[] = [
+    { id: 'pause', label: 'Pause' },
+    { id: 'next', label: 'Next' },
+    { id: 'resume', label: 'Resume' },
+    { id: 'hold', label: 'Hold up' },
+  ];
 
   /**
    * The handles the app's other messages are posted under.
@@ -215,6 +237,8 @@ export class NotificationService implements OnDestroy {
     body: string;
     type: TimerType;
     quote: string | null;
+    /** The buttons every repeat re-posts with; empty for a plain message. */
+    actions: NotificationAction[];
   } | null = null;
   /** How many repeats of the current alert have been delivered. */
   private alertRepeats = 0;
@@ -246,6 +270,17 @@ export class NotificationService implements OnDestroy {
    * tag, because two would be two answers to the same question.
    */
   private readonly actionHandlers = new Map<string, (action: string) => void>();
+
+  /**
+   * Who moves the clock when the alert's **Pause**, **Next** or **Resume** is
+   * pressed, if anyone.
+   *
+   * `TimerService` registers this in its constructor. It is a callback rather
+   * than a dependency because the edge already runs the other way — the timer
+   * tells this service that a session finished — and two root services that
+   * each need the other cannot both be injected into the other.
+   */
+  private alertActionHandler: ((action: string) => void) | null = null;
 
   /**
    * True while a completion alert is still unanswered — and therefore still
@@ -285,11 +320,19 @@ export class NotificationService implements OnDestroy {
   readonly alertShakeMs = computed(() => this.settingsService.settings().alertShakeMs);
 
   constructor() {
+    // The alert's own tag, answered by this service: the notification is posted
+    // here and taken back here, so the four buttons land where the message was
+    // written rather than in whichever service happens to be listening. Pause,
+    // Next and Resume are then handed to the clock — see `onAlertAction`.
+    this.onToastAction(NotificationService.ALERT_NOTIFICATION_TAG, (action) =>
+      this.runAlertAction(action),
+    );
+
     effect(() => {
       const intervalSeconds = this.settingsService.settings().notificationRepeatInterval;
       if (this.pendingRepeat) {
-        const { title, body, type, quote } = this.pendingRepeat;
-        this.startRepeatLoop(title, body, type, quote, intervalSeconds);
+        const { title, body, type, quote, actions } = this.pendingRepeat;
+        this.startRepeatLoop(title, body, type, quote, actions, intervalSeconds);
       }
     });
   }
@@ -338,6 +381,50 @@ export class NotificationService implements OnDestroy {
   }
 
   /**
+   * Answers the alert's **Pause**, **Next** and **Resume** with the clock.
+   *
+   * `TimerService` registers this once, in its constructor, and that is the
+   * whole of the wiring: the alert does not know what a session is, and the
+   * timer does not have to know where its buttons are drawn. **Hold up** never
+   * reaches the handler — closing the alert is this service's own job, and a
+   * message that could outlive its own "not now" would be one nobody trusts.
+   *
+   * Registering a second handler replaces the first, for the same reason
+   * {@link onToastAction} does: one alert, one clock.
+   *
+   * Returns a function that unregisters it.
+   */
+  onAlertAction(handler: (action: string) => void): () => void {
+    this.alertActionHandler = handler;
+    return () => {
+      if (this.alertActionHandler === handler) this.alertActionHandler = null;
+    };
+  }
+
+  /**
+   * Answers the completion alert from one of its own buttons, whichever surface
+   * the press arrived on.
+   *
+   * **Every** button answers it: the user has dealt with the message, so the
+   * ring stops, the card goes and the toast is taken back — a reminder that
+   * stays on screen after it was answered is one the user learns to ignore, the
+   * same rule the water reminder follows. What differs is the clock: **Hold up**
+   * leaves it exactly as it was, which is what makes it the "not now" answer,
+   * while Pause, Next and Resume are handed to {@link onAlertAction}.
+   *
+   * The buttons can be pressed long after the alert was raised — a toast lives
+   * in the notification centre until the user clears it — so Pause still pauses
+   * a session the user started since, and Resume starts the next one. That is
+   * the point of answering from there rather than going to find the window.
+   */
+  private runAlertAction(action: string): void {
+    this.dismiss();
+    void this.dismissSystemNotification(NotificationService.ALERT_NOTIFICATION_TAG);
+    if (action === 'hold') return;
+    this.alertActionHandler?.(action);
+  }
+
+  /**
    * Raises the completion alert: the tone, the card, the widget's shake and the
    * system notification, all on the one pulse.
    *
@@ -370,24 +457,33 @@ export class NotificationService implements OnDestroy {
     const quote = quoteAt(type === 'work' ? FOCUS_QUOTES : BREAK_QUOTES, this.alertCount);
     this.alertCount += 1;
 
+    // The four answers belong to the alert rather than to one post: the toast is
+    // re-posted on every repeat under the alert's own tag, and Windows replaces
+    // the notification it is already holding, so a repeat that omitted them
+    // would quietly take the buttons away mid-question.
+    const actions = NotificationService.ALERT_ACTIONS;
+
     // Deliberately set before anything is delivered: the widget reads it to show
     // the alert, and there is no frame in which the alert is ringing unseen.
     this.ringing.set(true);
     this.alertPulse.update((pulse) => pulse + 1);
     this.alertRepeats = 0;
-    await this.sendNotification(title, body, 0, { quote });
+    await this.sendNotification(title, body, 0, { quote, actions });
     this.playSound();
-    this.showToast(title, body, type, quote);
-    this.startRepeatLoop(title, body, type, quote);
+    this.showAlertToast(title, body, type, quote);
+    this.startRepeatLoop(title, body, type, quote, actions);
   }
 
   /**
    * Answers the alert: the ring stops, the card goes, and the cadence is
    * forgotten. Safe to call when nothing is ringing.
    *
-   * The system notification is not withdrawn — on Windows and macOS the OS owns
-   * it from the moment it is posted, and letting the user clear it in the
-   * notification centre is the behaviour they expect from every other app.
+   * The system notification is not withdrawn by a plain dismissal — the close
+   * cross stops the ring without choosing one of the four answers — so clearing
+   * it in the notification centre stays the behaviour the user expects from every
+   * other app. One of the alert's own buttons does take the toast back as well,
+   * because it answers the question the toast is still asking. See
+   * {@link runAlertAction}.
    */
   dismiss(): void {
     this.ringing.set(false);
@@ -520,6 +616,29 @@ export class NotificationService implements OnDestroy {
       // A shell from before the event existed: the buttons are still drawn, they
       // just cannot answer. The in-app surface is the fallback in that case.
     }
+  }
+
+  /**
+   * Raises the alert's card with its four answers.
+   *
+   * The card asks the same question the notification does — the same ids, in the
+   * same order, wearing the same words — and it carries the alert's tag, which
+   * is what lets an answer on either surface take the other one down (see
+   * {@link dismissSystemNotification}).
+   */
+  private showAlertToast(
+    title: string,
+    body: string,
+    type: TimerType,
+    quote: string | null,
+  ): void {
+    const actions: ToastAction[] = NotificationService.ALERT_ACTIONS.map((action) => ({
+      label: action.label,
+      // Both surfaces go through `runAlertAction`, so a button on the card can
+      // never come to mean something different from the same button on the toast.
+      run: () => this.runAlertAction(action.id),
+    }));
+    this.showToast(title, body, type, quote, actions, NotificationService.ALERT_NOTIFICATION_TAG);
   }
 
   private showToast(
@@ -727,10 +846,11 @@ export class NotificationService implements OnDestroy {
     body: string,
     type: TimerType,
     quote: string | null = null,
+    actions: NotificationAction[] = [],
     intervalSeconds = this.settingsService.settings().notificationRepeatInterval,
   ): void {
     this.stopRepeatLoop();
-    this.pendingRepeat = { title, body, type, quote };
+    this.pendingRepeat = { title, body, type, quote, actions };
     const intervalMs = intervalSeconds * 1000;
 
     // Use Web Worker for repeat timer — workers are NOT throttled when app is
@@ -761,14 +881,14 @@ export class NotificationService implements OnDestroy {
    */
   private onRepeatTick(): void {
     if (!this.pendingRepeat) return;
-    const { title, body, type, quote } = this.pendingRepeat;
+    const { title, body, type, quote, actions } = this.pendingRepeat;
     this.alertRepeats += 1;
     // Everything visual hangs off this: one shake and one new colour per tone,
     // in the widget and on the card alike.
     this.alertPulse.update((pulse) => pulse + 1);
-    void this.sendNotification(title, body, this.alertRepeats, { quote });
+    void this.sendNotification(title, body, this.alertRepeats, { quote, actions });
     this.playSound();
-    this.showToast(title, body, type, quote);
+    this.showAlertToast(title, body, type, quote);
   }
 
   private stopRepeatLoop(): void {

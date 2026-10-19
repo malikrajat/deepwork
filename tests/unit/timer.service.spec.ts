@@ -21,6 +21,7 @@ describe('TimerService', () => {
   let mockNotifications: {
     init: ReturnType<typeof vi.fn>;
     fireTimerComplete: ReturnType<typeof vi.fn>;
+    onAlertAction: ReturnType<typeof vi.fn>;
   };
   let mockSettings: {
     settings: ReturnType<typeof signal<typeof DEFAULT_SETTINGS>>;
@@ -39,6 +40,7 @@ describe('TimerService', () => {
     mockNotifications = {
       init: vi.fn().mockResolvedValue(undefined),
       fireTimerComplete: vi.fn().mockResolvedValue(undefined),
+      onAlertAction: vi.fn(),
     };
     TestBed.configureTestingModule({
       providers: [
@@ -300,5 +302,67 @@ describe('TimerService', () => {
     expect(svc.currentTaskId()).toBe('task-abc');
     svc.linkTask(null);
     expect(svc.currentTaskId()).toBeNull();
+  });
+
+  // ── answering from the alert's own buttons ────────────────────────────
+
+  /**
+   * Presses one of the four answers the completion alert offers.
+   *
+   * The service hands its handler to `NotificationService` once, so the press a
+   * Windows toast reports arrives here through that callback — the same path a
+   * press on the card takes.
+   */
+  function alertAction(action: string): void {
+    const handler = mockNotifications.onAlertAction.mock.calls[0]?.[0] as
+      | ((pressed: string) => void)
+      | undefined;
+    expect(handler).toBeTypeOf('function');
+    handler?.(action);
+  }
+
+  it('registers itself as the alert’s clock, once', () => {
+    expect(mockNotifications.onAlertAction).toHaveBeenCalledTimes(1);
+  });
+
+  it('pauses the session a pressed Pause found running', async () => {
+    // The toast outlives the alert — it waits in the notification centre — so
+    // Pause has to act on whatever is running when it is pressed, not on the
+    // session that finished.
+    await svc.init();
+    svc.start();
+
+    alertAction('pause');
+
+    expect(svc.isRunning()).toBe(false);
+  });
+
+  it('skips to the next session when Next is pressed', async () => {
+    await svc.init();
+
+    alertAction('next');
+
+    expect(svc.timerType()).toBe('short-break');
+  });
+
+  it('starts the session that is waiting when Resume is pressed', async () => {
+    await svc.init();
+
+    alertAction('resume');
+
+    expect(svc.isRunning()).toBe(true);
+  });
+
+  it('leaves the clock alone when Hold up is pressed', async () => {
+    // Hold up is the answer that only closes the alert: nothing started,
+    // nothing skipped, nothing paused.
+    await svc.init();
+    svc.start();
+
+    alertAction('hold');
+
+    expect(svc.isRunning()).toBe(true);
+    expect(svc.timerType()).toBe('work');
+    expect(svc.sessionCount()).toBe(0);
   });
 });

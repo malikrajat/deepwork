@@ -30,6 +30,20 @@ const makeMockSettings = () => ({
   settings: signal({ ...DEFAULT_SETTINGS }),
 });
 
+/**
+ * The four answers the completion alert offers, as both surfaces draw them.
+ *
+ * Spelled out here rather than read off the service: the ids are what a pressed
+ * button reports back, so the test should fail if one is renamed, not agree with
+ * whatever the code now says.
+ */
+const ALERT_ANSWERS = [
+  { id: 'pause', label: 'Pause' },
+  { id: 'next', label: 'Next' },
+  { id: 'resume', label: 'Resume' },
+  { id: 'hold', label: 'Hold up' },
+];
+
 describe('NotificationService', () => {
   let svc: NotificationService;
   let mockSettings: ReturnType<typeof makeMockSettings>;
@@ -125,12 +139,13 @@ describe('NotificationService', () => {
     expect(showToast).toHaveBeenCalledTimes(1);
     // The raise itself is not a repeat: it is the alert, not a reminder of one.
     // It carries the first line of the focus list, as a quote of its own rather
-    // than as the message's last sentence.
+    // than as the message's last sentence — and the four answers, which travel
+    // with every post so a repeat can never strip them from the toast.
     expect(sendNotification).toHaveBeenLastCalledWith(
       'Focus session complete!',
       'Great work! Time for a short break.',
       0,
-      { quote: FOCUS_QUOTES[0] },
+      { quote: FOCUS_QUOTES[0], actions: ALERT_ANSWERS },
     );
 
     (svc as any).onRepeatTick();
@@ -143,7 +158,7 @@ describe('NotificationService', () => {
       'Focus session complete!',
       'Great work! Time for a short break.',
       2,
-      { quote: FOCUS_QUOTES[0] },
+      { quote: FOCUS_QUOTES[0], actions: ALERT_ANSWERS },
     );
     expect(showToast).toHaveBeenCalledTimes(3);
     expect((svc as any).playSound).toHaveBeenCalledTimes(3);
@@ -166,7 +181,7 @@ describe('NotificationService', () => {
       'Ready to focus again?',
       1,
       // The second alert of the run, so the second line of the break list.
-      { quote: BREAK_QUOTES[1] },
+      { quote: BREAK_QUOTES[1], actions: ALERT_ANSWERS },
     );
   });
 
@@ -242,14 +257,84 @@ describe('NotificationService', () => {
       title: 'Focus session complete!',
       body: 'Reminder 3 · Great work! Time for a short break.',
       tag: 'deepwork-alert',
-      // An alert has no quote of its own, and it repeats on its own clock, so it
-      // asks for neither the extra line nor the wait. It asks for no buttons
-      // either: nothing about a finished session needs answering.
+      // A bare post has no quote of its own, and it repeats on its own clock, so
+      // it asks for neither the extra line nor the wait. The completion alert
+      // itself does pass its four answers — see the next test — so what this
+      // pins down is the shape of a post that was given nothing.
       quote: null,
       sticky: false,
       actions: [],
     });
     expect(plugin.sendNotification).not.toHaveBeenCalled();
+  });
+
+  it('posts the alert’s four answers as buttons on the desktop toast', async () => {
+    // The toast is where the user is looking, so the clock's controls belong on
+    // it: Pause, Next and Resume act, and Hold up closes the alert without
+    // touching the clock. Windows is the only platform whose toast reports a
+    // press, and the id — not the label — is what comes back.
+    const { invoke } = await import('@tauri-apps/api/core');
+    vi.mocked(invoke).mockResolvedValue(undefined as never);
+    (svc as any).playSound = vi.fn();
+    (svc as any).startRepeatLoop = vi.fn();
+
+    await svc.fireTimerComplete('work');
+
+    expect(invoke).toHaveBeenCalledWith(
+      'alert_notify',
+      expect.objectContaining({
+        tag: 'deepwork-alert',
+        quote: FOCUS_QUOTES[0],
+        // Not a waiting toast: the alert repeats on its own clock, so it does
+        // not need the OS to keep it on screen as well.
+        sticky: false,
+        actions: ALERT_ANSWERS,
+      }),
+    );
+  });
+
+  it('answers the alert from a pressed button, then lets the clock act', () => {
+    // A press on the toast and a press on the card are one answer: both go
+    // through `runAlertAction`, so the alert closes either way and only the
+    // clock's three answers are forwarded to whoever holds the clock.
+    const handler = vi.fn();
+    svc.onAlertAction(handler);
+
+    (svc as any).runAlertAction('resume');
+
+    expect(svc.ringing()).toBe(false);
+    expect(handler).toHaveBeenCalledWith('resume');
+  });
+
+  it('closes the alert on Hold up without asking the clock anything', () => {
+    const handler = vi.fn();
+    svc.onAlertAction(handler);
+
+    (svc as any).runAlertAction('hold');
+
+    expect(svc.ringing()).toBe(false);
+    expect(handler).not.toHaveBeenCalled();
+  });
+
+  it('raises the card with the same four answers, answered the same way', async () => {
+    (svc as any).sendNotification = vi.fn().mockResolvedValue(undefined);
+    (svc as any).playSound = vi.fn();
+    (svc as any).startRepeatLoop = vi.fn();
+    const handler = vi.fn();
+    svc.onAlertAction(handler);
+
+    await svc.fireTimerComplete('work');
+    vi.runAllTimers();
+
+    expect(svc.toast()?.actions?.map((action) => action.label)).toEqual(
+      ALERT_ANSWERS.map((answer) => answer.label),
+    );
+
+    // The card's own answer takes the same path as the toast's — Resume starts
+    // the session that is waiting, and the alert is closed on the way.
+    await svc.toast()?.actions?.[2].run();
+    expect(handler).toHaveBeenCalledWith('resume');
+    expect(svc.toast()).toBeNull();
   });
 
   it('posts a quote as a line of its own, and asks for a toast that waits', async () => {

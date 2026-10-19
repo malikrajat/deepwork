@@ -1016,6 +1016,38 @@ fn app_id_is_registered(app: &AppHandle) -> bool {
         .exists()
 }
 
+/// Tells the shell which application this process is, before it draws anything.
+///
+/// Windows identifies a desktop app by a string — an Application User Model ID —
+/// and it can learn that string from three places: this call, a Start-menu
+/// shortcut carrying the same id, or, failing both, a guess made from the
+/// executable's path. Only the first two are the same app. The guess is a path,
+/// not an identity, so the running process never matches the shortcut Windows
+/// checks before it lets an app pin itself — and the request is refused.
+///
+/// The refusal is not the quiet "no" it sounds like: the shell cannot find an app
+/// list entry for the process, so it shows the folder the executable lives in and
+/// expects the user to right-click it. That is what this call prevents, and it is
+/// why Tauri's notification identity work in `alert_app_id` was not enough on its
+/// own — that names the app on a toast, while this names the *process* to the
+/// taskbar.
+///
+/// The id is the bundle identifier: the same string the installer stamped on the
+/// Start-menu shortcut, and the same one toasts are posted under, so all three
+/// agree. Set once, at the top of `run`, because the documentation requires it
+/// before any window is presented or any jump list is touched.
+///
+/// Returns the call's own result so the startup log can record it once the log
+/// files exist — this runs before the logger, on purpose.
+#[cfg(windows)]
+fn identify_to_the_shell(app_id: &str) -> i32 {
+    use windows_sys::Win32::UI::Shell::SetCurrentProcessExplicitAppUserModelID;
+
+    let wide: Vec<u16> = app_id.encode_utf16().chain(std::iter::once(0)).collect();
+    // SAFETY: `wide` is NUL-terminated and outlives the call, which only reads it.
+    unsafe { SetCurrentProcessExplicitAppUserModelID(wide.as_ptr()) }
+}
+
 /// Escapes the five characters that would otherwise end or corrupt the toast's
 /// own XML. The title and body are the app's own lines today; escaping them keeps
 /// that from being the reason a completion alert goes missing tomorrow.
@@ -1099,12 +1131,12 @@ fn taskbar_pin(_app: AppHandle) -> Result<(), String> {
 
 /// Opens the list of installed apps, where the user can pin DeepWork themselves.
 ///
-/// The honest half of the pin feature: Windows 11 keeps programmatic pinning for
-/// apps it has packaged itself, so an unpackaged DeepWork cannot do it even when
-/// the taskbar API exists. `shell:AppsFolder` is the same list the Start menu's
-/// "All apps" is built from, and the context menu there has **Pin to taskbar**.
-/// This is what the notification's **Yes** opens when the shell has said no to
-/// the request — better than a button that ends in an error message.
+/// The honest half of the pin feature: when the shell has refused the request —
+/// a policy that forbids pinning, or a Windows that cannot match this build to an
+/// app list entry — `shell:AppsFolder` is the same list the Start menu's "All
+/// apps" is built from, and the context menu there has **Pin to taskbar**. This
+/// is what the notification's **Yes** falls back to, better than a button that
+/// ends in an error message.
 #[tauri::command]
 fn open_pin_helper() -> Result<(), String> {
     #[cfg(windows)]
@@ -1279,6 +1311,15 @@ pub fn run() {
     // is, the line goes to the system temp directory rather than nowhere.
     logging::install_panic_hook();
 
+    // The context is built here rather than in the final `run` call, because the
+    // shell has to be told which app this is before anything is drawn and that
+    // needs the bundle identifier the context carries. See
+    // `identify_to_the_shell`.
+    let context = tauri::generate_context!();
+
+    #[cfg(windows)]
+    let shell_identity = identify_to_the_shell(&context.config().identifier);
+
     // One list, in `db_migrations`, because the repair command compares the same
     // bytes this build embeds with the hashes in the database. See that module.
     let migrations = db_migrations::migrations();
@@ -1323,7 +1364,7 @@ pub fn run() {
             updates::update_download,
             updates::update_install,
         ])
-        .setup(|app| {
+        .setup(move |app| {
             // The log files are opened first: everything that follows — window,
             // tray, startup entry — is then written down, which is what makes
             // a bug report from another machine readable.
@@ -1337,6 +1378,17 @@ pub fn run() {
                 std::env::consts::ARCH,
                 log_dir.display()
             );
+
+            // Written now rather than where it happens: the identity is set
+            // before the logger exists, and a process the shell cannot name is
+            // the start of "pin to taskbar opened a folder instead".
+            #[cfg(windows)]
+            if shell_identity < 0 {
+                log::warn!(
+                    target: logging::SYSTEM,
+                    "the shell does not know this app's identity: 0x{shell_identity:08X}"
+                );
+            }
 
             // Every launch opens the full DeepWork window — including a login
             // launch, which the user asked for so the app is never forgotten.
@@ -1640,7 +1692,7 @@ pub fn run() {
             }
             _ => {}
         })
-        .run(tauri::generate_context!())
+        .run(context)
         .expect("error while running tauri application");
 }
 
@@ -1713,5 +1765,45 @@ mod toast_tests {
     fn the_quote_is_a_line_of_its_own_and_is_escaped() {
         let xml = toast_xml("T", "B", Some("A & B"), "", &[]);
         assert!(xml.contains(r#"<text placement="attribution">A &amp; B</text>"#));
+    }
+}
+
+/// The process identity, which is the difference between a pin request that is
+/// answered and one that opens the executable's folder instead.
+///
+/// The call is one Win32 function, so the test is not about the algorithm: it is
+/// about the two ways it silently does nothing — a wide string that is not what
+/// the API expects, and a call made too late — neither of which produces an
+/// error the app could notice. Reading the id back is the only way to know the
+/// process is actually named.
+#[cfg(all(test, windows))]
+mod shell_identity_tests {
+    use super::*;
+
+    #[test]
+    fn the_process_can_be_named_to_the_shell() {
+        use windows_sys::Win32::UI::Shell::GetCurrentProcessExplicitAppUserModelID;
+
+        let id = "com.deepwork.app.aumid-test";
+        let set = identify_to_the_shell(id);
+        assert!(set >= 0, "setting the app id failed: 0x{set:08X}");
+
+        let mut raw = std::ptr::null_mut();
+        // SAFETY: the call writes one pointer, which `raw` outlives.
+        let read = unsafe { GetCurrentProcessExplicitAppUserModelID(&mut raw) };
+        assert!(read >= 0, "reading the app id back failed: 0x{read:08X}");
+
+        let mut length = 0usize;
+        // SAFETY: the returned string is NUL-terminated.
+        while unsafe { *raw.add(length) } != 0 {
+            length += 1;
+        }
+        // SAFETY: `length` counts the units before the terminator.
+        let read_back =
+            String::from_utf16_lossy(unsafe { std::slice::from_raw_parts(raw, length) });
+
+        // The string is the API's own allocation and this process ends in a
+        // moment; freeing it would mean a whole COM dependency for one line.
+        assert_eq!(read_back, id);
     }
 }
