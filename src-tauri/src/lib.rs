@@ -642,6 +642,23 @@ struct ToastActionEvent {
     action: String,
 }
 
+/// What a toast reports when it goes away without one of its buttons being
+/// pressed.
+///
+/// `reason` separates the cases the page has to treat differently: `user` (the
+/// user crossed or swiped it away) and `timeout` (the shell let a toast that was
+/// not sticky expire) both mean the question is unanswered and deserves another
+/// reminder; `activated` is a click on the toast's body, which brings the app
+/// forward but still chooses no answer. `app` — the app taking its own toast back
+/// after an answer — is filtered out in the shell, because that is the one
+/// dismissal that is *not* the user declining to answer.
+#[cfg(windows)]
+#[derive(Clone, serde::Serialize)]
+struct ToastDismissedEvent {
+    tag: String,
+    reason: String,
+}
+
 /// The toasts the app has posted and not yet replaced, one per tag.
 ///
 /// Windows raises `Activated` on the `ToastNotification` **object**, so a toast
@@ -748,7 +765,8 @@ fn show_toast(
     use windows::Data::Xml::Dom::XmlDocument;
     use windows::Foundation::TypedEventHandler;
     use windows::UI::Notifications::{
-        ToastActivatedEventArgs, ToastNotification, ToastNotificationManager,
+        ToastActivatedEventArgs, ToastDismissalReason, ToastDismissedEventArgs, ToastNotification,
+        ToastNotificationManager,
     };
 
     let document = XmlDocument::new().map_err(|err| err.to_string())?;
@@ -765,6 +783,11 @@ fn show_toast(
         // The press arrives as the action's own `arguments` string — the id the
         // page gave the button — and leaves again as one event. The tag travels
         // with it so the page can tell which of its messages was answered.
+        //
+        // An activation with no argument is not a button: it is a click on the
+        // toast's body. That brings the app forward but answers nothing, so it is
+        // reported as a dismissal rather than silently dropped — a question the
+        // user clicked past still has to be asked again.
         let app_for_action = app.clone();
         let tag_for_action = tag.to_string();
         toast
@@ -775,7 +798,15 @@ fn show_toast(
                         if let Ok(args) = args.cast::<ToastActivatedEventArgs>() {
                             if let Ok(argument) = args.Arguments() {
                                 let argument = argument.to_string();
-                                if !argument.is_empty() {
+                                if argument.is_empty() {
+                                    let _ = app_for_action.emit(
+                                        "deepwork:toast-dismissed",
+                                        ToastDismissedEvent {
+                                            tag: tag_for_action.clone(),
+                                            reason: "activated".to_string(),
+                                        },
+                                    );
+                                } else {
                                     let _ = app_for_action.emit(
                                         "deepwork:toast-action",
                                         ToastActionEvent {
@@ -786,6 +817,44 @@ fn show_toast(
                                 }
                             }
                         }
+                    }
+                    Ok(())
+                },
+            ))
+            .map_err(|err| err.to_string())?;
+
+        // The other way a toast can end without an answer: the user crosses it,
+        // or a shell that ignored `sticky` lets it expire. The app hiding its own
+        // toast after an answer reports `ApplicationHidden` and is not passed on.
+        let app_for_dismiss = app.clone();
+        let tag_for_dismiss = tag.to_string();
+        toast
+            .Dismissed(&TypedEventHandler::new(
+                move |_sender: windows::core::Ref<'_, ToastNotification>,
+                      args: windows::core::Ref<'_, ToastDismissedEventArgs>| {
+                    let reason = args
+                        .as_ref()
+                        .and_then(|args| args.Reason().ok())
+                        .map(|reason| {
+                            if reason == ToastDismissalReason::UserCanceled {
+                                "user"
+                            } else if reason == ToastDismissalReason::TimedOut {
+                                "timeout"
+                            } else if reason == ToastDismissalReason::ApplicationHidden {
+                                "app"
+                            } else {
+                                "unknown"
+                            }
+                        })
+                        .unwrap_or("unknown");
+                    if reason != "app" {
+                        let _ = app_for_dismiss.emit(
+                            "deepwork:toast-dismissed",
+                            ToastDismissedEvent {
+                                tag: tag_for_dismiss.clone(),
+                                reason: reason.to_string(),
+                            },
+                        );
                     }
                     Ok(())
                 },

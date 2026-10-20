@@ -22,6 +22,7 @@ describe('TimerService', () => {
     init: ReturnType<typeof vi.fn>;
     fireTimerComplete: ReturnType<typeof vi.fn>;
     onAlertAction: ReturnType<typeof vi.fn>;
+    dismiss: ReturnType<typeof vi.fn>;
   };
   let mockSettings: {
     settings: ReturnType<typeof signal<typeof DEFAULT_SETTINGS>>;
@@ -41,6 +42,7 @@ describe('TimerService', () => {
       init: vi.fn().mockResolvedValue(undefined),
       fireTimerComplete: vi.fn().mockResolvedValue(undefined),
       onAlertAction: vi.fn(),
+      dismiss: vi.fn(),
     };
     TestBed.configureTestingModule({
       providers: [
@@ -150,6 +152,17 @@ describe('TimerService', () => {
     svc.start();
     svc.start(); // second call ignored
     expect(svc.isRunning()).toBe(true);
+  });
+
+  it('answers a ringing alert whenever the next session is started', async () => {
+    // The Dashboard and the widget dismiss the alert from their own Start
+    // buttons; the keyboard shortcut and any other caller start the clock
+    // directly. Starting is the answer either way — otherwise the user is asked
+    // again three minutes later about the session they are already in.
+    await svc.init();
+    svc.start();
+
+    expect(mockNotifications.dismiss).toHaveBeenCalledTimes(1);
   });
 
   it('stop() resets remaining seconds to full work duration', async () => {
@@ -337,12 +350,42 @@ describe('TimerService', () => {
     expect(svc.isRunning()).toBe(false);
   });
 
-  it('skips to the next session when Next is pressed', async () => {
+  it('moves on and starts the next session when Next is pressed', async () => {
+    // Next is the answer of someone who has decided to carry on: the finished
+    // session is already recorded, so it moves to the next type and runs it.
+    // Leaving it waiting made the user press play again for a clock they had
+    // just answered.
     await svc.init();
 
     alertAction('next');
 
     expect(svc.timerType()).toBe('short-break');
+    expect(svc.isRunning()).toBe(true);
+    expect(svc.remainingSeconds()).toBe(DEFAULT_SETTINGS.shortBreak);
+  });
+
+  it('Next starts the focus session that follows a break too', async () => {
+    await svc.init();
+    svc.skip(); // work → short-break
+    expect(svc.timerType()).toBe('short-break');
+
+    alertAction('next');
+
+    expect(svc.timerType()).toBe('work');
+    expect(svc.isRunning()).toBe(true);
+  });
+
+  it('Next from a running session stops it, moves on and starts the next one', async () => {
+    // A toast waits in the notification centre long after the alert stops
+    // ringing, so Next can be pressed while something is running. It is still
+    // "this one is done, carry on": the session it was over is skipped.
+    await svc.init();
+    svc.start();
+
+    alertAction('next');
+
+    expect(svc.timerType()).toBe('short-break');
+    expect(svc.isRunning()).toBe(true);
   });
 
   it('starts the session that is waiting when Resume is pressed', async () => {

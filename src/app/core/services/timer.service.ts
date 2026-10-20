@@ -62,6 +62,12 @@ export class TimerService implements OnDestroy {
     // the notification centre long after the alert stops ringing: **Pause** has
     // to stop a session the user started since, and **Resume** the next one.
     //
+    // **Next** is the one that carries on by itself: it moves to the next
+    // session *and* starts it, because "next" is the answer of someone who has
+    // decided to keep going. The Dashboard's and the widget's own skip buttons
+    // are a different answer — "not this one, not yet" — and still leave the
+    // next session waiting. See `skipAndStart`.
+    //
     // **Hold up** never arrives — closing the alert is `NotificationService`'s
     // own job, and it does that before asking the clock anything.
     this.notifications.onAlertAction((action) => {
@@ -70,7 +76,7 @@ export class TimerService implements OnDestroy {
           this.pause();
           break;
         case 'next':
-          this.skip();
+          this.skipAndStart();
           break;
         case 'resume':
           this.start();
@@ -124,6 +130,13 @@ export class TimerService implements OnDestroy {
 
   start(): void {
     if (this.isRunning()) return;
+
+    // Starting a session is an answer to the completion alert, whichever control
+    // did it. The Dashboard and the widget have always dismissed the alert on
+    // their own Start buttons; doing it here covers the keyboard shortcut and
+    // any future caller too, so a user who starts the next session in the app
+    // is not asked again three minutes later about a session they are already in.
+    this.notifications.dismiss();
 
     // If remaining is already 0 (e.g. timer expired while app was closed), just advance
     if (this.remainingSeconds() <= 0) {
@@ -183,6 +196,24 @@ export class TimerService implements OnDestroy {
     this.advanceToNext();
     this.persistState();
     this.log.info('flow', `timer skipped · next is ${this.timerType()}`);
+  }
+
+  /**
+   * Moves to the next session and starts it — the completion alert's **Next**.
+   *
+   * A finished session is already recorded by the time the alert is answered, so
+   * the only decision left is what to do next. Pressing **Next** is the user
+   * saying "carry on": the next session type is set up exactly as {@link skip}
+   * would set it up, and then it runs, so the answer does not leave the user
+   * looking at a full clock and a play button they have already pressed once.
+   *
+   * `skip()` itself is deliberately left alone: the Dashboard's and the widget's
+   * **Skip** mean "not this one", not "and then this one", and starting a
+   * session the user did not ask to start there would be a different answer.
+   */
+  skipAndStart(): void {
+    this.skip();
+    this.start();
   }
 
   reset(): void {

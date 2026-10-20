@@ -37,7 +37,9 @@ One surface was still asking the question with no way to answer it: the **system
 notification**. It now carries the same four answers the card does — **Pause**,
 **Next**, **Resume** and **Hold up** — so the clock can be driven from the desktop,
 and the card draws them as well, which is what keeps the alert answerable on the
-platforms whose toast cannot report a press (AC-14).
+platforms whose toast cannot report a press (AC-14). **Next** carries on by
+itself: it moves to the next session and starts it, because answering "next" is
+the decision to keep going, not a second decision waiting to be made.
 
 ## Relationship to `001-create-deepwork` and `003-mini-widget-window`
 
@@ -54,10 +56,13 @@ platforms whose toast cannot report a press (AC-14).
    the completion as a notification, the whole widget shakes on it, its halo
    starts breathing, the countdown is replaced by a bell-off button, and the next
    session is already set up behind it.
-2. **Ignore it for a minute.** The tone rings again; the notification is raised
-   again under its own tag rather than added beside the first; the widget shakes
-   again and takes the next colour of the alert palette, so a glance from across
-   the desk says "still waiting" without the user reading anything.
+2. **Ignore it for a minute.** The tone rings again; the widget shakes again and
+   takes the next colour of the alert palette, so a glance from across the desk
+   says "still waiting" without the user reading anything. The desktop
+   notification is a **waiting toast**: it is still on screen, so it is not
+   replaced while it waits. If the user crosses it instead — because they are in
+   a demo or a call — the question comes back three minutes later, and keeps
+   coming back every three minutes until it is answered.
 3. **Answer it.** The user presses play. The tone stops, both surfaces go back to
    their own colours, and the next session runs — one press, no window to bring
    back.
@@ -71,9 +76,9 @@ platforms whose toast cannot report a press (AC-14).
    that is what they came to read.
 7. **Answer it from the desktop.** The user is in another window when the toast
    appears. They press **Resume** on it: the next session starts, the tone stops
-   and the toast is taken back — no window to bring forward. **Next** skips to the
-   session after this one instead, and **Pause** pauses whatever is running when
-   it is pressed.
+   and the toast is taken back — no window to bring forward. **Next** moves to the
+   session after this one and starts it instead, so carrying on is one press, and
+   **Pause** pauses whatever is running when it is pressed.
 8. **Go quiet from the desktop without deciding.** The user presses **Hold up**.
    The alert closes and the clock is left exactly as it was: nothing started,
    nothing skipped, nothing paused.
@@ -85,12 +90,17 @@ platforms whose toast cannot report a press (AC-14).
   loop. `TimerService` calls it the moment a session runs out — every session
   type, on every page — so the alert never depends on the Dashboard being the page
   on screen (it did, and a break finishing anywhere else was silent).
-- **AC-2** Each repeat rings the tone, **re-posts the system notification**, and
-  re-raises the card, all off one pulse. The re-post goes under the alert's own
-  handle — the tag the tagged Windows toast is created with, the `id` the plugin
-  takes, the `tag` the browser's Notification API takes — so the desktop re-raises
-  one notification instead of stacking a copy per interval, and the body carries
-  the count (`Reminder 2 · …`) so the replacement is something new to read. On the
+- **AC-2** Each repeat rings the tone and re-raises the card, all off one pulse.
+  On Windows the system notification is a **waiting toast** (`sticky`): it stays
+  on screen until one of the four answers is pressed or the user crosses it, and
+  it is not replaced on every tone, because replacing a question every minute
+  turns it into a banner. A toast the user crosses is posted again after
+  `UNANSWERED_NOTIFICATION_REMINDER_MS` (three minutes), under the alert's own
+  handle, and again after every further crossing (AC-15). Where the platform
+  cannot keep a toast, each repeat re-posts it — under the tagged Windows toast's
+  handle, the plugin's `id`, or the browser's `tag` — so the desktop re-raises one
+  notification instead of stacking a copy per interval, and the body carries the
+  count (`Reminder 2 · …`) so the replacement is something new to read. On the
   desktop this needs the shell's own `alert_notify` command: the notification
   plugin's desktop path posts through `notify-rust`, which has no tag to post
   under.
@@ -154,14 +164,29 @@ platforms whose toast cannot report a press (AC-14).
   card gets the same ids behind closures, so a button can never mean one thing on
   the desktop and another in the app. A press reports the button's **id**, never
   its label, so wording is free to change. **Pause** pauses the session that is
-  running when it is pressed, **Next** skips to the next session type, and
-  **Resume** starts the session that is waiting (`NotificationService`,
-  `onAlertAction`, answered by `TimerService`); **Hold up** closes the alert and
-  leaves the clock untouched. Every answer stops the ring, and every answer takes
-  the alert's notification back (`toast_dismiss`) — a question that has been
-  answered must not stay on screen asking. The buttons travel with **every**
-  repeat: Windows replaces the toast it is holding, so a repeat posted without
-  them would silently strip the answers mid-question.
+  running when it is pressed, **Next** moves to the next session type **and
+  starts it** — `TimerService.skipAndStart`, because "next" is the answer of
+  someone who has decided to carry on, while the Dashboard's and the widget's own
+  skip buttons keep meaning "not this one" — and **Resume** starts the session
+  that is waiting (`NotificationService`, `onAlertAction`, answered by
+  `TimerService`); **Hold up** closes the alert and leaves the clock untouched.
+  Every answer stops the ring, and every answer takes the alert's notification
+  back (`toast_dismiss`) — a question that has been answered must not stay on
+  screen asking. Every post — the raise, a re-ask after a crossing, and a repeat
+  on a platform that cannot keep the toast — carries the buttons: Windows replaces
+  the toast it is holding, so a post without them would silently strip the answers
+  mid-question.
+- **AC-15** The alert's toast is posted **sticky**, and the Windows shell reports
+  a dismissal through `deepwork:toast-dismissed` when it is swiped away
+  (`UserCanceled`), expires (`TimedOut`), or has its body clicked without a button
+  (an empty activation). The app treating its own toast as hidden
+  (`ApplicationHidden`, after an answer) is filtered out in the shell. A dismissal
+  is **not** an answer: `NotificationService` re-posts the toast after
+  `UNANSWERED_NOTIFICATION_REMINDER_MS` (three minutes), and again three minutes
+  after every further dismissal, until one of the four buttons is pressed.
+  `dismiss()` clears the pending reminder. `alertIsSticky` is true only when the
+  tagged Windows toast accepted the post; where it did not, the repeat loop keeps
+  re-posting the notification as before.
 
 ## Out of scope
 
@@ -186,6 +211,7 @@ platforms whose toast cannot report a press (AC-14).
 | The four answers, and the clock behind them      | `NotificationService.ALERT_ACTIONS` / `onAlertAction`, and `TimerService`'s constructor                                 |
 | The palette, and which entry a pulse is on       | `src/app/core/constants/alert.constants.ts`                                                                             |
 | The tagged Windows toast, and the plugin fallback | `src-tauri/src/lib.rs` (`alert_notify`), `src-tauri/Cargo.toml`                                                         |
+| Waiting, crossing and the three-minute re-ask     | `NotificationService.alertIsSticky` / `scheduleAlertReminder`, `UNANSWERED_NOTIFICATION_REMINDER_MS`, and `deepwork:toast-dismissed` in `lib.rs` |
 | The trigger: a session finishing, on any page    | `src/app/core/services/timer.service.ts`                                                                                |
 | The answer: start/pause, skip, stop, silence     | `src/app/shared/components/mini-widget/mini-widget.component.ts`                                                        |
 | The card, which is the alert in the full window  | `src/app/shared/components/toast/toast.component.ts`                                                                    |

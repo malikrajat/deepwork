@@ -5,6 +5,39 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ---
 
+## [Unreleased]
+
+### Added
+
+- **Standing reminders: the ones that do not give up.** A new **Reminders**
+  page (and card, and desktop notification) for the things a normal reminder is
+  worst at — a presentation, a class, a dose, a train — where the user is
+  standing in front of a room and cannot answer. A reminder is a **stored
+  record**, not a timer: close the laptop, reopen it after lunch, and the 09:00
+  reminder is still standing, with the copy that says *"It was due at 09:00. We
+  kept it for you."* It **escalates** rather than repeating on a stopwatch —
+  three, five, ten, fifteen, twenty, then every thirty minutes for
+  **Insistent**, longer for **Steady** and **Gentle** — measured from the last
+  actual ring, so a snooze cannot shorten the gap.
+  One reminder asks at a time and the card says how many are behind it; a
+  crossed notification comes back after three minutes, because crossing is not
+  answering; and a pause holds the asking without erasing the reminder. There is
+  no close cross on the card and no timeout anywhere: the only exits are
+  **Done**, **Snooze 10 min** and **Stop reminding**, the same three answers the
+  sticky desktop notification carries. It never brings the window forward — the
+  moments it exists for are exactly the ones where stealing focus would be the
+  opposite of help. The page is at `/reminders`, after Time by Task
+  (`reminders.component.ts`, `reminder.service.ts`, `reminder.util.ts`,
+  `reminder-card.component.ts`, `specs/017-standing-reminders`).
+
+- **A website prompt that speaks the same language as the app.** The product
+  site has to explain two ideas the app now has — *the work your focus goes to*
+  (Time by Task) and *the reminder that does not give up* (Standing Reminders) —
+  without turning either into a feature grid. [`docs/website-prompt.md`](docs/website-prompt.md)
+  is a complete, copy-paste brief for building that site: the sections, the
+  exact copy, the demo data, the visual direction, the interactions, and the
+  things the page must not claim.
+
 ## [3.0.0] – 2026-10-18
 
 > **Progress.** This entry was written as the work landed, not after it: each
@@ -199,7 +232,15 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   the notification down again, because a question that has been answered must not
   stay on screen asking. The water reminder gets the same treatment: **Yes, drank**
   logs the glass and **Not now** closes it, from the card or from the notification,
-  and either way the notification is withdrawn
+  and either way the notification is withdrawn. The answers are on the
+  notification in **every** case — including a reminder that arrives while the
+  window is the mini widget, which used to be counted silently and so arrived
+  with no buttons at all. Where a notification cannot carry a press (the plugin
+  and browser surfaces), the minimised reminder still counts the glass rather
+  than hold the cadence behind a question nobody can answer. A notification the
+  user **crosses** is not an answer either: the reminder comes back after three
+  minutes, and again three minutes after every further crossing, until **Yes** or
+  **Not now** is pressed
   (`launch-prompt.service.ts`, `water-reminder.service.ts`,
   `NotificationService.dismissSystemNotification`, and `toast_dismiss` with
   `ToastHandles` in `lib.rs`).
@@ -208,15 +249,23 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   session that runs out now posts **Pause**, **Next**, **Resume** and **Hold up**
   as buttons on its toast, so the clock can be driven without bringing the window
   forward. Pause pauses whatever is running when it is pressed — the toast waits
-  in the notification centre long after the alert was raised — Next skips to the
-  next session, Resume starts the one that is waiting, and Hold up closes the
-  alert and leaves the clock exactly as it was. Every answer stops the ring and
-  takes the toast back, and the buttons are re-posted with every repeat: Windows
-  replaces the notification it is holding, so a repeat without them would strip
-  the answers mid-question. The card in the full window draws the same four from
-  the same list, which is what keeps the alert answerable on the platforms whose
-  toast cannot report a press (`NotificationService.ALERT_ACTIONS` and
-  `onAlertAction`, `TimerService`, `toast.component.ts`).
+  in the notification centre long after the alert was raised — Next moves to the
+  next session **and starts it**, so answering is all it takes to carry on
+  rather than leaving a full clock behind a second press, Resume starts the one
+  that is waiting, and Hold up closes the alert and leaves the clock exactly as
+  it was. The skip buttons in the Dashboard and the widget are unchanged: they
+  still mean "not this one", not "and then this one" (`TimerService.skipAndStart`).
+  Every answer stops the ring and takes the toast back, and every post — the
+  raise, a re-ask, and a repeat on a platform that cannot keep a toast — carries
+  the four buttons: Windows replaces the notification it is holding, so a post
+  without them would strip the answers mid-question. The toast itself now
+  **waits** on screen instead of sliding away, and a toast the user crosses is
+  posted again after three minutes — and every three minutes after that — because
+  a crossing is not an answer either. The card in the full window draws the same
+  four from the same list, which is what keeps the alert answerable on the
+  platforms whose toast cannot report a press
+  (`NotificationService.ALERT_ACTIONS` and `onAlertAction`, `TimerService`,
+  `toast.component.ts`).
 
 - **A first-run setup that can be seen again.** The first-run question was
   genuinely once-only, which also meant it could not be shown a second time — and

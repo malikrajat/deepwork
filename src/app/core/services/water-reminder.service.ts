@@ -12,7 +12,11 @@ import {
 } from '../utils/water.util';
 import { LogService } from './log.service';
 import { AttentionService } from './attention.service';
-import { NotificationAction, NotificationService } from './notification.service';
+import {
+  NotificationAction,
+  NotificationService,
+  UNANSWERED_NOTIFICATION_REMINDER_MS,
+} from './notification.service';
 import { SettingsService } from './settings.service';
 import { UiService } from './ui.service';
 import { WaterService } from './water.service';
@@ -70,12 +74,27 @@ const LAST_ALIVE_KEY = 'deepwork.water.lastAlive.v1';
  *   else closes the card: it holds the cadence until the user answers it, so the
  *   next nudge cannot arrive underneath a question that is still on screen. The
  *   state for all of that is one signal holding one plain object.
+ * - **The question never loses its answers.** The toast carries the same two
+ *   buttons as the card, and it is the same question on both surfaces. The one
+ *   place a card cannot be shown is the mini widget, so there — where the
+ *   notification can report a press — the topmost question *is* the notification
+ *   and the window is deliberately not brought forward. Only where notifications
+ *   cannot carry answers (the plugin and browser fallbacks) does a minimised
+ *   window fall back to counting the glass itself, because an answer that cannot
+ *   be given is worse than one that was assumed. See `asksOnDesktop` and
+ *   `countsItself`.
+ * - **A crossed notification is not an answer.** The toast waits on screen until
+ *   it is answered, and if the user swipes it away — because they are in a
+ *   meeting, a demo or a sentence — the question comes back after three minutes,
+ *   and again three minutes after every further crossing, until **Yes** or **Not
+ *   now** is pressed. The card, the cadence and everything else are untouched by
+ *   a crossing; only a real answer ends the asking. See `scheduleNudgeReminder`.
  * - **A minimised window is left alone.** Shrinking DeepWork into the mini
  *   widget is the user saying "I am working elsewhere", so a reminder that
  *   arrives then does not pull the full window back over what they are doing.
- *   It rings, counts the glass at the configured size and says so in the
- *   notification — see `waterAutoLogWhenMinimized`, which can turn that off and
- *   ask instead.
+ *   It rings, and asks where they are looking — the notification — and the
+ *   question is answered there. See `waterAutoLogWhenMinimized`, which can turn
+ *   that off and bring the card up instead.
  * - **Its clock only counts while the app is running.** Closing DeepWork — or
  *   shutting the machine down — is not time spent at the desk, so a launch
  *   folds the time it was away into the last reminder's instant and waits a
@@ -95,6 +114,19 @@ export class WaterReminderService implements OnDestroy {
   private readonly ui = inject(UiService);
   private readonly attention = inject(AttentionService);
   private readonly log = inject(LogService, { optional: true });
+
+  /**
+   * The two answers this reminder asks with, wherever they can be shown.
+   *
+   * One list for both surfaces: the toast gets the ids and labels, and the card
+   * asks the same question with the same ids behind its own, glass-sized label.
+   * A reminder that offered one set of answers on the desktop and another in the
+   * window would be two questions that happen to arrive together.
+   */
+  private static readonly ASK_ACTIONS: NotificationAction[] = [
+    { id: 'yes', label: 'Yes, drank' },
+    { id: 'no', label: 'Not now' },
+  ];
 
   /** The only timer this service will ever hold. */
   private timer: ReturnType<typeof setTimeout> | null = null;
@@ -139,6 +171,23 @@ export class WaterReminderService implements OnDestroy {
    */
   private unlistenToast: (() => void) | null = null;
 
+  /**
+   * Removes the toast-dismissed handler when this service goes away.
+   *
+   * A crossing is not an answer, but it is the cue to ask again: the handler
+   * starts the three-minute reminder in {@link scheduleNudgeReminder}.
+   */
+  private unlistenDismiss: (() => void) | null = null;
+
+  /**
+   * The timer that asks the crossed question again, if one is set.
+   *
+   * One timer, cleared whenever the question is answered, the reminder is turned
+   * off or the service stops, so a dismissed notification can never resurrect a
+   * question that no longer exists.
+   */
+  private reminderId: ReturnType<typeof setTimeout> | null = null;
+
   /** The stored preferences, as one object. */
   readonly prefs = computed<WaterPrefs>(() => waterPrefsOf(this.settingsService.settings()));
 
@@ -180,7 +229,7 @@ export class WaterReminderService implements OnDestroy {
 
   /**
    * Wires the notification's **Yes** and **Not now** to the same answer the
-   * card's buttons give.
+   * card's buttons give, and a crossing to the reminder that asks again.
    *
    * Registered once and kept for the life of the service rather than around
    * each reminder: the toast can be answered at any moment, including after the
@@ -196,6 +245,10 @@ export class WaterReminderService implements OnDestroy {
         if (action === 'yes' || action === 'no') void this.answerNudge(action);
       },
     );
+    this.unlistenDismiss = this.notifications.onToastDismissed(
+      NotificationService.WATER_NOTIFICATION_TAG,
+      () => this.scheduleNudgeReminder(),
+    );
   }
 
   /**
@@ -206,6 +259,7 @@ export class WaterReminderService implements OnDestroy {
    */
   stop(): void {
     this.running = false;
+    this.clearNudgeReminder();
     if (this.timer) {
       clearTimeout(this.timer);
       this.timer = null;
@@ -238,6 +292,7 @@ export class WaterReminderService implements OnDestroy {
       if (!prefs.enabled || !workingHours) {
         // Turning reminders off also takes back a question they are still asking.
         this.nudge.set(null);
+        this.clearNudgeReminder();
         this.nextAt.set(null);
         return;
       }
@@ -247,6 +302,7 @@ export class WaterReminderService implements OnDestroy {
       // overdue, so the first reminder after the pause is a full interval away
       // instead of arriving the moment the pause ends.
       if (this.attention.paused()) {
+        this.clearNudgeReminder();
         this.remember(now);
         this.nextAt.set(null);
         return;
@@ -331,6 +387,9 @@ export class WaterReminderService implements OnDestroy {
     const open = this.nudge();
     if (!open) return;
 
+    // The question has its answer, so the reminder that would have asked it
+    // again must go with it.
+    this.clearNudgeReminder();
     this.nudge.set(null);
     this.now.set(now);
 
@@ -359,8 +418,10 @@ export class WaterReminderService implements OnDestroy {
     const title = `Drink water — ${glass}`;
     const quote = quoteFor(this.nudgeCount);
 
-    // A minimised window is left alone: it is not pulled back over whatever the
-    // user is working in. A **test** never writes to the log, so it always asks.
+    // A minimised window is not pulled back over the user's work — but only a
+    // reminder whose notification cannot carry the answers may count the glass
+    // itself. Everywhere else the question is asked, on the desktop, and the
+    // widget is left where it is. A **test** never writes to the log.
     if (!options.test && this.countsItself(prefs)) {
       // It rings even though nothing is being asked: the tone is what tells
       // someone working in another window that a glass has been counted.
@@ -371,6 +432,10 @@ export class WaterReminderService implements OnDestroy {
     }
 
     const body = this.askingBody(prefs, glass, options);
+    // The one case where the card is not the surface: the window is the widget
+    // and the notification can be answered. Then the question stays on the
+    // sticky toast and the window stays exactly where it is.
+    const askOnDesktop = !options.test && this.asksOnDesktop(prefs);
 
     // The card goes up first: it is the part that waits for an answer, and the
     // notification is deliberately the quieter of the two.
@@ -381,8 +446,12 @@ export class WaterReminderService implements OnDestroy {
       title,
       body,
       quote,
+      surfaceWindow: !askOnDesktop,
     };
     this.nudgeCount = nudge.id;
+    // A new question replaces whatever was waiting before it, including the
+    // timer that would have re-asked the previous one.
+    this.clearNudgeReminder();
     this.nudge.set(nudge);
     // A question on screen holds the cadence — there is no next reminder to
     // promise until it has been answered.
@@ -396,21 +465,110 @@ export class WaterReminderService implements OnDestroy {
     // and the quote set apart from it — and the same two answers as buttons, so
     // the nudge reads the same in the app and in the OS notification, and can be
     // answered in either place without going to find the other.
-    await this.say(title, body, quote, now, [
-      { id: 'yes', label: 'Yes, drank' },
-      { id: 'no', label: 'Not now' },
-    ]);
+    const answerable = await this.say(title, body, quote, now, WaterReminderService.ASK_ACTIONS);
+
+    // The question was meant to live on the desktop, and the desktop turned out
+    // not to be able to carry its answers (an old shell, a notification the OS
+    // refused). Flipping the nudge hands it back to the card, whose component is
+    // watching `surfaceWindow` — so the window comes up rather than a question
+    // being left with no way to answer it.
+    if (askOnDesktop && !answerable) {
+      this.nudge.set({ ...nudge, surfaceWindow: true });
+    }
+  }
+
+  /**
+   * Asks the crossed question again in three minutes.
+   *
+   * Called when the user swipes the notification away — or clicks its body,
+   * which brings the app forward but still chooses nothing. Neither is an
+   * answer, so the question is not over: the glass has not been drunk, and the
+   * cadence is holding until it is. The timer is replaced rather than stacked by
+   * each crossing, and {@link answerNudge} clears it, so one question has at most
+   * one reminder waiting.
+   */
+  private scheduleNudgeReminder(): void {
+    this.clearNudgeReminder();
+    if (!this.nudge()) return;
+
+    this.reminderId = setTimeout(() => {
+      this.reminderId = null;
+      void this.repostNudge();
+    }, UNANSWERED_NOTIFICATION_REMINDER_MS);
+  }
+
+  /**
+   * Puts an unanswered question back on the desktop.
+   *
+   * It is the same question — same glass, same day, same line — because nothing
+   * about it has changed except that it was not answered. The tone rings again
+   * so a toast that reappears behind a maximized window is noticed; where the
+   * post cannot carry the answers, the card is handed the question instead
+   * (its component watches `surfaceWindow`).
+   */
+  private async repostNudge(): Promise<void> {
+    const nudge = this.nudge();
+    // The question may have been answered, the reminders turned off or the app
+    // paused between the crossing and the timer — none of which is a moment to
+    // speak.
+    if (!nudge || !this.prefs().enabled || this.attention.paused()) return;
+
+    this.notifications.chime();
+    const posted = await this.say(
+      nudge.title,
+      nudge.body,
+      nudge.quote,
+      new Date(),
+      WaterReminderService.ASK_ACTIONS,
+    );
+
+    if (!posted && !nudge.surfaceWindow) {
+      this.nudge.set({ ...nudge, surfaceWindow: true });
+    }
+  }
+
+  /** Drops a pending "ask again" without touching the question itself. */
+  private clearNudgeReminder(): void {
+    if (this.reminderId) {
+      clearTimeout(this.reminderId);
+      this.reminderId = null;
+    }
+  }
+
+  /**
+   * True when the reminder should be answered from the desktop instead of the
+   * card.
+   *
+   * Only while the window is the mini widget, only when the user has left
+   * `waterAutoLogWhenMinimized` on, and only when the notification can report a
+   * press. The setting's promise is "do not pull my window back over my work";
+   * it was never a promise to stop asking. Where the buttons cannot be pressed
+   * the question would have no answerer, and {@link countsItself} takes over.
+   */
+  private asksOnDesktop(prefs: WaterPrefs): boolean {
+    return (
+      prefs.autoLogWhenMinimized &&
+      this.ui.isMiniMode() &&
+      this.notifications.canAnswerOnNotification
+    );
   }
 
   /**
    * True when the reminder should count the glass itself rather than ask.
    *
-   * Only while the window is the mini widget, and only when the user has left
-   * `waterAutoLogWhenMinimized` on. A full window — even one sitting behind
-   * another app — is asked about, because that is a window the user can see.
+   * A minimised window is left alone, and a question needs a surface that can
+   * answer it — so this is the fallback for a system whose notifications cannot
+   * carry the two buttons. On Windows that is not the case: the question is
+   * asked on the toast and the widget stays put. A full window — even one
+   * sitting behind another app — is always asked about, because the card is
+   * right there.
    */
   private countsItself(prefs: WaterPrefs): boolean {
-    return prefs.autoLogWhenMinimized && this.ui.isMiniMode();
+    return (
+      prefs.autoLogWhenMinimized &&
+      this.ui.isMiniMode() &&
+      !this.notifications.canAnswerOnNotification
+    );
   }
 
   /**
@@ -458,6 +616,10 @@ export class WaterReminderService implements OnDestroy {
    * The quote goes as a quote rather than as the message's last sentence: the
    * toast puts it on a line of its own, and every surface the app falls back to
    * gets a blank line before it.
+   *
+   * Returns whether the post can carry the answers it was given — see
+   * `NotificationService.announce`. A caller that asks a question uses it to
+   * decide whether the card still has to be brought up.
    */
   private async say(
     title: string,
@@ -465,9 +627,9 @@ export class WaterReminderService implements OnDestroy {
     quote: string,
     now: Date,
     actions?: NotificationAction[],
-  ): Promise<void> {
+  ): Promise<boolean> {
     try {
-      await this.notifications.announce(title, body, {
+      const answerable = await this.notifications.announce(title, body, {
         quote,
         tag: NotificationService.WATER_NOTIFICATION_TAG,
         sticky: true,
@@ -476,8 +638,10 @@ export class WaterReminderService implements OnDestroy {
       const total = formatMillilitres(this.water.totalMl());
       const goal = formatMillilitres(this.prefs().goalMl);
       this.log?.info('flow', `water reminder at ${formatClockTime(now)} · ${total} of ${goal}`);
+      return answerable;
     } catch (error) {
       this.log?.warn('system', `water reminder could not be shown: ${describe(error)}`);
+      return false;
     }
   }
 
@@ -586,6 +750,8 @@ export class WaterReminderService implements OnDestroy {
     this.stop();
     this.unlistenToast?.();
     this.unlistenToast = null;
+    this.unlistenDismiss?.();
+    this.unlistenDismiss = null;
   }
 }
 

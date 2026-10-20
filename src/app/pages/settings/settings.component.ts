@@ -320,8 +320,9 @@ import { SettingsFormModel, createSettingsFormDefaults } from '../../shared/mode
           <span>
             While minimised
             <small class="setting-note"
-              >Ring and count the drink above instead of asking — the mini widget is left where it
-              is, so the full window never jumps back over your work</small
+              >Ask from the notification and leave the mini widget where it is. Where a
+              notification cannot carry the two answers, the drink is counted for you
+              instead.</small
             >
           </span>
           <div class="toggle-control">

@@ -9,6 +9,7 @@ Central reference for all guidance files in this repository.
 | [angular-best-practices.md](angular-best-practices.md) | Angular/TypeScript coding standards                           |
 | [code-signing.md](code-signing.md)                     | Windows installer signatures, and the macOS Gatekeeper dialog |
 | [memory-footprint.md](memory-footprint.md)             | Where the app's memory goes, and which levers can move it     |
+| [website-prompt.md](website-prompt.md)                 | A ready-to-use prompt for building the product website, with the sections and copy this repo already has |
 
 ## Copilot / AI agent configuration
 
@@ -39,6 +40,7 @@ Central reference for all guidance files in this repository.
 | `specs/014-task-completion-quote/`        | The line of encouragement on the card raised when a task is finished                                                                 |
 | `specs/015-responsive-layout/`            | The app on any screen: the drawer below 900px, the phone layout below 640px, the centred column above 1920px, and the four breakpoints that decide it |
 | `specs/016-time-by-task/`                 | The Time by Task page: focus sessions grouped by the work they paid for, all-time totals, first/last, repeat rhythm, Today/custom ranges, week/month/year breakdowns, colour legend and a virtualised list |
+| `specs/017-standing-reminders/`           | Reminders that stand until answered: escalation ladders, a stored moment that survives a restart, one question at a time, a sticky notification with the same three answers as the card, and no stolen focus |
 
 ---
 

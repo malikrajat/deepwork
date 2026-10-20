@@ -88,15 +88,18 @@ export interface AppSettings {
   /** The day's water target in millilitres; see `WATER_GOAL_OPTIONS`. */
   waterGoalMl: number;
   /**
-   * Whether a reminder that arrives while the window is minimised counts the
-   * glass by itself instead of asking.
+   * Whether a reminder that arrives while the window is minimised is asked
+   * without bringing the full window back.
    *
    * Minimising DeepWork is a deliberate "do not disturb me": someone who has
    * shrunk the app into the mini widget is working in another window, and the
    * reminder has no business pulling the full one back over it. With this on,
-   * the reminder rings, tells the operating system it counted the glass, and
-   * leaves the window alone; with it off, the old behaviour stands and the
-   * window comes back with the question.
+   * the reminder rings and asks on the system notification, whose **Yes** and
+   * **Not now** buttons the desktop can report, so the question still gets an
+   * answer and the widget stays put. On a system whose notifications cannot
+   * carry the buttons the drink is counted instead, because a question with no
+   * answerer would hold the cadence forever. With this off, the window comes
+   * back with the card as it always did.
    */
   waterAutoLogWhenMinimized: boolean;
   /**

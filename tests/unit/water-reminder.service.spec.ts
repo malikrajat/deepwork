@@ -28,12 +28,18 @@ describe('WaterReminderService', () => {
   let goalReached: WritableSignal<boolean>;
   let miniMode: WritableSignal<boolean>;
   const notifications = {
-    announce: vi.fn(async () => undefined),
+    announce: vi.fn(async () => true),
     chime: vi.fn(),
     init: vi.fn(),
+    // True only where the OS notification can carry buttons and report a press
+    // (a Windows desktop). The suite opts into it per test; the default is the
+    // plugin/browser surface, which cannot.
+    canAnswerOnNotification: false,
     // The notification's own two buttons. `start` wires them to `answerNudge`,
     // and the test that presses one reads the handler back off this mock.
     onToastAction: vi.fn((_tag: string, _handler: (action: string) => void) => () => undefined),
+    // A crossed toast. The handler is what starts the three-minute re-ask.
+    onToastDismissed: vi.fn((_tag: string, _handler: () => void) => () => undefined),
     // Present so the suite can prove the water feature never borrows the
     // Pomodoro's toast.
     fireTimerComplete: vi.fn(async () => undefined),
@@ -86,9 +92,14 @@ describe('WaterReminderService', () => {
     notifications.announce.mockClear();
     notifications.chime.mockClear();
     notifications.onToastAction.mockClear();
+    notifications.onToastDismissed.mockClear();
     notifications.fireTimerComplete.mockClear();
     notifications.showToastMessage.mockClear();
     notifications.dismissSystemNotification.mockClear();
+    // A test that opts into the desktop's buttons must not leave them on for the
+    // next one: most of the suite is the fallback surface, which has none.
+    notifications.canAnswerOnNotification = false;
+    notifications.announce.mockResolvedValue(true);
     water.ensureToday.mockClear();
     water.log.mockClear();
     service = build();
@@ -419,12 +430,187 @@ describe('WaterReminderService', () => {
   });
 
   /**
+   * Crossing the notification is not answering it. The user may swipe it away
+   * because they are in the middle of something, so the glass is still not
+   * drunk and the question comes back three minutes later — until it is answered.
+   */
+  describe('when the question is crossed', () => {
+    /** Raises a reminder and hands back the dismissal handler `start` registered. */
+    async function askedReminder(): Promise<{ nudge: number; dismiss: () => void }> {
+      service.start();
+      await vi.advanceTimersByTimeAsync(0);
+      await service.tick(at(10, 0));
+      await service.tick(at(11, 0));
+
+      const dismiss = notifications.onToastDismissed.mock.calls[0]?.[1] as unknown as () => void;
+      return { nudge: service.nudge()!.id, dismiss };
+    }
+
+    it('asks again three minutes later, and leaves the question open', async () => {
+      const { nudge, dismiss } = await askedReminder();
+      expect(notifications.announce).toHaveBeenCalledTimes(1);
+
+      dismiss();
+      await vi.advanceTimersByTimeAsync(3 * 60_000 - 1);
+      expect(notifications.announce).toHaveBeenCalledTimes(1);
+
+      await vi.advanceTimersByTimeAsync(1);
+
+      expect(notifications.announce).toHaveBeenCalledTimes(2);
+      expect(water.log).not.toHaveBeenCalled();
+      // It is the same question, still waiting: crossing does not close it.
+      expect(service.nudge()!.id).toBe(nudge);
+      // The re-ask carries the answers too, or it would be a question the
+      // desktop cannot answer.
+      expect(notifications.announce.mock.calls[1][2]).toMatchObject({
+        tag: 'deepwork-water',
+        sticky: true,
+        actions: [
+          { id: 'yes', label: 'Yes, drank' },
+          { id: 'no', label: 'Not now' },
+        ],
+      });
+    });
+
+    it('rings again with the re-ask, so a reappearing toast is noticed', async () => {
+      const { dismiss } = await askedReminder();
+      expect(notifications.chime).toHaveBeenCalledTimes(1);
+
+      dismiss();
+      await vi.advanceTimersByTimeAsync(3 * 60_000);
+
+      expect(notifications.chime).toHaveBeenCalledTimes(2);
+    });
+
+    it('keeps asking after every crossing until it is answered', async () => {
+      const { dismiss } = await askedReminder();
+
+      dismiss();
+      await vi.advanceTimersByTimeAsync(3 * 60_000);
+      expect(notifications.announce).toHaveBeenCalledTimes(2);
+
+      // The re-posted toast is crossed too.
+      dismiss();
+      await vi.advanceTimersByTimeAsync(3 * 60_000);
+      expect(notifications.announce).toHaveBeenCalledTimes(3);
+
+      await service.answerNudge('yes', at(11, 10));
+      dismiss();
+      await vi.advanceTimersByTimeAsync(3 * 60_000);
+
+      // Answered: the timer is gone, so the old crossings cannot resurrect it.
+      expect(notifications.announce).toHaveBeenCalledTimes(3);
+      expect(water.log).toHaveBeenCalledTimes(1);
+    });
+
+    it('does not re-ask once the reminder is answered', async () => {
+      await askedReminder();
+
+      await service.answerNudge('no', at(11, 5));
+      await vi.advanceTimersByTimeAsync(3 * 60_000);
+
+      expect(notifications.announce).toHaveBeenCalledTimes(1);
+    });
+
+    it('does not re-ask after the reminder is turned off', async () => {
+      const { dismiss } = await askedReminder();
+
+      dismiss();
+      settings.set({ ...settings(), waterReminders: false });
+      await service.tick(at(11, 1));
+      await vi.advanceTimersByTimeAsync(3 * 60_000);
+
+      expect(notifications.announce).toHaveBeenCalledTimes(1);
+      expect(service.nudge()).toBeNull();
+    });
+
+    it('stays quiet if a pause or a switch-off lands before the re-ask fires', async () => {
+      await askedReminder();
+      TestBed.inject(AttentionService).pauseFor(null);
+
+      // The timer callback itself checks the state, so even a crossing that
+      // slipped in just before the pause cannot speak through it.
+      await (service as any).repostNudge();
+      expect(notifications.announce).toHaveBeenCalledTimes(1);
+
+      settings.set({ ...settings(), waterReminders: false });
+      await (service as any).repostNudge();
+      expect(notifications.announce).toHaveBeenCalledTimes(1);
+    });
+  });
+
+  /**
    * The mini widget is the user saying "I am working elsewhere". A reminder that
-   * lands then must not pull the full window back over what they are doing — it
-   * rings, counts the glass at the configured size and says so.
+   * lands then must not pull the full window back over what they are doing — but
+   * it is still a question, and it is asked wherever the user is looking. Where
+   * the notification can carry the two answers that is the notification; only a
+   * surface that cannot carry them falls back to counting the glass.
    */
   describe('while the window is the mini widget', () => {
-    it('counts the glass itself instead of asking for it', async () => {
+    it('asks on the notification, with both answers, instead of counting for the user', async () => {
+      // A Windows desktop: the sticky toast reports the press, so the question
+      // can live there and the widget can stay exactly where it is. This is the
+      // case that used to arrive with no buttons at all.
+      miniMode.set(true);
+      notifications.canAnswerOnNotification = true;
+
+      await service.tick(at(10, 0));
+      await service.tick(at(11, 0));
+
+      expect(water.log).not.toHaveBeenCalled();
+      expect(service.nudge()).not.toBeNull();
+      const [, , options] = notifications.announce.mock.calls[0];
+      expect(options).toMatchObject({
+        tag: 'deepwork-water',
+        sticky: true,
+        actions: [
+          { id: 'yes', label: 'Yes, drank' },
+          { id: 'no', label: 'Not now' },
+        ],
+      });
+      // The card is hidden in the widget, so the window is not brought forward
+      // for it: the notification is the question, and it waits there.
+      expect(service.nudge()!.surfaceWindow).toBe(false);
+    });
+
+    it('logs the glass when Yes is pressed on the notification', async () => {
+      miniMode.set(true);
+      notifications.canAnswerOnNotification = true;
+      service.start();
+      await vi.advanceTimersByTimeAsync(0);
+      await service.tick(at(10, 0));
+      await service.tick(at(11, 0));
+
+      const [, press] = notifications.onToastAction.mock.calls[0];
+      press('yes');
+      await vi.advanceTimersByTimeAsync(0);
+
+      expect(water.log).toHaveBeenCalledTimes(1);
+      expect(water.log).toHaveBeenCalledWith(500);
+      expect(service.nudge()).toBeNull();
+      // The question was answered where it was asked; nothing surfaced, so
+      // nothing has to be handed back.
+    });
+
+    it('brings the card up when the notification could not carry the answers', async () => {
+      // The shell refused the toast, or an old build ignored the buttons. The
+      // question still has to be answerable, so the window comes back after all.
+      miniMode.set(true);
+      notifications.canAnswerOnNotification = true;
+      notifications.announce.mockResolvedValue(false);
+
+      await service.tick(at(10, 0));
+      await service.tick(at(11, 0));
+
+      // Flipping the flag is the service's half: the card's component sees it
+      // and is what actually brings the window up.
+      expect(service.nudge()!.surfaceWindow).toBe(true);
+      expect(water.log).not.toHaveBeenCalled();
+    });
+
+    it('counts the glass itself where a notification cannot carry the answers', async () => {
+      // The plugin and browser surfaces have no buttons. Asking there would hold
+      // the cadence behind a question nobody can answer, so the glass is counted.
       miniMode.set(true);
 
       await service.tick(at(10, 0));
@@ -463,6 +649,7 @@ describe('WaterReminderService', () => {
 
     it('asks instead when the user has turned the shortcut off', async () => {
       miniMode.set(true);
+      notifications.canAnswerOnNotification = true;
       const asking = build({ waterAutoLogWhenMinimized: false });
 
       await asking.tick(at(10, 0));
@@ -470,15 +657,19 @@ describe('WaterReminderService', () => {
 
       expect(water.log).not.toHaveBeenCalled();
       expect(asking.nudge()).not.toBeNull();
+      // With the shortcut off the full window is the surface, as it always was.
+      expect(asking.nudge()!.surfaceWindow).toBe(true);
     });
 
     it('never counts a glass for a Test', async () => {
       miniMode.set(true);
+      notifications.canAnswerOnNotification = true;
 
       await service.remindNow();
 
       expect(water.log).not.toHaveBeenCalled();
       expect(service.nudge()).not.toBeNull();
+      expect(service.nudge()!.surfaceWindow).toBe(true);
     });
 
     it('is asked about, not counted for, once the window is back', async () => {

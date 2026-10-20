@@ -18,6 +18,7 @@ import { DesktopPrefsService } from './core/services/desktop-prefs.service';
 import { UiService } from './core/services/ui.service';
 import { ScheduleService } from './core/services/schedule.service';
 import { WaterReminderService } from './core/services/water-reminder.service';
+import { ReminderService } from './core/services/reminder.service';
 import { AttentionService } from './core/services/attention.service';
 import { LaunchPromptService } from './core/services/launch-prompt.service';
 
@@ -36,6 +37,7 @@ export const appConfig: ApplicationConfig = {
       const theme = inject(ThemeService);
       const schedule = inject(ScheduleService);
       const waterReminder = inject(WaterReminderService);
+      const reminder = inject(ReminderService);
       const trayMenu = inject(TrayMenuService);
       const desktopPrefs = inject(DesktopPrefsService);
       const ui = inject(UiService);
@@ -62,6 +64,11 @@ export const appConfig: ApplicationConfig = {
       // Asks the desktop once whether now is a quiet moment, and keeps asking:
       // every reminder that is not a finished timer reads this before it speaks.
       await attention.init();
+      // The standing reminders are stored, not scheduled: starting the loop after
+      // the attention state is known means a reminder that came due while the app
+      // was closed is raised (or held, if the user is paused) with the truth
+      // already in hand.
+      reminder.start();
       // Opens the first-run question, or starts the day's reminders if it has
       // already been answered. After the preferences it depends on, never before
       // them: "already marked" is a fact about the operating system.

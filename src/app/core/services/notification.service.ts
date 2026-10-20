@@ -25,6 +25,18 @@ export interface ToastAction {
 const IN_TAURI = typeof globalThis !== 'undefined' && '__TAURI_INTERNALS__' in globalThis;
 
 /**
+ * How long a question waits before it is asked again after being dismissed.
+ *
+ * A toast that stays on screen until it is answered is the first half of "do not
+ * lose the question"; this is the other half. The user may cross it because they
+ * are in the middle of something — a demo, a call, a sentence — and crossing is
+ * not an answer. Three minutes is long enough not to fight them for the same
+ * minute and short enough that the glass, the break or the next session is not
+ * forgotten.
+ */
+export const UNANSWERED_NOTIFICATION_REMINDER_MS = 3 * 60_000;
+
+/**
  * What the shell reports when a toast's button is pressed.
  *
  * Mirrors `ToastActionEvent` in `src-tauri/src/lib.rs`: the tag says which
@@ -34,6 +46,18 @@ const IN_TAURI = typeof globalThis !== 'undefined' && '__TAURI_INTERNALS__' in g
 interface ToastActionPayload {
   tag: string;
   action: string;
+}
+
+/**
+ * What the shell reports when a toast goes away without an answer.
+ *
+ * Mirrors `ToastDismissedEvent` in `src-tauri/src/lib.rs`. `reason` is the
+ * shell's own word — `user`, `timeout`, `activated` — and the page treats them
+ * the same: the question is unanswered and may be asked again.
+ */
+interface ToastDismissedPayload {
+  tag: string;
+  reason: string;
 }
 
 export interface ToastNotification {
@@ -135,14 +159,18 @@ export interface NotificationOptions {
  *
  * The **system notification** is the OS-level half, posted through the desktop
  * shell (or the page's own Notification API outside it) so it is on screen even
- * when DeepWork is not — and it is posted again on every repeat, because half of
- * this alert is that the user is somewhere else. What keeps that from burying the
- * desktop in duplicates is the handle it is posted under: Windows replaces a
- * toast whose tag it already holds, and the New Notification API replaces one
- * with the same `tag`, so the repeats re-raise **one** notification rather than
- * stacking a copy per interval. The body carries the count ("Reminder 3 · …") so
- * the repeat is visible even where the platform ignores the handle — see
- * {@link sendNotification}.
+ * when DeepWork is not. On Windows it is posted as a `reminder` toast that waits
+ * on screen until it is dealt with, so the question is still there whenever the
+ * user looks up. A toast that is crossed instead is asked again after three
+ * minutes — see {@link UNANSWERED_NOTIFICATION_REMINDER_MS} — because a crossing
+ * is not an answer. Where the platform cannot keep a toast (`sticky` is a Windows
+ * toast behaviour), the system notification is re-posted on every repeat, and the
+ * handle it is posted under is what keeps that from burying the desktop in
+ * duplicates: Windows replaces a toast whose tag it already holds, and the
+ * Notification API replaces one with the same `tag`, so the repeats re-raise
+ * **one** notification rather than stacking a copy per interval. The body carries
+ * the count ("Reminder 3 · …") so the repeat is visible even where the platform
+ * ignores the handle — see {@link sendNotification}.
  *
  * The **in-app half** is what insists. The chosen alert tone, the card in the
  * full window and the mini widget's own alert all come back every
@@ -185,9 +213,10 @@ export class NotificationService implements OnDestroy {
    * surfaces one question instead of two that happen to agree.
    *
    * The clock comes first and the way out last: **Pause**, **Next** and
-   * **Resume** each answer the alert and then act on the timer, and **Hold up**
-   * is the "not now" — it closes the alert and leaves the clock exactly as it
-   * was. See {@link runAlertAction}.
+   * **Resume** each answer the alert and then act on the timer — **Next** moves
+   * to the next session and starts it, so the answer carries on by itself — and
+   * **Hold up** is the "not now" — it closes the alert and leaves the clock
+   * exactly as it was. See {@link runAlertAction}.
    */
   private static readonly ALERT_ACTIONS: NotificationAction[] = [
     { id: 'pause', label: 'Pause' },
@@ -226,12 +255,28 @@ export class NotificationService implements OnDestroy {
    */
   private readonly attention = inject(AttentionService);
 
+  /**
+   * True where the operating system's notification can carry buttons that report
+   * a press back to the app.
+   *
+   * Windows is that platform, through `alert_notify`, which keeps the toast
+   * object alive so its **Activated** event reaches `deepwork:toast-action`. The
+   * notification plugin, the browser's Notification API and the other desktops
+   * all ignore an action list, so a message that *needs* an answer must not rely
+   * on its buttons there. The water reminder reads this to decide whether the
+   * mini widget can be left alone while its question is answered from the
+   * desktop — see `WaterReminderService.asksOnDesktop`.
+   */
+  readonly canAnswerOnNotification =
+    IN_TAURI && /Windows/i.test(globalThis.navigator?.userAgent ?? '');
+
   private repeatWorker: Worker | null = null;
   private repeatFallbackId: ReturnType<typeof setInterval> | null = null;
   private toastTimeoutId: ReturnType<typeof setTimeout> | null = null;
   private audioContext: AudioContext | null = null;
   private permissionGranted = false;
-  private _initialized = false;
+  /** The one start-up in flight — see {@link init}. */
+  private initPromise: Promise<void> | null = null;
   private pendingRepeat: {
     title: string;
     body: string;
@@ -270,6 +315,37 @@ export class NotificationService implements OnDestroy {
    * tag, because two would be two answers to the same question.
    */
   private readonly actionHandlers = new Map<string, (action: string) => void>();
+
+  /**
+   * Whoever should be told that a toast went away unanswered, by its tag.
+   *
+   * The same key as {@link actionHandlers}, for the same reason: crossing the
+   * water reminder must not start a reminder for the completion alert. It is a
+   * second map rather than a flag because "answered" and "dismissed" are two
+   * different events on the same question, and a service may want only one.
+   */
+  private readonly dismissHandlers = new Map<string, () => void>();
+
+  /**
+   * The timer that asks the unanswered completion alert again, if one is set.
+   *
+   * A sticky toast waits on screen until it is dealt with, but a user who
+   * crosses it has not dealt with it. Three minutes later the question comes
+   * back, and keeps coming back until a button is pressed — see
+   * {@link UNANSWERED_NOTIFICATION_REMINDER_MS}.
+   */
+  private alertReminderId: ReturnType<typeof setTimeout> | null = null;
+
+  /**
+   * True when the alert's current toast is one the OS will keep on screen.
+   *
+   * Only the tagged Windows toast can do that. While it is true the alert does
+   * not re-post the notification on every tone — the toast is already there, and
+   * a sticky toast that is replaced every minute is a banner, not a question.
+   * It goes false when the shell falls back to a surface that ignores `sticky`,
+   * and then the old repeat-every-tone behaviour returns.
+   */
+  private alertIsSticky = false;
 
   /**
    * Who moves the clock when the alert's **Pause**, **Next** or **Resume** is
@@ -327,6 +403,11 @@ export class NotificationService implements OnDestroy {
     this.onToastAction(NotificationService.ALERT_NOTIFICATION_TAG, (action) =>
       this.runAlertAction(action),
     );
+    // A toast that is crossed is not an answer: the question comes back in three
+    // minutes, and the ring is left exactly as it is.
+    this.onToastDismissed(NotificationService.ALERT_NOTIFICATION_TAG, () =>
+      this.scheduleAlertReminder(),
+    );
 
     effect(() => {
       const intervalSeconds = this.settingsService.settings().notificationRepeatInterval;
@@ -337,9 +418,21 @@ export class NotificationService implements OnDestroy {
     });
   }
 
+  /**
+   * Initialises once, and makes every caller wait for the *whole* of it.
+   *
+   * The permission answer and the button listener are one start-up: a toast
+   * posted between them would carry buttons the shell has nobody listening for,
+   * and the press would disappear. So the in-flight promise is shared rather
+   * than a boolean being set before the work is done — the second caller waits
+   * for the first instead of racing past it.
+   */
   async init(): Promise<void> {
-    if (this._initialized) return;
-    this._initialized = true;
+    this.initPromise ??= this.initialize();
+    await this.initPromise;
+  }
+
+  private async initialize(): Promise<void> {
     try {
       const { isPermissionGranted, requestPermission } =
         await import('@tauri-apps/plugin-notification');
@@ -377,6 +470,25 @@ export class NotificationService implements OnDestroy {
     this.actionHandlers.set(tag, handler);
     return () => {
       if (this.actionHandlers.get(tag) === handler) this.actionHandlers.delete(tag);
+    };
+  }
+
+  /**
+   * Tells a service when the notification posted under `tag` went away without
+   * one of its buttons being pressed.
+   *
+   * Registered by the services that ask a question, because "dismissed" is not
+   * "answered": the water reminder has to ask again for a glass that was not
+   * drunk, and the completion alert has to ask again for a session that was not
+   * started. The handler is registered per tag for the same reason
+   * {@link onToastAction} is — one question, one answerer.
+   *
+   * Returns a function that unregisters it.
+   */
+  onToastDismissed(tag: string, handler: () => void): () => void {
+    this.dismissHandlers.set(tag, handler);
+    return () => {
+      if (this.dismissHandlers.get(tag) === handler) this.dismissHandlers.delete(tag);
     };
   }
 
@@ -468,7 +580,20 @@ export class NotificationService implements OnDestroy {
     this.ringing.set(true);
     this.alertPulse.update((pulse) => pulse + 1);
     this.alertRepeats = 0;
-    await this.sendNotification(title, body, 0, { quote, actions });
+    this.clearAlertReminder();
+    // `sticky` is the first half of "do not lose the question": on Windows the
+    // toast waits on screen instead of sliding away after a few seconds. The
+    // return value says whether the tagged toast that understands it is what
+    // posted; if the shell fell back to another surface, the repeat loop re-posts
+    // as it always did. The platform gate matters because the non-Windows
+    // `alert_notify` command succeeds through the plugin, which has no `sticky`.
+    // The post is always made — the gate only decides how repeats treat it.
+    const posted = await this.sendNotification(title, body, 0, {
+      quote,
+      actions,
+      sticky: true,
+    });
+    this.alertIsSticky = this.canAnswerOnNotification && posted;
     this.playSound();
     this.showAlertToast(title, body, type, quote);
     this.startRepeatLoop(title, body, type, quote, actions);
@@ -487,8 +612,57 @@ export class NotificationService implements OnDestroy {
    */
   dismiss(): void {
     this.ringing.set(false);
+    this.clearAlertReminder();
+    this.alertIsSticky = false;
     this.stopRepeatLoop();
     this.toast.set(null);
+  }
+
+  /**
+   * Brings an unanswered alert back after it was crossed.
+   *
+   * The toast is sticky, so the ordinary state of an unanswered alert is "still
+   * on screen". This is the other state: the user swiped it away, or the shell
+   * timed it out. Neither is an answer, so the question is posted again — once
+   * three minutes have passed, and again three minutes after every further
+   * dismissal, until one of the four buttons is pressed. Pressing one stops it
+   * through {@link dismiss}.
+   */
+  private scheduleAlertReminder(): void {
+    this.clearAlertReminder();
+    if (!this.ringing() || !this.pendingRepeat) return;
+
+    this.alertReminderId = setTimeout(() => {
+      this.alertReminderId = null;
+      void this.repostAlert();
+    }, UNANSWERED_NOTIFICATION_REMINDER_MS);
+  }
+
+  /**
+   * Puts the crossed alert back on the desktop.
+   *
+   * The tone keeps its own cadence; this post only puts the question back where
+   * the user can answer it. If the tagged toast cannot be posted this time, the
+   * repeat loop takes over again — the alert must not go quiet because the one
+   * re-post failed.
+   */
+  private async repostAlert(): Promise<void> {
+    if (!this.ringing() || !this.pendingRepeat) return;
+    const { title, body, quote, actions } = this.pendingRepeat;
+    const posted = await this.sendNotification(title, body, this.alertRepeats, {
+      quote,
+      actions,
+      sticky: true,
+    });
+    this.alertIsSticky = this.canAnswerOnNotification && posted;
+  }
+
+  /** Drops a pending "ask again" without touching the alert itself. */
+  private clearAlertReminder(): void {
+    if (this.alertReminderId) {
+      clearTimeout(this.alertReminderId);
+      this.alertReminderId = null;
+    }
   }
 
   /**
@@ -541,10 +715,18 @@ export class NotificationService implements OnDestroy {
    * The water reminder uses it too, and passes the two options that suit a
    * question: its own handle, and `sticky` — a nudge that disappears while the
    * user is heads-down is a nudge that was never delivered.
+   *
+   * Returns whether the message was posted somewhere its `actions` can actually
+   * be pressed. For a message with no actions that is "was it posted at all";
+   * for one that asks a question it is the narrower "can the question be
+   * answered where it was shown" — the plugin and browser fallbacks ignore the
+   * action list, so they report `false` even though they did show the words.
+   * The water reminder uses that to tell whether leaving the mini widget alone
+   * would leave its question unanswerable — see `WaterReminderService.remind`.
    */
-  async announce(title: string, body: string, options: NotificationOptions = {}): Promise<void> {
+  async announce(title: string, body: string, options: NotificationOptions = {}): Promise<boolean> {
     await this.init();
-    await this.sendNotification(title, body, 0, options);
+    return this.sendNotification(title, body, 0, options);
   }
 
   /**
@@ -594,7 +776,8 @@ export class NotificationService implements OnDestroy {
   }
 
   /**
-   * Starts listening for a pressed toast button.
+   * Starts listening for a pressed toast button — and for a toast that goes away
+   * without one.
    *
    * One listener for the whole app rather than one per notification: the shell
    * does not know who "owns" a toast — it reports the press to the process —
@@ -602,6 +785,10 @@ export class NotificationService implements OnDestroy {
    * {@link init} so it is in place before the first toast that carries a button
    * is posted: the shell only tells a session about a press it was already
    * listening for.
+   *
+   * A dismissal is the same wiring with a different question: the tag says which
+   * message went away, and the service that asked it decides whether the
+   * unanswered state deserves another reminder.
    */
   private async listenForToastActions(): Promise<void> {
     if (!IN_TAURI) return;
@@ -612,8 +799,13 @@ export class NotificationService implements OnDestroy {
         if (typeof tag !== 'string' || typeof action !== 'string') return;
         this.actionHandlers.get(tag)?.(action);
       });
+      await listen<ToastDismissedPayload>('deepwork:toast-dismissed', (event) => {
+        const { tag } = event.payload ?? {};
+        if (typeof tag !== 'string') return;
+        this.dismissHandlers.get(tag)?.();
+      });
     } catch {
-      // A shell from before the event existed: the buttons are still drawn, they
+      // A shell from before the events existed: the buttons are still drawn, they
       // just cannot answer. The in-app surface is the fallback in that case.
     }
   }
@@ -702,9 +894,12 @@ export class NotificationService implements OnDestroy {
     body: string,
     repeats = 0,
     options: NotificationOptions = {},
-  ): Promise<void> {
+  ): Promise<boolean> {
     const text = repeats > 0 ? `Reminder ${repeats} · ${body}` : body;
     const quote = options.quote ?? null;
+    // A question is only delivered when the surface can carry its answers; the
+    // two fallbacks below cannot, so they report `false` for one. See `announce`.
+    const asks = (options.actions?.length ?? 0) > 0;
 
     try {
       const { invoke } = await import('@tauri-apps/api/core');
@@ -716,7 +911,7 @@ export class NotificationService implements OnDestroy {
         sticky: options.sticky ?? false,
         actions: options.actions ?? [],
       });
-      return;
+      return true;
     } catch {
       // Not the desktop shell, a shell without the command, or a toast the shell
       // refused to post: the plugin is what is left, and it still reaches the
@@ -731,7 +926,7 @@ export class NotificationService implements OnDestroy {
         title,
         body: withQuote(text, quote),
       });
-      return;
+      return !asks;
     } catch {
       // Outside the desktop shell, or refused by it: fall through to the page's
       // own Notification API below.
@@ -754,10 +949,13 @@ export class NotificationService implements OnDestroy {
           options.onClick?.();
           posted.close();
         };
+        // The browser's Notification API has no buttons either.
+        return !asks;
       }
     } catch {
       // No notification surface here at all — the tone and the card still run.
     }
+    return false;
   }
 
   private playSound(
@@ -869,15 +1067,15 @@ export class NotificationService implements OnDestroy {
   }
 
   /**
-   * One repeat of an unanswered alert: the tone again, the system notification
-   * again, and the card again.
+   * One repeat of an unanswered alert: the tone again, and the card again.
    *
-   * The system notification is re-posted rather than left where it was: a toast
-   * that is already in the notification centre is one the user has stopped
-   * seeing, and this alert's whole job at this point is to reach someone who is
-   * working in another window. It goes back under the alert's own handle, so what
-   * re-appears is the same notification saying something new ("Reminder 2 · …"),
-   * not a second copy of it.
+   * The system notification is handled separately now. A sticky toast is already
+   * on screen until it is dealt with, and replacing it every minute would turn a
+   * question into a banner — so while the OS is holding it, nothing is re-posted.
+   * If the user crosses it, {@link scheduleAlertReminder} puts it back after three
+   * minutes. Where the shell cannot keep a toast (the plugin and browser
+   * surfaces), the old behaviour stands: every repeat re-posts the notification,
+   * because that is the only way it is seen again.
    */
   private onRepeatTick(): void {
     if (!this.pendingRepeat) return;
@@ -886,7 +1084,13 @@ export class NotificationService implements OnDestroy {
     // Everything visual hangs off this: one shake and one new colour per tone,
     // in the widget and on the card alike.
     this.alertPulse.update((pulse) => pulse + 1);
-    void this.sendNotification(title, body, this.alertRepeats, { quote, actions });
+    if (!this.alertIsSticky) {
+      void this.sendNotification(title, body, this.alertRepeats, {
+        quote,
+        actions,
+        sticky: true,
+      });
+    }
     this.playSound();
     this.showAlertToast(title, body, type, quote);
   }
@@ -908,6 +1112,7 @@ export class NotificationService implements OnDestroy {
 
   ngOnDestroy(): void {
     this.stopRepeatLoop();
+    this.clearAlertReminder();
     if (this.toastTimeoutId) {
       clearTimeout(this.toastTimeoutId);
       this.toastTimeoutId = null;

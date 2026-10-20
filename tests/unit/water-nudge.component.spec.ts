@@ -20,6 +20,8 @@ function makeNudge(overrides: Partial<WaterNudge> = {}): WaterNudge {
     title: 'Drink water — 500 ml',
     body: 'Time for 500 ml. Today: 1.5 L of 2 L.',
     quote: 'Small sips, all day. That is the whole trick.',
+    // The ordinary reminder: the card is the surface, so the window comes up.
+    surfaceWindow: true,
     ...overrides,
   };
 }
@@ -127,6 +129,39 @@ describe('WaterNudgeComponent', () => {
     await show(makeNudge());
     expect(ui.surfaceForNudge).toHaveBeenCalledTimes(1);
     expect(ui.releaseNudgeSurface).not.toHaveBeenCalled();
+
+    await show(null);
+    expect(ui.releaseNudgeSurface).toHaveBeenCalledTimes(1);
+  });
+
+  it('leaves the window where it is when the question lives on the notification', async () => {
+    // The mini widget with answers on the toast: the card is hidden anyway, so
+    // surfacing the window would move the user's work for nothing — and closing
+    // the question must not hand back a surface that was never taken.
+    miniMode.set(true);
+    fixture.detectChanges();
+
+    await show(makeNudge({ surfaceWindow: false }));
+
+    expect(card()).toBeNull();
+    expect(ui.surfaceForNudge).not.toHaveBeenCalled();
+
+    await show(null);
+    expect(ui.releaseNudgeSurface).not.toHaveBeenCalled();
+  });
+
+  it('takes the window back up when a desktop question turns out to be unanswerable', async () => {
+    // The service raises the nudge for the notification first, and flips this
+    // flag if the post could not carry the buttons. The card is the fallback, so
+    // the window has to come up after all — and go back down when it is answered.
+    miniMode.set(true);
+    fixture.detectChanges();
+
+    await show(makeNudge({ surfaceWindow: false }));
+    expect(ui.surfaceForNudge).not.toHaveBeenCalled();
+
+    await show(makeNudge({ id: 2, surfaceWindow: true }));
+    expect(ui.surfaceForNudge).toHaveBeenCalledTimes(1);
 
     await show(null);
     expect(ui.releaseNudgeSurface).toHaveBeenCalledTimes(1);

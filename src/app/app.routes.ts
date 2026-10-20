@@ -38,6 +38,11 @@ export const routes: Routes = [
     loadComponent: () => import('./pages/time/time.component').then((m) => m.TimeComponent),
   },
   {
+    path: 'reminders',
+    loadComponent: () =>
+      import('./pages/reminders/reminders.component').then((m) => m.RemindersComponent),
+  },
+  {
     path: 'habits',
     loadComponent: () => import('./pages/habits/habits.component').then((m) => m.HabitsComponent),
   },

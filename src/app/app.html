@@ -64,6 +64,11 @@
        widget is still on screen, and puts the question up once it is not. -->
   <app-water-nudge />
 
+  <!-- The standing reminder is the one question that never gives up. It is drawn
+       from the shell because it has to be able to ask from any page, and it hides
+       itself in the mini widget: the sticky notification is the surface there. -->
+  <app-reminder-card />
+
   @if (ui.isMiniMode()) {
     <app-mini-widget />
   }

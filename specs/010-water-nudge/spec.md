@@ -21,6 +21,18 @@ a 250 ml glass are reasonable defaults and poor limits: someone sipping from a
 small glass wants a shorter interval and a smaller drink, and both were
 unavailable rather than merely unusual.
 
+The question also became answerable where it is asked. The system notification
+carries the same two answers as the card — **Yes, drank** and **Not now** — and
+keeps them in every case, including the reminder that arrives while the window is
+the mini widget. That case used to be counted silently, which is how a reminder
+promising "Yes/No" arrived with no buttons at all; now the sticky notification
+*is* the question there, and the widget stays where it is.
+
+And a notification that is crossed is not an answer. The toast waits on screen
+until one of its buttons is pressed; if the user swipes it away — a meeting, a
+demo, a sentence — the reminder comes back after three minutes, and again three
+minutes after every further crossing, until **Yes** or **Not now** ends it.
+
 ## Relationship to `009-water-reminders`
 
 Everything in `009` still holds — the fixed lists, the working hours, the
@@ -33,7 +45,7 @@ on the Dashboard — with these amendments:
 | AC-2          | The lists are 15/20/25/30/45/60/90/120/180 minutes and 30/50/70/90/100/150/200/250/300/400/500/750/1000 ml. Goals are unchanged. |
 | AC-7          | The reminder is a card, plus the system notification and the alert tone.  |
 | AC-12         | **Test** raises the same card rather than only sending the notification. |
-| AC-4 / AC-7   | A reminder that arrives while the window is minimised counts the glass instead of asking (see AC-10); the cadence still restarts from the moment it counted. |
+| AC-4 / AC-7   | A reminder that arrives while the window is minimised asks from the notification where the system can carry the two answers, and counts the glass instead only where it cannot (see AC-10); the cadence still restarts from the answer, or from the moment it counted. |
 
 ## User Scenarios & Testing
 
@@ -48,8 +60,16 @@ on the Dashboard — with these amendments:
    shrunk into the mini widget. The card still arrives where it can be seen: the
    full window is restored and raised, without taking typing focus.
 5. **Be minimised and left alone.** The user has shrunk DeepWork into the mini
-   widget and is working in another window. The reminder rings, counts the glass
-   and says so in the notification; the widget does not move.
+   widget and is working in another window. The reminder rings and asks from the
+   sticky notification — **Yes, drank** and **Not now** are on it — and the widget
+   does not move. Where the system's notifications cannot report a press, the
+   reminder counts the glass and says so instead, because a question nobody can
+   answer would hold the cadence forever.
+6. **Cross it and come back.** The user is in a demo and swipes the reminder away
+   without answering. The glass is not drunk, so the question returns three
+   minutes later — same glass, same line, same two buttons — and keeps returning
+   until **Yes** or **Not now** is pressed. Clicking the toast's body, which brings
+   DeepWork forward but chooses nothing, counts as crossing it too.
 
 ## Acceptance criteria
 
@@ -83,16 +103,37 @@ on the Dashboard — with these amendments:
   deduplicated, and still contain the default. Repair of out-of-list stored values
   is unchanged and now covers the wider lists.
 - **AC-10** While the window is the mini widget **and**
-  `waterAutoLogWhenMinimized` is on, a due reminder rings, logs one drink at the
-  configured size, continues the cadence from that moment, and raises **no card**
-  — the window is never pulled back. With the setting off, or with the full
-  window up (however far behind another app it is), the card is raised as usual.
-  A **Test** never logs a drink.
+  `waterAutoLogWhenMinimized` is on, a due reminder rings and leaves the widget
+  where it is. Where the system notification can carry the two answers — Windows,
+  through `alert_notify` — it raises the reminder with **Yes, drank** and **Not
+  now** on the sticky notification, raises no card, and does not bring the window
+  forward; **Yes** logs one drink at the configured size, **Not now** logs
+  nothing, and either answer withdraws the notification and restarts the cadence
+  from that moment. If the post cannot actually carry the answers (an old shell,
+  a refused toast), the full window is brought up with the card rather than
+  leaving a question nobody can answer. On a surface that never carries answers
+  at all (the notification plugin and the browser build) the reminder rings, logs
+  one drink at the configured size, continues the cadence from that moment, and
+  raises no card. With the setting off, or with the full window up (however far
+  behind another app it is), the card is raised as usual. A **Test** never logs a
+  drink.
+- **AC-11** The reminder's toast is **sticky**, and a dismissal is not an answer.
+  When the Windows shell reports that it was swiped away (`UserCanceled`),
+  expired (`TimedOut`), or had its body clicked without a button (an empty
+  activation), `WaterReminderService` re-posts the **same** question — same glass,
+  same body, same quote, same two answers — after
+  `UNANSWERED_NOTIFICATION_REMINDER_MS` (three minutes), and again three minutes
+  after every further crossing, until `answerNudge` is called. The re-ask rings
+  the chosen tone again. Answering clears the pending reminder, and so do turning
+  the reminders off, a pause, and `stop()`. Where the re-post cannot carry the
+  answers, the card is handed the question instead (`surfaceWindow`).
 
 ## Out of scope
 
-- OS notification buttons. The card is the surface that asks; the notification
-  stays a notification.
+- Action buttons on macOS and Linux. Neither platform's notification surface
+  reports a press back to a desktop app without its own delegate or notification
+  server, so the answers live on the card there, and a minimised reminder falls
+  back to counting the glass (AC-10).
 - A sound of its own. The reminder rings with the app's existing alert tone, and
   there is no separate water chime to configure: `none` in **Notification
   sound**, or the tray's mute switch, is how a silent reminder is asked for.
@@ -105,6 +146,8 @@ on the Dashboard — with these amendments:
 | The choices, and the quotes               | `src/app/core/constants/water.constants.ts`                       |
 | The line the card shows                   | `src/app/core/utils/water.util.ts` (`quoteFor`)                   |
 | Raising and answering the question        | `src/app/core/services/water-reminder.service.ts`                 |
+| Whether the notification can carry them   | `NotificationService.canAnswerOnNotification` (Windows toast)     |
+| Crossing it, and the three-minute re-ask  | `WaterReminderService.scheduleNudgeReminder`, `NotificationService.onToastDismissed`, `UNANSWERED_NOTIFICATION_REMINDER_MS` |
 | Bringing the window forward               | `src/app/core/services/ui.service.ts` (`surfaceForNudge`)         |
 | The card itself                           | `src/app/shared/components/water-nudge/`                          |
 | The settings that ask the questions       | `src/app/pages/settings/settings.component.ts`                    |
