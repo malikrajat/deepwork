@@ -10,7 +10,7 @@ import {
   afterNextRender,
 } from '@angular/core';
 import { CdkDragDrop, DragDropModule } from '@angular/cdk/drag-drop';
-import { Router, RouterLink } from '@angular/router';
+import { RouterLink } from '@angular/router';
 import { NotificationService } from '../../core/services/notification.service';
 import { TaskService } from '../../core/services/task.service';
 import { DbService } from '../../core/services/db.service';
@@ -18,7 +18,7 @@ import { ScheduleService, dayKey } from '../../core/services/schedule.service';
 import { Task, TaskQuadrant, TaskStatus } from '../../core/models/task.model';
 import { QUADRANT_CONFIG, STATUS_CONFIG, STATUS_CYCLE } from '../../core/constants/theme.constants';
 import { TooltipDirective } from '../../shared/directives/tooltip.directive';
-import { TASK_EDIT_PATH, taskAddQuery, taskEditQuery } from '../../core/utils/task-link.util';
+import { TaskEditorService } from '../../core/services/task-editor.service';
 import { buildBoardLayout, sharesFor, splitShares } from '../../core/utils/quadrant-layout.util';
 import type { BoardPlacement } from '../../core/utils/quadrant-layout.util';
 
@@ -1744,7 +1744,7 @@ export class MatrixComponent implements OnInit {
   private readonly schedule = inject(ScheduleService);
   private readonly db = inject(DbService);
   private readonly notifications = inject(NotificationService);
-  private readonly router = inject(Router);
+  private readonly taskEditor = inject(TaskEditorService);
 
   private readonly wrapperRef = viewChild<ElementRef<HTMLElement>>('wrapper');
   private readonly contextMenuRef = viewChild<ElementRef<HTMLElement>>('contextMenu');
@@ -1877,26 +1877,24 @@ export class MatrixComponent implements OnInit {
    * A card's pencil, and the menu's own "Edit task".
    *
    * The matrix reads tasks — it sorts them, re-times them and checks them off —
-   * but it deliberately owns no form: the app has one editor, on the Tasks page.
-   * Both controls therefore hand over to it with the same deep link the other
-   * pages use, so a task can be corrected from wherever it was noticed.
+   * but it deliberately owns no form: the app has one editor, the shell's panel.
+   * Both controls open it over this board, so the task can be corrected from
+   * wherever it was noticed and the matrix is still there behind the panel.
    */
   editTask(task: Task, event: Event): void {
     event.stopPropagation();
     this.closeContextMenu();
-    this.router.navigate([TASK_EDIT_PATH], { queryParams: taskEditQuery(task.id) });
+    this.taskEditor.openEdit(task);
   }
 
   editTaskFromMenu(task: Task): void {
     this.closeContextMenu();
-    this.router.navigate([TASK_EDIT_PATH], { queryParams: taskEditQuery(task.id) });
+    this.taskEditor.openEdit(task);
   }
 
   /** A quadrant's "+" (or the unassigned list's) opens the form already sorted. */
   addTask(quadrant: TaskQuadrant | null): void {
-    this.router.navigate([TASK_EDIT_PATH], {
-      queryParams: taskAddQuery({ quadrant, deadline: dayKey() }),
-    });
+    this.taskEditor.openAdd({ quadrant, deadline: dayKey() });
   }
 
   /** Drop, the 1–4 / 0 shortcuts, or the right-click menu re-prioritise a card. */

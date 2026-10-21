@@ -18,7 +18,7 @@ import { ExternalLinkService } from '../../src/app/core/services/external-link.s
   imports: [ExternalLinkDirective],
   template: `
     <a appExternalLink href="https://rajatmalik.dev/" target="_blank" rel="noopener">Website</a>
-    <a appExternalLink="mailto:mr.rajatmalik@gmail.com" href="mailto:mr.rajatmalik@gmail.com"
+    <a appExternalLink="mailto:contact@rajatmalik.dev" href="mailto:contact@rajatmalik.dev"
       >Email</a
     >
     <a appExternalLink href="#in-page">In-page link</a>
@@ -115,7 +115,7 @@ describe('ExternalLinkDirective', () => {
     click(email);
     await vi.waitFor(() => expect(open).toHaveBeenCalled());
 
-    expect(open).toHaveBeenCalledWith('mailto:mr.rajatmalik@gmail.com');
+    expect(open).toHaveBeenCalledWith('mailto:contact@rajatmalik.dev');
   });
 
   it('promises new-tab clicks to the browser', async () => {

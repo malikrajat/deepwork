@@ -1,4 +1,5 @@
 import { Injectable, signal } from '@angular/core';
+import { SUPPORT_EMAIL } from '../constants/about.constants';
 import {
   WATER_AMOUNT_OPTIONS,
   WATER_GOAL_OPTIONS,
@@ -49,7 +50,7 @@ export class DatabaseUnreadableError extends Error {
       `DeepWork found its database at ${report.path} but could not read it` +
         `${reason ? ` (${reason})` : report.unreadable ? ` (${report.unreadable})` : ''}. ` +
         `Nothing has been changed or deleted — the file is still there. Move it aside, or ` +
-        `contact support with it, and DeepWork will start with a fresh database.`,
+        `contact support at ${SUPPORT_EMAIL} with it, and DeepWork will start with a fresh database.`,
     );
     this.name = 'DatabaseUnreadableError';
   }

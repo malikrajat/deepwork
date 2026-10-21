@@ -85,7 +85,7 @@ mod tests {
     fn the_schemes_the_about_page_uses_are_allowed() {
         assert!(is_openable("https://rajatmalik.dev/"));
         assert!(is_openable("http://localhost:4999"));
-        assert!(is_openable("mailto:mr.rajatmalik@gmail.com"));
+        assert!(is_openable("mailto:contact@rajatmalik.dev"));
         // Case is not a security decision, so it is not treated as one.
         assert!(is_openable("HTTPS://example.com"));
     }

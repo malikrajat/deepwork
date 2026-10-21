@@ -1,17 +1,18 @@
 import { describe, it, expect } from 'vitest';
 import { readFileSync } from 'fs';
 import { resolve } from 'path';
-import {
-  TASK_EDIT_PATH,
-  parseTaskDeepLink,
-  taskAddQuery,
-  taskEditQuery,
-} from '../../src/app/core/utils/task-link.util';
+import { parseTaskDeepLink } from '../../src/app/core/utils/task-link.util';
 
 /**
- * The deep link is the whole of the "edit a task from anywhere" feature: the
- * pages that only read tasks send one, and the Tasks page answers it. Both
- * directions are pure, so they are tested here rather than through the browser —
+ * A `/tasks` link is an address, not the way the app edits a task.
+ *
+ * Every page opens the shell's task panel over itself (`TaskEditorService`), so
+ * nothing writes one of these links any more. What is left is the reader: a URL
+ * that was bookmarked, shared or handed over from an older version still names
+ * a task or asks for the add form, and the Tasks page has to understand it
+ * without moving the user anywhere.
+ *
+ * The reading is pure, so it is tested here rather than through the browser —
  * the rendered journey is covered by the Playwright specs.
  */
 
@@ -24,31 +25,8 @@ const params =
 /** Friday 18 September 2026, so "today" is fixed for the date checks. */
 const TODAY = new Date(2026, 8, 18, 12);
 
-describe('task link builders', () => {
-  it('names the Tasks page as the one place a task is edited', () => {
-    expect(TASK_EDIT_PATH).toBe('/tasks');
-    expect(taskEditQuery('task-1')).toEqual({ edit: 'task-1' });
-  });
-
-  it('asks only for what the button promised', () => {
-    expect(taskAddQuery()).toEqual({ add: '1' });
-    expect(
-      taskAddQuery({ deadline: '2026-09-19', quadrant: 'urgent-important', today: true }),
-    ).toEqual({
-      add: '1',
-      date: '2026-09-19',
-      quadrant: 'urgent-important',
-      today: '1',
-    });
-  });
-
-  it('leaves an absent choice out rather than spelling it', () => {
-    expect(taskAddQuery({ quadrant: null, deadline: '', today: false })).toEqual({ add: '1' });
-  });
-});
-
 describe('parseTaskDeepLink', () => {
-  it('reads an edit link', () => {
+  it('reads a link that names a task', () => {
     const link = parseTaskDeepLink(params({ edit: 'task-9' }), TODAY);
 
     expect(link.editId).toBe('task-9');
@@ -60,7 +38,7 @@ describe('parseTaskDeepLink', () => {
     expect(parseTaskDeepLink(params({ edit: '   ' }), TODAY).editId).toBeNull();
   });
 
-  it('reads the pre-fills a page sends with the add form', () => {
+  it('reads the pre-fills a link can carry with the add form', () => {
     const link = parseTaskDeepLink(
       params({ add: '1', date: '2026-09-19', quadrant: 'urgent', today: '1' }),
       TODAY,
@@ -103,39 +81,45 @@ describe('parseTaskDeepLink', () => {
   it('still reports a link whose values were unusable, so the URL is cleaned', () => {
     expect(parseTaskDeepLink(params({ date: 'yesterday' }), TODAY).present).toBe(true);
   });
-
-  it('reads back exactly what the builders write', () => {
-    const query = taskAddQuery({ deadline: '2026-10-02', quadrant: 'neither', today: true });
-    const link = parseTaskDeepLink(params(query), TODAY);
-
-    expect(link.add).toBe(true);
-    expect(link.deadline).toBe('2026-10-02');
-    expect(link.quadrant).toBe('neither');
-    expect(link.addToToday).toBe(true);
-
-    const edit = parseTaskDeepLink(params(taskEditQuery('task-42')), TODAY);
-    expect(edit.editId).toBe('task-42');
-  });
 });
 
-/** The pages that give no home to a form must hand over to the one that does. */
-describe('one task editor, reached from everywhere', () => {
+/** The form is one panel in the shell, opened in place from every page. */
+describe('one task editor, opened from everywhere', () => {
   const sourceOf = (relative: string): string => readFileSync(resolve(__dirname, relative), 'utf8');
 
-  const readers = {
+  const pages = {
     Today: '../../src/app/pages/today/today.component.ts',
     'Eisenhower Matrix': '../../src/app/pages/matrix/matrix.component.ts',
     Calendar: '../../src/app/pages/calendar/calendar.component.ts',
     Dashboard: '../../src/app/pages/dashboard/dashboard.component.ts',
+    Tasks: '../../src/app/pages/tasks/tasks.component.ts',
   };
 
-  for (const [page, file] of Object.entries(readers)) {
-    it(`${page} links to the task editor`, () => {
-      expect(sourceOf(file)).toContain('taskEditQuery');
+  for (const [page, file] of Object.entries(pages)) {
+    it(`${page} opens the panel in place instead of linking to another page`, () => {
+      const source = sourceOf(file);
+
+      expect(source).toContain('TaskEditorService');
+      // The old route hand-over: this is what moved the user to `/tasks`.
+      expect(source).not.toContain('TASK_EDIT_PATH');
+      expect(source).not.toContain('taskEditQuery');
+      expect(source).not.toContain('taskAddQuery');
     });
   }
 
-  it('the Tasks page answers that link', () => {
+  it('the panel is mounted once, in the app shell', () => {
+    const shell = sourceOf('../../src/app/app.html');
+
+    expect(shell).toContain('<app-task-editor-panel />');
+  });
+
+  it('no page owns the panel markup any more', () => {
+    for (const file of Object.values(pages)) {
+      expect(sourceOf(file)).not.toContain('class="slide-panel"');
+    }
+  });
+
+  it('the Tasks page still answers a link that names a task', () => {
     expect(sourceOf('../../src/app/pages/tasks/tasks.component.ts')).toContain('parseTaskDeepLink');
   });
 

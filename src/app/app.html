@@ -218,4 +218,18 @@
   <!-- Add a task for today from any page: type it, or say it in English.
        The shortcut (Ctrl+N) lives with the component so the two never fight. -->
   <app-quick-add />
+
+  <!-- The app's one task form, in the shell rather than on a page: editing or
+       adding a task opens this panel over whatever page the user is reading, so
+       the page — its route, its scroll position, its filter — is never touched.
+       Pages ask for it through `TaskEditorService`.
+
+       Deferred on idle, like the quiet panel and the visitor dashboard: it is a
+       form a visit may never open, and it is not part of the first paint. The
+       idle trigger means the chunk is in place before the first click can ask
+       for it — and if it is not, the panel's own state is already set, so it
+       appears the moment the chunk arrives. -->
+  @defer (on idle) {
+    <app-task-editor-panel />
+  }
 </div>

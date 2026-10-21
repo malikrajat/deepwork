@@ -188,28 +188,29 @@ test.describe('Eisenhower Matrix', () => {
     await expect(page.locator('.page-title')).toHaveText('Eisenhower Matrix', { timeout: 8000 });
     await page.waitForTimeout(600);
 
-    // The pencil on a card — the affordance that was missing — hands the task to
-    // the app's one editor, on the Tasks page, already open on it.
+    // The pencil on a card — the affordance that was missing — opens the app's
+    // one editor over the matrix, with the task already in its fields.
     const card = page.locator('.unassigned-panel .matrix-card', { hasText: taskTitle });
     await expect(card).toBeVisible({ timeout: 5000 });
     await card.locator('.card-edit').click();
 
-    await expect(page.locator('.page-title')).toHaveText('Tasks', { timeout: 5000 });
     await expect(page.locator('.slide-panel h2')).toHaveText('Edit Task');
     await expect(
       page.locator('.slide-panel input[placeholder="What needs to be done?"]'),
     ).toHaveValue(taskTitle);
+    // Editing a task must not navigate: the matrix is still the page on screen.
+    await expect(page.locator('.page-title')).toHaveText('Eisenhower Matrix');
+    await expect(page).toHaveURL(/\/matrix$/);
     await page.locator('.slide-panel').getByRole('button', { name: 'Cancel' }).click();
+    await expect(page.locator('.slide-panel')).toHaveCount(0);
 
     // A quadrant's "+" opens the add form already sorted into that quadrant:
     // Priority, Quadrant and Repeat are the panel's selects, in that order.
-    await page.goto('/matrix');
-    await expect(page.locator('.page-title')).toHaveText('Eisenhower Matrix', { timeout: 8000 });
-    await page.waitForTimeout(600);
     await page.locator('.quadrant.urgent-important .add-task-btn').click();
 
     await expect(page.locator('.slide-panel h2')).toHaveText('New Task');
     await expect(page.locator('.slide-panel select').nth(1)).toHaveValue('urgent-important');
+    await expect(page.locator('.page-title')).toHaveText('Eisenhower Matrix');
     await page.locator('.slide-panel').getByRole('button', { name: 'Cancel' }).click();
   });
 });

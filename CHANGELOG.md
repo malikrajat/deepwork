@@ -5,9 +5,15 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ---
 
-## [Unreleased]
+
+## [3.0.0] – 2026-10-18
+
+> **Progress.** This entry was written as the work landed, not after it: each
+> section below describes something that is finished and running in this
+> release, and the code it names is where it lives. Nothing here is a plan.
 
 ### Added
+
 
 - **Standing reminders: the ones that do not give up.** A new **Reminders**
   page (and card, and desktop notification) for the things a normal reminder is
@@ -37,14 +43,6 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   is a complete, copy-paste brief for building that site: the sections, the
   exact copy, the demo data, the visual direction, the interactions, and the
   things the page must not claim.
-
-## [3.0.0] – 2026-10-18
-
-> **Progress.** This entry was written as the work landed, not after it: each
-> section below describes something that is finished and running in this
-> release, and the code it names is where it lives. Nothing here is a plan.
-
-### Added
 
 - **Time by Task: the work your focus actually goes to.** A new **Time by Task**
   page groups every focus session by the work it paid for, so a daily routine
@@ -353,6 +351,18 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   bundle id; this makes the development build match it.
 
 ### Changed
+
+- **Editing or adding a task no longer moves you to another page.** The app
+  still has exactly one task form, but it is now a panel in the shell rather
+  than part of the Tasks page: the pencil on a Today, Matrix, Calendar or
+  Dashboard card, and every **Add task** control, opens it over the page you are
+  reading. The route, the scroll position, the search and the open date sections
+  are untouched, and closing or saving the form leaves you exactly where you
+  started. It replaces the `/tasks?edit=<id>` hand-over, which moved the user to
+  the Tasks page for every correction — including the scroll position and the
+  page they were reading. A `/tasks` link that names a task is still understood
+  (a bookmark, or a URL from an older version); nothing in the app writes one
+  any more. `task-editor-panel.component.ts`, `task-editor.service.ts`.
 
 - **A pause now covers reminders as well as the timer.** Pausing from the tray
   used to stop the clock and leave the reminders free to interrupt; it now holds

@@ -173,7 +173,7 @@ Feature requests are welcome too, and the honest answer is sometimes no. If it i
 The two places to put it:
 
 - An issue at [github.com/malikrajat/deepwork/issues](https://github.com/malikrajat/deepwork/issues)
-- An email to [mr.rajatmalik@gmail.com](mailto:mr.rajatmalik@gmail.com)
+- An email to [support@rajatmalik.dev](mailto:support@rajatmalik.dev)
 
 If you would rather just say it worked, that is also useful. Knowing which features people actually use is how the next version gets decided.
 
