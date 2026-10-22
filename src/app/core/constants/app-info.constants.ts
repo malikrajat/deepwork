@@ -26,14 +26,11 @@ export const APP_REPO_URL = `https://github.com/${APP_REPOSITORY}`;
  * The browser build, published to GitHub Pages by
  * `.github/workflows/deploy.yml` on every push to `main`.
  *
- * Derived from the repository rather than written out, because the two have to
- * agree: Pages serves `<owner>.github.io/<repo>/`, which is the same `<repo>`
- * the build's `--base-href` points at (`package.json`, `build:github`).
+ * The Pages site is served from the custom domain root, not from the
+ * `<owner>.github.io/<repo>/` project sub-path. `build:github` therefore passes
+ * `--base-href=/`, and the artifact carries a `CNAME` for this host.
  */
-export const APP_WEB_APP_URL = (() => {
-  const [owner, repo] = APP_REPOSITORY.split('/');
-  return `https://${owner}.github.io/${repo}/`;
-})();
+export const APP_WEB_APP_URL = 'https://app.deepwork.rajatmalik.dev/';
 
 /** Where releases, release notes and installers live. */
 export const APP_RELEASES_URL = `${APP_REPO_URL}/releases`;

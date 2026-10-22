@@ -179,7 +179,7 @@ describe('VisitorCounterPanelComponent', () => {
   it('explains the desktop app rather than hiding the setting', () => {
     const src = readFileSync(SOURCE, 'utf8');
     expect(src).toContain('is not counted');
-    expect(src).toContain('malikrajat.github.io/deepwork');
+    expect(src).toContain('app.deepwork.rajatmalik.dev');
   });
 
   it('says the popup can only show the site total without a token', () => {

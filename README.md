@@ -50,7 +50,7 @@ A desktop-first productivity app with a Pomodoro timer at its centre. Everything
 - **Reminders that ask**: a finished session rings until you answer it, and the water nudge asks a question you reply to rather than announcing a fact.
 - **Desktop manners**: system tray, start-with-system, always-on-top, and a draggable always-on-top mini widget. A stray click on the window's X does not end your session.
 - **Pause, mute and focus everywhere**: the same panel opens from the sidebar, a phone's top bar, Settings and `Ctrl+Shift+Q` — on Windows, macOS, Linux, the installed web app and a plain browser tab alike. A pause holds the timer and every reminder; a mute is sound-only and always ends by itself.
-- **The same app in a browser**: the web build at [malikrajat.github.io/deepwork](https://malikrajat.github.io/deepwork/) runs the whole thing and can be installed as a PWA. In a tab it offers installation (in the window and, once a week, as a system notification); installed, it explains how to start with the computer and offers a floating always-on-top timer where the browser supports one.
+- **The same app in a browser**: the web build at [app.deepwork.rajatmalik.dev](https://app.deepwork.rajatmalik.dev/) runs the whole thing and can be installed as a PWA. In a tab it offers installation (in the window and, once a week, as a system notification); installed, it explains how to start with the computer and offers a floating always-on-top timer where the browser supports one.
 
 ## What DeepWork is not
 
@@ -68,7 +68,7 @@ Worth saying before you spend your time, because each of these has been implied 
 
 | Where       | What you get                                                                                                                           |
 | ----------- | -------------------------------------------------------------------------------------------------------------------------------------- |
-| **Web app** | [malikrajat.github.io/deepwork](https://malikrajat.github.io/deepwork/) — nothing to install; add it to your desktop from the browser. |
+| **Web app** | [app.deepwork.rajatmalik.dev](https://app.deepwork.rajatmalik.dev/) — nothing to install; add it to your desktop from the browser. |
 | **Windows** | The `.exe` setup (NSIS) or `.msi` from the [releases page](https://github.com/malikrajat/deepwork/releases), for 64-bit Windows 10+.   |
 | **macOS**   | The `.dmg` for recent macOS versions (Intel and Apple Silicon builds are published separately).                                        |
 | **Linux**   | An AppImage, `.deb` or `.rpm` for most distributions. AppImages need `chmod +x` before they will run.                                  |
