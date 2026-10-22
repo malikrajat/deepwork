@@ -2,10 +2,14 @@ import { computed, effect, inject, Injectable, OnDestroy, signal } from '@angula
 import { SettingsService } from './settings.service';
 import { DesktopPrefsService } from './desktop-prefs.service';
 import { NotificationService } from './notification.service';
-import type { ToastAction } from './notification.service';
+import type { NotificationAction, ToastAction } from './notification.service';
 import { AttentionService } from './attention.service';
 import { LogService } from './log.service';
-import { STARTUP_NUDGES, TASKBAR_PIN_NUDGES } from '../constants/nudge.constants';
+import {
+  STARTUP_NUDGES,
+  TASKBAR_PIN_MANUAL,
+  TASKBAR_PIN_NUDGES,
+} from '../constants/nudge.constants';
 import { dueNudge, localDayKey, minutesOfDay, nudgePlanFor } from '../utils/nudge-schedule.util';
 import type { NudgePlan } from '../utils/nudge-schedule.util';
 
@@ -39,6 +43,13 @@ interface FiredCounts {
 export interface TaskbarPinState {
   pinned: boolean;
   supported: boolean;
+  /**
+   * Whether Windows will accept a pin request from this app at all.
+   *
+   * False on a normal unpackaged Windows 11 install; the reminder then offers to
+   * open the app list rather than a **Yes** that cannot finish.
+   */
+  allowed: boolean;
 }
 
 /**
@@ -76,7 +87,11 @@ export class LaunchPromptService implements OnDestroy {
   readonly dialogOpen = signal(false);
 
   /** Whether DeepWork is on the taskbar, as of the last check. */
-  readonly pin = signal<TaskbarPinState>({ pinned: false, supported: IN_TAURI });
+  readonly pin = signal<TaskbarPinState>({
+    pinned: false,
+    supported: IN_TAURI,
+    allowed: false,
+  });
 
   /** The last failure from the settings side, shown inside the dialog. */
   readonly error = signal<string | null>(null);
@@ -106,6 +121,16 @@ export class LaunchPromptService implements OnDestroy {
   private started = false;
   private quietUntil = 0;
 
+  /**
+   * Removes the two toast-button handlers, one per reminder tag.
+   *
+   * Registered once, in {@link init}, and kept for the life of the service: the
+   * OS notification can be answered at any moment — including long after the
+   * card has gone — and a handler that only existed while a post was in flight
+   * would miss exactly those answers.
+   */
+  private readonly unlistenActions: (() => void)[] = [];
+
   constructor() {
     // "Start with system" can also be switched on from the preferences dialog,
     // the Settings page or the tray while this question is still open. When it
@@ -133,20 +158,69 @@ export class LaunchPromptService implements OnDestroy {
     await this.prefs.init();
     await this.refreshPin();
     this.ensurePlan();
+    this.listenForAnswers();
+    await this.restoreSetupAfterInstall();
 
     if (!this.settings.settings().launchPrompted) {
       if (!this.prefs.isDesktopApp) {
         // There is no login item to turn on in a browser tab, so there is
         // nothing to ask and nothing to remind about.
         await this.markPrompted();
-      } else if (this.prefs.startWithSystem()) {
-        await this.markPrompted();
       } else {
-        this.dialogOpen.set(true);
+        // A database from before the preferences dialog became a setup step has
+        // already dismissed it, but was never shown the newer offers (the
+        // taskbar row, the startup question). Closing a dialog is not an answer
+        // to a question that had not been added yet, so the setup is offered
+        // once more — preferences first, and the startup question after it in
+        // the order a fresh install sees them. This happens even when startup is
+        // already on: the first-run dialog also carries the taskbar offer and
+        // the explanation of the tray and the widget.
+        if (this.prefs.prompted()) await this.prefs.reopenFirstRun();
+        if (this.prefs.startWithSystem()) {
+          // The question's answer is already yes; it is retired rather than
+          // asked again once the setup dialog has been dealt with.
+          await this.markPrompted();
+        } else {
+          this.dialogOpen.set(true);
+        }
       }
     }
 
     this.ticker = setInterval(() => void this.tick(), TICK_MS);
+  }
+
+  /**
+   * Offers the setup again on the first launch after an install.
+   *
+   * The flags that retire the setup live in the database, which a reinstall
+   * deliberately keeps — that is where the user's tasks are. The installer
+   * leaves one marker beside it (`installer-hooks.nsh`), the shell hands it over
+   * once and deletes it, and this puts the two "already offered" flags back. It
+   * touches nothing else: not the reminders, not the switches, not a single task.
+   *
+   * A silent update from the app's own updater leaves no marker, so updating
+   * never interrupts with a setup the user did not ask for.
+   */
+  private async restoreSetupAfterInstall(): Promise<void> {
+    if (!this.prefs.isDesktopApp) return;
+
+    let freshInstall: boolean;
+    try {
+      const { invoke } = await import('@tauri-apps/api/core');
+      // `=== true`, because the invoke boundary is not typed at runtime and a
+      // shell from before this command answers with an error, not a boolean.
+      freshInstall = (await invoke<boolean>('first_run_take_marker')) === true;
+    } catch {
+      return;
+    }
+    if (!freshInstall) return;
+
+    await this.prefs.reopenFirstRun();
+    if (this.settings.settings().launchPrompted) {
+      await this.settings.updateField('launchPrompted', false);
+    }
+    this.quietUntil = 0;
+    this.log?.info('system', 'fresh install: first-run setup offered again');
   }
 
   /** **Start with Windows**: the dialog's primary answer and the toast's button. */
@@ -160,6 +234,11 @@ export class LaunchPromptService implements OnDestroy {
 
     await this.markPrompted();
     this.dialogOpen.set(false);
+    // The question has been answered, so the notification that asked it must not
+    // stay on screen as though it had not.
+    await this.notifications.dismissSystemNotification(
+      NotificationService.STARTUP_NOTIFICATION_TAG,
+    );
     // Answering the question is not an invitation to be reminded about the next
     // one in the same minute: every slot already behind the clock is counted as
     // dealt with, and the pin reminder waits for the next one.
@@ -176,11 +255,36 @@ export class LaunchPromptService implements OnDestroy {
   async decline(): Promise<void> {
     await this.markPrompted();
     this.dialogOpen.set(false);
+    await this.notifications.dismissSystemNotification(
+      NotificationService.STARTUP_NOTIFICATION_TAG,
+    );
     this.quietUntil = Date.now() + AFTER_DECLINE_QUIET_MINUTES * 60_000;
     // A reminder that was already due is not delivered on the way out of the
     // dialog: the user has just read the whole explanation, and repeating it
     // within the hour is the one thing that would make the feature hated.
     this.skipDueNow(AFTER_DECLINE_QUIET_MINUTES);
+  }
+
+  /**
+   * Offers the whole first-run setup again, from Settings.
+   *
+   * The setup is deliberately once-only, which is also what makes it impossible
+   * to show someone a second time. This is the deliberate door back in: both
+   * flags are put back, so the preferences dialog appears first and this question
+   * follows it, exactly as on a fresh install.
+   */
+  async reopenSetup(): Promise<void> {
+    if (!this.prefs.isDesktopApp) return;
+    this.quietUntil = 0;
+    this.dialogOpen.set(false);
+    this.notifications.dismiss();
+    await this.prefs.reopenFirstRun();
+    if (this.settings.settings().launchPrompted) {
+      await this.settings.updateField('launchPrompted', false);
+    }
+    this.fired = { ...this.fired, startup: 0, pin: 0 };
+    this.saveFired();
+    this.dialogOpen.set(true);
   }
 
   /** **Don't remind me again**: the dialog's quiet, permanent answer. */
@@ -197,6 +301,9 @@ export class LaunchPromptService implements OnDestroy {
 
   /** Ends the startup reminders for good, from a toast or from Settings. */
   async stopStartupNudges(): Promise<void> {
+    await this.notifications.dismissSystemNotification(
+      NotificationService.STARTUP_NOTIFICATION_TAG,
+    );
     await this.setNudge('startupNudge', false);
     this.notifications.showToastMessage(
       'Startup reminder off',
@@ -225,6 +332,7 @@ export class LaunchPromptService implements OnDestroy {
 
   /** Ends the pin reminders for good. */
   async stopPinNudges(): Promise<void> {
+    await this.notifications.dismissSystemNotification(NotificationService.PIN_NOTIFICATION_TAG);
     await this.setNudge('taskbarPinNudge', false);
     this.notifications.showToastMessage(
       'Taskbar reminder off',
@@ -236,23 +344,26 @@ export class LaunchPromptService implements OnDestroy {
   /** Re-reads the taskbar, for Settings and after an answer. */
   async refreshPin(): Promise<void> {
     if (!this.prefs.isDesktopApp) {
-      this.pin.set({ pinned: true, supported: false });
+      this.pin.set({ pinned: true, supported: false, allowed: false });
       return;
     }
     try {
       const { invoke } = await import('@tauri-apps/api/core');
-      const state = await invoke<{ pinned?: boolean; supported?: boolean }>(
-        'nudges_taskbar_pin_state',
-      );
+      const state = await invoke<{
+        pinned?: boolean;
+        supported?: boolean;
+        allowed?: boolean;
+      }>('nudges_taskbar_pin_state');
       this.pin.set({
         pinned: state?.pinned === true,
         supported: state?.supported !== false,
+        allowed: state?.allowed === true,
       });
     } catch (error) {
       // A desktop that cannot answer gets the answer that does not nag: the
       // reminder is only worth having if the app can tell when it is done.
       this.log?.warn('system', `taskbar pin state unavailable: ${describe(error)}`);
-      this.pin.set({ pinned: true, supported: false });
+      this.pin.set({ pinned: true, supported: false, allowed: false });
     }
   }
 
@@ -301,6 +412,10 @@ export class LaunchPromptService implements OnDestroy {
       copy.body,
       copy.system,
       NotificationService.STARTUP_NOTIFICATION_TAG,
+      [
+        { id: 'yes', label: 'Yes, start with Windows' },
+        { id: 'no', label: 'Not now' },
+      ],
       this.startupActions(),
     );
   }
@@ -312,12 +427,20 @@ export class LaunchPromptService implements OnDestroy {
     if (!state.supported || state.pinned) return;
 
     const copy = TASKBAR_PIN_NUDGES[index % TASKBAR_PIN_NUDGES.length];
+    // On a Windows that refuses programmatic pinning, the reminder still asks —
+    // but its Yes opens the list where the two clicks live instead of promising
+    // a pin the shell will reject.
+    const allowed = state.allowed;
     await this.deliver(
       copy.title,
-      copy.body,
-      copy.system,
+      allowed ? copy.body : TASKBAR_PIN_MANUAL.body,
+      allowed ? copy.system : TASKBAR_PIN_MANUAL.system,
       NotificationService.PIN_NOTIFICATION_TAG,
-      this.pinActions(),
+      [
+        { id: 'yes', label: allowed ? 'Yes, pin it' : TASKBAR_PIN_MANUAL.action },
+        { id: 'no', label: 'Not now' },
+      ],
+      this.pinActions(allowed),
     );
   }
 
@@ -332,13 +455,22 @@ export class LaunchPromptService implements OnDestroy {
    * app that never speaks again. What the user gets in either case is the
    * banner's one line saying reminders are waiting, which is the prompt the
    * request asked for rather than silence with no explanation.
+   *
+   * Both halves now ask the question the same way. The notification is posted
+   * **sticky** with the same two answers the card has — `yes` and `no` — because
+   * a suggestion that slides away while the user is heads-down is one that was
+   * never delivered, and an answer that requires finding the app first is an
+   * answer that waits. The ids are the app's own vocabulary, so the label can be
+   * reworded without the handler changing; the tag is what tells the two
+   * questions apart when a button is pressed (see {@link listenForAnswers}).
    */
   private async deliver(
     title: string,
     body: string,
     systemBody: string,
     tag: string,
-    actions: ToastAction[],
+    systemActions: NotificationAction[],
+    toastActions: ToastAction[],
   ): Promise<void> {
     if (this.attention.paused()) {
       this.attention.holdNudge();
@@ -346,7 +478,11 @@ export class LaunchPromptService implements OnDestroy {
       return;
     }
 
-    await this.notifications.announce(title, systemBody, { tag });
+    await this.notifications.announce(title, systemBody, {
+      tag,
+      sticky: true,
+      actions: systemActions,
+    });
 
     if (this.attention.quietNow()) {
       this.attention.holdNudge();
@@ -354,10 +490,48 @@ export class LaunchPromptService implements OnDestroy {
       return;
     }
 
-    this.notifications.showToastMessage(title, body, 'work', null, actions);
+    this.notifications.showToastMessage(title, body, 'work', null, toastActions, tag);
   }
 
-  /** The two answers a startup reminder offers. */
+  /**
+   * Wires the startup reminder's two answers to the same work its card's buttons
+   * do. The pin reminder's buttons belong to `DesktopPrefsService`, which owns
+   * pinning and answers under the same tag — one question, one answerer.
+   */
+  private listenForAnswers(): void {
+    if (this.unlistenActions.length) return;
+    this.unlistenActions.push(
+      this.notifications.onToastAction(NotificationService.STARTUP_NOTIFICATION_TAG, (action) => {
+        void this.answerStartup(action);
+      }),
+    );
+  }
+
+  /**
+   * **Yes** or **Not now** on a startup reminder's notification.
+   *
+   * The notification is taken down first, whichever answer it was: leaving a
+   * question on screen after it has been answered is the one thing that makes a
+   * sticky reminder feel broken. **Yes** performs the setting change the dialog
+   * would have made; **No** is "not now", not "never" — the reminder's own card
+   * still offers **Stop asking** for that, and the cadence already knows this
+   * slot has been delivered.
+   */
+  private async answerStartup(action: string): Promise<void> {
+    await this.notifications.dismissSystemNotification(
+      NotificationService.STARTUP_NOTIFICATION_TAG,
+    );
+
+    if (action === 'yes') {
+      await this.acceptStartWithSystem();
+      return;
+    }
+    if (action === 'no') {
+      this.quietUntil = Date.now() + AFTER_DECLINE_QUIET_MINUTES * 60_000;
+    }
+  }
+
+  /** The two answers a startup reminder offers on its card. */
   private startupActions(): ToastAction[] {
     return [
       {
@@ -382,20 +556,28 @@ export class LaunchPromptService implements OnDestroy {
   }
 
   /**
-   * The two answers a pin reminder offers.
+   * The two answers a pin reminder offers on its card.
    *
-   * Neither of them pins the app, because no ordinary build can. **Got it**
-   * closes the reminder and re-reads the taskbar, so a user who pins the app in
-   * the same breath is not asked again; **Stop asking** ends the reminders. The
-   * doing is described in the message itself.
+   * **Pin now** is the answer the notification's **Yes** gives too — when the
+   * shell will take the request. Where it will not, the same button is labelled
+   * **Show me** and opens the installed-app list, because a button that ends in
+   * "Windows did not pin DeepWork" is worse than one that says where the button
+   * is. **Stop asking** ends the reminders either way.
    */
-  private pinActions(): ToastAction[] {
+  private pinActions(allowed: boolean): ToastAction[] {
     return [
       {
-        label: 'Got it',
+        label: allowed ? 'Pin now' : TASKBAR_PIN_MANUAL.card,
         primary: true,
         run: async () => {
-          this.notifications.dismiss();
+          await this.notifications.dismissSystemNotification(
+            NotificationService.PIN_NOTIFICATION_TAG,
+          );
+          if (allowed) {
+            await this.prefs.pinNow();
+          } else {
+            await this.prefs.showPinHelper();
+          }
           await this.refreshPin();
         },
       },
@@ -488,6 +670,7 @@ export class LaunchPromptService implements OnDestroy {
   ngOnDestroy(): void {
     if (this.ticker) clearInterval(this.ticker);
     this.ticker = null;
+    for (const unlisten of this.unlistenActions.splice(0)) unlisten();
   }
 }
 

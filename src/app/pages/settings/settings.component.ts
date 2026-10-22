@@ -14,6 +14,7 @@ import { TaskService } from '../../core/services/task.service';
 import { WaterReminderService } from '../../core/services/water-reminder.service';
 import { AttentionService } from '../../core/services/attention.service';
 import { LaunchPromptService } from '../../core/services/launch-prompt.service';
+import { DesktopPrefsService } from '../../core/services/desktop-prefs.service';
 import { formatMillilitres, parseTimeOfDay } from '../../core/utils/water.util';
 import { NUDGE_SETTINGS_HELP } from '../../core/constants/nudge.constants';
 import { DesktopPrefsPanelComponent } from '../../shared/components/desktop-prefs-panel/desktop-prefs-panel.component';
@@ -319,8 +320,9 @@ import { SettingsFormModel, createSettingsFormDefaults } from '../../shared/mode
           <span>
             While minimised
             <small class="setting-note"
-              >Ring and count the drink above instead of asking — the mini widget is left where it
-              is, so the full window never jumps back over your work</small
+              >Ask from the notification and leave the mini widget where it is. Where a
+              notification cannot carry the two answers, the drink is counted for you
+              instead.</small
             >
           </span>
           <div class="toggle-control">
@@ -436,6 +438,11 @@ import { SettingsFormModel, createSettingsFormDefaults } from '../../shared/mode
               {{ nudgeHelp.pin.body }}
               @if (!launch.pin().supported) {
                 <em>This desktop does not report a pinned app, so there is nothing to check.</em>
+              } @else if (!launch.pin().allowed) {
+                <em>
+                  Windows does not let an app pin itself here; Yes opens the app list so you can
+                  right-click DeepWork and choose Pin to taskbar.
+                </em>
               } @else if (launch.pin().pinned) {
                 <em>DeepWork is pinned now, so this reminder is already off.</em>
               }
@@ -455,6 +462,20 @@ import { SettingsFormModel, createSettingsFormDefaults } from '../../shared/mode
             </button>
           </div>
         </div>
+        @if (desktop.isDesktopApp) {
+          <div class="setting-item">
+            <span>
+              First-time setup
+              <small class="setting-note">
+                The introduction — start with your computer, pin to the taskbar, the tray and the
+                mini widget — is shown once. This puts it back, exactly as a new install sees it.
+              </small>
+            </span>
+            <button type="button" class="action-btn" (click)="reopenFirstRunSetup()">
+              Show setup
+            </button>
+          </div>
+        }
         @if (attention.soundMuted()) {
           <div class="setting-item">
             <span>
@@ -535,7 +556,7 @@ import { SettingsFormModel, createSettingsFormDefaults } from '../../shared/mode
           <span>Pause / mute / focus panel</span><kbd>Ctrl+Shift+Q</kbd>
         </div>
         <div class="setting-item"><span>Quick Add Task</span><kbd>Ctrl+N</kbd></div>
-        <div class="setting-item"><span>Navigate Pages</span><kbd>Ctrl+1–8</kbd></div>
+        <div class="setting-item"><span>Navigate Pages</span><kbd>Ctrl+1–0</kbd></div>
         <div class="setting-item"><span>Exit Focus / Close</span><kbd>Esc</kbd></div>
       </div>
     </div>
@@ -915,6 +936,7 @@ export class SettingsComponent implements OnInit {
   private readonly taskService = inject(TaskService);
   private readonly attention = inject(AttentionService);
   protected readonly launch = inject(LaunchPromptService);
+  protected readonly desktop = inject(DesktopPrefsService);
   protected readonly nudgeHelp = NUDGE_SETTINGS_HELP;
 
   /** The fixed choices the water reminder offers. */
@@ -1063,6 +1085,17 @@ export class SettingsComponent implements OnInit {
   /** Ends (or restarts) the pin reminder. */
   async togglePinNudge(): Promise<void> {
     await this.launch.setPinNudge(!this.settingsService.settings().taskbarPinNudge);
+  }
+
+  /**
+   * Puts the first-run introduction back on screen.
+   *
+   * The setup is once-only by design, which is exactly what makes it impossible
+   * to show someone again. This is the deliberate door: the preferences dialog
+   * and then the startup question, in the order a fresh install asks them.
+   */
+  async reopenFirstRunSetup(): Promise<void> {
+    await this.launch.reopenSetup();
   }
 
   /** Puts the reminder sound back on from Settings, wherever it was muted. */

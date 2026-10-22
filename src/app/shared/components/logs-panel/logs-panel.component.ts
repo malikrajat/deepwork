@@ -1,5 +1,7 @@
 import { ChangeDetectionStrategy, Component, inject } from '@angular/core';
+import { SUPPORT_EMAIL } from '../../../core/constants/about.constants';
 import { LogService } from '../../../core/services/log.service';
+import { ExternalLinkDirective } from '../../directives/external-link.directive';
 
 /** The map of the log folder, shown under the buttons. */
 interface LogFile {
@@ -17,6 +19,7 @@ interface LogFile {
  */
 @Component({
   selector: 'app-logs-panel',
+  imports: [ExternalLinkDirective],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <div class="group-header">
@@ -94,6 +97,20 @@ interface LogFile {
           files.
         </span>
       }
+    </p>
+
+    <p class="log-hint support-hint">
+      Still stuck? Email
+      <a
+        class="support-link"
+        appExternalLink
+        [href]="supportUrl"
+        target="_blank"
+        rel="noopener noreferrer"
+        >{{ supportEmail }}</a
+      >
+      with the copied diagnostics. It already names the build, the environment, the page and the
+      last 300 log lines, which is what a support reply starts from.
     </p>
   `,
   styles: [
@@ -220,6 +237,16 @@ interface LogFile {
         line-height: 1.5;
         color: var(--color-text-muted);
       }
+      .support-hint .support-link {
+        color: var(--color-accent-primary, #a78bfa);
+        text-decoration: underline;
+        text-underline-offset: 2px;
+      }
+      .support-hint .support-link:focus-visible {
+        outline: 2px solid rgba(139, 92, 246, 0.8);
+        outline-offset: 2px;
+        border-radius: 2px;
+      }
 
       /* ===== Phone layout =====
 
@@ -257,6 +284,10 @@ interface LogFile {
 })
 export class LogsPanelComponent {
   readonly log = inject(LogService);
+
+  /** Where a user sends the diagnostics when they want a person to look. */
+  readonly supportEmail = SUPPORT_EMAIL;
+  readonly supportUrl = `mailto:${SUPPORT_EMAIL}?subject=DeepWork%20support`;
 
   /**
    * The five files, in the order a reader should try them.

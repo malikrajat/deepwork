@@ -1,6 +1,7 @@
 import { ChangeDetectionStrategy, Component, computed, input, output } from '@angular/core';
 import { CdkDragDrop, DragDropModule } from '@angular/cdk/drag-drop';
 import { Task, TaskQuadrant, TaskStatus, taskActivityIso } from '../../../core/models/task.model';
+import { isPinnedToToday } from '../../../core/utils/task-day.util';
 import { QUADRANT_CONFIG, STATUS_CONFIG } from '../../../core/constants/theme.constants';
 import { TooltipDirective } from '../../directives/tooltip.directive';
 import { formatActivityLabel } from '../../../core/utils/task-activity.util';
@@ -155,15 +156,15 @@ export interface BoardMove {
                     <button
                       class="icon-btn today-btn"
                       type="button"
-                      [class.on]="task.todayOrder !== null"
-                      [appTooltip]="task.todayOrder !== null ? 'Remove from Today' : 'Add to Today'"
+                      [class.on]="pinnedToday(task)"
+                      [appTooltip]="pinnedToday(task) ? 'Remove from Today' : 'Add to Today'"
                       (click)="todayToggled.emit(task); $event.stopPropagation()"
                     >
                       <svg
                         width="14"
                         height="14"
                         viewBox="0 0 24 24"
-                        [attr.fill]="task.todayOrder !== null ? 'currentColor' : 'none'"
+                        [attr.fill]="pinnedToday(task) ? 'currentColor' : 'none'"
                         stroke="currentColor"
                         stroke-width="2"
                       >
@@ -691,6 +692,11 @@ export class TaskBoardComponent {
 
   hasAction(action: TaskCardAction): boolean {
     return this.actions().includes(action);
+  }
+
+  /** Whether the card's star is *today's*, not one left over from an earlier day. */
+  pinnedToday(task: Task): boolean {
+    return isPinnedToToday(task);
   }
 
   /**

@@ -39,19 +39,17 @@ export const STARTUP_NUDGES = [
     title: 'Start DeepWork with your computer',
     body: 'Your timer is ready when you sign in — no app to find, no session missed.',
     system:
-      'Add DeepWork to startup and it is ready when you sign in. Settings → App Behaviour, or right-click the tray icon.',
+      'Choose Yes and DeepWork is ready when you sign in — no app to find, no session missed.',
   },
   {
     title: 'Your morning could start with the timer already on',
     body: 'Turn on “Start with your computer” and DeepWork is waiting at sign-in, not buried in a menu.',
-    system:
-      'Turn on startup for DeepWork and your timer is waiting at sign-in. Settings → App Behaviour.',
+    system: 'Turn on startup and DeepWork is waiting at sign-in, not buried in a menu. Choose Yes.',
   },
   {
     title: 'One less thing to remember tomorrow',
     body: 'DeepWork can open with your computer, so the day starts with the app already there.',
-    system:
-      'Let DeepWork open with your computer — your timer and today’s list are ready at sign-in.',
+    system: 'Let DeepWork open with your computer — your timer and today’s list ready at sign-in.',
   },
   {
     title: 'Keep your focus timer within reach',
@@ -61,8 +59,7 @@ export const STARTUP_NUDGES = [
   {
     title: 'Never lose a session to a closed app',
     body: 'Starting with your computer means the timer is already running its day when you sit down.',
-    system:
-      'Start DeepWork with your computer so the timer is already there when you sit down. Settings → App Behaviour.',
+    system: 'Start DeepWork with your computer so the timer is already there when you sit down.',
   },
 ] as const;
 
@@ -70,23 +67,38 @@ export const STARTUP_NUDGES = [
 export const TASKBAR_PIN_NUDGES = [
   {
     title: 'Pin DeepWork to the taskbar',
-    body: 'Right-click DeepWork in the Start menu, then choose Pin to taskbar. Your timer becomes one click away.',
+    body: 'One click from your timer. Choose Yes and Windows will ask you to confirm the pin.',
     system:
-      'Pin DeepWork to the taskbar: right-click it in the Start menu → Pin to taskbar. One click from your timer.',
+      'One click from your timer. Choose Yes and Windows will confirm the pin — or No to pass.',
   },
   {
     title: 'Your timer, one click from the taskbar',
-    body: 'Right-click the DeepWork icon in the Start menu and choose Pin to taskbar — Windows does the rest.',
-    system:
-      'Right-click DeepWork in the Start menu → Pin to taskbar. Your timer is then one click away.',
+    body: 'Windows will pin DeepWork for you after its own confirmation. One click, from here on.',
+    system: 'Keep your timer one click away. Choose Yes and Windows will confirm the pin.',
   },
   {
     title: 'Stop hunting for the app',
     body: 'Pin DeepWork to the taskbar and it is always in the same place, one click from your session.',
     system:
-      'Pin DeepWork to the taskbar so it is always one click away. Right-click it in the Start menu → Pin to taskbar.',
+      'Pin DeepWork to the taskbar so it is always in the same place. Choose Yes to ask Windows.',
   },
 ] as const;
+
+/**
+ * What the pin reminder says on a Windows that will not accept a request.
+ *
+ * Windows 11 reserves programmatic pinning for apps it has packaged itself. The
+ * app can open the list where the two clicks live, and that is what **Yes** does
+ * there — a button that ends in "Windows did not pin DeepWork" is worse than one
+ * that says where the button is.
+ */
+export const TASKBAR_PIN_MANUAL = {
+  body: 'Windows does not let an app pin itself here. Choose Yes and the app list opens — right-click DeepWork, then choose Pin to taskbar.',
+  system:
+    'Windows does not let an app pin itself here. Choose Yes and the app list opens; right-click DeepWork → Pin to taskbar.',
+  action: 'Yes, show me',
+  card: 'Show me',
+} as const;
 
 /** One line for Settings, under the switch that ends the reminders. */
 export const NUDGE_SETTINGS_HELP = {
@@ -96,7 +108,7 @@ export const NUDGE_SETTINGS_HELP = {
   },
   pin: {
     label: 'Remind me to pin DeepWork to the taskbar',
-    body: 'Three short reminders a day while DeepWork is not pinned. Windows will not let an app pin itself, so the reminder explains the two clicks.',
+    body: 'Three short reminders a day while DeepWork is not pinned. Choose Yes and Windows asks you to confirm the pin — or opens the app list where Windows keeps that decision.',
   },
 } as const;
 

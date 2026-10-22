@@ -43,7 +43,19 @@ export interface Task {
   deadline: string | null;
   tags: string[];
   recurrence: RecurrenceConfig | null;
+  /**
+   * Position on today's board. Only meaningful together with
+   * `todayOrderDate`: a position without today's date is a star left over from
+   * an earlier day, and does not put the task on today's list.
+   */
   todayOrder: number | null;
+  /**
+   * The local `YYYY-MM-DD` the "Add to Today" star applies to.
+   *
+   * Optional because rows written before the star was day-scoped carry no date;
+   * an absent date reads as "not today's star", which is what expires them.
+   */
+  todayOrderDate?: string | null;
   createdAt: string;
   completedAt: string | null;
   /**

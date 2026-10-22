@@ -221,6 +221,36 @@ describe('DbService (browser/localStorage mode)', () => {
     expect(tasks.find((x: Task) => x.id === t.id)).toBeUndefined();
   });
 
+  it('clearStaleTodayPins() keeps today’s stars and clears older or undated ones', async () => {
+    await db.init();
+    const now = new Date();
+    const today = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(
+      now.getDate(),
+    ).padStart(2, '0')}`;
+    const pinnedToday = makeTask({ title: 'today', todayOrder: 1, todayOrderDate: today });
+    const pinnedYesterday = makeTask({
+      title: 'yesterday',
+      todayOrder: 2,
+      todayOrderDate: '2026-01-01',
+    });
+    const legacy = makeTask({ title: 'legacy', todayOrder: 3 });
+    await db.createTask(pinnedToday);
+    await db.createTask(pinnedYesterday);
+    await db.createTask(legacy);
+
+    await db.clearStaleTodayPins(today);
+
+    const tasks = await db.getTasks();
+    const byTitle = (title: string) => tasks.find((task: Task) => task.title === title);
+    expect(byTitle('today')?.todayOrder).toBe(1);
+    expect(byTitle('today')?.todayOrderDate).toBe(today);
+    expect(byTitle('yesterday')?.todayOrder).toBeNull();
+    expect(byTitle('yesterday')?.todayOrderDate).toBeNull();
+    expect(byTitle('legacy')?.todayOrder).toBeNull();
+    // The task itself survives; only the expired star is forgotten.
+    expect(tasks).toHaveLength(3);
+  });
+
   it('can create and retrieve multiple tasks', async () => {
     await db.init();
     const t1 = makeTask({ title: 'Task A' });
@@ -241,10 +271,13 @@ describe('DbService (browser/localStorage mode)', () => {
 
   it('saveSession() / getTodaySessions() roundtrip', async () => {
     await db.init();
-    const s = makeSession();
+    const s = makeSession({ taskId: 'task-1', taskTitle: 'Code review' });
     await db.saveSession(s);
     const sessions = await db.getTodaySessions();
-    expect(sessions.find((x: PomodoroSession) => x.id === s.id)).toBeDefined();
+    const found = sessions.find((x: PomodoroSession) => x.id === s.id);
+    expect(found).toBeDefined();
+    // The name travels with the session so a later task deletion cannot erase it.
+    expect(found?.taskTitle).toBe('Code review');
   });
 
   it('getAllSessions() includes all persisted sessions', async () => {

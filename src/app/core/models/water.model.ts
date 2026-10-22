@@ -26,7 +26,9 @@ export interface WaterPrefs {
   /** The day's target; one of `WATER_GOAL_OPTIONS`. */
   goalMl: number;
   /**
-   * While the window is minimised, count the glass instead of asking for it.
+   * While the window is minimised, ask from the notification instead of
+   * bringing the full window back; on a surface that cannot carry the answers,
+   * count the glass instead of asking.
    *
    * See `AppSettings.waterAutoLogWhenMinimized` for why this exists at all.
    */
@@ -53,4 +55,17 @@ export interface WaterNudge {
   body: string;
   /** One motivational line, chosen from `WATER_QUOTES`. */
   quote: string;
+  /**
+   * Whether the full window should be brought forward to show the card.
+   *
+   * True for every ordinary reminder, because a question has to be somewhere the
+   * user can answer it. False for the one case where it is already somewhere:
+   * while the window is the mini widget and the system notification can carry
+   * the two answers, the question lives on the sticky toast and the widget is
+   * left exactly where it is. The card is hidden in the widget anyway, so
+   * surfacing the window would only move the user's work out of the way to show
+   * a card that was already answerable where they were looking. See
+   * `WaterReminderService.remind`.
+   */
+  surfaceWindow: boolean;
 }

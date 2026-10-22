@@ -37,8 +37,7 @@ import {
   ScheduleBlock,
 } from '../../core/models/schedule.model';
 import { TooltipDirective } from '../../shared/directives/tooltip.directive';
-import { TASK_EDIT_PATH, taskEditQuery } from '../../core/utils/task-link.util';
-import { Router } from '@angular/router';
+import { TaskEditorService } from '../../core/services/task-editor.service';
 
 interface BlockLayout {
   block: ScheduleBlock;
@@ -2205,7 +2204,7 @@ function persistCollapsedGroups(value: Record<string, boolean>): void {
 export class CalendarComponent implements OnInit, OnDestroy {
   protected readonly schedule = inject(ScheduleService);
   private readonly taskService = inject(TaskService);
-  private readonly router = inject(Router);
+  private readonly taskEditor = inject(TaskEditorService);
 
   protected readonly pomodoroChoices = [1, 2, 3, 4, 5, 6];
   protected readonly pxPerMinute = 1.8;
@@ -2651,12 +2650,12 @@ export class CalendarComponent implements OnInit, OnDestroy {
    *
    * The calendar decides *when* a task runs, not what it is: a title that turns
    * out to be wrong, or a deadline that moved, is corrected in the app's one
-   * task form. Both controls hand over to it with the shared deep link, so the
-   * task opens on the Tasks page with its own values in the fields.
+   * task form. It opens over this page, so the day being planned — the rail, the
+   * timeline and the slot panel — is never left to go and fix a word.
    */
   protected editTask(task: Task, event: Event): void {
     event.stopPropagation();
-    this.router.navigate([TASK_EDIT_PATH], { queryParams: taskEditQuery(task.id) });
+    this.taskEditor.openEdit(task);
   }
 
   // ── Slot panel ────────────────────────────────────────────────────────────

@@ -1,4 +1,5 @@
 import { Injectable, signal } from '@angular/core';
+import { SUPPORT_EMAIL } from '../constants/about.constants';
 import {
   WATER_AMOUNT_OPTIONS,
   WATER_GOAL_OPTIONS,
@@ -32,12 +33,24 @@ interface DbReport {
  * which is the loss this whole guard exists to prevent.
  */
 export class DatabaseUnreadableError extends Error {
-  constructor(readonly report: DbReport) {
+  constructor(
+    readonly report: DbReport,
+    /**
+     * What the SQL layer said when it could not open the file, when it got that
+     * far.
+     *
+     * The header check and the plugin's own open fail for different reasons —
+     * "this is not a database" against "a migration this build embeds no longer
+     * matches the one recorded here" — and the second one is worth showing: it
+     * names the thing that is actually wrong.
+     */
+    readonly reason: string | null = null,
+  ) {
     super(
       `DeepWork found its database at ${report.path} but could not read it` +
-        `${report.unreadable ? ` (${report.unreadable})` : ''}. Nothing has been changed or ` +
-        `deleted — the file is still there. Move it aside, or contact support with it, and ` +
-        `DeepWork will start with a fresh database.`,
+        `${reason ? ` (${reason})` : report.unreadable ? ` (${report.unreadable})` : ''}. ` +
+        `Nothing has been changed or deleted — the file is still there. Move it aside, or ` +
+        `contact support at ${SUPPORT_EMAIL} with it, and DeepWork will start with a fresh database.`,
     );
     this.name = 'DatabaseUnreadableError';
   }
@@ -63,6 +76,18 @@ export class DbService {
 
   /** The database file on disk, as the desktop layer resolved it. */
   readonly filePath = signal<string | null>(null);
+
+  /**
+   * What the desktop layer found at the path before anything opened it.
+   *
+   * Kept because the answer decides what a failed open *means*: a plugin that
+   * cannot connect is a browser build or a first run when there is no file, and
+   * it is a database that must not be replaced by an empty one when the file is
+   * there and holds data. The second case used to be answered with a silent
+   * switch to localStorage, which is a working app with the user's real work
+   * sitting unused on disk — the failure that looks like success.
+   */
+  private guardReport: DbReport | null = null;
 
   /**
    * The database that was refused, when one was.
@@ -102,7 +127,10 @@ export class DbService {
    *    pending are applied to *that* file. Every migration this app has ever
    *    shipped adds to the schema; none drops a table or deletes a row, which is
    *    what a `tasks` table full of finished work needs in order to survive an
-   *    upgrade.
+   *    upgrade. A checksum that differs only because of the line endings a
+   *    checkout wrote is reconciled between steps 2 and 3 (see
+   *    `db_repair_migrations`), so a working database is not refused over bytes
+   *    that do not describe its schema.
    *
    * The check and the copy are desktop-only: a browser tab has `localStorage` and
    * nothing to lose by an upgrade.
@@ -126,6 +154,14 @@ export class DbService {
   private async open(): Promise<void> {
     if (IN_TAURI) {
       await this.guard();
+      // The guard refused the file and has already said why. Stopping here lets
+      // the shell render that explanation: throwing from an app initializer is a
+      // blank window, and the one user who needs the message is the one who would
+      // get the blank window.
+      if (this.failure()) {
+        this.initialized.set(true);
+        return;
+      }
     }
     this.welcomed.set(true);
 
@@ -148,6 +184,19 @@ export class DbService {
 
       this.initialized.set(true);
     } catch (err) {
+      // A file that is there, holds data and could not be opened is not a reason
+      // to start over in localStorage. Doing that would leave the user's real
+      // tasks in a database the app no longer reads, while every screen says the
+      // app is working. The guard's report is enough to tell the two apart.
+      const report = this.guardReport;
+      if (IN_TAURI && report?.present && report.holdsData) {
+        console.error('DbService: the database could not be opened', err);
+        this.db = null;
+        this.failure.set(new DatabaseUnreadableError(report, describe(err)));
+        this.initialized.set(true);
+        return;
+      }
+
       console.warn('DbService: Running in browser mode (localStorage)', err);
       this.db = null;
       this.isBrowser = true;
@@ -156,12 +205,14 @@ export class DbService {
   }
 
   /**
-   * Runs the two desktop-only steps that come before the database is opened.
+   * Runs the desktop-only steps that come before the database is opened.
    *
    * Separated from {@link init} because it is the part that talks to the Rust
    * layer, and because it is the part with something to say to the user: the
    * guard's report is kept (see {@link filePath}) so the app can point at the real
-   * file when it has to refuse.
+   * file when it has to refuse. The steps are, in order: check the file without
+   * writing to it, copy it aside, and only then — because both of those have
+   * already happened — let the repair of a line-ending checksum write to it.
    */
   private async guard(): Promise<void> {
     const { invoke } = await import('@tauri-apps/api/core');
@@ -179,11 +230,12 @@ export class DbService {
     }
 
     this.filePath.set(report.path);
+    this.guardReport = report;
 
     if (report.present && report.holdsData && report.unreadable) {
-      const failure = new DatabaseUnreadableError(report);
-      this.failure.set(failure);
-      throw failure;
+      // Refused, not thrown: see `open`. The card in the shell is the message.
+      this.failure.set(new DatabaseUnreadableError(report));
+      return;
     }
 
     try {
@@ -193,6 +245,24 @@ export class DbService {
       await invoke('db_backup', { note: 'launch' });
     } catch (err) {
       console.warn('DbService: the database could not be backed up before opening', err);
+    }
+
+    try {
+      // A checksum that differs only by the line endings a checkout wrote is
+      // repaired before the plugin sees it — otherwise sqlx refuses a database
+      // whose schema is perfectly fine. After the backup, because this is the
+      // first write of the launch. See `src-tauri/src/db_migrations.rs`.
+      const { repaired } = await invoke<{ repaired: number[] }>('db_repair_migrations');
+      if (repaired?.length) {
+        console.info(
+          `DbService: migration checksums repaired for line endings: ${repaired.join(', ')}`,
+        );
+      }
+    } catch (err) {
+      // A repair that cannot run leaves the database exactly as it was. The
+      // plugin still gets its turn, and its own error reaches the user through
+      // the database card rather than as a silent switch of stores.
+      console.warn('DbService: migration checksums could not be checked', err);
     }
   }
 
@@ -433,11 +503,12 @@ export class DbService {
       return;
     }
     await this.execute(
-      `INSERT INTO sessions (id, task_id, type, duration_planned, duration_actual, started_at, completed_at, interrupted)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
+      `INSERT INTO sessions (id, task_id, task_title, type, duration_planned, duration_actual, started_at, completed_at, interrupted)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)`,
       [
         session.id,
         session.taskId,
+        session.taskTitle ?? null,
         session.type,
         session.durationPlanned,
         session.durationActual,
@@ -462,6 +533,7 @@ export class DbService {
     return rows.map((r) => ({
       id: r.id,
       taskId: r.task_id,
+      taskTitle: r.task_title ?? null,
       type: r.type,
       durationPlanned: r.duration_planned,
       durationActual: r.duration_actual,
@@ -479,6 +551,7 @@ export class DbService {
     return rows.map((r) => ({
       id: r.id,
       taskId: r.task_id,
+      taskTitle: r.task_title ?? null,
       type: r.type,
       durationPlanned: r.duration_planned,
       durationActual: r.duration_actual,
@@ -634,8 +707,8 @@ export class DbService {
       return;
     }
     await this.execute(
-      `INSERT INTO tasks (id, title, description, priority, status, quadrant, deadline, tags, recurrence, today_order, created_at, completed_at, updated_at)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)`,
+      `INSERT INTO tasks (id, title, description, priority, status, quadrant, deadline, tags, recurrence, today_order, today_order_date, created_at, completed_at, updated_at)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)`,
       [
         task.id,
         task.title,
@@ -647,6 +720,7 @@ export class DbService {
         JSON.stringify(task.tags),
         task.recurrence ? JSON.stringify(task.recurrence) : null,
         task.todayOrder,
+        task.todayOrderDate ?? null,
         task.createdAt,
         task.completedAt,
         task.updatedAt ?? task.createdAt,
@@ -664,7 +738,8 @@ export class DbService {
     }
     await this.execute(
       `UPDATE tasks SET title=$1, description=$2, priority=$3, status=$4, quadrant=$5,
-       deadline=$6, tags=$7, recurrence=$8, today_order=$9, completed_at=$10, updated_at=$11 WHERE id=$12`,
+       deadline=$6, tags=$7, recurrence=$8, today_order=$9, today_order_date=$10,
+       completed_at=$11, updated_at=$12 WHERE id=$13`,
       [
         task.title,
         task.description,
@@ -675,6 +750,7 @@ export class DbService {
         JSON.stringify(task.tags),
         task.recurrence ? JSON.stringify(task.recurrence) : null,
         task.todayOrder,
+        task.todayOrderDate ?? null,
         task.completedAt,
         task.updatedAt ?? task.createdAt,
         task.id,
@@ -689,6 +765,33 @@ export class DbService {
       return;
     }
     await this.execute('DELETE FROM tasks WHERE id = $1', [id]);
+  }
+
+  /**
+   * Forgets "Add to Today" stars that were for another day.
+   *
+   * `today_order` is a position on one day's board, and `today_order_date` says
+   * which day. A star from an earlier day — or a legacy star with no date at
+   * all — is not today's, and leaving it in the row makes the database claim a
+   * task is on a list it is not on. The daily upkeep clears both halves in one
+   * write rather than rewriting every task. `updated_at` is deliberately not
+   * touched: this is housekeeping, not the user editing a task.
+   */
+  async clearStaleTodayPins(today: string): Promise<void> {
+    if (this.isBrowser) {
+      const tasks = this.lsGet<Task[]>('tasks', []).map((task) =>
+        task.todayOrder !== null && task.todayOrderDate !== today
+          ? { ...task, todayOrder: null, todayOrderDate: null }
+          : task,
+      );
+      this.lsSet('tasks', tasks);
+      return;
+    }
+    await this.execute(
+      `UPDATE tasks SET today_order = NULL, today_order_date = NULL
+       WHERE today_order IS NOT NULL AND (today_order_date IS NULL OR today_order_date <> $1)`,
+      [today],
+    );
   }
 
   async searchTasks(query: string): Promise<Task[]> {
@@ -891,6 +994,7 @@ export class DbService {
       tags: typeof r.tags === 'string' ? JSON.parse(r.tags) : (r.tags ?? []),
       recurrence: this.parseRecurrence(r.recurrence),
       todayOrder: r.today_order ?? r.todayOrder ?? null,
+      todayOrderDate: r.today_order_date ?? r.todayOrderDate ?? null,
       createdAt: r.created_at ?? r.createdAt,
       completedAt: r.completed_at ?? r.completedAt ?? null,
       updatedAt:
@@ -956,4 +1060,15 @@ function repairSettings(settings: AppSettings): AppSettings {
         ? settings.taskbarPinNudge
         : DEFAULT_SETTINGS.taskbarPinNudge,
   };
+}
+
+/** One line from whatever went wrong: an Error, a string the shell sent back, or a surprise. */
+function describe(error: unknown): string {
+  if (error instanceof Error) return error.message;
+  if (typeof error === 'string') return error;
+  try {
+    return JSON.stringify(error);
+  } catch {
+    return String(error);
+  }
 }

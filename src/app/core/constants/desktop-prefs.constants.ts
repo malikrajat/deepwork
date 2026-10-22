@@ -35,6 +35,17 @@ export const CLOSE_TO_TRAY_HELP = {
   hint: 'To quit DeepWork completely, right-click the tray icon and choose Exit. Turning this off makes the X quit straight away again.',
 } as const;
 
+export const PIN_TO_TASKBAR_HELP = {
+  heading: 'Pin to taskbar',
+  body:
+    'Keeps DeepWork next to your other apps, one click away. Where Windows allows ' +
+    'an app to ask, the button posts a notification whose Yes raises the shell’s ' +
+    'own pin confirmation. Where Windows reserves pinning for apps it has ' +
+    'packaged — the usual case on Windows 11 — the same button opens the ' +
+    'installed-app list, and Pin to taskbar is on DeepWork’s right-click menu.',
+  hint: 'You can always do it yourself: right-click DeepWork in the Start menu, then choose Pin to taskbar.',
+} as const;
+
 export const MINI_WIDGET_HELP = {
   heading: 'Mini widget',
   body:

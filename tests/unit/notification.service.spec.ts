@@ -30,6 +30,20 @@ const makeMockSettings = () => ({
   settings: signal({ ...DEFAULT_SETTINGS }),
 });
 
+/**
+ * The four answers the completion alert offers, as both surfaces draw them.
+ *
+ * Spelled out here rather than read off the service: the ids are what a pressed
+ * button reports back, so the test should fail if one is renamed, not agree with
+ * whatever the code now says.
+ */
+const ALERT_ANSWERS = [
+  { id: 'pause', label: 'Pause' },
+  { id: 'next', label: 'Next' },
+  { id: 'resume', label: 'Resume' },
+  { id: 'hold', label: 'Hold up' },
+];
+
 describe('NotificationService', () => {
   let svc: NotificationService;
   let mockSettings: ReturnType<typeof makeMockSettings>;
@@ -72,6 +86,19 @@ describe('NotificationService', () => {
   it('dismiss() is safe to call when toast is already null', () => {
     expect(() => svc.dismiss()).not.toThrow();
     expect(svc.toast()).toBeNull();
+  });
+
+  it('shares one start-up, so no post can race past the button listener', async () => {
+    // The app asks for `init()` at startup and the water reminder asks for it
+    // again before its first post. A boolean set before the permission answer
+    // and the listener would let the second caller through while the first was
+    // still in flight — and a toast posted then has buttons nobody is listening
+    // for. One in-flight promise means both wait for the same, complete start-up.
+    const plugin = await import('@tauri-apps/plugin-notification');
+
+    await Promise.all([svc.init(), svc.init(), svc.init()]);
+
+    expect(plugin.isPermissionGranted).toHaveBeenCalledTimes(1);
   });
 
   it('publishes the alert as ringing until it is answered', async () => {
@@ -125,12 +152,13 @@ describe('NotificationService', () => {
     expect(showToast).toHaveBeenCalledTimes(1);
     // The raise itself is not a repeat: it is the alert, not a reminder of one.
     // It carries the first line of the focus list, as a quote of its own rather
-    // than as the message's last sentence.
+    // than as the message's last sentence — and the four answers, which travel
+    // with every post so a repeat can never strip them from the toast.
     expect(sendNotification).toHaveBeenLastCalledWith(
       'Focus session complete!',
       'Great work! Time for a short break.',
       0,
-      { quote: FOCUS_QUOTES[0] },
+      { quote: FOCUS_QUOTES[0], actions: ALERT_ANSWERS, sticky: true },
     );
 
     (svc as any).onRepeatTick();
@@ -143,7 +171,7 @@ describe('NotificationService', () => {
       'Focus session complete!',
       'Great work! Time for a short break.',
       2,
-      { quote: FOCUS_QUOTES[0] },
+      { quote: FOCUS_QUOTES[0], actions: ALERT_ANSWERS, sticky: true },
     );
     expect(showToast).toHaveBeenCalledTimes(3);
     expect((svc as any).playSound).toHaveBeenCalledTimes(3);
@@ -166,7 +194,7 @@ describe('NotificationService', () => {
       'Ready to focus again?',
       1,
       // The second alert of the run, so the second line of the break list.
-      { quote: BREAK_QUOTES[1] },
+      { quote: BREAK_QUOTES[1], actions: ALERT_ANSWERS, sticky: true },
     );
   });
 
@@ -242,12 +270,173 @@ describe('NotificationService', () => {
       title: 'Focus session complete!',
       body: 'Reminder 3 · Great work! Time for a short break.',
       tag: 'deepwork-alert',
-      // An alert has no quote of its own, and it repeats on its own clock, so it
-      // asks for neither the extra line nor the wait.
+      // A bare post has no quote of its own, and it repeats on its own clock, so
+      // it asks for neither the extra line nor the wait. The completion alert
+      // itself does pass its four answers — see the next test — so what this
+      // pins down is the shape of a post that was given nothing.
       quote: null,
       sticky: false,
+      actions: [],
     });
     expect(plugin.sendNotification).not.toHaveBeenCalled();
+  });
+
+  it('posts the alert’s four answers as buttons on the desktop toast', async () => {
+    // The toast is where the user is looking, so the clock's controls belong on
+    // it: Pause, Next and Resume act, and Hold up closes the alert without
+    // touching the clock. Windows is the only platform whose toast reports a
+    // press, and the id — not the label — is what comes back.
+    const { invoke } = await import('@tauri-apps/api/core');
+    vi.mocked(invoke).mockResolvedValue(undefined as never);
+    (svc as any).playSound = vi.fn();
+    (svc as any).startRepeatLoop = vi.fn();
+
+    await svc.fireTimerComplete('work');
+
+    expect(invoke).toHaveBeenCalledWith(
+      'alert_notify',
+      expect.objectContaining({
+        tag: 'deepwork-alert',
+        quote: FOCUS_QUOTES[0],
+        // A waiting toast: it stays on screen until one of the four answers is
+        // pressed, which is the point of the alert being a question rather than
+        // a banner that slides away while the user is elsewhere.
+        sticky: true,
+        actions: ALERT_ANSWERS,
+      }),
+    );
+  });
+
+  it('posts the completion alert as a toast that waits for an answer', async () => {
+    const sendNotification = ((svc as any).sendNotification = vi.fn().mockResolvedValue(true));
+    (svc as any).canAnswerOnNotification = true;
+    (svc as any).playSound = vi.fn();
+    (svc as any).startRepeatLoop = vi.fn();
+
+    await svc.fireTimerComplete('work');
+
+    expect(sendNotification).toHaveBeenCalledWith(
+      'Focus session complete!',
+      'Great work! Time for a short break.',
+      0,
+      { quote: FOCUS_QUOTES[0], actions: ALERT_ANSWERS, sticky: true },
+    );
+    // The platform can keep it there, so the repeat loop will leave it alone.
+    expect((svc as any).alertIsSticky).toBe(true);
+  });
+
+  it('leaves a sticky toast alone on every tone, but still re-posts where it cannot stick', () => {
+    const sendNotification = ((svc as any).sendNotification = vi.fn().mockResolvedValue(true));
+    const pending = {
+      title: 'Focus session complete!',
+      body: 'Great work! Time for a short break.',
+      type: 'work' as const,
+      quote: FOCUS_QUOTES[0],
+      actions: ALERT_ANSWERS,
+    };
+    (svc as any).pendingRepeat = pending;
+    (svc as any).playSound = vi.fn();
+    (svc as any).showAlertToast = vi.fn();
+    // The constructor effect re-arms the loop whenever it sees a pending alert;
+    // these tests drive the tick themselves and do not want a second clock.
+    (svc as any).startRepeatLoop = vi.fn();
+
+    // A sticky toast is already the question on screen; replacing it every tone
+    // would turn it into a banner, and a banner is what the user learns to swipe.
+    (svc as any).alertIsSticky = true;
+    (svc as any).onRepeatTick();
+    (svc as any).onRepeatTick();
+    expect(sendNotification).not.toHaveBeenCalled();
+
+    // A surface that cannot hold it gets the old repeat-every-tone behaviour.
+    (svc as any).alertIsSticky = false;
+    (svc as any).onRepeatTick();
+    expect(sendNotification).toHaveBeenCalledWith(pending.title, pending.body, 3, {
+      quote: pending.quote,
+      actions: ALERT_ANSWERS,
+      sticky: true,
+    });
+  });
+
+  it('asks again three minutes after its toast is crossed, and stops when answered', async () => {
+    // Crossing a notification is not one of the four answers. The question comes
+    // back after three minutes, and keeps coming back until a button is pressed.
+    const sendNotification = ((svc as any).sendNotification = vi.fn().mockResolvedValue(true));
+    const pending = {
+      title: 'Focus session complete!',
+      body: 'Great work! Time for a short break.',
+      type: 'work' as const,
+      quote: FOCUS_QUOTES[0],
+      actions: ALERT_ANSWERS,
+    };
+    (svc as any).ringing.set(true);
+    (svc as any).pendingRepeat = pending;
+    (svc as any).startRepeatLoop = vi.fn();
+
+    (svc as any).scheduleAlertReminder();
+    await vi.advanceTimersByTimeAsync(3 * 60_000 - 1);
+    expect(sendNotification).not.toHaveBeenCalled();
+
+    await vi.advanceTimersByTimeAsync(1);
+    expect(sendNotification).toHaveBeenCalledWith(pending.title, pending.body, 0, {
+      quote: pending.quote,
+      actions: ALERT_ANSWERS,
+      sticky: true,
+    });
+
+    // Crossing the re-posted toast schedules the next one.
+    (svc as any).scheduleAlertReminder();
+    await vi.advanceTimersByTimeAsync(3 * 60_000);
+    expect(sendNotification).toHaveBeenCalledTimes(2);
+
+    // Any answer — here Hold up — ends the asking.
+    (svc as any).runAlertAction('hold');
+    await vi.advanceTimersByTimeAsync(3 * 60_000);
+    expect(sendNotification).toHaveBeenCalledTimes(2);
+  });
+
+  it('answers the alert from a pressed button, then lets the clock act', () => {
+    // A press on the toast and a press on the card are one answer: both go
+    // through `runAlertAction`, so the alert closes either way and only the
+    // clock's three answers are forwarded to whoever holds the clock.
+    const handler = vi.fn();
+    svc.onAlertAction(handler);
+
+    (svc as any).runAlertAction('resume');
+
+    expect(svc.ringing()).toBe(false);
+    expect(handler).toHaveBeenCalledWith('resume');
+  });
+
+  it('closes the alert on Hold up without asking the clock anything', () => {
+    const handler = vi.fn();
+    svc.onAlertAction(handler);
+
+    (svc as any).runAlertAction('hold');
+
+    expect(svc.ringing()).toBe(false);
+    expect(handler).not.toHaveBeenCalled();
+  });
+
+  it('raises the card with the same four answers, answered the same way', async () => {
+    (svc as any).sendNotification = vi.fn().mockResolvedValue(undefined);
+    (svc as any).playSound = vi.fn();
+    (svc as any).startRepeatLoop = vi.fn();
+    const handler = vi.fn();
+    svc.onAlertAction(handler);
+
+    await svc.fireTimerComplete('work');
+    vi.runAllTimers();
+
+    expect(svc.toast()?.actions?.map((action) => action.label)).toEqual(
+      ALERT_ANSWERS.map((answer) => answer.label),
+    );
+
+    // The card's own answer takes the same path as the toast's — Resume starts
+    // the session that is waiting, and the alert is closed on the way.
+    await svc.toast()?.actions?.[2].run();
+    expect(handler).toHaveBeenCalledWith('resume');
+    expect(svc.toast()).toBeNull();
   });
 
   it('posts a quote as a line of its own, and asks for a toast that waits', async () => {
@@ -258,18 +447,63 @@ describe('NotificationService', () => {
       quote: 'Small sips, all day. That is the whole trick.',
       tag: NotificationService.WATER_NOTIFICATION_TAG,
       sticky: true,
+      actions: [
+        { id: 'yes', label: 'Yes, drank' },
+        { id: 'no', label: 'Not now' },
+      ],
     });
 
     // The quote is its own field, not the message's last sentence: the shell
     // gives it a smaller line of its own, and the thread posting it is the one
-    // the user will not lose behind another window.
+    // the user will not lose behind another window. The buttons travel with it
+    // as ids and labels — the ids are what `onToastAction` hands back.
     expect(invoke).toHaveBeenCalledWith('alert_notify', {
       title: 'Drink water — 500 ml',
       body: 'Time for 500 ml. Today: 1.0 L of 2.0 L.',
       tag: 'deepwork-water',
       quote: 'Small sips, all day. That is the whole trick.',
       sticky: true,
+      actions: [
+        { id: 'yes', label: 'Yes, drank' },
+        { id: 'no', label: 'Not now' },
+      ],
     });
+  });
+
+  it('reports a question as answered-only where its buttons can be pressed', async () => {
+    // The caller of `announce` needs to know the difference between "the words
+    // were shown" and "the question can be answered here". The tagged shell is
+    // the one surface that carries the buttons; the plugin and the browser show
+    // the words and nothing else.
+    const { invoke } = await import('@tauri-apps/api/core');
+    const plugin = await import('@tauri-apps/plugin-notification');
+    const asked = {
+      tag: NotificationService.WATER_NOTIFICATION_TAG,
+      sticky: true,
+      actions: [
+        { id: 'yes', label: 'Yes, drank' },
+        { id: 'no', label: 'Not now' },
+      ],
+    };
+
+    vi.mocked(invoke).mockResolvedValue(undefined as never);
+    await expect(svc.announce('Drink water', 'Time for a glass.', asked)).resolves.toBe(true);
+
+    vi.mocked(invoke).mockRejectedValue(new Error('command alert_notify not found'));
+    await expect(svc.announce('Drink water', 'Time for a glass.', asked)).resolves.toBe(false);
+    // It still reached the desktop; it just cannot ask there.
+    expect(plugin.sendNotification).toHaveBeenCalled();
+  });
+
+  it('reports a plain message as delivered wherever it was posted', async () => {
+    const { invoke } = await import('@tauri-apps/api/core');
+    const plugin = await import('@tauri-apps/plugin-notification');
+
+    vi.mocked(invoke).mockRejectedValue(new Error('command alert_notify not found'));
+    vi.mocked(plugin.sendNotification).mockResolvedValue(undefined as never);
+
+    // Nothing to answer, so the plugin's inability to draw buttons is irrelevant.
+    await expect(svc.announce('Update available', 'A newer release exists.')).resolves.toBe(true);
   });
 
   it('separates the quote from the message on the surfaces that take one string', async () => {

@@ -1,0 +1,10 @@
+# The SQL migrations are hashed byte-for-byte by sqlx when they are applied, and
+# those hashes are stored in the database. A Windows checkout with
+# `core.autocrlf=true` would rewrite every `\n` to `\r\n`, changing the hash of
+# migrations that were already applied — sqlx then refuses to start, tauri's SQL
+# plugin hands back no connection, and the app silently falls back to
+# localStorage with the user's real database still on disk.
+#
+# Pinning the migrations to LF makes the bytes the app embeds the same on every
+# machine, so a database migrated by one build is accepted by the next.
+src-tauri/migrations/*.sql text eol=lf

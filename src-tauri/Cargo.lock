@@ -824,10 +824,11 @@ dependencies = [
 
 [[package]]
 name = "deepwork"
-version = "2.0.23"
+version = "3.0.0"
 dependencies = [
  "log",
  "serde",
+ "sha2",
  "tauri",
  "tauri-build",
  "tauri-plugin-log",
@@ -836,6 +837,7 @@ dependencies = [
  "tauri-plugin-sql",
  "webview2-com",
  "windows",
+ "windows-future",
  "windows-sys 0.61.2",
  "winreg",
 ]

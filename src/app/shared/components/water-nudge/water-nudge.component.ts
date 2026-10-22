@@ -273,16 +273,32 @@ export class WaterNudgeComponent {
   protected readonly reminder = inject(WaterReminderService);
   protected readonly ui = inject(UiService);
 
-  /** What the card was showing last, so the window is asked only on a change. */
-  private wasOpen = false;
+  /**
+   * True only when this component actually asked the window forward.
+   *
+   * A nudge answered on the desktop (`surfaceWindow: false`) never moved the
+   * window, so closing it must not hand the window back either: releasing a
+   * surface that was never taken would reapply the always-on-top preference in
+   * the middle of the mini widget, which keeps itself on top for its own reasons.
+   */
+  private surfaced = false;
 
   constructor() {
     effect(() => {
-      const open = this.reminder.nudge() !== null;
-      if (open === this.wasOpen) return;
-      this.wasOpen = open;
-      if (open) void this.ui.surfaceForNudge();
-      else void this.ui.releaseNudgeSurface();
+      const nudge = this.reminder.nudge();
+      // Read on every nudge, not only when one appears: a question that was
+      // meant for the notification can turn out to be unanswerable there (see
+      // `WaterReminderService.remind`), and flipping `surfaceWindow` is how the
+      // card takes over.
+      const shouldSurface = nudge?.surfaceWindow === true;
+
+      if (shouldSurface && !this.surfaced) {
+        this.surfaced = true;
+        void this.ui.surfaceForNudge();
+      } else if (!shouldSurface && this.surfaced) {
+        this.surfaced = false;
+        void this.ui.releaseNudgeSurface();
+      }
     });
   }
 

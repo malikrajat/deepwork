@@ -136,8 +136,9 @@ test.describe('Today Page', () => {
     expect(await page.evaluate(() => localStorage.getItem('deepwork_focusTaskId'))).toBeTruthy();
   });
 
-  test('a card can be edited from Today, which owns no form of its own', async ({ page }) => {
+  test('a card can be edited from Today without leaving the page', async ({ page }) => {
     const taskTitle = `Edit From Today ${Date.now()}`;
+    const editedTitle = `${taskTitle} edited`;
     await createTask(page, taskTitle);
 
     await page.goto('/today');
@@ -147,33 +148,46 @@ test.describe('Today Page', () => {
     await expect(card).toBeVisible({ timeout: 5000 });
     await expect(card.locator('.edit-btn')).toBeVisible();
 
-    // The pencil hands the task to the Tasks page's editor, already open on it.
+    // The pencil opens the app's editor over this page: Today is still the page
+    // on screen, and the URL has not moved.
     await card.locator('.edit-btn').click();
-    await expect(page.locator('.page-title')).toHaveText('Tasks', { timeout: 5000 });
     await expect(page.locator('.slide-panel')).toBeVisible({ timeout: 5000 });
     await expect(page.locator('.slide-panel h2')).toHaveText('Edit Task');
-    await expect(
-      page.locator('.slide-panel input[placeholder="What needs to be done?"]'),
-    ).toHaveValue(taskTitle);
+    const titleInput = page.locator('.slide-panel input[placeholder="What needs to be done?"]');
+    await expect(titleInput).toHaveValue(taskTitle);
+    await expect(page.locator('.page-title')).toHaveText('Today');
+    await expect(page).toHaveURL(/\/today$/);
+
+    // Saving is the half that used to strand the user on another page: the form
+    // closes and Today — not the Tasks page — is what is underneath it, with the
+    // card already corrected.
+    await titleInput.fill(editedTitle);
+    await page.locator('.slide-panel').getByRole('button', { name: 'Save Changes' }).click();
+    await expect(page.locator('.slide-panel')).toHaveCount(0);
+    await expect(page.locator('.page-title')).toHaveText('Today');
+    await expect(page).toHaveURL(/\/today$/);
+    await expect(page.locator('.task-card', { hasText: editedTitle })).toBeVisible({
+      timeout: 5000,
+    });
 
     // Cleanup
-    await page.locator('.slide-panel').getByRole('button', { name: 'Cancel' }).click();
-    await expect(page.locator('.task-card', { hasText: taskTitle })).toBeVisible({ timeout: 5000 });
-    await page.locator('.task-card', { hasText: taskTitle }).locator('button.delete').click();
-    await expect(page.locator('.task-card', { hasText: taskTitle })).toHaveCount(0, {
+    await page.locator('.task-card', { hasText: editedTitle }).locator('button.delete').click();
+    await expect(page.locator('.task-card', { hasText: editedTitle })).toHaveCount(0, {
       timeout: 5000,
     });
   });
 
-  test('the Add task button opens the form for today', async ({ page }) => {
+  test('the Add task button opens the form for today, on the Today page', async ({ page }) => {
     await page.goto('/today');
     await expect(page.locator('.page-title')).toHaveText('Today', { timeout: 8000 });
 
     await page.locator('.header-stats .btn-add').click();
 
-    await expect(page.locator('.page-title')).toHaveText('Tasks', { timeout: 5000 });
+    // The form comes to the page; the page does not go to the form.
     await expect(page.locator('.slide-panel h2')).toHaveText('New Task');
     await expect(page.locator('.slide-panel input[type="date"]').first()).toHaveValue(todayIso());
+    await expect(page.locator('.page-title')).toHaveText('Today');
+    await expect(page).toHaveURL(/\/today$/);
 
     await page.locator('.slide-panel').getByRole('button', { name: 'Cancel' }).click();
   });
@@ -190,5 +204,41 @@ test.describe('Today Page', () => {
         timeout: 3000,
       });
     }
+  });
+
+  test('yesterday’s finished tasks are not on today, even with their star still set', async ({
+    page,
+  }) => {
+    // The report: tasks finished on one day were all still sitting in Today the
+    // next morning. Their "Add to Today" star was sticky, and every one of them
+    // qualified, so the empty state never appeared.
+    const yesterday = new Date();
+    yesterday.setDate(yesterday.getDate() - 1);
+    const title = `Finished Yesterday ${Date.now()}`;
+    const staleTask = {
+      id: 'stale-today-task',
+      title,
+      description: '',
+      priority: 3,
+      status: 'done',
+      quadrant: null,
+      deadline: yesterday.toISOString().slice(0, 10),
+      tags: [],
+      recurrence: null,
+      todayOrder: 1,
+      createdAt: yesterday.toISOString(),
+      completedAt: yesterday.toISOString(),
+    };
+
+    await page.addInitScript((task) => {
+      localStorage.setItem('deepwork_tasks', JSON.stringify([task]));
+    }, staleTask);
+
+    await page.goto('/today');
+    await expect(page.locator('.page-title')).toHaveText('Today', { timeout: 8000 });
+    await expect(page.locator('.empty-state h3')).toHaveText('No tasks for today', {
+      timeout: 5000,
+    });
+    await expect(page.locator('.task-card', { hasText: title })).toHaveCount(0);
   });
 });

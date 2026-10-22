@@ -132,7 +132,7 @@ describe('AboutComponent', () => {
       (a) => a.getAttribute('href'),
     );
 
-    expect(links.some((href) => href?.startsWith('mailto:mr.rajatmalik@gmail.com'))).toBe(true);
+    expect(links.some((href) => href?.startsWith('mailto:contact@rajatmalik.dev'))).toBe(true);
     expect(links.some((href) => href?.includes('linkedin.com/in/errajatmalik'))).toBe(true);
     expect(links.some((href) => href?.includes('github.com/malikrajat'))).toBe(true);
   });

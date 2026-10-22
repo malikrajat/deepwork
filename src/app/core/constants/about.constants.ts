@@ -130,12 +130,18 @@ export interface ContactLink {
   url: string;
 }
 
+/** The address for work, project and role enquiries — what the About page offers. */
+export const CONTACT_EMAIL = 'contact@rajatmalik.dev';
+
+/** The address for help with the app itself — what the diagnostics panel points at. */
+export const SUPPORT_EMAIL = 'support@rajatmalik.dev';
+
 export const CONTACT_LINKS: readonly ContactLink[] = [
   {
     kind: 'email',
     label: 'Email',
-    value: 'mr.rajatmalik@gmail.com',
-    url: 'mailto:mr.rajatmalik@gmail.com?subject=DeepWork%20—%20role%20or%20project%20enquiry',
+    value: CONTACT_EMAIL,
+    url: `mailto:${CONTACT_EMAIL}?subject=DeepWork%20—%20role%20or%20project%20enquiry`,
   },
   {
     kind: 'website',

@@ -9,9 +9,11 @@
  * <https://www.goatcounter.com/help/domains>.
  *
  * The router's URL is the right input rather than `location.pathname`, because
- * the deployed web build is served from `/deepwork/` on GitHub Pages: the router
- * strips that base already, so the same route produces the same row whether the
- * app is served from a subdirectory or from the root.
+ * the address bar carries whatever base the app happens to be served from — the
+ * router strips that base already, so the same route produces the same row
+ * whether the app is served from the root of its own domain or from a
+ * subdirectory. The prefix is a naming choice, not a copy of the deploy path:
+ * `/deepwork/tasks` is what this app files under, today and after any move.
  */
 
 import { GOATCOUNTER_PATH_PREFIX, GOATCOUNTER_TITLE_PREFIX } from '../constants/visitor.constants';

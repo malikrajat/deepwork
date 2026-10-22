@@ -16,7 +16,7 @@ import {
 } from '../../shared/components/task-board/task-board.component';
 import { sequenceAfterMove } from '../../shared/components/task-board/task-board.view';
 import { TooltipDirective } from '../../shared/directives/tooltip.directive';
-import { TASK_EDIT_PATH, taskAddQuery, taskEditQuery } from '../../core/utils/task-link.util';
+import { TaskEditorService } from '../../core/services/task-editor.service';
 import { readFocusedTaskId, saveFocusedTaskId } from '../../core/utils/focus-task.util';
 
 /**
@@ -425,6 +425,7 @@ export class TodayComponent implements OnInit {
   private readonly taskService = inject(TaskService);
   private readonly db = inject(DbService);
   private readonly router = inject(Router);
+  private readonly taskEditor = inject(TaskEditorService);
 
   todayLabel = new Date().toLocaleDateString(undefined, {
     weekday: 'long',
@@ -501,16 +502,17 @@ export class TodayComponent implements OnInit {
    * A card's pencil, and the header's Add task button.
    *
    * This page is a view of the day, not an editor: it has no task form and the
-   * app deliberately has only one. Both controls therefore hand over to the
-   * Tasks page's panel through the deep link every other page uses — editing
-   * opens that task, adding opens the form dated today and pins the result to
-   * today's list, which is what "Add task" on this page promises.
+   * app deliberately has only one. Both controls therefore open the shell's
+   * panel over this page — editing on that task, adding on a form dated today
+   * that also pins the result to today's list, which is what "Add task" here
+   * promises. Neither one navigates: Today is still on screen when the panel
+   * closes, with the card already corrected in place.
    */
   editTask(task: Task): void {
-    this.router.navigate([TASK_EDIT_PATH], { queryParams: taskEditQuery(task.id) });
+    this.taskEditor.openEdit(task);
   }
 
   addTask(): void {
-    this.router.navigate([TASK_EDIT_PATH], { queryParams: taskAddQuery({ today: true }) });
+    this.taskEditor.openAdd({ addToToday: true });
   }
 }

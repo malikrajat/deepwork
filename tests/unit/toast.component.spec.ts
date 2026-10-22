@@ -75,6 +75,38 @@ describe('ToastComponent', () => {
     expect(mockNotifications.dismiss).toHaveBeenCalledTimes(1);
   });
 
+  it('draws the alert’s answers, and runs the one that was pressed', () => {
+    // The card is the same question the Windows toast asks, so it carries the
+    // same four buttons in the same order — which is also what answers the
+    // alert on the platforms whose toast cannot carry a button at all.
+    const resume = vi.fn();
+    mockNotifications.toast.set({
+      id: 12,
+      title: 'Focus Done!',
+      body: 'Take a break.',
+      type: 'work',
+      visible: true,
+      actions: [
+        { label: 'Pause', run: vi.fn() },
+        { label: 'Next', run: vi.fn() },
+        { label: 'Resume', run: resume },
+        { label: 'Hold up', run: vi.fn() },
+      ],
+    });
+    fixture.detectChanges();
+
+    const buttons = fixture.nativeElement.querySelectorAll('.toast-action');
+    expect(Array.from(buttons).map((button) => button.textContent?.trim())).toEqual([
+      'Pause',
+      'Next',
+      'Resume',
+      'Hold up',
+    ]);
+
+    (buttons[2] as HTMLElement).click();
+    expect(resume).toHaveBeenCalledTimes(1);
+  });
+
   it('hides toast when signal is set back to null', () => {
     mockNotifications.toast.set({ id: 6, title: 'T', body: 'B', type: 'work', visible: true });
     fixture.detectChanges();

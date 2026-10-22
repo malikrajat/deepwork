@@ -6,7 +6,12 @@ import { SettingsService } from '../../src/app/core/services/settings.service';
 import { Task } from '../../src/app/core/models/task.model';
 import { DEFAULT_SETTINGS } from '../../src/app/core/models/settings.model';
 
-const today = new Date().toISOString().slice(0, 10);
+const today = (() => {
+  const now = new Date();
+  return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(
+    now.getDate(),
+  ).padStart(2, '0')}`;
+})();
 
 const makeTask = (overrides: Partial<Task> = {}): Task => ({
   id: crypto.randomUUID(),
@@ -31,6 +36,7 @@ const makeMockDb = () => ({
   updateTask: vi.fn().mockResolvedValue(undefined),
   deleteTask: vi.fn().mockResolvedValue(undefined),
   searchTasks: vi.fn().mockResolvedValue([]),
+  clearStaleTodayPins: vi.fn().mockResolvedValue(undefined),
 });
 
 describe('TaskService', () => {
@@ -257,11 +263,40 @@ describe('TaskService', () => {
     const t = makeTask({
       deadline: future.toISOString().slice(0, 10),
       todayOrder: 1,
+      todayOrderDate: today,
       status: 'todo',
     });
     mockDb.getTasks.mockResolvedValueOnce([t]);
     await svc.loadTasks();
     expect(svc.todayTasks().find((x) => x.id === t.id)).toBeDefined();
+  });
+
+  it("todayTasks() leaves yesterday's star off today, even though the position is still set", async () => {
+    // The report this answers: every task finished on one day was still sitting
+    // on today's board the next morning. The star ("Add to Today") was sticky:
+    // `todayOrder` was written once and never expired, so yesterday's work — and
+    // the import that had answered "Add to Today" for three hundred rows — was
+    // still today's. A star now belongs to the day it was set on.
+    const yesterday = new Date();
+    yesterday.setDate(yesterday.getDate() - 1);
+    const yesterdayDay = `${yesterday.getFullYear()}-${String(yesterday.getMonth() + 1).padStart(2, '0')}-${String(yesterday.getDate()).padStart(2, '0')}`;
+    const future = new Date();
+    future.setDate(future.getDate() + 5);
+    const stale = makeTask({
+      title: 'Finished yesterday',
+      deadline: future.toISOString().slice(0, 10),
+      createdAt: yesterday.toISOString(),
+      todayOrder: 1,
+      todayOrderDate: yesterdayDay,
+      status: 'done',
+      completedAt: yesterday.toISOString(),
+    });
+
+    mockDb.getTasks.mockResolvedValueOnce([stale]);
+    await svc.loadTasks();
+
+    expect(svc.todayTasks()).toHaveLength(0);
+    expect(svc.todayBoardTasks()).toHaveLength(0);
   });
 
   // ── todayBoardTasks (the Today board keeps its Done column) ────────────
@@ -275,8 +310,18 @@ describe('TaskService', () => {
   });
 
   it('todayBoardTasks() follows the day sequence: quadrant, then todayOrder', async () => {
-    const later = makeTask({ deadline: today, todayOrder: 2, title: 'Second' });
-    const first = makeTask({ deadline: today, todayOrder: 1, title: 'First' });
+    const later = makeTask({
+      deadline: today,
+      todayOrder: 2,
+      todayOrderDate: today,
+      title: 'Second',
+    });
+    const first = makeTask({
+      deadline: today,
+      todayOrder: 1,
+      todayOrderDate: today,
+      title: 'First',
+    });
     mockDb.getTasks.mockResolvedValueOnce([later, first]);
     await svc.loadTasks();
     expect(svc.todayBoardTasks().map((t) => t.title)).toEqual(['First', 'Second']);
@@ -296,12 +341,10 @@ describe('TaskService', () => {
     expect(svc.todayBoardTasks()).toHaveLength(0);
   });
 
-  it('shows a task once, not twice, when yesterday’s copy is still on the list', async () => {
-    // The report this comes from: the same task added yesterday and added again
-    // today, and two identical cards on the Today board. Yesterday's copy is
-    // still in the day's list because a star is the user's own instruction ("Add
-    // to Today") and the importer's too — so both rows qualified, and nothing on
-    // the cards said which was which.
+  it('shows a task once, not twice, when a copy for another day is on today too', async () => {
+    // The same work added for an earlier day and added again today, with the
+    // earlier copy still starred onto today's board: both rows qualified, and
+    // nothing on the cards said which was which.
     const yesterday = new Date();
     yesterday.setDate(yesterday.getDate() - 1);
     const carriedOver = makeTask({
@@ -309,11 +352,13 @@ describe('TaskService', () => {
       deadline: yesterday.toISOString().slice(0, 10),
       createdAt: yesterday.toISOString(),
       todayOrder: 1,
+      todayOrderDate: today,
     });
     const addedToday = makeTask({
       title: 'Pay the electricity bill',
       deadline: today,
       todayOrder: 2,
+      todayOrderDate: today,
     });
 
     mockDb.getTasks.mockResolvedValueOnce([carriedOver, addedToday]);
@@ -338,6 +383,7 @@ describe('TaskService', () => {
       deadline: yesterday.toISOString().slice(0, 10),
       createdAt: yesterday.toISOString(),
       todayOrder: 1,
+      todayOrderDate: today,
     });
     const addedToday = makeTask({ title: 'Pay The Electricity Bill', deadline: today });
 
@@ -363,28 +409,45 @@ describe('TaskService', () => {
 
   // ── addToToday / removeFromToday ──────────────────────────────────────
 
-  it('addToToday() sets todayOrder to a positive number', async () => {
+  it('addToToday() sets todayOrder to a positive number, stamped with today', async () => {
     const t = makeTask();
     mockDb.getTasks.mockResolvedValueOnce([t]);
     await svc.loadTasks();
     await svc.addToToday(t.id);
-    expect(svc.tasks().find((x) => x.id === t.id)?.todayOrder).toBeGreaterThanOrEqual(1);
+    const updated = svc.tasks().find((x) => x.id === t.id);
+    expect(updated?.todayOrder).toBeGreaterThanOrEqual(1);
+    expect(updated?.todayOrderDate).toBe(today);
+  });
+
+  it('addToToday() replaces a star left over from an earlier day', async () => {
+    const yesterday = new Date();
+    yesterday.setDate(yesterday.getDate() - 1);
+    const staleDay = `${yesterday.getFullYear()}-${String(yesterday.getMonth() + 1).padStart(2, '0')}-${String(yesterday.getDate()).padStart(2, '0')}`;
+    const t = makeTask({ todayOrder: 7, todayOrderDate: staleDay });
+    mockDb.getTasks.mockResolvedValueOnce([t]);
+    await svc.loadTasks();
+    await svc.addToToday(t.id);
+    const updated = svc.tasks().find((x) => x.id === t.id);
+    expect(updated?.todayOrder).toBeGreaterThanOrEqual(1);
+    expect(updated?.todayOrderDate).toBe(today);
   });
 
   it('addToToday() is idempotent when already in today', async () => {
-    const t = makeTask({ todayOrder: 1 });
+    const t = makeTask({ todayOrder: 1, todayOrderDate: today });
     mockDb.getTasks.mockResolvedValueOnce([t]);
     await svc.loadTasks();
     await svc.addToToday(t.id);
     expect(mockDb.updateTask).not.toHaveBeenCalled();
   });
 
-  it('removeFromToday() clears todayOrder to null', async () => {
-    const t = makeTask({ todayOrder: 2 });
+  it('removeFromToday() clears both the position and the day', async () => {
+    const t = makeTask({ todayOrder: 2, todayOrderDate: today });
     mockDb.getTasks.mockResolvedValueOnce([t]);
     await svc.loadTasks();
     await svc.removeFromToday(t.id);
-    expect(svc.tasks().find((x) => x.id === t.id)?.todayOrder).toBeNull();
+    const updated = svc.tasks().find((x) => x.id === t.id);
+    expect(updated?.todayOrder).toBeNull();
+    expect(updated?.todayOrderDate).toBeNull();
   });
 
   // ── setQuadrant ───────────────────────────────────────────────────────
@@ -510,7 +573,54 @@ describe('TaskService', () => {
     expect(mockDb.updateTask).toHaveBeenCalledTimes(3);
   });
 
+  // ── expireTodayPins (a star is for one day) ───────────────────────────
+
+  it("expireTodayPins() clears yesterday's stars and legacy stars in one quiet write", async () => {
+    const pinnedToday = makeTask({ title: 'today', todayOrder: 1, todayOrderDate: today });
+    const pinnedYesterday = makeTask({
+      title: 'yesterday',
+      todayOrder: 2,
+      todayOrderDate: yesterdayDay(),
+    });
+    // A row written before a star had a day to carry: it cannot be today's.
+    const legacy = makeTask({ title: 'legacy', todayOrder: 3 });
+    mockDb.getTasks.mockResolvedValueOnce([pinnedToday, pinnedYesterday, legacy]);
+    await svc.loadTasks();
+
+    expect(await svc.expireTodayPins()).toBe(2);
+    expect(mockDb.clearStaleTodayPins).toHaveBeenCalledWith(today);
+
+    const byTitle = (title: string) => svc.tasks().find((task) => task.title === title);
+    expect(byTitle('today')?.todayOrder).toBe(1);
+    expect(byTitle('today')?.todayOrderDate).toBe(today);
+    expect(byTitle('yesterday')?.todayOrder).toBeNull();
+    expect(byTitle('yesterday')?.todayOrderDate).toBeNull();
+    expect(byTitle('legacy')?.todayOrder).toBeNull();
+    // Housekeeping must not stamp the tasks as freshly edited.
+    expect(mockDb.updateTask).not.toHaveBeenCalled();
+  });
+
+  it('expireTodayPins() writes nothing when every star is today’s', async () => {
+    const task = makeTask({ todayOrder: 1, todayOrderDate: today });
+    mockDb.getTasks.mockResolvedValueOnce([task]);
+    await svc.loadTasks();
+
+    expect(await svc.expireTodayPins()).toBe(0);
+    expect(mockDb.clearStaleTodayPins).not.toHaveBeenCalled();
+  });
+
   // ── runDailyUpkeep (the one call every page makes at start-up) ────────
+
+  it('runDailyUpkeep() clears expired stars before the rest of the day', async () => {
+    const legacy = makeTask({ todayOrder: 4 });
+    mockDb.getTasks.mockResolvedValueOnce([legacy]);
+    await svc.loadTasks();
+
+    await svc.runDailyUpkeep();
+
+    expect(mockDb.clearStaleTodayPins).toHaveBeenCalledWith(today);
+    expect(svc.tasks()[0].todayOrder).toBeNull();
+  });
 
   it('runDailyUpkeep() closes expired work before re-asking the day', async () => {
     stopCarryingForward();

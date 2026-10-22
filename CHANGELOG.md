@@ -5,13 +5,84 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ---
 
-## [2.0.23] – 2026-10-24
+
+## [3.0.0] – 2026-10-18
 
 > **Progress.** This entry was written as the work landed, not after it: each
 > section below describes something that is finished and running in this
 > release, and the code it names is where it lives. Nothing here is a plan.
 
 ### Added
+
+
+- **Standing reminders: the ones that do not give up.** A new **Reminders**
+  page (and card, and desktop notification) for the things a normal reminder is
+  worst at — a presentation, a class, a dose, a train — where the user is
+  standing in front of a room and cannot answer. A reminder is a **stored
+  record**, not a timer: close the laptop, reopen it after lunch, and the 09:00
+  reminder is still standing, with the copy that says *"It was due at 09:00. We
+  kept it for you."* It **escalates** rather than repeating on a stopwatch —
+  three, five, ten, fifteen, twenty, then every thirty minutes for
+  **Insistent**, longer for **Steady** and **Gentle** — measured from the last
+  actual ring, so a snooze cannot shorten the gap.
+  One reminder asks at a time and the card says how many are behind it; a
+  crossed notification comes back after three minutes, because crossing is not
+  answering; and a pause holds the asking without erasing the reminder. There is
+  no close cross on the card and no timeout anywhere: the only exits are
+  **Done**, **Snooze 10 min** and **Stop reminding**, the same three answers the
+  sticky desktop notification carries. It never brings the window forward — the
+  moments it exists for are exactly the ones where stealing focus would be the
+  opposite of help. The page is at `/reminders`, after Time by Task
+  (`reminders.component.ts`, `reminder.service.ts`, `reminder.util.ts`,
+  `reminder-card.component.ts`, `specs/017-standing-reminders`).
+
+- **A website prompt that speaks the same language as the app.** The product
+  site has to explain two ideas the app now has — *the work your focus goes to*
+  (Time by Task) and *the reminder that does not give up* (Standing Reminders) —
+  without turning either into a feature grid. [`docs/website-prompt.md`](docs/website-prompt.md)
+  is a complete, copy-paste brief for building that site: the sections, the
+  exact copy, the demo data, the visual direction, the interactions, and the
+  things the page must not claim.
+
+- **Time by Task: the work your focus actually goes to.** A new **Time by Task**
+  page groups every focus session by the work it paid for, so a daily routine
+  that arrives as a new task row each day — *Code review* on Monday, *Code
+  review* on Tuesday — adds up under one row instead of scattering across the
+  task list.
+  Each row carries the figure the user actually asks for, **till today**: total
+  time, sessions and active days, first and last session, and its rhythm —
+  repeats daily/weekly/monthly, multi-day, or one-off. A **Today / This week /
+  This month / This year / All time / Custom** switch moves the window, with
+  Custom taking two dates so a single unusual day or any arbitrary span can be
+  read. The row's chart divides that window into days, weeks, months or years,
+  and opening the row raises a detail sheet with the breakdown table, the
+  averages and the individual sessions behind the total. Repeating work is
+  detected from the gaps between days worked (a configured recurrence wins when
+  there is one), so a routine kept on one task still reads as repeating.
+
+  **The list is virtualised.** A user with hundreds of tasks no longer builds
+  hundreds of cards: only the fixed-height rows inside the scroll viewport (plus
+  a small overscan) exist in the DOM, and the detail sheet is what lets the rows
+  stay fixed-height. A bar is one **solid colour that means what the work is** —
+  violet repeats, amber is one-off, blue is multi-day, slate is untasked — and
+  the current day/week/month/year is marked with a ring rather than a second
+  fill colour. The legend above the list names every colour and the ring, so a
+  bar never asks the user to guess what two shades mean.
+
+  A **What this says** card turns the numbers into a reading: which work took
+  most of the period, how much of it repeats, how consistently the steadiest
+  task shows up, and whether the average block is long enough to think about
+  splitting. Time the timer recorded without a task is shown as **Untasked
+  focus** rather than hidden, and says how to attribute it next time. With no
+  sessions the page explains what will appear and links to the Dashboard.
+
+  Sessions now keep the task's title as a **snapshot**
+  (`013_add_session_task_title.sql`): `sessions.task_id` is cleared when a task
+  is deleted, and the page must still know which work the hours were for. The
+  migration backfills the sessions already in the database from the task they
+  point at; no duration or date is changed. The page lives at `/time`, in the
+  sidebar after Analytics as **Time by Task**, as `Ctrl+7` (`time.component.ts`,
+  `time-report.util.ts`, `time-report.model.ts`, `specs/016-time-by-task`).
 
 - **The first launch asks one question, and then stops asking it.** A full
   dialog — not a card in the corner — offers to start DeepWork with the computer,
@@ -38,21 +109,24 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   ever". The two switches live in Settings → Reminders
   (`migrations/011_launch_prompt_and_nudges.sql`).
 
-- **A taskbar reminder that checks before it speaks.** Windows will not let an
-  app pin itself without a feature token no ordinary build has, so this asks
-  rather than pretends: three reminders a day, only while DeepWork is *not*
-  pinned, and each one names the two clicks precisely — right-click DeepWork in
-  the Start menu, choose **Pin to taskbar**, or do the same on its taskbar icon
-  if it is already open. What makes the reminder possible at all is that the
-  app can read the folder Windows keeps pinned shortcuts in
+- **A taskbar reminder that tells the truth about pinning.** Windows 11 keeps
+  programmatic pinning for apps it has packaged itself: the taskbar API can exist
+  (the desktop-app marker interface is there) and still answer
+  `IsPinningAllowed = false`. The reminder now asks the shell first. Where the
+  request would be accepted, **Yes** (or **Pin now**) raises Windows' own
+  confirmation. Where it would not — the usual unpackaged case — the same button
+  becomes **Yes, show me** and opens the installed-app list, where right-clicking
+  DeepWork offers **Pin to taskbar**. The Settings row does the same. What makes
+  the reminder honest at all is that the app can read the folder Windows keeps
+  pinned shortcuts in
   (`%APPDATA%\Microsoft\Internet Explorer\Quick Launch\User Pinned\TaskBar`):
   the shortcut's own name is checked, and so are its bytes, in both the plain
   and the UTF-16 form a `.lnk` stores its target in, so a renamed shortcut still
-  counts. The taskbar is re-read before every reminder and again when **Got it**
-  is pressed, which is what makes "already pinned" silence the feature instead
+  counts. The taskbar is re-read before every reminder and again after an
+  answer, which is what makes "already pinned" silence the feature instead
   of nagging through it. It is Windows-only and reports itself as unsupported
   elsewhere, because a reminder whose answer can never be observed should not
-  exist (`src-tauri/src/nudges.rs`, `nudges_taskbar_pin_state`).
+  exist (`src-tauri/src/nudges.rs`, `nudges_taskbar_pin_state`, `open_pin_helper`).
 
 - **Quadrants that give their space away.** Collapsing a quadrant used to hide
   its contents while its share of the board stayed exactly where it was, which
@@ -146,7 +220,163 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   (`floating-timer.service.ts`). Settings gained an **App Behaviour** card that
   tells this same truth in place of switches the browser would ignore.
 
+- **Every question on the desktop can now be answered where it is asked.** The
+  startup and taskbar reminders used to arrive as plain notifications and ask the
+  user to go and find the app; they now carry the same two buttons their cards
+  have — **Yes** and **Not now** — and stay on screen until one of them is
+  pressed. **Yes** on the startup reminder writes the login item; **Yes** on the
+  taskbar reminder raises Windows' own pin confirmation where the shell allows
+  the request, and opens the app list where it does not; and every answer takes
+  the notification down again, because a question that has been answered must not
+  stay on screen asking. The water reminder gets the same treatment: **Yes, drank**
+  logs the glass and **Not now** closes it, from the card or from the notification,
+  and either way the notification is withdrawn. The answers are on the
+  notification in **every** case — including a reminder that arrives while the
+  window is the mini widget, which used to be counted silently and so arrived
+  with no buttons at all. Where a notification cannot carry a press (the plugin
+  and browser surfaces), the minimised reminder still counts the glass rather
+  than hold the cadence behind a question nobody can answer. A notification the
+  user **crosses** is not an answer either: the reminder comes back after three
+  minutes, and again three minutes after every further crossing, until **Yes** or
+  **Not now** is pressed
+  (`launch-prompt.service.ts`, `water-reminder.service.ts`,
+  `NotificationService.dismissSystemNotification`, and `toast_dismiss` with
+  `ToastHandles` in `lib.rs`).
+
+- **The completion alert can be answered from the desktop notification.** A
+  session that runs out now posts **Pause**, **Next**, **Resume** and **Hold up**
+  as buttons on its toast, so the clock can be driven without bringing the window
+  forward. Pause pauses whatever is running when it is pressed — the toast waits
+  in the notification centre long after the alert was raised — Next moves to the
+  next session **and starts it**, so answering is all it takes to carry on
+  rather than leaving a full clock behind a second press, Resume starts the one
+  that is waiting, and Hold up closes the alert and leaves the clock exactly as
+  it was. The skip buttons in the Dashboard and the widget are unchanged: they
+  still mean "not this one", not "and then this one" (`TimerService.skipAndStart`).
+  Every answer stops the ring and takes the toast back, and every post — the
+  raise, a re-ask, and a repeat on a platform that cannot keep a toast — carries
+  the four buttons: Windows replaces the notification it is holding, so a post
+  without them would strip the answers mid-question. The toast itself now
+  **waits** on screen instead of sliding away, and a toast the user crosses is
+  posted again after three minutes — and every three minutes after that — because
+  a crossing is not an answer either. The card in the full window draws the same
+  four from the same list, which is what keeps the alert answerable on the
+  platforms whose toast cannot report a press
+  (`NotificationService.ALERT_ACTIONS` and `onAlertAction`, `TimerService`,
+  `toast.component.ts`).
+
+- **A first-run setup that can be seen again.** The first-run question was
+  genuinely once-only, which also meant it could not be shown a second time — and
+  an install whose database predated the question had already dismissed the
+  preferences dialog, so it met neither half of the flow. That case is now
+  recognised: when `launch_prompted` is unset but the older preferences dialog has
+  been seen, the whole setup is offered again, preferences first and the startup
+  question second, exactly as on a fresh install. Settings → Reminders carries a
+  **Show setup** button for the deliberate case, and the installer now leaves a
+  one-line marker beside the database on a manual install or reinstall — never on
+  the app's own silent update — so installing again shows the setup again instead
+  of being retired by flags the old installation wrote
+  (`LaunchPromptService.reopenSetup`, `DesktopPrefsService.reopenFirstRun`,
+  `first_run_take_marker`, `NSIS_HOOK_POSTINSTALL`).
+
+### Fixed
+
+- **The app no longer rewrites the Windows startup entry on every launch.**
+  `refresh_if_enabled` used to re-`set` the `HKCU\…\Run\DeepWork` value at every
+  start, even when it already pointed at the running executable. To a behavioural
+  antivirus model that is indistinguishable from malware establishing
+  persistence: Defender quarantined the installed build as
+  `Behavior:Win32/Persistence.A!ml`, taking the executable, both shortcuts and
+  the Run value with it. The refresh now compares the stored command with the
+  one it would write and does nothing when they match — the entry is written
+  only when the path really changed after a move, and when the user asks for it
+  (`autostart.rs`).
+
+- **The App Behaviour explainers no longer open underneath the sidebar.** Each
+  info icon's popover was anchored to the button's right edge, so its 272px panel
+  ran leftwards; on the dashboard, where the card begins at the content column's
+  left edge, the panel went back under the navigation and the content column's
+  `overflow-x: hidden` cut it in half. It now opens to the **right** of the
+  button, inside the column that owns it. Below 900px the popover still becomes
+  the full-width band under its row, where there is no side to open towards
+  (`info-tip.component.ts`).
+
+- **The pin reminder no longer ends in "Windows did not pin DeepWork".** Pressing
+  **Yes** on a Windows that reserves programmatic pinning returned
+  `IsPinningAllowed = false`, which the app reported as a failure even though
+  nothing was wrong with the request. It now asks that question first: when the
+  answer is no, the reminder says so up front, its **Yes** becomes **Yes, show
+  me**, and it opens `shell:AppsFolder` — the same list the Start menu's All apps
+  is built from — where right-clicking DeepWork offers **Pin to taskbar**. The
+  Settings row's button follows the same rule, and the fixed error is reserved
+  for a request the shell actually failed. The API can exist and still refuse;
+  the app now tells the difference (`pinning_allowed`, `open_pin_helper`,
+  `DesktopPrefsService.showPinHelper`).
+
+- **The first-run dialog was not appearing on an existing install — because the
+  app was silently not using its database.** `sqlx` records a SHA-384 of every
+  migration it applies and refuses to start when one of them hashes differently.
+  A Windows checkout with `core.autocrlf=true` rewrites `\n` to `\r\n`, which is
+  not a change to the schema but *is* a different hash; the SQL plugin then handed
+  the frontend no connection, and `DbService` answered by falling back to
+  localStorage. The app looked fine, but every task, setting and first-run flag
+  came from a different store than the user's real `deepwork.db`, which sat on
+  disk unused. Three things fix it, and each is the reason the next one is safe:
+
+  1. `.gitattributes` pins `src-tauri/migrations/*.sql` to LF, so the bytes a
+     build embeds are the same on every machine.
+  2. `db_repair_migrations` runs before the plugin opens the file and rewrites a
+     recorded hash that differs only by the *other* line ending. A hash that
+     matches neither is left alone, so a migration whose content really changed
+     still stops the startup. The repair calls the SQLite the app already links
+     (no second copy), runs after the launch backup, and logs what it changed
+     (`src-tauri/src/db_migrations.rs`).
+  3. A database that is present, holds data and still cannot be opened is now
+     reported instead of replaced by localStorage. The database error card shows
+     the plugin's own reason. A failed open from an app initializer used to throw,
+     which meant a blank window rather than the card; the guard now sets the
+     failure and lets the shell render it (`DbService`, `DatabaseErrorComponent`).
+
+  With the database actually open, migrations 11–13 apply, `launch_prompted`
+  arrives at 0, and the setup described above appears.
+
+- **Notifications no longer wear PowerShell's name and icon.** A toast is only
+  drawn with an app's own identity when Windows can resolve the app id it was
+  posted under. A build run from `target/` has no Start-menu shortcut of its own
+  and used to fall back to PowerShell's app id even on a machine where DeepWork
+  was installed — so its notifications came up as PowerShell. It now borrows the
+  installed app's identity whenever the Start-menu entry exists, and falls back to
+  PowerShell only on a machine with no installed copy at all (`alert_app_id` and
+  `app_id_is_registered` in `lib.rs`). The installed build was already using the
+  bundle id; this makes the development build match it.
+
 ### Changed
+
+- **The web app has a domain of its own: `app.deepwork.rajatmalik.dev`.** The
+  browser build used to be served from GitHub Pages' project address,
+  `malikrajat.github.io/deepwork/`, and every place the app handed that address
+  out — the About page, the download list, the visitor counter's note — now
+  hands out this one. The deployment builds for a domain root
+  (`--base-href=/`) and carries a `CNAME`, which is what makes the site work at
+  the new address rather than render blank at it: the previous artefact asked for
+  its scripts under `/deepwork/`, where the custom domain has nothing, so the
+  page answered `200` and painted nothing. `404.html` is still written, so a
+  refresh on `/tasks` is the app and not GitHub's error page. The old address
+  answers `301` to the new one, so bookmarks and old links still arrive
+  (`app-info.constants.ts`, `deploy.yml`, `public/CNAME`,
+  `docs/deployment.md`).
+
+- **Editing or adding a task no longer moves you to another page.** The app
+  still has exactly one task form, but it is now a panel in the shell rather
+  than part of the Tasks page: the pencil on a Today, Matrix, Calendar or
+  Dashboard card, and every **Add task** control, opens it over the page you are
+  reading. The route, the scroll position, the search and the open date sections
+  are untouched, and closing or saving the form leaves you exactly where you
+  started. It replaces the `/tasks?edit=<id>` hand-over, which moved the user to
+  the Tasks page for every correction — including the scroll position and the
+  page they were reading. A `/tasks` link that names a task is still understood
+  (a bookmark, or a URL from an older version); nothing in the app writes one
+  any more. `task-editor-panel.component.ts`, `task-editor.service.ts`.
 
 - **A pause now covers reminders as well as the timer.** Pausing from the tray
   used to stop the clock and leave the reminders free to interrupt; it now holds
@@ -168,9 +398,12 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   compact layout below 900px gives the grid up entirely: one quadrant per row,
   the inline placement overridden, and the dividers hidden.
 
-- **The version is 2.0.23**, in every file that spells it out, and the release
+- **The version is 3.0.0**, in every file that spells it out, and the release
   keeps the 2.0.22 removal of desktop pinning: this release asks the user to pin
-  DeepWork; it still does not try to do it for them.
+  DeepWork; it still does not try to do it for them. The major number is
+  deliberate — Time by Task is a new question the app can answer, not a
+  refinement of today's page — and this release carries the work that had been
+  staged as 2.0.23, which was never tagged.
 
 - **A page is not a narrow column in the middle of a monitor.** Settings and
   About used to be a single 560px and 780px column, with an auto margin added for
@@ -245,6 +478,42 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   line of text (under eight minutes) still carries no label.
 
 ### Fixed
+
+- **The mini widget is one rounded card — no white corners, and no rectangle
+  drawn around it.** The card was already round-cornered, so the four white wedges
+  were never the card. They were whatever the desktop shell put in the pixels the
+  card leaves empty at its corners, and there were three such things: the frame
+  fill (`DwmExtendFrameIntoClientArea`, since removed from `paint_widget_frame`);
+  the hairline Windows draws around every top-level window (now
+  `DWMWA_BORDER_COLOR` = none); and the window's own drop shadow, which follows
+  the *window* rather than the card. Each was chased to its source, and the
+  conclusion is that chasing them one by one is the wrong shape of fix: a window
+  that is a rectangle, holding a card that is not, will always leave that corner
+  to somebody. So the corners are **removed** instead — `SetWindowRgn` clips the
+  window to a rounded rectangle of the card's own size and 18px radius, with no
+  pixel left outside it for a frame, a background or a shadow to occupy. An
+  intermediate pass kept a 16px transparent ring around the card so the page could
+  draw its own shadow; that ring was itself a strip for the shell to outline, and
+  the larger rectangle it produced is why it is gone. Two calls had to be taken
+  back out for good measure: `DWMWA_NCRENDERING_POLICY` = disabled, which takes
+  DWM's composition with it and turns the four corners white, and
+  `Window.setShadow()`, which recomputes the window styles on Windows and puts the
+  title bar back.
+
+- **Yesterday's work no longer follows you into Today.** "Add to Today" is a
+  one-day instruction, but it was stored as a position (`today_order`) that was
+  written once and never expired: a task finished on Monday was still on
+  Tuesday's board, and an import whose rows had answered "Add to Today" left its
+  whole backlog there every morning — which is why Today never reached its own
+  empty state. The star now carries the local day it was set on
+  (`today_order_date`, migration `012_add_today_order_date.sql`), and the daily
+  upkeep clears stars from another day — including the ones written before a day
+  existed to carry — in one quiet write that leaves the tasks themselves alone.
+  A task dated today, or written today, is still on today's board; yesterday's
+  is not, finished or not. The star on a card, the export's **On Today List**
+  column and the importer all read the same day-scoped rule
+  (`task-day.util.ts`, `isPinnedToToday`), so they cannot disagree about what
+  today holds.
 
 - **A focus session started without picking a task is no longer filed against the
   task you last worked on.** The task a session is for was remembered in

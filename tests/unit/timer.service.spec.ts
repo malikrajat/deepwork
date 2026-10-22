@@ -21,6 +21,8 @@ describe('TimerService', () => {
   let mockNotifications: {
     init: ReturnType<typeof vi.fn>;
     fireTimerComplete: ReturnType<typeof vi.fn>;
+    onAlertAction: ReturnType<typeof vi.fn>;
+    dismiss: ReturnType<typeof vi.fn>;
   };
   let mockSettings: {
     settings: ReturnType<typeof signal<typeof DEFAULT_SETTINGS>>;
@@ -39,6 +41,8 @@ describe('TimerService', () => {
     mockNotifications = {
       init: vi.fn().mockResolvedValue(undefined),
       fireTimerComplete: vi.fn().mockResolvedValue(undefined),
+      onAlertAction: vi.fn(),
+      dismiss: vi.fn(),
     };
     TestBed.configureTestingModule({
       providers: [
@@ -150,6 +154,17 @@ describe('TimerService', () => {
     expect(svc.isRunning()).toBe(true);
   });
 
+  it('answers a ringing alert whenever the next session is started', async () => {
+    // The Dashboard and the widget dismiss the alert from their own Start
+    // buttons; the keyboard shortcut and any other caller start the clock
+    // directly. Starting is the answer either way — otherwise the user is asked
+    // again three minutes later about the session they are already in.
+    await svc.init();
+    svc.start();
+
+    expect(mockNotifications.dismiss).toHaveBeenCalledTimes(1);
+  });
+
   it('stop() resets remaining seconds to full work duration', async () => {
     await svc.init();
     svc.start();
@@ -157,6 +172,18 @@ describe('TimerService', () => {
     svc.stop();
     expect(svc.isRunning()).toBe(false);
     expect(svc.remainingSeconds()).toBe(DEFAULT_SETTINGS.workDuration);
+  });
+
+  it('stop() records the linked task’s name on the session', async () => {
+    await svc.init();
+    svc.linkTask('task-abc', 'Code review');
+    svc.start();
+    vi.advanceTimersByTime(5000);
+    svc.stop();
+
+    expect(mockDb.saveSession).toHaveBeenCalledWith(
+      expect.objectContaining({ taskId: 'task-abc', taskTitle: 'Code review' }),
+    );
   });
 
   it('tick reduces remainingSeconds by 1 per second', async () => {
@@ -288,5 +315,97 @@ describe('TimerService', () => {
     expect(svc.currentTaskId()).toBe('task-abc');
     svc.linkTask(null);
     expect(svc.currentTaskId()).toBeNull();
+  });
+
+  // ── answering from the alert's own buttons ────────────────────────────
+
+  /**
+   * Presses one of the four answers the completion alert offers.
+   *
+   * The service hands its handler to `NotificationService` once, so the press a
+   * Windows toast reports arrives here through that callback — the same path a
+   * press on the card takes.
+   */
+  function alertAction(action: string): void {
+    const handler = mockNotifications.onAlertAction.mock.calls[0]?.[0] as
+      | ((pressed: string) => void)
+      | undefined;
+    expect(handler).toBeTypeOf('function');
+    handler?.(action);
+  }
+
+  it('registers itself as the alert’s clock, once', () => {
+    expect(mockNotifications.onAlertAction).toHaveBeenCalledTimes(1);
+  });
+
+  it('pauses the session a pressed Pause found running', async () => {
+    // The toast outlives the alert — it waits in the notification centre — so
+    // Pause has to act on whatever is running when it is pressed, not on the
+    // session that finished.
+    await svc.init();
+    svc.start();
+
+    alertAction('pause');
+
+    expect(svc.isRunning()).toBe(false);
+  });
+
+  it('moves on and starts the next session when Next is pressed', async () => {
+    // Next is the answer of someone who has decided to carry on: the finished
+    // session is already recorded, so it moves to the next type and runs it.
+    // Leaving it waiting made the user press play again for a clock they had
+    // just answered.
+    await svc.init();
+
+    alertAction('next');
+
+    expect(svc.timerType()).toBe('short-break');
+    expect(svc.isRunning()).toBe(true);
+    expect(svc.remainingSeconds()).toBe(DEFAULT_SETTINGS.shortBreak);
+  });
+
+  it('Next starts the focus session that follows a break too', async () => {
+    await svc.init();
+    svc.skip(); // work → short-break
+    expect(svc.timerType()).toBe('short-break');
+
+    alertAction('next');
+
+    expect(svc.timerType()).toBe('work');
+    expect(svc.isRunning()).toBe(true);
+  });
+
+  it('Next from a running session stops it, moves on and starts the next one', async () => {
+    // A toast waits in the notification centre long after the alert stops
+    // ringing, so Next can be pressed while something is running. It is still
+    // "this one is done, carry on": the session it was over is skipped.
+    await svc.init();
+    svc.start();
+
+    alertAction('next');
+
+    expect(svc.timerType()).toBe('short-break');
+    expect(svc.isRunning()).toBe(true);
+  });
+
+  it('starts the session that is waiting when Resume is pressed', async () => {
+    await svc.init();
+
+    alertAction('resume');
+
+    expect(svc.isRunning()).toBe(true);
+  });
+
+  it('leaves the clock alone when Hold up is pressed', async () => {
+    // Hold up is the answer that only closes the alert: nothing started,
+    // nothing skipped, nothing paused.
+    await svc.init();
+    svc.start();
+
+    alertAction('hold');
+
+    expect(svc.isRunning()).toBe(true);
+    expect(svc.timerType()).toBe('work');
+    expect(svc.sessionCount()).toBe(0);
   });
 });

@@ -49,10 +49,41 @@ export class TimerService implements OnDestroy {
 
   private intervalId: ReturnType<typeof setInterval> | null = null;
   private startedAt: string | null = null;
+  /** The linked task's title, passed with `linkTask` by the page that chose it. */
+  private currentTaskTitle: string | null = null;
   private lastTickTime: number = 0;
   private persistIntervalId: ReturnType<typeof setInterval> | null = null;
   private onCompleteCallback: ((completedType: TimerType) => void) | null = null;
   private _initialized = false;
+
+  constructor() {
+    // The completion alert's own buttons are the app's clock controls, so the
+    // clock is what answers them. Registered once, here, because a toast lives in
+    // the notification centre long after the alert stops ringing: **Pause** has
+    // to stop a session the user started since, and **Resume** the next one.
+    //
+    // **Next** is the one that carries on by itself: it moves to the next
+    // session *and* starts it, because "next" is the answer of someone who has
+    // decided to keep going. The Dashboard's and the widget's own skip buttons
+    // are a different answer — "not this one, not yet" — and still leave the
+    // next session waiting. See `skipAndStart`.
+    //
+    // **Hold up** never arrives — closing the alert is `NotificationService`'s
+    // own job, and it does that before asking the clock anything.
+    this.notifications.onAlertAction((action) => {
+      switch (action) {
+        case 'pause':
+          this.pause();
+          break;
+        case 'next':
+          this.skipAndStart();
+          break;
+        case 'resume':
+          this.start();
+          break;
+      }
+    });
+  }
 
   async init(): Promise<void> {
     if (this._initialized) return;
@@ -76,6 +107,10 @@ export class TimerService implements OnDestroy {
       // means. Restoring it regardless was one of the two ways a task chose weeks
       // ago came back and named work it had nothing to do with (see CHANGELOG).
       this.currentTaskId.set(isNewDay ? null : saved.taskId);
+      // The saved state carries the id, not the name. A session resumed from an
+      // earlier day is untasked anyway; one resumed today is named by the Time
+      // page from the task row.
+      this.currentTaskTitle = null;
       this.remainingSeconds.set(remaining);
       this.activeStartedAt.set(saved.startedAt);
       this.startedAt = saved.startedAt;
@@ -95,6 +130,13 @@ export class TimerService implements OnDestroy {
 
   start(): void {
     if (this.isRunning()) return;
+
+    // Starting a session is an answer to the completion alert, whichever control
+    // did it. The Dashboard and the widget have always dismissed the alert on
+    // their own Start buttons; doing it here covers the keyboard shortcut and
+    // any future caller too, so a user who starts the next session in the app
+    // is not asked again three minutes later about a session they are already in.
+    this.notifications.dismiss();
 
     // If remaining is already 0 (e.g. timer expired while app was closed), just advance
     if (this.remainingSeconds() <= 0) {
@@ -156,6 +198,24 @@ export class TimerService implements OnDestroy {
     this.log.info('flow', `timer skipped · next is ${this.timerType()}`);
   }
 
+  /**
+   * Moves to the next session and starts it — the completion alert's **Next**.
+   *
+   * A finished session is already recorded by the time the alert is answered, so
+   * the only decision left is what to do next. Pressing **Next** is the user
+   * saying "carry on": the next session type is set up exactly as {@link skip}
+   * would set it up, and then it runs, so the answer does not leave the user
+   * looking at a full clock and a play button they have already pressed once.
+   *
+   * `skip()` itself is deliberately left alone: the Dashboard's and the widget's
+   * **Skip** mean "not this one", not "and then this one", and starting a
+   * session the user did not ask to start there would be a different answer.
+   */
+  skipAndStart(): void {
+    this.skip();
+    this.start();
+  }
+
   reset(): void {
     this.stopInterval();
     this.isRunning.set(false);
@@ -168,8 +228,9 @@ export class TimerService implements OnDestroy {
     this.log.info('flow', 'timer reset');
   }
 
-  linkTask(taskId: string | null): void {
+  linkTask(taskId: string | null, taskTitle: string | null = null): void {
     this.currentTaskId.set(taskId);
+    this.currentTaskTitle = taskId ? taskTitle : null;
   }
 
   private tick(): void {
@@ -255,9 +316,16 @@ export class TimerService implements OnDestroy {
     const wallClockElapsed = Math.floor((Date.now() - new Date(this.startedAt).getTime()) / 1000);
     const actual = Math.max(1, Math.min(wallClockElapsed, planned));
 
+    const taskId = this.currentTaskId();
+    // Snapshot the name, not only the id: a deleted task clears `taskId` in the
+    // sessions table, and the Time page must still know which work the hours
+    // paid for.
+    const taskTitle = taskId ? this.currentTaskTitle : null;
+
     const session: PomodoroSession = {
       id: crypto.randomUUID(),
-      taskId: this.currentTaskId(),
+      taskId,
+      taskTitle,
       type: this.timerType(),
       durationPlanned: planned,
       durationActual: actual,

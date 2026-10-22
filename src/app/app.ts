@@ -19,8 +19,10 @@ import { LaunchPromptDialogComponent } from './shared/components/launch-prompt-d
 import { AttentionBannerComponent } from './shared/components/attention-banner/attention-banner.component';
 import { MiniWidgetComponent } from './shared/components/mini-widget/mini-widget.component';
 import { QuickAddComponent } from './shared/components/quick-add/quick-add.component';
+import { TaskEditorPanelComponent } from './shared/components/task-editor-panel/task-editor-panel.component';
 import { UpdatePromptComponent } from './shared/components/update-prompt/update-prompt.component';
 import { WaterNudgeComponent } from './shared/components/water-nudge/water-nudge.component';
+import { ReminderCardComponent } from './shared/components/reminder-card/reminder-card.component';
 import { VisitorStatsDialogComponent } from './shared/components/visitor-stats-dialog/visitor-stats-dialog.component';
 import { QuietDialogComponent } from './shared/components/quiet-dialog/quiet-dialog.component';
 import { InstallDialogComponent } from './shared/components/install-dialog/install-dialog.component';
@@ -42,10 +44,14 @@ const PAGE_ROUTES = [
   'calendar',
   'tasks',
   'analytics',
+  'time',
   'habits',
   'journal',
   'settings',
   'about',
+  // Reminders has no digit: the ten number keys keep the destinations they have
+  // always had, and a new page does not get to move them.
+  'reminders',
 ];
 
 /**
@@ -77,8 +83,10 @@ const COMPACT_LAYOUT_QUERY = '(max-width: 900px)';
     AttentionBannerComponent,
     MiniWidgetComponent,
     QuickAddComponent,
+    TaskEditorPanelComponent,
     UpdatePromptComponent,
     WaterNudgeComponent,
+    ReminderCardComponent,
     VisitorStatsDialogComponent,
     QuietDialogComponent,
     InstallDialogComponent,

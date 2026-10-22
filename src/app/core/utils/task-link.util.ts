@@ -2,53 +2,29 @@ import { QUADRANT_CONFIG } from '../constants/theme.constants';
 import { TaskQuadrant } from '../models/task.model';
 
 /**
- * One task editor, and how every page asks for it.
+ * The task editor is one place, and this is the link that can still name it.
  *
- * DeepWork edits a task in exactly one place: the slide-in panel on the Tasks
- * page. A card on Today, a card in the Eisenhower Matrix, a rail card on the
- * Calendar and the Dashboard's current-focus card all offer an **Edit** control
- * now, and all of them mean the same thing — go to `/tasks` and open that task.
+ * DeepWork edits a task in exactly one place: the slide-in panel that lives in
+ * the app shell. Every page opens it over itself through `TaskEditorService` —
+ * a card on Today, a card in the Eisenhower Matrix, a rail card on the Calendar
+ * and the Dashboard's current-focus card all mean the same thing, and none of
+ * them moves the user to another route to say it. What a page was reading, how
+ * far it was scrolled and what it was filtered to are still there behind the
+ * panel, and are still there when it closes.
  *
- * The route is written here rather than on each page so the asking side and the
- * answering side cannot drift apart: pages build their links with
- * {@link taskEditQuery} / {@link taskAddQuery}, and the Tasks page reads the
- * same parameters back with {@link parseTaskDeepLink}.
+ * A `/tasks` address can still name a task or ask for the add form. Nothing in
+ * the app writes one any more — the panel makes that unnecessary — but a link is
+ * an address: one bookmarked, shared, or handed over from an older version still
+ * answers, and {@link parseTaskDeepLink} is how the Tasks page reads it.
  *
- * The two directions have to agree on more than a name. A deadline is only
- * pre-filled when it is a real calendar day that is not in the past (the form's
- * own validator refuses the past, so a stale link must not leave the Add form
- * red before the user has typed anything), and a quadrant is only pre-filled
- * when it is one of the four the app knows.
+ * The reading has to be forgiving. A deadline is only pre-filled when it is a
+ * real calendar day that is not in the past (the form's own validator refuses
+ * the past, so a stale link must not leave the Add form red before the user has
+ * typed anything), and a quadrant is only pre-filled when it is one of the four
+ * the app knows.
  */
 
-/** Page that owns the task form. */
-export const TASK_EDIT_PATH = '/tasks';
-
-/** Query parameters that open `taskId` in the Tasks page's editor. */
-export function taskEditQuery(taskId: string): Record<string, string> {
-  return { edit: taskId };
-}
-
-/** What a page can decide about a task it is about to create. */
-export interface TaskAddPrefill {
-  /** Deadline to write into the form, as `YYYY-MM-DD`. */
-  deadline?: string | null;
-  /** Quadrant the new task should join. */
-  quadrant?: TaskQuadrant | null;
-  /** Put the new task on today's list as well. */
-  today?: boolean;
-}
-
-/** Query parameters that open the Tasks page's add form, pre-filled. */
-export function taskAddQuery(prefill: TaskAddPrefill = {}): Record<string, string> {
-  const query: Record<string, string> = { add: '1' };
-  if (prefill.deadline) query['date'] = prefill.deadline;
-  if (prefill.quadrant) query['quadrant'] = prefill.quadrant;
-  if (prefill.today) query['today'] = '1';
-  return query;
-}
-
-/** What a `/tasks` deep link asked for. */
+/** What a `/tasks` link asked for. */
 export interface TaskDeepLink {
   /** Task the route named, or null when it named none. */
   editId: string | null;
