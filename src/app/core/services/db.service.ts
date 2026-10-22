@@ -58,7 +58,11 @@ export class DatabaseUnreadableError extends Error {
 
 /**
  * Wraps @tauri-apps/plugin-sql with typed, parameterized query methods.
- * Falls back to localStorage when running outside Tauri (browser dev).
+ *
+ * In the desktop app the plugin is the store. Everywhere else — a browser tab,
+ * the web build at `app.deepwork.rajatmalik.dev`, `ng serve` — there is no Tauri
+ * to call, so `localStorage` is the store; see {@link DbService.open} for why
+ * that is decided before the plugin is asked rather than after it refuses.
  */
 @Injectable({ providedIn: 'root' })
 export class DbService {
@@ -152,16 +156,28 @@ export class DbService {
 
   /** The one place the database is actually opened. See {@link init}. */
   private async open(): Promise<void> {
-    if (IN_TAURI) {
-      await this.guard();
-      // The guard refused the file and has already said why. Stopping here lets
-      // the shell render that explanation: throwing from an app initializer is a
-      // blank window, and the one user who needs the message is the one who would
-      // get the blank window.
-      if (this.failure()) {
-        this.initialized.set(true);
-        return;
-      }
+    if (!IN_TAURI) {
+      // A browser tab has no Tauri to call. `Database.load` reaches for
+      // `__TAURI_INTERNALS__.invoke`, which is not there, so the attempt can only
+      // end in a TypeError — caught, but printed on every visit as though the app
+      // were broken. The answer is known before the attempt, so the attempt is not
+      // made: outside the desktop app the store is `localStorage`, and the app says
+      // so once, quietly.
+      this.isBrowser = true;
+      this.welcomed.set(true);
+      this.initialized.set(true);
+      console.info('DbService: browser build — storing in localStorage');
+      return;
+    }
+
+    await this.guard();
+    // The guard refused the file and has already said why. Stopping here lets
+    // the shell render that explanation: throwing from an app initializer is a
+    // blank window, and the one user who needs the message is the one who would
+    // get the blank window.
+    if (this.failure()) {
+      this.initialized.set(true);
+      return;
     }
     this.welcomed.set(true);
 
@@ -169,12 +185,10 @@ export class DbService {
       const { default: Database } = await import('@tauri-apps/plugin-sql');
       const database = await Database.load('sqlite:deepwork.db');
 
-      // A database that cannot be queried is not a database this app may use. The
-      // plugin is normally absent outside Tauri and the import throws — but the
-      // package *is* installed in a development tree, so `load` can succeed there
-      // and hand back a connection that only ever fails, one query at a time, in
-      // whatever happens to ask first. Asking once, here, turns that into the
-      // fallback the browser build already has.
+      // A database that cannot be queried is not a database this app may use.
+      // The package is installed in this tree, so `load` can hand back a
+      // connection that only ever fails, one query at a time, in whatever happens
+      // to ask first. Asking once, here, turns that into the fallback below.
       if (typeof database?.select === 'function') {
         await database.select('SELECT 1');
         this.db = database;
@@ -184,12 +198,14 @@ export class DbService {
 
       this.initialized.set(true);
     } catch (err) {
-      // A file that is there, holds data and could not be opened is not a reason
-      // to start over in localStorage. Doing that would leave the user's real
-      // tasks in a database the app no longer reads, while every screen says the
-      // app is working. The guard's report is enough to tell the two apart.
+      // Every failure that reaches here is a desktop build — the browser returned
+      // above — so the guard has run and its report is the thing that decides
+      // what this failure *means*. A file that is there, holds data and could not
+      // be opened is not a reason to start over in localStorage: that would leave
+      // the user's real tasks in a database the app no longer reads, while every
+      // screen says the app is working.
       const report = this.guardReport;
-      if (IN_TAURI && report?.present && report.holdsData) {
+      if (report?.present && report.holdsData) {
         console.error('DbService: the database could not be opened', err);
         this.db = null;
         this.failure.set(new DatabaseUnreadableError(report, describe(err)));
@@ -197,7 +213,11 @@ export class DbService {
         return;
       }
 
-      console.warn('DbService: Running in browser mode (localStorage)', err);
+      // Nothing on disk worth protecting, and the plugin still would not open —
+      // a development tree whose Rust half is missing, for instance. This session
+      // runs on the browser store. It is a warning rather than a quiet info
+      // because, in a packaged build, it means the SQL layer itself is absent.
+      console.warn('DbService: the SQL plugin is unavailable — using localStorage', err);
       this.db = null;
       this.isBrowser = true;
       this.initialized.set(true);

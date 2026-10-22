@@ -25,6 +25,25 @@ modes here are quiet: a wrong base href serves a blank page at a URL that
 answers `200`, and a missing `404.html` serves a GitHub error page for every
 route but the root. Neither shows up as a red build.
 
+## What the web app stores, and where
+
+The desktop build keeps a SQLite file beside its data folder and opens it
+through Tauri's SQL plugin. A browser tab has neither the file nor the plugin,
+so the web build stores the same records in `localStorage`, under the
+`deepwork_` prefix. `DbService` chooses that store *before* it asks for a
+connection — asking would reach for `__TAURI_INTERNALS__.invoke`, which a plain
+tab does not have, and the failure would show up in the console as a `TypeError`
+even though the fallback is the intended path.
+
+Two consequences are worth knowing when the site is used:
+
+- The web app's data belongs to the **origin and the browser profile** it was
+  entered in. It does not follow the user to the desktop app, and clearing site
+  data clears it. Export a backup from Settings if it matters.
+- The console shows one `DbService: browser build — storing in localStorage`
+  info line and nothing else on load. A warning or an error there means
+  something else went wrong; `Copy diagnostics` in Settings carries the lines.
+
 ## Why GitHub Actions at all
 
 Angular has no server to deploy. `ng build` turns the project into a folder of

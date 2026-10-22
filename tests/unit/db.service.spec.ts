@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { DbService } from '../../src/app/core/services/db.service';
 import { DEFAULT_SETTINGS } from '../../src/app/core/models/settings.model';
 import { Task } from '../../src/app/core/models/task.model';
@@ -55,6 +55,30 @@ describe('DbService (browser/localStorage mode)', () => {
     await db.init();
     const s = await db.getSettings();
     expect(s).toBeDefined();
+  });
+
+  it('does not reach for the SQL plugin outside the desktop app', async () => {
+    // The browser build used to ask `@tauri-apps/plugin-sql` for a connection
+    // anyway, and the TypeError it got back from a missing `__TAURI_INTERNALS__`
+    // was caught only to be printed on every visit — a red stack for the normal
+    // path. Nothing here may fail: the store is chosen before the plugin is asked.
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    const info = vi.spyOn(console, 'info').mockImplementation(() => {});
+
+    try {
+      await db.init();
+
+      expect(warn).not.toHaveBeenCalled();
+      expect(db.failure()).toBeNull();
+      expect(db.welcomed()).toBe(true);
+
+      // And the store it chose really is localStorage.
+      await db.createTask(makeTask({ title: 'chosen before asking' }));
+      expect(localStorage.getItem('deepwork_tasks')).toContain('chosen before asking');
+    } finally {
+      warn.mockRestore();
+      info.mockRestore();
+    }
   });
 
   // ── Settings ──────────────────────────────────────────────────────────

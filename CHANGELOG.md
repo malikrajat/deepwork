@@ -281,6 +281,19 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Fixed
 
+- **The web app no longer reports a Tauri `TypeError` on every visit.**
+  `app.deepwork.rajatmalik.dev` logged `DbService: Running in browser mode
+  (localStorage) TypeError: Cannot read properties of undefined (reading
+  'invoke')` before the first screen had settled. The browser build was asking
+  `@tauri-apps/plugin-sql` for a connection it could not have — the plugin reads
+  `__TAURI_INTERNALS__.invoke`, and a plain tab has no such thing — then catching
+  the failure and falling back to `localStorage`, which is the store it uses by
+  design. The fallback is now chosen *before* the plugin is asked: outside the
+  desktop app the database service selects `localStorage`, says so once in an
+  info line, and never loads the SQL plugin, so the console is clean and startup
+  makes one request fewer. The desktop app is unchanged — it still checks, backs
+  up and migrates the database file before opening it (`db.service.ts`).
+
 - **The app no longer rewrites the Windows startup entry on every launch.**
   `refresh_if_enabled` used to re-`set` the `HKCU\…\Run\DeepWork` value at every
   start, even when it already pointed at the running executable. To a behavioural
