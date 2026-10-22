@@ -352,6 +352,20 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Changed
 
+- **The web app has a domain of its own: `app.deepwork.rajatmalik.dev`.** The
+  browser build used to be served from GitHub Pages' project address,
+  `malikrajat.github.io/deepwork/`, and every place the app handed that address
+  out — the About page, the download list, the visitor counter's note — now
+  hands out this one. The deployment builds for a domain root
+  (`--base-href=/`) and carries a `CNAME`, which is what makes the site work at
+  the new address rather than render blank at it: the previous artefact asked for
+  its scripts under `/deepwork/`, where the custom domain has nothing, so the
+  page answered `200` and painted nothing. `404.html` is still written, so a
+  refresh on `/tasks` is the app and not GitHub's error page. The old address
+  answers `301` to the new one, so bookmarks and old links still arrive
+  (`app-info.constants.ts`, `deploy.yml`, `public/CNAME`,
+  `docs/deployment.md`).
+
 - **Editing or adding a task no longer moves you to another page.** The app
   still has exactly one task form, but it is now a panel in the shell rather
   than part of the Tasks page: the pencil on a Today, Matrix, Calendar or

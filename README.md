@@ -51,7 +51,7 @@ A desktop-first productivity app with a Pomodoro timer at its centre. Everything
 - **Reminders that ask**: a finished session rings until you answer it, the water nudge asks a question you reply to, and **standing reminders** keep asking about a presentation, a class or a dose until you press *Done*, *Snooze* or *Stop* — across a closed laptop, a crossed notification and a restart.
 - **Desktop manners**: system tray, start-with-system, always-on-top, and a draggable always-on-top mini widget. A stray click on the window's X does not end your session.
 - **Pause, mute and focus everywhere**: the same panel opens from the sidebar, a phone's top bar, Settings and `Ctrl+Shift+Q` — on Windows, macOS, Linux, the installed web app and a plain browser tab alike. A pause holds the timer and every reminder; a mute is sound-only and always ends by itself.
-- **The same app in a browser**: the web build at [malikrajat.github.io/deepwork](https://malikrajat.github.io/deepwork/) runs the whole thing and can be installed as a PWA. In a tab it offers installation (in the window and, once a week, as a system notification); installed, it explains how to start with the computer and offers a floating always-on-top timer where the browser supports one.
+- **The same app in a browser**: the web build at [app.deepwork.rajatmalik.dev](https://app.deepwork.rajatmalik.dev/) runs the whole thing and can be installed as a PWA. In a tab it offers installation (in the window and, once a week, as a system notification); installed, it explains how to start with the computer and offers a floating always-on-top timer where the browser supports one.
 
 ## What DeepWork is not
 
@@ -69,7 +69,7 @@ Worth saying before you spend your time, because each of these has been implied 
 
 | Where       | What you get                                                                                                                           |
 | ----------- | -------------------------------------------------------------------------------------------------------------------------------------- |
-| **Web app** | [malikrajat.github.io/deepwork](https://malikrajat.github.io/deepwork/) — nothing to install; add it to your desktop from the browser. |
+| **Web app** | [app.deepwork.rajatmalik.dev](https://app.deepwork.rajatmalik.dev/) — nothing to install; add it to your desktop from the browser. |
 | **Windows** | The `.exe` setup (NSIS) or `.msi` from the [releases page](https://github.com/malikrajat/deepwork/releases), for 64-bit Windows 10+.   |
 | **macOS**   | The `.dmg` for recent macOS versions (Intel and Apple Silicon builds are published separately).                                        |
 | **Linux**   | An AppImage, `.deb` or `.rpm` for most distributions. AppImages need `chmod +x` before they will run.                                  |
@@ -254,7 +254,7 @@ Coverage is measured over **every** file in `src/app`, whether or not a test imp
 
 **The jobs run independently.** None of them waits for another, and each one reports its own pass or fail, so a red browser suite says the browser suite is red — it does not cancel the unit tests, the compile, the installers, or a tagged release. The one thing that does wait is `release`, and only because it attaches the files the installer jobs upload: on a `v*` tag it publishes whatever they built.
 
-`deploy.yml` builds the web app with `npm run build:github` and publishes `dist/deepwork/browser` to GitHub Pages on every push to `main`. That one command does two things: it builds for the `/deepwork/` sub-path, and it writes the shell out a second time as `404.html` — the one file Pages serves when a URL is not a file. Pages has no rewrite rules, so without that copy a refresh, a bookmark or a shared link on any route but the root is answered by GitHub's own "File not found" page; with it the app is served at the address that was asked for and routes itself, exactly as an S3 website's error document does. The same file is produced by a local `npm run build:github`, so the artifact is the one CI publishes.
+`deploy.yml` builds the web app with `npm run build:github` and publishes `dist/deepwork/browser` to GitHub Pages on every push to `main`, and on demand from the Actions tab. That one command does two things: it builds with `--base-href=/`, because the site is served from the custom domain `app.deepwork.rajatmalik.dev` at its root, and it writes the shell out a second time as `404.html` — the one file Pages serves when a URL is not a file. Pages has no rewrite rules, so without that copy a refresh, a bookmark or a shared link on any route but the root is answered by GitHub's own "File not found" page; with it the app is served at the address that was asked for and routes itself, exactly as an S3 website's error document does. `public/CNAME` carries the custom domain into the artifact, and the run refuses to upload unless the shell it built really does say `<base href="/">`. The same file is produced by a local `npm run build:github`, so the artifact is the one CI publishes. [`docs/deployment.md`](docs/deployment.md) has the settings this depends on.
 
 ## Project structure, and where to change what
 
@@ -283,7 +283,7 @@ A short map for the changes people actually want to make:
 | Installer metadata, window size, bundle targets   | [`src-tauri/tauri.conf.json`](src-tauri/tauri.conf.json)                                                           |
 | The version number, everywhere it is written down | `npm run version:bump -- x.y.z` (see below) — never by hand                                                        |
 | Where the visitor counter sends its data          | [`visitor.constants.ts`](src/app/core/constants/visitor.constants.ts) — the GoatCounter site, the path prefix, the pinned script |
-| How the deployed site answers a deep link         | [`pages-404.mjs`](scripts/pages-404.mjs) — the shell written out as `404.html`, so a refresh on `/deepwork/tasks` is the app and not GitHub's 404 |
+| How the deployed site answers a deep link         | [`pages-404.mjs`](scripts/pages-404.mjs) — the shell written out as `404.html`, so a refresh on `/tasks` is the app and not GitHub's 404 |
 
 Documentation index: [`docs/INDEX.md`](docs/INDEX.md) — every guidance file in the repository, including [`docs/angular-best-practices.md`](docs/angular-best-practices.md) and [`docs/memory-footprint.md`](docs/memory-footprint.md).
 

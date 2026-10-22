@@ -15,12 +15,12 @@
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
     <link rel="icon" type="image/svg+xml" href="favicon.svg" />
     <link rel="alternate icon" type="image/x-icon" href="favicon.ico" />
-    <!-- Relative, not `/…`: the web build is served from a sub-path on GitHub
-       Pages (`/deepwork/`), where a root-absolute URL is a 404 on somebody
-       else's site — which is exactly what stopped this app being installable.
-       Relative URLs resolve against the `<base href>` the build sets, so the
-       same file works at a domain root (the desktop webview, `ng serve`) and
-       under a sub-path alike. -->
+    <!-- Relative, not `/…`: the web build has been served from a sub-path in the
+       past, where a root-absolute URL is a 404 on somebody else's site — which
+       is exactly what stopped this app being installable. Relative URLs resolve
+       against the `<base href>` the build sets, so the same file works at a
+       domain root (`app.deepwork.rajatmalik.dev`, the desktop webview,
+       `ng serve`) and under a sub-path alike. -->
     <link rel="manifest" href="manifest.webmanifest" />
     <meta name="theme-color" content="#8b5cf6" />
     <meta name="mobile-web-app-capable" content="yes" />
@@ -61,11 +61,12 @@
       if (!isDesktopApp && 'serviceWorker' in navigator) {
         window.addEventListener('load', () => {
           // Resolved against the document's own base URL rather than the domain
-          // root: on GitHub Pages this app lives at `/deepwork/`, and `/sw.js`
-          // there is a 404 — the browser then refuses to register anything, and
-          // the missing service worker is one of the things that makes an app
-          // uninstallable. The scope follows the script's own folder, which is
-          // the app's folder.
+          // root, so the same file works wherever the app is served from. The
+          // deployed build sits at the root of `app.deepwork.rajatmalik.dev`,
+          // but `/sw.js` written as an absolute path would break again the day
+          // it moved to a sub-path — and a missing service worker is one of the
+          // things that makes an app uninstallable. The scope follows the
+          // script's own folder, which is the app's folder.
           var swUrl = new URL('sw.js', document.baseURI).href;
           navigator.serviceWorker.register(swUrl).catch(() => {
             /* SW unavailable */

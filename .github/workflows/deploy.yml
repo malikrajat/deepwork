@@ -1,9 +1,14 @@
 name: Deploy Angular App to GitHub Pages
 
+# The app is published at https://app.deepwork.rajatmalik.dev/ (custom domain
+# root). `build:github` therefore builds with `--base-href=/` and writes the
+# shell as `404.html`, so refreshing a client-side route does not 404. The
+# generated `CNAME` keeps the custom domain attached to every deployment.
 on:
   push:
     branches:
       - main
+  workflow_dispatch:
 
 permissions:
   contents: read
@@ -20,26 +25,37 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Setup Node
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v7
         with:
-          node-version: 22
+          node-version: 24
+          cache: npm
 
-      - name: Install Dependencies
+      - name: Install dependencies
         run: npm ci
 
-      # Builds for the `/deepwork/` sub-path and then writes the shell out again
-      # as `404.html` (scripts/pages-404.mjs). Pages has no rewrite rules, so
-      # without that file a refresh on `/deepwork/tasks` is answered by GitHub's
-      # own "File not found" page; with it, the app is served and routes itself.
-      # Both files are in `dist/deepwork/browser` by the time this step ends.
-      - name: Build Deepwork
+      - name: Build DeepWork for the custom domain
         run: npm run build:github
 
-      - name: Upload Artifact
-        uses: actions/upload-pages-artifact@v3
+      # A deployment that silently carries the old `/deepwork/` base href serves
+      # a blank page at the custom domain. Fail here rather than in production.
+      - name: Verify the Pages artifact
+        run: |
+          set -euo pipefail
+          test -f dist/deepwork/browser/index.html
+          test -f dist/deepwork/browser/404.html
+          test -f dist/deepwork/browser/CNAME
+          test "$(tr -d '[:space:]' < dist/deepwork/browser/CNAME)" = "app.deepwork.rajatmalik.dev"
+          grep -q '<base href="/"' dist/deepwork/browser/index.html
+          echo "artifact: base href=/, 404.html and CNAME present"
+
+      - name: Configure GitHub Pages
+        uses: actions/configure-pages@v6
+
+      - name: Upload Pages artifact
+        uses: actions/upload-pages-artifact@v5
         with:
           path: ./dist/deepwork/browser
 
@@ -54,4 +70,4 @@ jobs:
     steps:
       - name: Deploy to GitHub Pages
         id: deployment
-        uses: actions/deploy-pages@v4
+        uses: actions/deploy-pages@v5

@@ -68,7 +68,7 @@ import { VisitorStatsService } from '../../../core/services/visitor-stats.servic
           <small class="setting-note"
             >The packaged desktop app is not counted: it is served from your own disk, has no web
             address to report, and how many people opened your laptop is nobody's business. The
-            counter runs in the browser build, at malikrajat.github.io/deepwork</small
+            counter runs in the browser build, at app.deepwork.rajatmalik.dev</small
           >
         </span>
       </div>

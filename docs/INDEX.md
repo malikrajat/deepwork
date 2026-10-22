@@ -8,6 +8,7 @@ Central reference for all guidance files in this repository.
 | ------------------------------------------------------ | ------------------------------------------------------------- |
 | [angular-best-practices.md](angular-best-practices.md) | Angular/TypeScript coding standards                           |
 | [code-signing.md](code-signing.md)                     | Windows installer signatures, and the macOS Gatekeeper dialog |
+| [deployment.md](deployment.md)                         | How the web build is built and published to GitHub Pages at `app.deepwork.rajatmalik.dev`, and the settings that depends on |
 | [memory-footprint.md](memory-footprint.md)             | Where the app's memory goes, and which levers can move it     |
 | [website-prompt.md](website-prompt.md)                 | A ready-to-use prompt for building the product website, with the sections and copy this repo already has |
 

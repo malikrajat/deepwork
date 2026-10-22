@@ -513,7 +513,7 @@ revolutionary, AI-powered, "take control of your life", fake urgency.
   ProductivityApplication`, `offers.price: 0`, `license: MIT`.
 - **Links:** the download CTAs point at
   `https://github.com/malikrajat/deepwork/releases`; the web app CTA points at
-  `https://malikrajat.github.io/deepwork/`; the footer links to
+  `https://app.deepwork.rajatmalik.dev/`; the footer links to
   `https://github.com/malikrajat/deepwork`.
 - **Analytics:** none by default. If one is added, it must be cookie-free,
   disclosed in the footer, and off for the desktop app (which never loads the

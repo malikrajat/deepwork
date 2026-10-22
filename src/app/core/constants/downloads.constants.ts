@@ -15,7 +15,7 @@ import { APP_WEB_APP_URL } from './app-info.constants';
 /** A desktop platform DeepWork ships an installer for. */
 export type DownloadPlatform = Exclude<Platform, 'unknown'>;
 
-/** `https://malikrajat.github.io/deepwork/` → `malikrajat.github.io/deepwork`. */
+/** `https://app.deepwork.rajatmalik.dev/` → `app.deepwork.rajatmalik.dev`. */
 const WEB_ADDRESS = APP_WEB_APP_URL.replace(/^https?:\/\//, '').replace(/\/$/, '');
 
 /** One way to get DeepWork: the browser build, or an installer for a platform. */

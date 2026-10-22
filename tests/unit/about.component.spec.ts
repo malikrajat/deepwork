@@ -205,7 +205,7 @@ describe('AboutComponent', () => {
     expect(rows[1].name).toContain('Windows');
     expect(rows[2].name).toBe('macOS');
     expect(rows[3].name).toBe('Linux');
-    expect(rows[0].detail).toContain('malikrajat.github.io/deepwork');
+    expect(rows[0].detail).toContain('app.deepwork.rajatmalik.dev');
   });
 
   it('links the browser build to the web app and the installers to their real files', () => {

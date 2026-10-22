@@ -171,8 +171,8 @@ describe('referrerFact', () => {
 
   it('does not call a hop inside the app a referral', () => {
     const fact = referrerFact(
-      'https://malikrajat.github.io/deepwork/tasks',
-      'https://malikrajat.github.io',
+      'https://app.deepwork.rajatmalik.dev/tasks',
+      'https://app.deepwork.rajatmalik.dev',
     );
     expect(fact.value).toContain('Another page in DeepWork');
   });

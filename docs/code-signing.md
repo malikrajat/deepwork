@@ -91,7 +91,7 @@ one it is meant to open.
 
 ### The alternative that needs no signature at all
 
-The same app runs in a browser at <https://malikrajat.github.io/deepwork/> and installs
+The same app runs in a browser at <https://app.deepwork.rajatmalik.dev/> and installs
 as a PWA from the browser's own menu — no download, no Gatekeeper, and the only
 difference is the visitor counter the desktop build does not have (see
 [README → Your data, and what leaves your machine](../README.md#your-data-and-what-leaves-your-machine)).
