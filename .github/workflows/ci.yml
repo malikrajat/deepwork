@@ -362,7 +362,52 @@ jobs:
       # AppImage/.deb/.rpm on Linux, the .dmg on macOS. One target per job, on the
       # runner that matches it, with no cross-compilation flags to keep honest.
       - name: Build the installer
+        if: runner.os != 'macOS'
         run: npm run tauri:build -- --target ${{ matrix.target }}
+
+      # The .dmg is built by a copy of create-dmg that mounts a scratch image,
+      # copies the .app into it and detaches it again. On GitHub's macOS runners
+      # XProtect can keep scanning that image long enough for `hdiutil` to answer
+      # "Resource busy", and the whole bundling step exits non-zero — the same
+      # commit passes on a rerun, and it never happens on a developer's Mac
+      # (actions/runner-images#7522). So the bundle is attempted up to three
+      # times: the Rust build is already compiled by the second attempt, and
+      # Tauri removes its previous bundle directory before writing a new one.
+      #
+      # `--verbose` is not noise: it is what makes the bundler echo the output of
+      # bundle_dmg.sh line by line. Without it a failed DMG prints only
+      # "failed to run bundle_dmg.sh" and the failing `hdiutil` call is lost,
+      # which is exactly what made this failure unreadable in the first place.
+      - name: Build the installer (macOS)
+        if: runner.os == 'macOS'
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          # One log survives the last attempt even when the step fails, so the
+          # `hdiutil` line behind a red job can still be read in the run.
+          log="$RUNNER_TEMP/tauri-build-macos.log"
+
+          for attempt in 1 2 3; do
+            if npm run tauri:build -- --target "${{ matrix.target }}" --verbose 2>&1 | tee "$log"; then
+              exit 0
+            fi
+
+            # Retry only the bundling flake. A compile error is not going to
+            # clear by waiting, and retrying it would just print it three times.
+            if ! grep -qE 'bundle_dmg\.sh|hdiutil' "$log"; then
+              echo "::error::the installer failed outside the DMG step"
+              exit 1
+            fi
+
+            if [ "$attempt" -eq 3 ]; then
+              echo "::error::the DMG step failed three times; its hdiutil output is above"
+              exit 1
+            fi
+
+            echo "::warning::DMG attempt $attempt failed; retrying in $((attempt * 20))s"
+            sleep $((attempt * 20))
+          done
 
       # This is the part that makes an installer downloadable: without it a run
       # only reports that it built something, and the file itself is gone with
