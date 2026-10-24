@@ -152,6 +152,15 @@ describe('LaunchPromptService', () => {
     });
 
     it('keeps the reminders after Not now, and stays quiet for a while', async () => {
+      // The window runs from the dismissal to the reminder that follows it, so
+      // the tick below has to land inside it. On the runner's own clock it may
+      // not: CI starts this job at 04:36, long before the plan's first slot, and
+      // the reminder is then legitimately due. Pinning the clock to that first
+      // slot is what makes this a test of the window rather than of the hour the
+      // job happened to start.
+      const plan = nudgePlanFor(localDayKey(new Date()));
+      vi.setSystemTime(at(plan.startup[0]));
+
       const service = build({ launchPrompted: false }, { prompted: true });
       await service.init();
 
@@ -160,7 +169,6 @@ describe('LaunchPromptService', () => {
       expect(settings().launchPrompted).toBe(true);
       expect(service.visible()).toBe(false);
       // The next reminder is not the same question in the same minute.
-      const plan = nudgePlanFor(localDayKey(new Date()));
       await service.tick(at(plan.startup[0]));
       expect(notifications.showToastMessage).not.toHaveBeenCalled();
     });

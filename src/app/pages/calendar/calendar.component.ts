@@ -1847,6 +1847,22 @@ function persistCollapsedGroups(value: Record<string, boolean>): void {
           margin-left: 0;
           gap: 4px;
         }
+        /* The label and the two clocks share this line, and none of them could
+         give up any width: on a font that measures wider than the machine the
+         layout was built on (CI runs Ubuntu), the second clock ended 17px past
+         a 320px window. Both halves now yield instead — the label truncates and
+         the clocks take what is left — so the row fits whatever the font says
+         rather than only the font this was checked on. */
+        .day-window input[type='time'] {
+          flex: 1 1 0;
+          min-width: 0;
+        }
+        .window-label {
+          min-width: 0;
+          overflow: hidden;
+          text-overflow: ellipsis;
+          white-space: nowrap;
+        }
         .cal-toolbar {
           gap: 8px;
           padding: 8px 10px;
