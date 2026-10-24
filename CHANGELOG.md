@@ -6,7 +6,7 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 ---
 
 
-## [3.0.0] – 2026-10-18
+## [3.0.0] – 2026-10-26
 
 > **Progress.** This entry was written as the work landed, not after it: each
 > section below describes something that is finished and running in this
