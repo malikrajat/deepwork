@@ -183,7 +183,12 @@ mod platform {
 
     // The SQLite C API the app is already linked against — see the module docs
     // for why there is no `#[link]` here.
-    extern "system" {
+    //
+    // `extern "C"`, not `extern "system"`: SQLite is a C library, and on 32-bit
+    // Windows `system` is `stdcall`, which decorates every import (`@16`, `@8`)
+    // that the cdecl functions SQLite exports do not define. The two agree on
+    // 64-bit Windows, so only the x86 installer failed to link.
+    extern "C" {
         fn sqlite3_open_v2(
             filename: *const c_char,
             db: *mut *mut c_void,
@@ -196,7 +201,7 @@ mod platform {
             db: *mut c_void,
             sql: *const c_char,
             callback: Option<
-                unsafe extern "system" fn(
+                unsafe extern "C" fn(
                     *mut c_void,
                     c_int,
                     *mut *mut c_char,

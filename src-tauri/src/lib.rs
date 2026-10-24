@@ -670,7 +670,9 @@ struct ToastDismissedEvent {
 /// them, since a post replaces both the toast on screen and the object here.
 #[cfg(windows)]
 struct ToastHandles(
-    std::sync::Mutex<std::collections::HashMap<String, windows::UI::Notifications::ToastNotification>>,
+    std::sync::Mutex<
+        std::collections::HashMap<String, windows::UI::Notifications::ToastNotification>,
+    >,
 );
 
 /// Posts the completion alert as a toast the OS re-raises instead of stacking.
@@ -1826,7 +1828,13 @@ mod toast_tests {
 
     #[test]
     fn a_waiting_toast_keeps_the_scenario_that_makes_it_wait() {
-        let xml = toast_xml("T", "B", None, r#" duration="long" scenario="reminder""#, &[]);
+        let xml = toast_xml(
+            "T",
+            "B",
+            None,
+            r#" duration="long" scenario="reminder""#,
+            &[],
+        );
         assert!(xml.contains(r#"scenario="reminder""#));
     }
 

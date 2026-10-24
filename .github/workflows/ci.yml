@@ -165,6 +165,14 @@ jobs:
   e2e:
     name: E2E (Playwright)
     runs-on: ubuntu-latest
+    # The suite takes four to fifteen minutes. This cap is not for the tests —
+    # Playwright times each of those out itself — but for a step that hangs
+    # instead of failing. `apt`, which `playwright install --with-deps` runs, has
+    # no network timeout of its own, and a stalled mirror parked this job until
+    # GitHub's six-hour default cancelled it, reporting "cancelled" with no
+    # failing step to look at. Half an hour leaves room for a retried install
+    # and still ends in a failure that says which step it was.
+    timeout-minutes: 30
     # Playwright drives the real app in a browser: every screen, every click, the
     # whole stack. The suite is blocking now that it describes the app as it is —
     # it used to run with `continue-on-error`, because a third of its
@@ -189,7 +197,25 @@ jobs:
         run: npm ci
 
       - name: Install Chromium
-        run: npx playwright install --with-deps chromium
+        # `--with-deps` shells out to apt, which waits on a network operation
+        # forever by default: the stalled mirror that used to hang this job for
+        # six hours never printed an error, it simply stopped. These timeouts
+        # turn that into a failure in a minute or two, `Retries` lets a single
+        # bad mirror recover, and `timeout` bounds the whole invocation for the
+        # stalls the apt settings do not cover.
+        env:
+          DEBIAN_FRONTEND: noninteractive
+        run: |
+          set -euo pipefail
+
+          sudo tee /etc/apt/apt.conf.d/99-ci-timeouts >/dev/null <<'EOF'
+          Acquire::http::Timeout "30";
+          Acquire::https::Timeout "30";
+          Acquire::ftp::Timeout "30";
+          Acquire::Retries "3";
+          EOF
+
+          timeout 600 npx playwright install --with-deps chromium
 
       # `playwright.config.ts` starts the dev server itself (port 4202).
       - name: Run the end-to-end suite

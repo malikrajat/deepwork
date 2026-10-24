@@ -527,7 +527,10 @@ mod tests {
     fn a_file_that_is_not_a_database_is_reported_as_data() {
         // The dangerous case: something with content in it, at the path the
         // plugin would otherwise decide to create a database on top of.
-        let path = write_temp("not-a-database.txt", b"these are the user's notes, not a database");
+        let path = write_temp(
+            "not-a-database.txt",
+            b"these are the user's notes, not a database",
+        );
 
         let report = preflight_at(&path);
 
@@ -550,10 +553,7 @@ mod tests {
 
     #[test]
     fn a_database_from_a_newer_sqlite_is_not_silently_replaced() {
-        let path = write_temp(
-            "from-the-future.db",
-            &database_file(4096, 2, 3, 4096 * 2),
-        );
+        let path = write_temp("from-the-future.db", &database_file(4096, 2, 3, 4096 * 2));
 
         let report = preflight_at(&path);
 
@@ -622,7 +622,10 @@ mod tests {
         assert_eq!(std::fs::read(&copy).unwrap(), b"the database");
         assert!(dir.join("backups").is_dir());
         assert!(copy
-            .with_file_name(format!("{}-wal", copy.file_stem().unwrap().to_string_lossy()))
+            .with_file_name(format!(
+                "{}-wal",
+                copy.file_stem().unwrap().to_string_lossy()
+            ))
             .is_file());
     }
 
