@@ -39,9 +39,9 @@ const makeMockSettings = () => ({
  */
 const ALERT_ANSWERS = [
   { id: 'pause', label: 'Pause' },
-  { id: 'next', label: 'Next' },
-  { id: 'resume', label: 'Resume' },
-  { id: 'hold', label: 'Hold up' },
+  { id: 'skip', label: 'Skip current' },
+  { id: 'start', label: 'Start' },
+  { id: 'silent', label: 'Silent' },
 ];
 
 describe('NotificationService', () => {
@@ -155,7 +155,7 @@ describe('NotificationService', () => {
     // than as the message's last sentence — and the four answers, which travel
     // with every post so a repeat can never strip them from the toast.
     expect(sendNotification).toHaveBeenLastCalledWith(
-      'Focus session complete!',
+      'Task is over.',
       'Great work! Time for a short break.',
       0,
       { quote: FOCUS_QUOTES[0], actions: ALERT_ANSWERS, sticky: true },
@@ -168,7 +168,7 @@ describe('NotificationService', () => {
     // A repeat says something new ("Reminder 2 · …") and quotes the same line:
     // the sentence belongs to the alert, not to the tone that re-announces it.
     expect(sendNotification).toHaveBeenLastCalledWith(
-      'Focus session complete!',
+      'Task is over.',
       'Great work! Time for a short break.',
       2,
       { quote: FOCUS_QUOTES[0], actions: ALERT_ANSWERS, sticky: true },
@@ -257,17 +257,13 @@ describe('NotificationService', () => {
     const plugin = await import('@tauri-apps/plugin-notification');
     vi.mocked(invoke).mockResolvedValue(undefined as never);
 
-    await (svc as any).sendNotification(
-      'Focus session complete!',
-      'Great work! Time for a short break.',
-      3,
-    );
+    await (svc as any).sendNotification('Task is over.', 'Great work! Time for a short break.', 3);
 
     // The tag is the whole point of going through the shell's own command: it is
     // what Windows replaces rather than stacking a second toast beside, and the
     // count in the body is what makes the replacement something new to read.
     expect(invoke).toHaveBeenCalledWith('alert_notify', {
-      title: 'Focus session complete!',
+      title: 'Task is over.',
       body: 'Reminder 3 · Great work! Time for a short break.',
       tag: 'deepwork-alert',
       // A bare post has no quote of its own, and it repeats on its own clock, so
@@ -283,7 +279,7 @@ describe('NotificationService', () => {
 
   it('posts the alert’s four answers as buttons on the desktop toast', async () => {
     // The toast is where the user is looking, so the clock's controls belong on
-    // it: Pause, Next and Resume act, and Hold up closes the alert without
+    // it: Pause, Skip current and Start act, and Silent closes the alert without
     // touching the clock. Windows is the only platform whose toast reports a
     // press, and the id — not the label — is what comes back.
     const { invoke } = await import('@tauri-apps/api/core');
@@ -316,7 +312,7 @@ describe('NotificationService', () => {
     await svc.fireTimerComplete('work');
 
     expect(sendNotification).toHaveBeenCalledWith(
-      'Focus session complete!',
+      'Task is over.',
       'Great work! Time for a short break.',
       0,
       { quote: FOCUS_QUOTES[0], actions: ALERT_ANSWERS, sticky: true },
@@ -328,7 +324,7 @@ describe('NotificationService', () => {
   it('leaves a sticky toast alone on every tone, but still re-posts where it cannot stick', () => {
     const sendNotification = ((svc as any).sendNotification = vi.fn().mockResolvedValue(true));
     const pending = {
-      title: 'Focus session complete!',
+      title: 'Task is over.',
       body: 'Great work! Time for a short break.',
       type: 'work' as const,
       quote: FOCUS_QUOTES[0],
@@ -363,7 +359,7 @@ describe('NotificationService', () => {
     // back after three minutes, and keeps coming back until a button is pressed.
     const sendNotification = ((svc as any).sendNotification = vi.fn().mockResolvedValue(true));
     const pending = {
-      title: 'Focus session complete!',
+      title: 'Task is over.',
       body: 'Great work! Time for a short break.',
       type: 'work' as const,
       quote: FOCUS_QUOTES[0],
@@ -389,8 +385,8 @@ describe('NotificationService', () => {
     await vi.advanceTimersByTimeAsync(3 * 60_000);
     expect(sendNotification).toHaveBeenCalledTimes(2);
 
-    // Any answer — here Hold up — ends the asking.
-    (svc as any).runAlertAction('hold');
+    // Any answer — here Silent — ends the asking.
+    (svc as any).runAlertAction('silent');
     await vi.advanceTimersByTimeAsync(3 * 60_000);
     expect(sendNotification).toHaveBeenCalledTimes(2);
   });
@@ -402,17 +398,17 @@ describe('NotificationService', () => {
     const handler = vi.fn();
     svc.onAlertAction(handler);
 
-    (svc as any).runAlertAction('resume');
+    (svc as any).runAlertAction('start');
 
     expect(svc.ringing()).toBe(false);
-    expect(handler).toHaveBeenCalledWith('resume');
+    expect(handler).toHaveBeenCalledWith('start');
   });
 
-  it('closes the alert on Hold up without asking the clock anything', () => {
+  it('closes the alert on Silent without asking the clock anything', () => {
     const handler = vi.fn();
     svc.onAlertAction(handler);
 
-    (svc as any).runAlertAction('hold');
+    (svc as any).runAlertAction('silent');
 
     expect(svc.ringing()).toBe(false);
     expect(handler).not.toHaveBeenCalled();
@@ -432,10 +428,10 @@ describe('NotificationService', () => {
       ALERT_ANSWERS.map((answer) => answer.label),
     );
 
-    // The card's own answer takes the same path as the toast's — Resume starts
-    // the session that is waiting, and the alert is closed on the way.
+    // The card's own answer takes the same path as the toast's — Start begins the
+    // session that is waiting, and the alert is closed on the way.
     await svc.toast()?.actions?.[2].run();
-    expect(handler).toHaveBeenCalledWith('resume');
+    expect(handler).toHaveBeenCalledWith('start');
     expect(svc.toast()).toBeNull();
   });
 
@@ -529,17 +525,13 @@ describe('NotificationService', () => {
     // What a non-Windows desktop, or a shell older than the command, reports.
     vi.mocked(invoke).mockRejectedValue(new Error('command alert_notify not found'));
 
-    await (svc as any).sendNotification(
-      'Focus session complete!',
-      'Great work! Time for a short break.',
-      2,
-    );
+    await (svc as any).sendNotification('Task is over.', 'Great work! Time for a short break.', 2);
 
     // The plugin path has no tag to post under, so the id it does take is the
     // only handle there is, and the count is what keeps repeats distinguishable.
     expect(plugin.sendNotification).toHaveBeenCalledWith({
       id: 7301,
-      title: 'Focus session complete!',
+      title: 'Task is over.',
       body: 'Reminder 2 · Great work! Time for a short break.',
     });
   });

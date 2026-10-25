@@ -79,7 +79,7 @@ describe('VisitorCounterService', () => {
     expect(localStorage.getItem(VISITOR_VISITS_KEY)).toBe('1');
   });
 
-  it('counts the page it lands on, under the app own prefix', async () => {
+  it('counts the page it lands on, under its own route', async () => {
     service = setup();
     installCounterScript();
 
@@ -87,7 +87,7 @@ describe('VisitorCounterService', () => {
     await flush();
 
     expect(countSpy).toHaveBeenCalledWith({
-      path: '/deepwork/',
+      path: '/',
       title: 'DeepWork — Dashboard',
     });
     expect(service.counted()).toBe(true);
@@ -107,7 +107,7 @@ describe('VisitorCounterService', () => {
 
     expect(countSpy).toHaveBeenCalledTimes(3);
     expect(countSpy).toHaveBeenLastCalledWith({
-      path: '/deepwork/journal/2026-06-05',
+      path: '/journal/2026-06-05',
       title: 'DeepWork — Journal',
     });
   });

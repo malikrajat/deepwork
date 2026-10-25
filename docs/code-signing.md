@@ -9,10 +9,11 @@ not verify…" dialog, which is about a **Developer ID signature** and a
 **notarization ticket** — the one that actually stops an install, and the one with a
 section of its own below.
 
-As things stand neither exists: the installers are **unsigned**, and Windows says so:
+Neither is configured by default: without the Apple/Windows secrets described below,
+the installers are **unsigned**. Windows says so plainly:
 
 ```powershell
-Get-AuthenticodeSignature .\DeepWork_3.0.0_x64-setup.exe | Select-Object Status
+Get-AuthenticodeSignature .\DeepWork_3.0.1_x64-setup.exe | Select-Object Status
 # Status
 # ------
 # NotSigned
@@ -75,7 +76,7 @@ Three routes, in the order to offer them:
 
    ```bash
    # Only for a file you are sure of — check the download first.
-   shasum -a 256 ~/Downloads/DeepWork_3.0.0_aarch64.dmg
+   shasum -a 256 ~/Downloads/DeepWork_3.0.1_aarch64.dmg
    xattr -dr com.apple.quarantine /Applications/DeepWork.app
    open /Applications/DeepWork.app
    ```
@@ -100,24 +101,34 @@ unverified, this is the honest answer rather than a workaround.
 
 ### The fix, in this repository's terms
 
-macOS signing needs a **paid Apple Developer account** (99 USD a year). With one:
+macOS signing needs a **paid Apple Developer account** (99 USD a year). The CI pipeline
+is now wired for it, so the certificate is the only thing left to supply:
 
-- **A Developer ID Application certificate**, exported as a `.p12`, kept on the runner
-  as `APPLE_CERTIFICATE` (base64) and `APPLE_CERTIFICATE_PASSWORD`, with
-  `APPLE_SIGNING_IDENTITY` — or `bundle.macOS.signingIdentity` in
-  [`src-tauri/tauri.conf.json`](../src-tauri/tauri.conf.json), which is `null` today.
+- **A Developer ID Application certificate**, exported as a `.p12`, base64-encoded into
+  the `APPLE_CERTIFICATE` secret, with `APPLE_CERTIFICATE_PASSWORD` and a
+  `KEYCHAIN_PASSWORD` of your choosing. The installer job creates a temporary keychain,
+  imports the certificate and makes it available to `codesign` before `tauri build`
+  runs.
+- **The signing identity** as `APPLE_SIGNING_IDENTITY`. If it is omitted, CI reads the
+  `Developer ID Application` identity out of the keychain it just imported, so the
+  secret is optional.
 - **Notarization**, so Gatekeeper carries a ticket instead of an opinion: `APPLE_ID`,
-  `APPLE_PASSWORD` (an app-specific password) and `APPLE_TEAM_ID` in the installer
-  job's environment. Tauri submits the `.dmg` to Apple's notary service and staples the
-  ticket, which is what makes the first launch quiet.
-- **A keychain import step in CI**, because the identity has to exist on the runner
-  before `tauri build` runs: `security create-keychain`, `security import
-  certificate.p12`, `security set-key-partition-list`, `security find-identity`.
+  `APPLE_PASSWORD` (an app-specific password) and `APPLE_TEAM_ID`. Tauri submits the
+  bundle to Apple's notary service when all three are present.
+
+The steps are in
+[`.github/workflows/ci.yml`](../.github/workflows/ci.yml) under the `installers` job.
+They are **gated on `APPLE_CERTIFICATE`**: with no secret, every Apple variable is
+removed before the build, the DMG is produced unsigned exactly as before, and the job
+still passes. With the secrets set, the same job signs and notarizes the bundle and
+then verifies the result the way Gatekeeper will — `codesign --verify --deep --strict`,
+`xcrun stapler validate`, and `spctl --assess --type execute`. A build whose ticket is
+missing fails there rather than on a user's Mac.
 
 Tauri's guide — [macOS Code Signing](https://v2.tauri.app/distribute/sign/macos/) — has
-the full command list and the GitHub Actions recipe. Until that certificate exists, the
-dialog above stays, and the honest thing is to say so on the release page rather than
-let a Mac user conclude the app is broken.
+the full command list and the GitHub Actions recipe this follows. Until the secrets are
+in the repository, the dialog above stays, and the honest thing is to say so on the
+release page rather than let a Mac user conclude the app is broken.
 
 ## Windows: what each option shows the user
 
@@ -232,14 +243,14 @@ TAURI_CONFIG='{"bundle":{"windows":{"signCommand":"trusted-signing-cli … %1"}}
 
 ```powershell
 # 1. Is it signed, and by the name you expect?
-Get-AuthenticodeSignature .\DeepWork_3.0.0_x64-setup.exe |
+Get-AuthenticodeSignature .\DeepWork_3.0.1_x64-setup.exe |
   Format-List Status, SignerCertificate
 
 # 2. Does the signature actually validate, chain included?
-signtool verify /pa /v .\DeepWork_3.0.0_x64-setup.exe
+signtool verify /pa /v .\DeepWork_3.0.1_x64-setup.exe
 
 # 3. What will the user's "Publisher" line and Apps & Features say?
-(Get-Item .\DeepWork_3.0.0_x64-setup.exe).VersionInfo |
+(Get-Item .\DeepWork_3.0.1_x64-setup.exe).VersionInfo |
   Format-List CompanyName, ProductName, FileVersion, LegalCopyright
 ```
 
@@ -257,13 +268,13 @@ worth doing permanently:
   confirm the file they downloaded is the file that was built:
 
   ```powershell
-  Get-FileHash .\DeepWork_3.0.0_x64-setup.exe -Algorithm SHA256
+  Get-FileHash .\DeepWork_3.0.1_x64-setup.exe -Algorithm SHA256
   # or, on Linux/macOS:
-  sha256sum DeepWork_3.0.0_amd64.AppImage
+  sha256sum DeepWork_3.0.1_amd64.AppImage
   ```
 
 - **Say where the source is.** The repository, the tag and the build instructions
-  are already public; a release note that points at them ("built from tag v3.0.0 by
+  are already public; a release note that points at them ("built from tag v3.0.1 by
   the GitHub Actions run linked below") gives a suspicious user something to check
   that does not depend on trusting a signature.
 
@@ -291,7 +302,7 @@ what you saw was one of the other two:
 
 ```powershell
 # Nothing printed means the file never came from the internet, so SmartScreen is out.
-Get-Item .\DeepWork_3.0.0_x64-setup.exe -Stream * | Select-Object Stream
+Get-Item .\DeepWork_3.0.1_x64-setup.exe -Stream * | Select-Object Stream
 ```
 
 ### If the antivirus engine flagged it
@@ -412,7 +423,7 @@ Until then, whoever is installing can insist: **More info → Run anyway**, or, 
 the file, right-click → Properties → **Unblock**, or
 
 ```powershell
-Unblock-File .\DeepWork_3.0.0_x64-setup.exe
+Unblock-File .\DeepWork_3.0.1_x64-setup.exe
 ```
 
 ### What the build does to look less like something to block

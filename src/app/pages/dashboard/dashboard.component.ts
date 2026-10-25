@@ -114,12 +114,7 @@ import { TaskSelectFormModel, createTaskSelectFormDefaults } from '../../shared/
 
     <!-- Main dashboard -->
     <div class="dashboard-wrapper" [class.hidden]="isFullscreen() || ui.isNativeWidget()">
-      <div class="page-header animate-fade-in">
-        <div>
-          <h1 class="gradient-text page-title">Dashboard</h1>
-          <p class="page-subtitle">Focus. Track. Achieve.</p>
-        </div>
-      </div>
+      
 
       <!-- Main row: Clock (80%) | Timeline (20%) -->
       <div class="main-row animate-fade-in-delay-1">

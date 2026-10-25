@@ -17,6 +17,7 @@ import { DesktopPrefsService } from '../../src/app/core/services/desktop-prefs.s
 const hoisted = vi.hoisted(() => {
   const win = {
     setDecorations: vi.fn().mockResolvedValue(undefined),
+    setTitleBarStyle: vi.fn().mockResolvedValue(undefined),
     setShadow: vi.fn().mockResolvedValue(undefined),
     setResizable: vi.fn().mockResolvedValue(undefined),
     setMinSize: vi.fn().mockResolvedValue(undefined),
@@ -132,6 +133,11 @@ describe('UiService (desktop window frame)', () => {
     expect(frameCalls().at(-1)).toBe(true);
     expect(hoisted.win.setResizable).toHaveBeenCalledWith(true);
     expect(hoisted.win.setShadow).not.toHaveBeenCalled();
+    // A decoration change rebuilds the macOS style mask without the full-size
+    // content view, so the page would sit below the title bar while the layout
+    // still reserved the bar's strip. The style is asked for again on the way
+    // out for that reason.
+    expect(hoisted.win.setTitleBarStyle).toHaveBeenCalledWith('visible');
   });
 
   it('forces the frame when the window says it has none', async () => {
@@ -176,5 +182,7 @@ describe('UiService (desktop window frame)', () => {
     await windows.restoreWindowFrame();
 
     expect(document.documentElement.classList.contains('macos-native-frame')).toBe(false);
+    // Nothing to put back: there is no native title bar over the page.
+    expect(hoisted.win.setTitleBarStyle).not.toHaveBeenCalled();
   });
 });

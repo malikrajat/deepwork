@@ -365,6 +365,43 @@ jobs:
         if: runner.os != 'macOS'
         run: npm run tauri:build -- --target ${{ matrix.target }}
 
+      # The Developer ID certificate has to exist in a keychain on the runner
+      # before `tauri build` can sign anything. The step is a no-op when the
+      # secrets are not configured, so a repository without an Apple account still
+      # builds the same unsigned DMG it always did.
+      #
+      # Gatekeeper's "Apple could not verify…" dialog is not a property of the
+      # app: it is the absence of this certificate and a notarization ticket. A
+      # build made locally is openable because it never came from the internet and
+      # carries no quarantine flag; a downloaded CI build does, and this is what
+      # makes the two behave the same.
+      - name: Import the Apple Developer ID certificate
+        if: runner.os == 'macOS'
+        shell: bash
+        env:
+          APPLE_CERTIFICATE: ${{ secrets.APPLE_CERTIFICATE }}
+          APPLE_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
+          KEYCHAIN_PASSWORD: ${{ secrets.KEYCHAIN_PASSWORD }}
+        run: |
+          set -euo pipefail
+
+          if [ -z "${APPLE_CERTIFICATE:-}" ]; then
+            echo "::notice::APPLE_CERTIFICATE is not configured; this DMG will be unsigned."
+            exit 0
+          fi
+
+          echo "$APPLE_CERTIFICATE" | base64 --decode > "$RUNNER_TEMP/certificate.p12"
+          security create-keychain -p "$KEYCHAIN_PASSWORD" build.keychain
+          security default-keychain -s build.keychain
+          security unlock-keychain -p "$KEYCHAIN_PASSWORD" build.keychain
+          security set-keychain-settings -t 3600 -u build.keychain
+          security import "$RUNNER_TEMP/certificate.p12" -k build.keychain \
+            -P "$APPLE_CERTIFICATE_PASSWORD" -T /usr/bin/codesign
+          security set-key-partition-list -S apple-tool:,apple:,codesign: \
+            -s -k "$KEYCHAIN_PASSWORD" build.keychain
+          security find-identity -v -p codesigning build.keychain
+          rm -f "$RUNNER_TEMP/certificate.p12"
+
       # The .dmg is built by a copy of create-dmg that mounts a scratch image,
       # copies the .app into it and detaches it again. On GitHub's macOS runners
       # XProtect can keep scanning that image long enough for `hdiutil` to answer
@@ -381,8 +418,43 @@ jobs:
       - name: Build the installer (macOS)
         if: runner.os == 'macOS'
         shell: bash
+        env:
+          # Signing (certificate + identity) and notarization (Apple ID + app
+          # specific password + team) are separate credentials. Tauri only does
+          # either when the variables it needs are present, so an empty secret
+          # has to be *absent*, not set to "" — hence the `unset` below.
+          APPLE_CERTIFICATE: ${{ secrets.APPLE_CERTIFICATE }}
+          APPLE_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
+          APPLE_SIGNING_IDENTITY: ${{ secrets.APPLE_SIGNING_IDENTITY }}
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          APPLE_PASSWORD: ${{ secrets.APPLE_PASSWORD }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
         run: |
           set -euo pipefail
+
+          # If the certificate secret is present but the identity was left to the
+          # keychain, take the Developer ID the import step just installed.
+          if [ -n "${APPLE_CERTIFICATE:-}" ] && [ -z "${APPLE_SIGNING_IDENTITY:-}" ]; then
+            APPLE_SIGNING_IDENTITY=$(security find-identity -v -p codesigning build.keychain \
+              | awk -F'"' '/Developer ID Application/ {print $2; exit}')
+            if [ -z "$APPLE_SIGNING_IDENTITY" ]; then
+              echo "::error::the keychain holds no Developer ID Application identity"
+              security find-identity -v -p codesigning build.keychain
+              exit 1
+            fi
+            export APPLE_SIGNING_IDENTITY
+          fi
+
+          # No certificate, no signing: clear every Apple variable rather than
+          # handing Tauri empty strings it would try to use. With one, the .p12
+          # is already in the keychain, so drop it from the environment too and
+          # leave the build with the identity and the notary credentials.
+          if [ -z "${APPLE_CERTIFICATE:-}" ]; then
+            unset APPLE_CERTIFICATE APPLE_CERTIFICATE_PASSWORD APPLE_SIGNING_IDENTITY
+            unset APPLE_ID APPLE_PASSWORD APPLE_TEAM_ID
+          else
+            unset APPLE_CERTIFICATE APPLE_CERTIFICATE_PASSWORD
+          fi
 
           # One log survives the last attempt even when the step fails, so the
           # `hdiutil` line behind a red job can still be read in the run.
@@ -408,6 +480,36 @@ jobs:
             echo "::warning::DMG attempt $attempt failed; retrying in $((attempt * 20))s"
             sleep $((attempt * 20))
           done
+
+      # The bundle is only worth publishing if the ticket is really on it. This
+      # reads it back the way Gatekeeper will, rather than trusting that the
+      # environment variables were enough.
+      - name: Verify the macOS signature and notarization ticket
+        if: runner.os == 'macOS'
+        shell: bash
+        env:
+          APPLE_CERTIFICATE: ${{ secrets.APPLE_CERTIFICATE }}
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          APPLE_PASSWORD: ${{ secrets.APPLE_PASSWORD }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+          TARGET: ${{ matrix.target }}
+        run: |
+          set -euo pipefail
+
+          if [ -z "${APPLE_CERTIFICATE:-}" ] || [ -z "${APPLE_ID:-}" ] \
+            || [ -z "${APPLE_PASSWORD:-}" ] || [ -z "${APPLE_TEAM_ID:-}" ]; then
+            echo "::notice::Signing or notarization credentials are incomplete; skipping verification."
+            exit 0
+          fi
+
+          app="src-tauri/target/$TARGET/release/bundle/macos/DeepWork.app"
+
+          # The signature covers the whole bundle, not only the executable.
+          codesign --verify --deep --strict --verbose=2 "$app"
+          # The ticket is what lets a quarantined copy open without a warning.
+          xcrun stapler validate "$app"
+          # And this is the exact question Gatekeeper asks on first launch.
+          spctl --assess --type execute --verbose=4 "$app"
 
       # This is the part that makes an installer downloadable: without it a run
       # only reports that it built something, and the file itself is gone with

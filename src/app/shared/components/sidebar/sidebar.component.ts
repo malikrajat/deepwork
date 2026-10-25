@@ -180,7 +180,11 @@ interface NavItem {
     `
       .sidebar {
         width: 240px;
-        height: 100vh;
+        /* The column is as tall as the row it sits in, not as tall as the
+           viewport: the shell already gave up a strip for the macOS title bar,
+           and 100vh here overhung that strip by the same amount — which put
+           the footer and the version badge below the window's bottom edge. */
+        height: 100%;
         background: var(--sidebar-bg);
         backdrop-filter: blur(20px);
         -webkit-backdrop-filter: blur(20px);
@@ -188,7 +192,7 @@ interface NavItem {
         box-shadow: var(--glass-shadow);
         display: flex;
         flex-direction: column;
-        padding: var(--space-lg) var(--space-md);
+        padding: var(--shell-gutter);
         transition: width 0.3s cubic-bezier(0.4, 0, 0.2, 1);
         flex-shrink: 0;
         position: relative;
@@ -216,7 +220,7 @@ interface NavItem {
         align-items: center;
         justify-content: space-between;
         padding: var(--space-sm) var(--space-sm);
-        margin-bottom: var(--space-xl);
+        margin-bottom: var(--space-lg);
       }
       .collapsed .sidebar-header {
         justify-content: center;
@@ -482,10 +486,11 @@ interface NavItem {
           /* 100% of the fixed host, not 100vh: the host is already the height
              of what the phone is actually showing. */
           height: 100%;
-          padding: var(--space-lg) var(--space-md);
+          padding: var(--shell-gutter);
           padding-top: calc(var(--space-lg) + var(--safe-top));
-          padding-bottom: calc(var(--space-lg) + var(--safe-bottom));
-          padding-left: calc(var(--space-md) + var(--safe-left));
+          padding-right: calc(var(--shell-gutter) + var(--safe-right));
+          padding-bottom: calc(var(--shell-gutter) + var(--safe-bottom));
+          padding-left: calc(var(--shell-gutter) + var(--safe-left));
           /* Opaque, unlike the desktop column's translucent --sidebar-bg: this
              panel has the page's own cards directly behind it, and at 0.65
              alpha they read through it as text on top of text. */

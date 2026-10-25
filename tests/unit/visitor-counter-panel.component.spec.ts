@@ -123,14 +123,14 @@ describe('VisitorCounterPanelComponent', () => {
   describe('the note under the number', () => {
     it('names the range and says it is this app alone', () => {
       setup({ token: 'a-token', headline: 12 });
-      expect(internals.countNote()).toBe('Last 7 days · this web app only, from the API');
+      expect(internals.countNote()).toBe('Last 7 days · this web app, from the GoatCounter API');
     });
 
-    it('says the public counter covers both apps, because it does', () => {
+    it('says the public counter already covers this app, and what a token adds', () => {
       setup({ total: '28' });
       const note = internals.countNote();
-      expect(note).toContain('rajatmalik.dev');
-      expect(note).toContain('token in the popup');
+      expect(note).toContain('DeepWork GoatCounter site');
+      expect(note).toContain('API token in Details');
     });
 
     it('says it is reading while it is', () => {
@@ -182,8 +182,8 @@ describe('VisitorCounterPanelComponent', () => {
     expect(src).toContain('app.deepwork.rajatmalik.dev');
   });
 
-  it('says the popup can only show the site total without a token', () => {
+  it('says the popup can show more than the public total with a token', () => {
     const src = readFileSync(SOURCE, 'utf8');
-    expect(src).toContain('public counter cannot separate them');
+    expect(src).toContain('Add an API token in Details');
   });
 });

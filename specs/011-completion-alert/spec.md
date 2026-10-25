@@ -35,11 +35,13 @@ every tone (AC-12, AC-13).
 
 One surface was still asking the question with no way to answer it: the **system
 notification**. It now carries the same four answers the card does — **Pause**,
-**Next**, **Resume** and **Hold up** — so the clock can be driven from the desktop,
-and the card draws them as well, which is what keeps the alert answerable on the
-platforms whose toast cannot report a press (AC-14). **Next** carries on by
-itself: it moves to the next session and starts it, because answering "next" is
-the decision to keep going, not a second decision waiting to be made.
+**Skip current**, **Start** and **Silent** — so the clock can be driven from the
+desktop, and the card draws them as well, which is what keeps the alert answerable
+on the platforms whose toast cannot report a press (AC-14). The labels say what a
+press does: **Skip current** moves past the session at the head of the queue and
+leaves the next one waiting, while **Start** begins that waiting session (or
+continues a paused one from its remaining time), so carrying on is one press and
+skipping is a different one.
 
 ## Relationship to `001-create-deepwork` and `003-mini-widget-window`
 
@@ -75,11 +77,11 @@ the decision to keep going, not a second decision waiting to be made.
    returns **with the card still on it**, in the alert's current colour, because
    that is what they came to read.
 7. **Answer it from the desktop.** The user is in another window when the toast
-   appears. They press **Resume** on it: the next session starts, the tone stops
-   and the toast is taken back — no window to bring forward. **Next** moves to the
-   session after this one and starts it instead, so carrying on is one press, and
-   **Pause** pauses whatever is running when it is pressed.
-8. **Go quiet from the desktop without deciding.** The user presses **Hold up**.
+   appears. They press **Start**: the waiting session begins, the tone stops and
+   the toast is taken back — no window to bring forward. **Skip current** moves
+   past the session at the head of the queue and leaves the next one waiting
+   instead, and **Pause** pauses whatever is running when it is pressed.
+8. **Go quiet from the desktop without deciding.** The user presses **Silent**.
    The alert closes and the clock is left exactly as it was: nothing started,
    nothing skipped, nothing paused.
 
@@ -158,18 +160,17 @@ the decision to keep going, not a second decision waiting to be made.
   repeat, which is what replays its entry animation. So the same three things —
   tone, notification, colour and motion — happen whether the user is looking at the
   app or at the widget.
-- **AC-14** The alert offers four answers — **Pause**, **Next**, **Resume**,
-  **Hold up**, in that order — on its Windows toast and on its card, from **one**
-  list (`NotificationService.ALERT_ACTIONS`): the toast gets ids and labels, the
-  card gets the same ids behind closures, so a button can never mean one thing on
-  the desktop and another in the app. A press reports the button's **id**, never
-  its label, so wording is free to change. **Pause** pauses the session that is
-  running when it is pressed, **Next** moves to the next session type **and
-  starts it** — `TimerService.skipAndStart`, because "next" is the answer of
-  someone who has decided to carry on, while the Dashboard's and the widget's own
-  skip buttons keep meaning "not this one" — and **Resume** starts the session
-  that is waiting (`NotificationService`, `onAlertAction`, answered by
-  `TimerService`); **Hold up** closes the alert and leaves the clock untouched.
+- **AC-14** The alert offers four answers — **Pause**, **Skip current**,
+  **Start**, **Silent**, in that order — on its Windows toast and on its card,
+  from **one** list (`NotificationService.ALERT_ACTIONS`): the toast gets ids and
+  labels, the card gets the same ids behind closures, so a button can never mean
+  one thing on the desktop and another in the app. A press reports the button's
+  **id**, never its label, so wording is free to change. **Pause** pauses the
+  session that is running when it is pressed, **Skip current** moves past the
+  session at the head of the queue and leaves the next one waiting
+  (`TimerService.skip`), **Start** begins that waiting session or continues a
+  paused one from its remaining time (`TimerService.start`), and **Silent**
+  closes the alert and leaves the clock untouched.
   Every answer stops the ring, and every answer takes the alert's notification
   back (`toast_dismiss`) — a question that has been answered must not stay on
   screen asking. Every post — the raise, a re-ask after a crossing, and a repeat

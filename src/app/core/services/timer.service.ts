@@ -60,25 +60,25 @@ export class TimerService implements OnDestroy {
     // The completion alert's own buttons are the app's clock controls, so the
     // clock is what answers them. Registered once, here, because a toast lives in
     // the notification centre long after the alert stops ringing: **Pause** has
-    // to stop a session the user started since, and **Resume** the next one.
+    // to stop a session the user started since, and **Start** the next one.
     //
-    // **Next** is the one that carries on by itself: it moves to the next
-    // session *and* starts it, because "next" is the answer of someone who has
-    // decided to keep going. The Dashboard's and the widget's own skip buttons
-    // are a different answer — "not this one, not yet" — and still leave the
-    // next session waiting. See `skipAndStart`.
+    // **Skip current** moves past the session at the head of the queue and leaves
+    // the one after it waiting — the same answer the Dashboard's and the widget's
+    // own skip buttons give. **Start** is the one that carries on by itself: it
+    // starts that waiting session, or continues a paused one from its remaining
+    // time. Both labels say which of the two a press is.
     //
-    // **Hold up** never arrives — closing the alert is `NotificationService`'s
+    // **Silent** never arrives — closing the alert is `NotificationService`'s
     // own job, and it does that before asking the clock anything.
     this.notifications.onAlertAction((action) => {
       switch (action) {
         case 'pause':
           this.pause();
           break;
-        case 'next':
-          this.skipAndStart();
+        case 'skip':
+          this.skip();
           break;
-        case 'resume':
+        case 'start':
           this.start();
           break;
       }
@@ -196,24 +196,6 @@ export class TimerService implements OnDestroy {
     this.advanceToNext();
     this.persistState();
     this.log.info('flow', `timer skipped · next is ${this.timerType()}`);
-  }
-
-  /**
-   * Moves to the next session and starts it — the completion alert's **Next**.
-   *
-   * A finished session is already recorded by the time the alert is answered, so
-   * the only decision left is what to do next. Pressing **Next** is the user
-   * saying "carry on": the next session type is set up exactly as {@link skip}
-   * would set it up, and then it runs, so the answer does not leave the user
-   * looking at a full clock and a play button they have already pressed once.
-   *
-   * `skip()` itself is deliberately left alone: the Dashboard's and the widget's
-   * **Skip** mean "not this one", not "and then this one", and starting a
-   * session the user did not ask to start there would be a different answer.
-   */
-  skipAndStart(): void {
-    this.skip();
-    this.start();
   }
 
   reset(): void {

@@ -38,7 +38,11 @@ describe('ToastComponent', () => {
 
   it('renders toast container when notification is set', () => {
     mockNotifications.toast.set({
-      id: 1, title: 'Focus Done!', body: 'Take a break.', type: 'work', visible: true,
+      id: 1,
+      title: 'Focus Done!',
+      body: 'Take a break.',
+      type: 'work',
+      visible: true,
     });
     fixture.detectChanges();
     expect(fixture.nativeElement.querySelector('.toast-container')).not.toBeNull();
@@ -46,7 +50,11 @@ describe('ToastComponent', () => {
 
   it('displays correct title text in the toast', () => {
     mockNotifications.toast.set({
-      id: 2, title: 'Break Over!', body: 'Ready to focus?', type: 'short-break', visible: true,
+      id: 2,
+      title: 'Break Over!',
+      body: 'Ready to focus?',
+      type: 'short-break',
+      visible: true,
     });
     fixture.detectChanges();
     const title = fixture.nativeElement.querySelector('.toast-title');
@@ -61,7 +69,13 @@ describe('ToastComponent', () => {
   });
 
   it('applies .break class for short-break type notification', () => {
-    mockNotifications.toast.set({ id: 4, title: 'T', body: 'B', type: 'short-break', visible: true });
+    mockNotifications.toast.set({
+      id: 4,
+      title: 'T',
+      body: 'B',
+      type: 'short-break',
+      visible: true,
+    });
     fixture.detectChanges();
     const container = fixture.nativeElement.querySelector('.toast-container');
     expect(container?.classList.contains('break')).toBe(true);
@@ -88,9 +102,9 @@ describe('ToastComponent', () => {
       visible: true,
       actions: [
         { label: 'Pause', run: vi.fn() },
-        { label: 'Next', run: vi.fn() },
-        { label: 'Resume', run: resume },
-        { label: 'Hold up', run: vi.fn() },
+        { label: 'Skip current', run: vi.fn() },
+        { label: 'Start', run: resume },
+        { label: 'Silent', run: vi.fn() },
       ],
     });
     fixture.detectChanges();
@@ -98,9 +112,9 @@ describe('ToastComponent', () => {
     const buttons = fixture.nativeElement.querySelectorAll('.toast-action');
     expect(Array.from(buttons).map((button) => button.textContent?.trim())).toEqual([
       'Pause',
-      'Next',
-      'Resume',
-      'Hold up',
+      'Skip current',
+      'Start',
+      'Silent',
     ]);
 
     (buttons[2] as HTMLElement).click();
@@ -119,7 +133,13 @@ describe('ToastComponent', () => {
   it('leaves a one-off message in the session colours', () => {
     // Task added, task completed, timer auto-resumed: the card is used for those
     // too, and they are news, not an alert waiting to be answered.
-    mockNotifications.toast.set({ id: 7, title: 'Task added', body: 'B', type: 'work', visible: true });
+    mockNotifications.toast.set({
+      id: 7,
+      title: 'Task added',
+      body: 'B',
+      type: 'work',
+      visible: true,
+    });
     fixture.detectChanges();
 
     const container = fixture.nativeElement.querySelector('.toast-container');
@@ -169,7 +189,13 @@ describe('ToastComponent', () => {
     // from the service's pulse, which is also what the tone repeats on.
     mockNotifications.ringing.set(true);
     mockNotifications.alertPulse.set(1);
-    mockNotifications.toast.set({ id: 8, title: 'Focus Done!', body: 'B', type: 'work', visible: true });
+    mockNotifications.toast.set({
+      id: 8,
+      title: 'Focus Done!',
+      body: 'B',
+      type: 'work',
+      visible: true,
+    });
     fixture.detectChanges();
 
     const container = fixture.nativeElement.querySelector('.toast-container');
@@ -179,7 +205,13 @@ describe('ToastComponent', () => {
 
     // One more tone, one entry along the palette.
     mockNotifications.alertPulse.set(2);
-    mockNotifications.toast.set({ id: 9, title: 'Focus Done!', body: 'B', type: 'work', visible: true });
+    mockNotifications.toast.set({
+      id: 9,
+      title: 'Focus Done!',
+      body: 'B',
+      type: 'work',
+      visible: true,
+    });
     fixture.detectChanges();
     expect(container?.style.getPropertyValue('--alert-accent')).toBe('#5eead4');
   });

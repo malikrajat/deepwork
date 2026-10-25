@@ -146,8 +146,7 @@ export interface VisitorTotals {
 }
 
 /** One breakdown the popup can show. */
-export type VisitorSectionKey =
-  'referrers' | 'browsers' | 'systems' | 'locations' | 'languages' | 'sizes' | 'campaigns';
+export type VisitorSectionKey = 'referrers' | 'browsers' | 'systems' | 'locations';
 
 /** Everything the popup has loaded, as it arrives. */
 export interface VisitorStatsBundle {

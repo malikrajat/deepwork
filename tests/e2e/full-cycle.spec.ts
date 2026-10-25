@@ -162,7 +162,7 @@ test.describe('a finished session is announced wherever the user is', () => {
     await openTasksPage(page);
     await page.clock.runFor(minutes(25));
     await page.clock.runFor(300); // the card is raised on a 50ms timeout
-    await expectAnnouncement(page, 'Focus session complete!');
+    await expectAnnouncement(page, 'Task is over.');
 
     // The short break that follows it — the one that used to be silent.
     await page.goto('/');
@@ -172,13 +172,14 @@ test.describe('a finished session is announced wherever the user is', () => {
     await page.clock.runFor(300);
     await expectAnnouncement(page, 'Break is over!');
 
-    // The second focus session closes the cycle, so its announcement says so.
+    // The second focus session closes the cycle, and the work finishing is still
+    // the news: the same "Task is over." whether a short or a long break follows.
     await page.goto('/');
     await startSession(page, /Start Focus/i);
     await openTasksPage(page);
     await page.clock.runFor(minutes(25));
     await page.clock.runFor(300);
-    await expectAnnouncement(page, 'Cycle complete!');
+    await expectAnnouncement(page, 'Task is over.');
 
     // And the long break that ends it.
     await page.goto('/');

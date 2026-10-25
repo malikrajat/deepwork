@@ -172,9 +172,9 @@ test.describe('a phone', () => {
     expect(main.width).toBe(390);
 
     const grid = await box(page, '.settings-grid');
-    // The shell's own 16px gutters, and nothing else.
-    expect(grid.left).toBe(16);
-    expect(grid.width).toBe(358);
+    // The shell's own 20px gutters, and nothing else.
+    expect(grid.left).toBe(20);
+    expect(grid.width).toBe(350);
     expect(await cardColumns(page, '.settings-grid', '.setting-group')).toBe(1);
   });
 
@@ -183,7 +183,7 @@ test.describe('a phone', () => {
     await expect(page.locator('.page-title').first()).toHaveText('About');
 
     const content = await box(page, '.content');
-    expect(content.width).toBe(358);
+    expect(content.width).toBe(350);
     expect(await cardColumns(page, '.content', 'section.card')).toBe(1);
 
     // The avatar, the name and the status pill: the name column must keep the

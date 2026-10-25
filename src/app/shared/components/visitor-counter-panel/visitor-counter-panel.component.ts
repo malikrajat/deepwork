@@ -201,10 +201,10 @@ export class VisitorCounterPanelComponent implements OnInit {
    * The number to show, in order of how much it is worth.
    *
    * With a token it is this app's own visitors over the last seven days, which
-   * is the number somebody actually wants. Without one the public counter can
-   * only answer for the whole GoatCounter site — which carries rajatmalik.dev
-   * too — and saying so under the number is more honest than showing a figure
-   * that quietly belongs to two apps at once.
+   * is the number somebody actually wants. Without one the public counter
+   * answers for the app's own GoatCounter site, which is this app alone — a
+   * truthful figure rather than a figure that quietly belongs to two apps at
+   * once.
    */
   protected visitorCount(): string {
     const headline = this.stats.headline();
@@ -219,7 +219,7 @@ export class VisitorCounterPanelComponent implements OnInit {
   protected countNote(): string {
     if (this.stats.headline()) {
       const range = VISITOR_RANGES.find((entry) => entry.key === this.stats.range());
-      return `${range?.label ?? 'Last 7 days'} · this web app only, from the API`;
+      return `${range?.label ?? 'Last 7 days'} · this web app, from the GoatCounter API`;
     }
     if (this.stats.headlineLoading()) return 'Reading the GoatCounter API…';
 
@@ -227,8 +227,8 @@ export class VisitorCounterPanelComponent implements OnInit {
     if (failure) return failure;
 
     if (!this.counter.token()) {
-      return 'The whole site — DeepWork and rajatmalik.dev together. The public counter cannot separate them; a token in the popup can';
+      return 'All visits to the DeepWork GoatCounter site. Add an API token in Details for the full breakdown';
     }
-    return 'This web app only. The public counter below the popup covers the whole site';
+    return 'This web app only, from the GoatCounter site it owns';
   }
 }

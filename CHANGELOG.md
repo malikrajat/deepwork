@@ -6,6 +6,93 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 ---
 
 
+## [3.0.1] – 2026-10-27
+
+### Changed
+
+- **The visitor report has a GoatCounter site of its own.** The web app now
+  counts on `app-deepwork.goatcounter.com` instead of sharing the author's site
+  with rajatmalik.dev, so pageviews are filed under the route itself (`/tasks`,
+  not `/deepwork/tasks`) and there is no "DeepWork only / whole site" switch to
+  explain. `Settings → Visitor Counter → Details` follows the reference
+  dashboard's shape: a **Private dashboard** heading, four figures across the
+  top, then the breakdowns as cards with a footnote each, and the way to the raw
+  dashboard at the foot. The settings row keeps its one number and its **Details**
+  button; the figure and every list are mapped into that existing card and
+  popup. The installed desktop app is still never counted.
+
+- **The completion alert says what happened, and each of its four answers says
+  exactly what it will do.** A focus session that runs out now posts the system
+  notification as **Task is over.** — the same news for the short-break and the
+  long-break end of a cycle, because the work is what finished. The four buttons
+  are **Pause**, **Skip current**, **Start** and **Silent**, in that order, on
+  the Windows toast and on the card:
+  **Pause** stops whatever is running when it is pressed; **Skip current** moves
+  past the session at the head of the queue and leaves the next one waiting;
+  **Start** begins that waiting session, or continues a paused one from its
+  remaining time rather than restarting the block; and **Silent** closes the
+  alert without touching the clock. The old **Next** did both halves in one press
+  (skip *and* start), which made it impossible to skip without also carrying on,
+  and **Hold up** read like a second kind of pause. The ids changed with the
+  meanings (`next`/`resume`/`hold` → `skip`/`start`/`silent`), so a stale toast
+  cannot report an answer the clock no longer has. `TimerService.skipAndStart`
+  had no callers left and is gone (`NotificationService`, `TimerService`).
+
+### Fixed
+
+- **A Mac keeps its close, minimise and zoom buttons.** Two things were taking
+  the window's frame away on macOS. The window was created with
+  `transparent: true` and `shadow: false` — settings that exist for the Windows
+  widget's rounded corners — and the 0×0 resize that a minimise produces was
+  being read as "turn into the mini widget" on every platform, not only on
+  Windows, where the taskbar is what sends it. A frameless 136×76 widget has no
+  traffic lights and no way back except the expand arrow, which is exactly what
+  "the controls are not available" looks like. macOS now gets its own resolved
+  window configuration (`tauri.macos.conf.json`): opaque, shadowed, decorated,
+  with `titleBarStyle: Visible` and `hiddenTitle: false`. The decoration is also
+  re-asserted once at startup, because the desktop layer can drop a change made
+  while the window is still being created. The minimise→widget transform is now
+  Windows-only; the app's own widget control is still there for anyone who wants
+  the small window on a Mac (`tauri.macos.conf.json`, `src-tauri/src/lib.rs`,
+  `UiService`).
+
+- **A DMG built by CI opens without Gatekeeper's "Apple could not verify…"
+  dialog.** The downloaded build was not damaged and contained nothing
+  suspicious: it was **unsigned and unnotarized**, and a file that came through
+  a browser carries the quarantine flag that a locally built app never has. That
+  is why building on the same Mac worked and a CI artefact did not. The macOS
+  installer job now imports a Developer ID certificate from `APPLE_CERTIFICATE`
+  into a temporary keychain before `tauri build`, lets Tauri sign and notarize
+  (with `APPLE_ID`, `APPLE_PASSWORD` and `APPLE_TEAM_ID`), and then verifies the
+  result with `codesign --verify --deep --strict`, `xcrun stapler validate` and
+  `spctl --assess --type execute`. Everything is gated on `APPLE_CERTIFICATE`:
+  with no secret the variables are removed and the job still produces the same
+  unsigned DMG as before, so a fork or a machine without an Apple account does
+  not break. `docs/code-signing.md` now describes the wired pipeline, the
+  secrets it needs, and the `xattr`/Privacy & Security route for builds that
+  predate it (`.github/workflows/ci.yml`, `docs/code-signing.md`).
+
+### Database
+
+- **This patch adds no migration, on purpose.** The schema stays at version 13:
+  the alert's wording and window chrome are not stored, so there is nothing for a
+  migration to change. Existing databases are opened exactly as they were, and an
+  install that is several releases behind still walks migrations 1–13 in order.
+  Those migrations only add — no shipped migration drops a table or column or
+  deletes a row — and a new guard test reads every `.sql` file to keep it that
+  way: each one must be numbered in an unbroken run, registered in
+  `db_migrations.rs` (a file the list forgets would be skipped on an upgrade),
+  free of `DROP`/`DELETE`/`TRUNCATE`, and any `UPDATE` must be a backfill with a
+  `WHERE`. The launch backup and the header check that already run before the
+  plugin opens the file are unchanged, so a task, session, habit or setting that
+  was in the database before the update is still there after it
+  (`tests/unit/migrations.spec.ts`).
+
+- **The version is 3.0.1**, in every file that spells it out, moved in one pass
+  by `npm run version:bump -- 3.0.1`.
+
+
+
 ## [3.0.0] – 2026-10-26
 
 > **Progress.** This entry was written as the work landed, not after it: each

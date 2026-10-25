@@ -18,15 +18,7 @@ interface SentRequest {
 const BODY = {
   me: {
     user: { email: 'rajat@example.com' },
-    token: { name: 'DeepWork', permissions: 64, sites: 3 },
-  },
-  paths: {
-    paths: [
-      { id: 1, path: '/deepwork/tasks' },
-      { id: 2, path: '/about' },
-      { id: 3, path: '/deepwork' },
-    ],
-    more: false,
+    token: { name: 'DeepWork', permissions: 64, sites: [-1] },
   },
   total: {
     total: 12,
@@ -39,8 +31,8 @@ const BODY = {
   },
   hits: {
     hits: [
-      { path: '/deepwork/tasks', count: 9 },
-      { path: '/deepwork', count: 3 },
+      { path: '/tasks', count: 9 },
+      { path: '/', count: 3 },
     ],
     total: 12,
     more: false,
@@ -73,8 +65,11 @@ function jsonResponse(body: unknown, status = 200): Response {
 /**
  * The popup's whole job is to ask GoatCounter the right questions and to be
  * honest about the answers — including the awkward ones: a token that cannot
- * read statistics, a filter the API ignored, and a site with nothing under the
- * app's own prefix yet.
+ * read statistics, a token GoatCounter does not know, and a site that has
+ * recorded nothing yet.
+ *
+ * DeepWork's GoatCounter site is its own, so none of these requests carry a path
+ * filter: every path on the site is this app's.
  */
 describe('VisitorStatsService', () => {
   let service: VisitorStatsService;
@@ -85,16 +80,18 @@ describe('VisitorStatsService', () => {
 
   /** The counter service, as the stats service sees it. */
   function makeCounter(token: string | null = 'a-token') {
-    return {
+    const total = signal<string | null>('0');
+    const counter = {
       isWeb: true,
       token: signal<string | null>(token),
+      total,
       countingEnabled: signal(true),
       counted: signal(true),
       skippedBecause: signal<string | null>(null),
       visitNumber: signal(2),
-      entryPath: '/deepwork/settings?utm_source=news',
+      entryPath: '/settings?utm_source=news',
       referrer: 'https://www.google.com/',
-      selfOrigin: 'https://malikrajat.github.io',
+      selfOrigin: 'https://app.deepwork.rajatmalik.dev',
       startedAt: new Date('2026-06-05T14:12:00Z'),
       start: vi.fn(),
       setCounting: vi.fn(),
@@ -102,14 +99,16 @@ describe('VisitorStatsService', () => {
         counter.token.set(raw.trim() || null);
       }),
       forgetToken: vi.fn(() => counter.token.set(null)),
-      loadTotal: vi.fn().mockResolvedValue(undefined),
+      loadTotal: vi.fn(async () => {
+        counter.total.set('99');
+      }),
     };
+    return counter;
   }
 
   /** An answer for everything, unless a test overrides one of them. */
   function defaultRespond(request: SentRequest): Response {
     if (request.path.endsWith('/me')) return jsonResponse(BODY.me);
-    if (request.path.endsWith('/paths')) return jsonResponse(BODY.paths);
     if (request.path.endsWith('/stats/total')) return jsonResponse(totalFor(request));
     if (request.path.endsWith('/stats/hits')) return jsonResponse(BODY.hits);
     if (request.path.endsWith('/stats/toprefs')) return jsonResponse(BODY.refs);
@@ -117,12 +116,12 @@ describe('VisitorStatsService', () => {
   }
 
   /**
-   * The four `/stats/total` requests are told apart by the window they ask for.
+   * The `/stats/total` requests are told apart by the window they ask for.
    *
-   * Only "everything ever" can be recognised by its start alone — the other two
+   * Only "everything ever" can be recognised by its start alone — the other
    * boundaries are worked out on the local clock, which a test should not be
-   * re-deriving — so the tiles are proved from this one, and the rest by the
-   * requests themselves.
+   * re-deriving — so the fallback tile is proved from that one, and the rest by
+   * the requests themselves.
    */
   function totalFor(request: SentRequest): unknown {
     return (request.params.get('start') ?? '').startsWith('2000-') ? { total: 99 } : BODY.total;
@@ -161,9 +160,10 @@ describe('VisitorStatsService', () => {
       ],
     });
     const built = TestBed.inject(VisitorStatsService);
-    // The real service waits 300 ms between requests to stay inside
-    // GoatCounter's four-a-second limit; the queue itself is tested by the
-    // order of the requests, not by making every test sit through it.
+    // The real service waits a second between requests to stay inside
+    // GoatCounter's four-a-second limit (each authenticated call also costs a
+    // CORS preflight); the queue itself is tested by the order of the requests,
+    // not by making every test sit through it.
     (built as unknown as { apiGapMs: number }).apiGapMs = 0;
     return built;
   }
@@ -216,10 +216,10 @@ describe('VisitorStatsService', () => {
     ]);
     expect(totals?.peak).toBe(7);
 
-    // The prefix is dropped for the reader; the dashboard path says so plainly.
+    // Every path on the site is this app's, so the routes are shown as they are.
     expect(service.bundle().pages).toEqual([
       { name: '/tasks', count: 9, share: 1 },
-      { name: '/ (dashboard)', count: 3, share: 3 / 9 },
+      { name: '/', count: 3, share: 3 / 9 },
     ]);
     expect(service.bundle().sections.browsers?.[0]).toEqual({
       name: 'Chrome',
@@ -247,28 +247,53 @@ describe('VisitorStatsService', () => {
 
     await service.loadStats();
 
-    const totals = sent.filter((request) => request.path.endsWith('/stats/total'));
-    // Four: the selected range, the whole site for context, everything ever,
-    // today, and this month — minus the site one, which only runs when the scope
-    // is the app's own pages… which it is here, so five in all.
-    expect(totals.length).toBe(5);
-
-    // The window that can be recognised from the outside is "everything ever".
-    const allTime = totals.find((request) =>
-      (request.params.get('start') ?? '').startsWith('2000-'),
-    );
-    expect(allTime?.params.get('include_paths')).toBe('1,3');
+    // The all-time figure is the public counter's, which is one small request
+    // rather than an API answer carrying every day since 2000.
+    expect(counter.loadTotal).toHaveBeenCalledTimes(1);
     expect(service.kpis().allTime).toBe(99);
 
-    // Each of the others asks for a real window, and the range tile is the one
-    // the rest of the report is about.
+    const totals = sent.filter((request) => request.path.endsWith('/stats/total'));
+    // Three: the selected range, today, and this month.
+    expect(totals.length).toBe(3);
     for (const request of totals) {
       expect(request.params.get('start')).toBeTruthy();
       expect(request.params.get('end')).toBeTruthy();
+      // One site, one app: nothing is filtered by path.
+      expect(request.params.get('include_paths')).toBeNull();
     }
     expect(service.kpis().range).toBe(12);
     expect(service.kpis().today).toBe(12);
     expect(service.kpis().month).toBe(12);
+  });
+
+  it('falls back to the API for the all-time figure when the public counter is off', async () => {
+    service = setup();
+    counter.total.set(null);
+    counter.loadTotal.mockImplementation(async () => {
+      /* the site has public counts turned off */
+    });
+
+    await service.loadStats();
+
+    const allTime = sent.find((request) =>
+      (request.params.get('start') ?? '').startsWith('2000-'),
+    );
+    expect(allTime).toBeDefined();
+    expect(service.kpis().allTime).toBe(99);
+  });
+
+  it('asks for the pages and the lists at the depth the popup draws', async () => {
+    service = setup();
+
+    await service.loadStats();
+
+    const pages = sent.find((request) => request.path.endsWith('/stats/hits'));
+    expect(pages?.params.get('limit')).toBe('100');
+    expect(pages?.params.get('group')).toBe('day');
+
+    const browsers = sent.find((request) => request.path.endsWith('/stats/browsers'));
+    // Twenty rows, as GoatCounter's own dashboard shows.
+    expect(browsers?.params.get('limit')).toBe('20');
   });
 
   it('says what kind of referral each row is', async () => {
@@ -287,103 +312,21 @@ describe('VisitorStatsService', () => {
     expect(referrers[1].note).toBe('No referrer');
   });
 
-  it('filters by the app own path IDs, so the other app on the site is left out', async () => {
-    service = setup();
-
-    await service.loadStats();
-
-    const totals = sent.filter((request) => request.path.endsWith('/stats/total'));
-    // Two of them: the app's own visitors, and the whole site's for context —
-    // which is what lets the popup say which of the two numbers it is showing.
-    const [mine, site] = totals;
-    // Paths 1 and 3 are DeepWork's; 2 is not. Comma-separated is how
-    // GoatCounter's own dashboard passes a list of path IDs around.
-    expect(mine.params.get('include_paths')).toBe('1,3');
-    expect(site.params.get('include_paths')).toBeNull();
-    expect(service.siteVisitors()).toBe(12);
-
-    const browsers = sent.find((request) => request.path.endsWith('/stats/browsers'));
-    expect(browsers?.params.get('include_paths')).toBe('1,3');
-    // The list depth the popup draws: twenty rows, as GoatCounter's own
-    // dashboard shows.
-    expect(browsers?.params.get('limit')).toBe('20');
-  });
-
-  it('asks without a filter when the whole site is what was wanted', async () => {
-    service = setup();
-    respond = (request) =>
-      request.path.endsWith('/stats/hits')
-        ? jsonResponse({
-            hits: [
-              { path: '/', count: 40 },
-              { path: '/deepwork/tasks', count: 9 },
-            ],
-            total: 49,
-          })
-        : defaultRespond(request);
-
-    service.setScope('site');
-    await service.loadStats();
-
-    const total = sent.find((request) => request.path.endsWith('/stats/total'));
-    expect(total?.params.get('include_paths')).toBeNull();
-    // The other site's pages are in the answer now, and are shown as they are.
-    expect(service.bundle().pages?.map((row) => row.name)).toEqual(['/', '/tasks']);
-  });
-
-  it('notices a filter the API quietly ignored', async () => {
-    service = setup();
-    respond = (request) =>
-      request.path.endsWith('/stats/hits')
-        ? jsonResponse({
-            hits: [
-              { path: '/about', count: 20 },
-              { path: '/deepwork/tasks', count: 9 },
-            ],
-            total: 29,
-          })
-        : defaultRespond(request);
-
-    await service.loadStats();
-
-    // GoatCounter answered with the other app's pages, so the sections below
-    // cannot be labelled as DeepWork's.
-    expect(service.scopeFiltered()).toBe(false);
-    expect(service.bundle().pages).toEqual([{ name: '/tasks', count: 9, share: 1 }]);
-  });
-
   it('says nobody has been counted yet rather than showing empty lists', async () => {
     service = setup();
-    respond = (request) =>
-      request.path.endsWith('/paths')
-        ? jsonResponse({ paths: [{ id: 2, path: '/about' }], more: false })
-        : defaultRespond(request);
+    counter.total.set('0');
+    counter.loadTotal.mockImplementation(async () => {
+      counter.total.set('0');
+    });
 
     await service.loadStats();
 
     expect(service.noData()).toBe(true);
-    expect(service.bundle().totals?.visitors).toBe(0);
+    expect(service.kpis().allTime).toBe(0);
     // The report still draws in full, so the four tiles say zero rather than
     // nothing: there is a counter, and nobody has been counted on it yet.
-    expect(service.kpis()).toEqual({ allTime: 0, range: 0, today: 0, month: 0 });
-    expect(sent.some((request) => request.path.includes('/stats/'))).toBe(false);
-  });
-
-  it('reads every page of paths until the API says there are no more', async () => {
-    service = setup();
-    let call = 0;
-    respond = (request) => {
-      if (!request.path.endsWith('/paths')) return defaultRespond(request);
-      call += 1;
-      return call === 1
-        ? jsonResponse({ paths: [{ id: 1, path: '/deepwork/a' }], more: true })
-        : jsonResponse({ paths: [{ id: 2, path: '/deepwork/b' }], more: false });
-    };
-
-    await service.loadStats();
-
-    const totals = sent.find((request) => request.path.endsWith('/stats/total'));
-    expect(totals?.params.get('include_paths')).toBe('1,2');
+    expect(service.kpis().range).toBe(12);
+    expect(service.bundle().pages?.length).toBe(2);
   });
 
   it('says so when the token is not one GoatCounter knows', async () => {
@@ -399,7 +342,7 @@ describe('VisitorStatsService', () => {
   it('shows the token form again when the statistics endpoints reject the token', async () => {
     service = setup();
     respond = (request) =>
-      request.path.includes('/stats/') || request.path.endsWith('/paths')
+      request.path.includes('/stats/')
         ? jsonResponse({ error: 'unknown token' }, 401)
         : defaultRespond(request);
 
@@ -411,9 +354,7 @@ describe('VisitorStatsService', () => {
   it('names the missing permission when the token cannot read statistics', async () => {
     service = setup();
     respond = (request) =>
-      request.path.includes('/stats/')
-        ? jsonResponse({ error: 'forbidden' }, 403)
-        : defaultRespond(request);
+      request.path.includes('/stats/') ? jsonResponse({ error: 'forbidden' }, 403) : defaultRespond(request);
 
     await service.loadStats();
 
@@ -507,7 +448,7 @@ describe('VisitorStatsService', () => {
       await service.loadHeadline();
 
       expect(service.headline()?.visitors).toBe(12);
-      expect(sent.map((request) => request.path)).toEqual(['/api/v0/paths', '/api/v0/stats/total']);
+      expect(sent.map((request) => request.path)).toEqual(['/api/v0/stats/total']);
     });
 
     it('asks only once', async () => {
@@ -516,7 +457,7 @@ describe('VisitorStatsService', () => {
       await service.loadHeadline();
       await service.loadHeadline();
 
-      expect(sent.length).toBe(2);
+      expect(sent.length).toBe(1);
     });
 
     it('does nothing without a token', async () => {
@@ -565,11 +506,10 @@ describe('VisitorStatsService', () => {
       expect(service.range()).toBe('90d');
     });
 
-    it('ignores a range or scope that is already the one being shown', () => {
+    it('ignores a range that is already the one being shown', () => {
       service = setup();
 
       service.setRange('7d');
-      service.setScope('deepwork');
 
       expect(sent).toEqual([]);
     });

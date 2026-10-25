@@ -4,16 +4,13 @@ import {
   GOATCOUNTER_API_BASE,
   GOATCOUNTER_API_GAP_MS,
   GOATCOUNTER_API_LIMIT,
-  GOATCOUNTER_PATH_PAGES,
   VISITOR_ALL_TIME_START,
   VISITOR_DEFAULT_RANGE,
-  VISITOR_DEFAULT_SCOPE,
   VISITOR_LIST_LIMIT,
   VISITOR_RANGES,
   VISITOR_STAT_SECTIONS,
   type VisitorKpiKey,
   type VisitorRangeKey,
-  type VisitorScopeKey,
   type VisitorSectionKey,
 } from '../constants/visitor.constants';
 import {
@@ -21,7 +18,6 @@ import {
   emptyVisitorStats,
   type GoatCounterHitsResponse,
   type GoatCounterMeResponse,
-  type GoatCounterPathsResponse,
   type GoatCounterStatsResponse,
   type GoatCounterTotalResponse,
   type VisitorFact,
@@ -31,7 +27,6 @@ import {
   type VisitorStatsBundle,
   type VisitorTotals,
 } from '../models/visitor-stats.model';
-import { displayPath, isCountedPath, selectPathIds } from '../utils/analytics-path.util';
 import {
   canReadStatistics,
   describePermissions,
@@ -71,16 +66,23 @@ interface NavigatorExtras {
 /**
  * Reads the GoatCounter dashboard through its JSON API, for the details popup.
  *
- * Two things are deliberately not here. The API token is not in the source and
- * never will be: the web build is published on GitHub Pages, so anything in the
- * bundle is public, and a token in a public bundle is a token anyone can read
- * somebody's statistics with. It is typed in by hand, kept in this browser's
- * `localStorage`, and never written to the database either — DeepWork's database
- * is exported to a JSON file that people share, and an access token has no
- * business travelling in one.
+ * DeepWork has its own GoatCounter site (`app-deepwork.goatcounter.com`), so
+ * every path on it is this app's: there is no second app to filter out and no
+ * path-ID scan to run before the first number can be shown. What the popup asks
+ * for is exactly what the dashboard shows — a total for a range, the pages, and
+ * the breakdowns beside them.
  *
- * The second is retries and background polling. The popup is opened on purpose
- * by someone who wants to look; it asks once, shows what came back, and stops.
+ * The API token is not in the source: the web build is published on GitHub
+ * Pages, so anything in the bundle is public, and a token in a public bundle is
+ * a token anyone can read somebody's statistics with. It is typed in by hand,
+ * kept in this browser's `localStorage`, and never written to the database
+ * either — DeepWork's database is exported to a JSON file that people share, and
+ * an access token has no business travelling in one. The one baked into
+ * `visitor.constants.ts` is a read-only token for this site alone.
+ *
+ * The second thing deliberately not here is retries and background polling. The
+ * popup is opened on purpose by someone who wants to look; it asks once, shows
+ * what came back, and stops.
  *
  * What the numbers mean: GoatCounter counts *visitors*, not pageviews, and a
  * visitor is a browser session rather than a person being followed. It stores
@@ -105,21 +107,12 @@ export class VisitorStatsService {
   /** The range the popup is reading. */
   readonly range = signal<VisitorRangeKey>(VISITOR_DEFAULT_RANGE);
 
-  /** DeepWork's own pages, or the whole GoatCounter site (which carries rajatmalik.dev). */
-  readonly scope = signal<VisitorScopeKey>(VISITOR_DEFAULT_SCOPE);
-
   readonly bundle = signal<VisitorStatsBundle>(emptyVisitorStats());
   readonly loading = signal(false);
   readonly error = signal<string | null>(null);
   readonly failures = signal<Partial<Record<FailureKey, string>>>({});
 
-  /**
-   * False once the API has answered with paths that are not DeepWork's own,
-   * which is how a filter that was quietly ignored is noticed.
-   */
-  readonly scopeFiltered = signal(true);
-
-  /** True when the API has more paths than it was asked for, so the list is a top-N. */
+  /** True when the API has more pages than it was asked for, so the list is a top-N. */
   readonly pagesTruncated = signal(false);
 
   /** The token's own description, from `/api/v0/me`. */
@@ -132,17 +125,6 @@ export class VisitorStatsService {
   readonly headlineLoading = signal(false);
 
   /**
-   * The same range for the whole GoatCounter site, for context.
-   *
-   * One GoatCounter site carries both this app and rajatmalik.dev, so "12
-   * visitors" on its own is a figure without a denominator. This is what lets the
-   * popup say "12 of the site's 40, in this range, were DeepWork's pages" instead
-   * of leaving the reader to guess which of the two numbers they are looking at.
-   * Fetched only for the DeepWork scope, where that distinction is the point.
-   */
-  readonly siteVisitors = signal<number | null>(null);
-
-  /**
    * The four numbers across the top: everything ever, the range, today and this
    * month.
    *
@@ -151,14 +133,6 @@ export class VisitorStatsService {
    * from the same request that fills the headline, so the two can never disagree.
    */
   readonly kpis = signal<VisitorKpis>(emptyVisitorKpis());
-
-  /**
-   * True when GoatCounter knows nothing under the app's own prefix yet.
-   *
-   * A fresh counter on a shared site is the case this exists for: the honest
-   * answer is "nobody yet", not a page of sections that look like they failed.
-   */
-  readonly noData = signal(false);
 
   readonly hasToken = computed(() => !!this.counter.token());
 
@@ -172,6 +146,17 @@ export class VisitorStatsService {
     const mask = this.tokenInfo()?.token?.permissions;
     return typeof mask === 'number' && !canReadStatistics(mask);
   });
+
+  /**
+   * True when the site has recorded nothing at all yet.
+   *
+   * A brand-new counter is the case this exists for: the honest answer is
+   * "nobody yet", not a page of sections that look like they failed. It is only
+   * said after the all-time figure has actually arrived.
+   */
+  readonly noData = computed(
+    () => !this.loading() && this.hasToken() && this.kpis().allTime === 0,
+  );
 
   /**
    * The environment is read once, when this service is first built.
@@ -215,8 +200,6 @@ export class VisitorStatsService {
   protected apiGapMs = GOATCOUNTER_API_GAP_MS;
 
   private lastCallAt = 0;
-  private pathIdCache: number[] | null = null;
-  private pathIdScanTruncated = false;
 
   /** Open the popup and read everything it shows. */
   openDialog(): void {
@@ -236,16 +219,8 @@ export class VisitorStatsService {
     if (this.dialogOpen()) void this.loadStats();
   }
 
-  /** Switch between DeepWork's pages and the whole site. */
-  setScope(scope: VisitorScopeKey): void {
-    if (this.scope() === scope) return;
-    this.scope.set(scope);
-    if (this.dialogOpen()) void this.loadStats();
-  }
-
   /** Ask again, ignoring the session's caches. */
   async refresh(): Promise<void> {
-    this.pathIdCache = null;
     this.lastCallAt = 0;
     await this.loadStats();
   }
@@ -262,7 +237,6 @@ export class VisitorStatsService {
       return;
     }
 
-    this.pathIdCache = null;
     await this.verifyToken();
     await this.loadStats();
     await this.loadHeadline();
@@ -275,14 +249,12 @@ export class VisitorStatsService {
     this.tokenError.set(null);
     this.bundle.set(emptyVisitorStats());
     this.headline.set(null);
-    this.pathIdCache = null;
-    this.scopeFiltered.set(true);
   }
 
   /**
    * The settings row's own number: this app's visitors over the default range.
    *
-   * Only the totals are fetched — two API requests rather than a dozen — because
+   * Only the totals are fetched — one API request rather than a dozen — because
    * the row is a single figure and the popup is one click away for the rest.
    */
   async loadHeadline(): Promise<void> {
@@ -292,8 +264,7 @@ export class VisitorStatsService {
     try {
       const token = this.counter.token();
       if (!token) return;
-      const pathIds = await this.deepworkPathIds(token);
-      const totals = await this.fetchTotals(token, this.range(), pathIds);
+      const totals = await this.fetchTotals(token, this.range());
       this.headline.set(totals);
     } catch (error) {
       this.failures.update((current) => ({ ...current, totals: failureText(error) }));
@@ -308,10 +279,7 @@ export class VisitorStatsService {
 
     this.error.set(null);
     this.failures.set({});
-    this.noData.set(false);
     this.bundle.set(emptyVisitorStats());
-    this.scopeFiltered.set(true);
-    this.siteVisitors.set(null);
     this.kpis.set(emptyVisitorKpis());
 
     const token = this.counter.token();
@@ -326,44 +294,26 @@ export class VisitorStatsService {
     try {
       if (!this.tokenInfo()) await this.verifyToken();
 
-      const pathIds = this.scope() === 'deepwork' ? await this.deepworkPathIds(token) : null;
-
-      // Nothing has ever been filed under the app's own prefix: that is a real
-      // answer, and a much kinder one than a page of empty sections. The report
-      // still draws in full — every tile says `0`, which is the truth here — and
-      // the popup prints one line saying why.
-      if (pathIds && pathIds.length === 0) {
-        this.noData.set(true);
-        this.kpis.set({ allTime: 0, range: 0, today: 0, month: 0 });
-        this.bundle.set({ ...emptyVisitorStats(), totals: emptyTotals(), pages: [] });
-        return;
-      }
-
       await Promise.all([
-        this.fetchTotals(token, this.range(), pathIds)
+        this.fetchTotals(token, this.range())
           .then((totals) => {
             this.bundle.update((current) => ({ ...current, totals }));
             this.kpis.update((current) => ({ ...current, range: totals.visitors }));
           })
           .catch((error: unknown) => this.note('totals', error)),
-        // The site's own number, so the app's can be read as a share of it.
-        // Best effort: a popup with the app's figures and no denominator is
-        // still a working popup, so a failure here is swallowed on purpose.
-        pathIds === null
-          ? Promise.resolve()
-          : this.fetchTotals(token, this.range(), null)
-              .then((site) => this.siteVisitors.set(site.visitors))
-              .catch(() => this.siteVisitors.set(null)),
-        // The three figures beside the range total, each best effort for the same
-        // reason: one tile that did not answer must not take the report with it.
-        this.tile('allTime', token, VISITOR_ALL_TIME_START, nowIso(), pathIds),
-        this.tile('today', token, startOfTodayIso(), nowIso(), pathIds),
-        this.tile('month', token, startOfMonthIso(), nowIso(), pathIds),
-        this.fetchPages(token, start, end, pathIds)
+        // The all-time figure comes from the public counter, which is one small
+        // request and covers the whole site; the API would answer with a day-by-
+        // day series back to 2000 to say the same thing.
+        this.allTimeTile(token),
+        // The two figures beside the range total, each best effort: one tile
+        // that did not answer must not take the report with it.
+        this.tile('today', token, startOfTodayIso(), nowIso()),
+        this.tile('month', token, startOfMonthIso(), nowIso()),
+        this.fetchPages(token, start, end)
           .then((pages) => this.bundle.update((current) => ({ ...current, pages })))
           .catch((error: unknown) => this.note('pages', error)),
         ...VISITOR_STAT_SECTIONS.map((section) =>
-          this.fetchSection(section.key, section.page, token, start, end, pathIds)
+          this.fetchSection(section.key, section.page, token, start, end)
             .then((rows) =>
               this.bundle.update((current) => ({
                 ...current,
@@ -383,13 +333,35 @@ export class VisitorStatsService {
   /** File a failure against the part of the popup it belongs to. */
   private note(key: FailureKey, error: unknown): void {
     const message = failureText(error);
-    // A token that is wrong and a server that is asking for a slower pace both
-    // empty the whole popup, so neither is one section's problem.
-    if (error instanceof VisitorStatsError && (error.needsToken || error.transient)) {
+    // A token GoatCounter will not accept empties the whole popup, so it is not
+    // one section's problem. A network blip only takes the headline with it when
+    // the headline is what failed; one slow list reports on its own card and the
+    // rest of the report stays readable.
+    const global =
+      error instanceof VisitorStatsError &&
+      (error.needsToken || (error.transient && key === 'totals'));
+    if (global) {
       this.error.set(message);
       return;
     }
     this.failures.update((current) => ({ ...current, [key]: message }));
+  }
+
+  /**
+   * The all-time tile, from the public counter where it is available.
+   *
+   * GoatCounter's `/counter/TOTAL.json` answers with one number and needs no
+   * token; it is the same counter the settings row already reads. The API call
+   * is the fallback for a site that has turned public counts off.
+   */
+  private async allTimeTile(token: string): Promise<void> {
+    await this.counter.loadTotal();
+    const parsed = Number.parseInt((this.counter.total() ?? '').replace(/[^0-9]/g, ''), 10);
+    if (Number.isFinite(parsed)) {
+      this.kpis.update((current) => ({ ...current, allTime: parsed }));
+      return;
+    }
+    await this.tile('allTime', token, VISITOR_ALL_TIME_START, nowIso());
   }
 
   /**
@@ -404,10 +376,9 @@ export class VisitorStatsService {
     token: string,
     start: string,
     end: string,
-    pathIds: number[] | null,
   ): Promise<void> {
     try {
-      const total = await this.fetchTotalFor(token, start, end, pathIds);
+      const total = await this.fetchTotalFor(token, start, end);
       this.kpis.update((current) => ({ ...current, [key]: total }));
     } catch {
       /* the tile stays empty and says so */
@@ -432,16 +403,12 @@ export class VisitorStatsService {
     }
   }
 
-  /** The headline numbers for a range and a scope. */
-  private async fetchTotals(
-    token: string,
-    range: VisitorRangeKey,
-    pathIds: number[] | null,
-  ): Promise<VisitorTotals> {
+  /** The headline numbers for a range. */
+  private async fetchTotals(token: string, range: VisitorRangeKey): Promise<VisitorTotals> {
     const { start, end } = rangeBounds(range);
     const response = await this.api<GoatCounterTotalResponse>(
       '/stats/total',
-      { start, end, ...this.pathParam(pathIds) },
+      { start, end },
       token,
     );
     const { series, peak } = seriesFromStats(response.stats);
@@ -452,7 +419,7 @@ export class VisitorStatsService {
       visitorsUtc: response.total_utc ?? 0,
       series,
       peak,
-      partial: this.pathIdScanTruncated && pathIds !== null,
+      partial: false,
     };
   }
 
@@ -461,32 +428,17 @@ export class VisitorStatsService {
     token: string,
     start: string,
     end: string,
-    pathIds: number[] | null,
   ): Promise<VisitorStatRow[]> {
     const response = await this.api<GoatCounterHitsResponse>(
       '/stats/hits',
-      {
-        start,
-        end,
-        limit: String(GOATCOUNTER_API_LIMIT),
-        group: 'day',
-        ...this.pathParam(pathIds),
-      },
+      { start, end, limit: String(GOATCOUNTER_API_LIMIT), group: 'day' },
       token,
     );
 
     this.pagesTruncated.set(response.more === true);
 
-    const mine =
-      pathIds === null ? response.hits : response.hits.filter((hit) => isCountedPath(hit.path));
-
-    // A filter that was ignored answers with the other site's paths mixed in;
-    // noticing that here is what stops the popup labelling somebody else's
-    // visitors as DeepWork's.
-    if (pathIds !== null) this.scopeFiltered.set(mine.length === response.hits.length);
-
     return rankStats(
-      mine.map((hit) => ({ name: displayPath(hit.path), count: hit.count })),
+      response.hits.map((hit) => ({ name: hit.path || hit.title || '/', count: hit.count })),
       VISITOR_LIST_LIMIT,
     );
   }
@@ -498,11 +450,10 @@ export class VisitorStatsService {
     token: string,
     start: string,
     end: string,
-    pathIds: number[] | null,
   ): Promise<VisitorStatRow[]> {
     const response = await this.api<GoatCounterStatsResponse>(
       `/stats/${page}`,
-      { start, end, limit: String(VISITOR_LIST_LIMIT), ...this.pathParam(pathIds) },
+      { start, end, limit: String(VISITOR_LIST_LIMIT) },
       token,
     );
 
@@ -517,73 +468,22 @@ export class VisitorStatsService {
   /**
    * One tile's worth of visitors for an explicit window.
    *
-   * Used for the three figures that are not the selected range — everything ever,
-   * today, and this month — which are the numbers a reader wants beside the range
-   * total rather than instead of it.
+   * Used for the figures that are not the selected range, which are the numbers
+   * a reader wants beside the range total rather than instead of it.
    */
-  private async fetchTotalFor(
-    token: string,
-    start: string,
-    end: string,
-    pathIds: number[] | null,
-  ): Promise<number> {
+  private async fetchTotalFor(token: string, start: string, end: string): Promise<number> {
     const response = await this.api<GoatCounterTotalResponse>(
       '/stats/total',
-      { start, end, ...this.pathParam(pathIds) },
+      { start, end },
       token,
     );
     return response.total ?? 0;
   }
 
   /**
-   * The IDs of DeepWork's own paths on the shared site.
-   *
-   * The API filters by ID, not by name, so the app has to know which rows are
-   * its own — and since the two apps cannot be told apart by domain, this prefix
-   * is the only thing that can say. The answer is remembered for the session:
-   * paths come into being, but rarely in the middle of a look at the settings.
-   */
-  private async deepworkPathIds(token: string): Promise<number[] | null> {
-    if (this.pathIdCache) return this.pathIdCache;
-
-    const ids: number[] = [];
-    let after = 0;
-    this.pathIdScanTruncated = false;
-
-    for (let page = 0; page < GOATCOUNTER_PATH_PAGES; page += 1) {
-      const response = await this.api<GoatCounterPathsResponse>(
-        '/paths',
-        { limit: '200', ...(after ? { after: String(after) } : {}) },
-        token,
-      );
-
-      ids.push(...selectPathIds(response.paths));
-
-      const last = response.paths[response.paths.length - 1];
-      if (!response.more || !last) {
-        this.pathIdScanTruncated = false;
-        break;
-      }
-      after = last.id;
-      this.pathIdScanTruncated = true;
-    }
-
-    this.pathIdCache = ids;
-    return ids;
-  }
-
-  /** `include_paths=1,2,3`, or nothing at all for the whole site. */
-  private pathParam(pathIds: number[] | null): Record<string, string | undefined> {
-    if (!pathIds || pathIds.length === 0) return {};
-    // Comma-separated, which is how GoatCounter's own dashboard passes a list of
-    // path IDs around (see `exclude` in its widget loader).
-    return { include_paths: pathIds.join(',') };
-  }
-
-  /**
    * One request to the API, with the queue's gap in front of it.
    *
-   * GoatCounter allows four requests a second, and the popup asks ten; the gap
+   * GoatCounter allows four requests a second, and the popup asks a dozen; the gap
    * is taken here rather than by running the requests one after another, because
    * the wait is bookkeeping and the fetches themselves may as well overlap.
    */
@@ -591,6 +491,7 @@ export class VisitorStatsService {
     path: string,
     params: Record<string, string | undefined>,
     token: string,
+    attempt = 0,
   ): Promise<T> {
     await this.pace();
 
@@ -624,6 +525,13 @@ export class VisitorStatsService {
       );
     }
     if (response.status === 429) {
+      // A burst can still catch the limiter — a preflight is not visible to
+      // `fetch`, so the browser cannot warn about it in advance. One retry after
+      // a full gap is usually enough, and the second is the honest failure.
+      if (attempt < 2) {
+        await new Promise((resolve) => setTimeout(resolve, this.apiGapMs));
+        return this.api(path, params, token, attempt + 1);
+      }
       throw new VisitorStatsError(
         'GoatCounter is asking for a slower pace; try again in a moment.',
         false,
@@ -637,17 +545,21 @@ export class VisitorStatsService {
     return (await response.json()) as T;
   }
 
-  /** Wait out whatever is left of the gap since the last request. */
+  /**
+   * Wait out whatever is left of the gap since the last request.
+   *
+   * The slot is reserved *before* the wait, not after it. The popup starts its
+   * requests together, so a version that set `lastCallAt` after awaiting had
+   * every caller read the same old timestamp, compute the same zero wait, and
+   * fire as one burst — which is exactly the 429 this gap exists to prevent.
+   */
   private async pace(): Promise<void> {
-    const wait = this.apiGapMs - (Date.now() - this.lastCallAt);
+    const now = Date.now();
+    const startAt = Math.max(now, this.lastCallAt + this.apiGapMs);
+    this.lastCallAt = startAt;
+    const wait = startAt - now;
     if (wait > 0) await new Promise((resolve) => setTimeout(resolve, wait));
-    this.lastCallAt = Date.now();
   }
-}
-
-/** An empty set of totals, for a site with nothing under the app's prefix yet. */
-function emptyTotals(): VisitorTotals {
-  return { visitors: 0, events: 0, visitorsUtc: 0, series: [], peak: 0, partial: false };
 }
 
 /** `start` is rounded to the hour, as the API asks; `end` is now, so the last hour counts. */

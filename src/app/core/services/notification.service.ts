@@ -178,8 +178,8 @@ export interface NotificationOptions {
  * that finishes while the user is reading somewhere else should not be missed.
  * Anything that counts as an answer — the toast's close button in the full
  * window, one of the four answers on the card or on the Windows toast
- * (**Pause**, **Next**, **Resume**, **Hold up**), or any of the mini widget's
- * controls while the window is shrunk — ends the ring.
+ * (**Pause**, **Skip current**, **Start**, **Silent**), or any of the mini
+ * widget's controls while the window is shrunk — ends the ring.
  *
  * Everything that repeats hangs off one signal, {@link alertPulse}: the tone, the
  * card, the widget's shake and the colour both surfaces take for that repeat. One
@@ -212,17 +212,19 @@ export class NotificationService implements OnDestroy {
    * posted to Windows and drawn on the card, which is what keeps the two
    * surfaces one question instead of two that happen to agree.
    *
-   * The clock comes first and the way out last: **Pause**, **Next** and
-   * **Resume** each answer the alert and then act on the timer — **Next** moves
-   * to the next session and starts it, so the answer carries on by itself — and
-   * **Hold up** is the "not now" — it closes the alert and leaves the clock
-   * exactly as it was. See {@link runAlertAction}.
+   * The clock comes first and the way out last, and each label says exactly what
+   * it does: **Pause** stops the running clock, **Skip current** moves past the
+   * session waiting at the head of the queue and leaves the next one waiting,
+   * **Start** begins that waiting session (continuing a paused one from its
+   * remaining time rather than restarting it), and **Silent** is the "not now" —
+   * it closes the alert and leaves the clock exactly as it was. See
+   * {@link runAlertAction}.
    */
   private static readonly ALERT_ACTIONS: NotificationAction[] = [
     { id: 'pause', label: 'Pause' },
-    { id: 'next', label: 'Next' },
-    { id: 'resume', label: 'Resume' },
-    { id: 'hold', label: 'Hold up' },
+    { id: 'skip', label: 'Skip current' },
+    { id: 'start', label: 'Start' },
+    { id: 'silent', label: 'Silent' },
   ];
 
   /**
@@ -493,11 +495,11 @@ export class NotificationService implements OnDestroy {
   }
 
   /**
-   * Answers the alert's **Pause**, **Next** and **Resume** with the clock.
+   * Answers the alert's **Pause**, **Skip current** and **Start** with the clock.
    *
    * `TimerService` registers this once, in its constructor, and that is the
    * whole of the wiring: the alert does not know what a session is, and the
-   * timer does not have to know where its buttons are drawn. **Hold up** never
+   * timer does not have to know where its buttons are drawn. **Silent** never
    * reaches the handler — closing the alert is this service's own job, and a
    * message that could outlive its own "not now" would be one nobody trusts.
    *
@@ -520,19 +522,20 @@ export class NotificationService implements OnDestroy {
    * **Every** button answers it: the user has dealt with the message, so the
    * ring stops, the card goes and the toast is taken back — a reminder that
    * stays on screen after it was answered is one the user learns to ignore, the
-   * same rule the water reminder follows. What differs is the clock: **Hold up**
+   * same rule the water reminder follows. What differs is the clock: **Silent**
    * leaves it exactly as it was, which is what makes it the "not now" answer,
-   * while Pause, Next and Resume are handed to {@link onAlertAction}.
+   * while Pause, Skip current and Start are handed to {@link onAlertAction}.
    *
    * The buttons can be pressed long after the alert was raised — a toast lives
    * in the notification centre until the user clears it — so Pause still pauses
-   * a session the user started since, and Resume starts the next one. That is
-   * the point of answering from there rather than going to find the window.
+   * a session the user started since, Skip current moves past whatever is at the
+   * head of the queue, and Start begins it. That is the point of answering from
+   * there rather than going to find the window.
    */
   private runAlertAction(action: string): void {
     this.dismiss();
     void this.dismissSystemNotification(NotificationService.ALERT_NOTIFICATION_TAG);
-    if (action === 'hold') return;
+    if (action === 'silent') return;
     this.alertActionHandler?.(action);
   }
 
@@ -551,13 +554,13 @@ export class NotificationService implements OnDestroy {
     let body: string;
 
     if (type === 'work') {
-      if (nextType === 'long-break') {
-        title = 'Cycle complete!';
-        body = 'Great work! Time for a long break.';
-      } else {
-        title = 'Focus session complete!';
-        body = 'Great work! Time for a short break.';
-      }
+      // One sentence for both halves of the cycle: the work is what finished,
+      // and "Task is over." is the news whether a short or a long break follows.
+      title = 'Task is over.';
+      body =
+        nextType === 'long-break'
+          ? 'Great work! Time for a long break.'
+          : 'Great work! Time for a short break.';
     } else if (type === 'long-break') {
       title = 'Long break is over!';
       body = 'Feeling refreshed? Ready for a new cycle!';
@@ -818,12 +821,7 @@ export class NotificationService implements OnDestroy {
    * is what lets an answer on either surface take the other one down (see
    * {@link dismissSystemNotification}).
    */
-  private showAlertToast(
-    title: string,
-    body: string,
-    type: TimerType,
-    quote: string | null,
-  ): void {
+  private showAlertToast(title: string, body: string, type: TimerType, quote: string | null): void {
     const actions: ToastAction[] = NotificationService.ALERT_ACTIONS.map((action) => ({
       label: action.label,
       // Both surfaces go through `runAlertAction`, so a button on the card can

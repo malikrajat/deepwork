@@ -24,11 +24,9 @@ interface DialogInternals {
   countOrDash(value: number | null | undefined): string;
   sparkStart(): string;
   sparkEnd(): string;
-  scopeNote(): string;
+  sourceNote(): string;
   tokenName(): string;
   rangeLabel(): string;
-  scopeLabel(): string;
-  siteShare(site: number): string;
   kpiValue(key: string): string | null;
   kpiNote(key: string, fallback: string): string;
   sparkBars(): { day: string; label: string; visits: number; height: number }[];
@@ -42,13 +40,13 @@ const makeServices = (
     token?: string | null;
     tokenFromBuild?: boolean;
     range?: string;
-    scope?: string;
+    loading?: boolean;
+    error?: string | null;
   } = {},
 ) => {
   const stats = {
     dialogOpen: signal(true),
     range: signal(overrides.range ?? '7d'),
-    scope: signal(overrides.scope ?? 'deepwork'),
     bundle: signal({
       totals: {
         visitors: 12,
@@ -64,10 +62,9 @@ const makeServices = (
       pages: [{ name: '/tasks', count: 9, share: 1 }],
       sections: { browsers: [{ name: 'Chrome', count: 9, share: 1 }] },
     }),
-    loading: signal(false),
-    error: signal<string | null>(null),
+    loading: signal(overrides.loading ?? false),
+    error: signal<string | null>(overrides.error ?? null),
     failures: signal<Record<string, string>>({}),
-    scopeFiltered: signal(true),
     pagesTruncated: signal(false),
     noData: signal(false),
     tokenInfo: signal<{ token?: { name?: string; permissions?: number } } | null>({
@@ -75,7 +72,6 @@ const makeServices = (
     }),
     tokenError: signal<string | null>(null),
     verifying: signal(false),
-    siteVisitors: signal<number | null>(40),
     kpis: signal({ allTime: 2841, range: 12, today: 0, month: 8 }),
     hasToken: () => overrides.token !== null,
     tokenCannotReadStats: () => false,
@@ -87,7 +83,6 @@ const makeServices = (
     openDialog: vi.fn(),
     closeDialog: vi.fn(),
     setRange: vi.fn(),
-    setScope: vi.fn(),
     refresh: vi.fn(),
     saveToken: vi.fn().mockResolvedValue(undefined),
     forgetToken: vi.fn(),
@@ -154,12 +149,36 @@ describe('VisitorStatsDialogComponent', () => {
     expect(internals.tokenName()).toBe('saved (not checked yet)');
   });
 
-  it('captions the headline with the range and the scope it covers', () => {
+  it('captions the report with the range it covers', () => {
     expect(internals.rangeLabel()).toBe('Last 7 days');
-    expect(internals.scopeLabel()).toBe('DeepWork only');
+    expect(internals.kpiNote('range', 'unused')).toBe('Last 7 days · this app');
+  });
 
-    services.stats.scope.set('site');
-    expect(internals.scopeLabel()).toContain('whole GoatCounter site');
+  it('says where the numbers came from, and when they are still arriving', () => {
+    expect(internals.sourceNote()).toContain('Live from app-deepwork.goatcounter.com');
+    expect(internals.sourceNote()).toContain('Last 7 days');
+
+    const loading = makeServices({ loading: true });
+    TestBed.resetTestingModule();
+    TestBed.configureTestingModule({
+      providers: [
+        { provide: VisitorStatsService, useValue: loading.stats },
+        { provide: VisitorCounterService, useValue: loading.counter },
+      ],
+    });
+    const whileReading = TestBed.runInInjectionContext(() => new VisitorStatsDialogComponent());
+    expect((whileReading as unknown as DialogInternals).sourceNote()).toContain('Reading');
+
+    const anonymous = makeServices({ token: null });
+    TestBed.resetTestingModule();
+    TestBed.configureTestingModule({
+      providers: [
+        { provide: VisitorStatsService, useValue: anonymous.stats },
+        { provide: VisitorCounterService, useValue: anonymous.counter },
+      ],
+    });
+    const noToken = TestBed.runInInjectionContext(() => new VisitorStatsDialogComponent());
+    expect((noToken as unknown as DialogInternals).sourceNote()).toContain('public counter');
   });
 
   it('scales the sparkline against the tallest day', () => {
@@ -199,19 +218,6 @@ describe('VisitorStatsDialogComponent', () => {
     expect(services.counter.setCounting).toHaveBeenLastCalledWith(true);
   });
 
-  it('says what share of the whole site the app own number is', () => {
-    // One GoatCounter site carries two apps, so "12 visitors" means something
-    // different depending on which of the two numbers it is. The denominator is
-    // what stops that being misread.
-    expect(internals.siteShare(40)).toBe(
-      "12 of this site's 40 visitors in this range were on DeepWork's pages",
-    );
-  });
-
-  it('says nothing when the site has had no visitors at all', () => {
-    expect(internals.siteShare(0)).toBe('');
-  });
-
   it('shows each tile figure, with thousands separated', () => {
     expect(internals.kpiValue('allTime')).toBe('2,841');
     expect(internals.kpiValue('range')).toBe('12');
@@ -222,9 +228,9 @@ describe('VisitorStatsDialogComponent', () => {
     expect(internals.kpiValue('today')).toBe('0');
   });
 
-  it('says which range and scope the range tile is about', () => {
+  it('says which range the range tile is about', () => {
     // Four figures on one screen, and this is the one whose period moves.
-    expect(internals.kpiNote('range', 'unused')).toBe('Last 7 days · DeepWork only');
+    expect(internals.kpiNote('range', 'unused')).toBe('Last 7 days · this app');
     expect(internals.kpiNote('today', 'since midnight')).toBe('since midnight');
   });
 
@@ -269,28 +275,15 @@ describe('VisitorStatsDialogComponent', () => {
       expect(internals.sparkStart()).toBe('Last 7 days');
       expect(internals.sparkEnd()).toBe('now');
     });
-
-    it('always says what the figures cover, in both scopes', () => {
-      expect(internals.scopeNote()).toContain("12 of this site's 40");
-
-      services.stats.scope.set('site');
-      expect(internals.scopeNote()).toContain('rajatmalik.dev');
-
-      // ...and when the site's own figure did not arrive, the line still says
-      // which pages are being counted rather than disappearing.
-      services.stats.scope.set('deepwork');
-      services.stats.siteVisitors.set(null);
-      expect(internals.scopeNote()).toContain('DeepWork');
-    });
   });
 
   // ── Template contract ─────────────────────────────────────────────────────
 
   it('is opaque, because glass is for a card that has something behind it', () => {
-    // The first version of this popup used `--glass-bg`, which is 4.5% white:
-    // it read as a see-through sheet with the app's own text showing through it,
-    // and nothing in it could be read. `--surface-float` is the token for
-    // something that floats above the app, and it is opaque in both themes.
+    // `--glass-bg` is 4.5% white: it read as a see-through sheet with the app's
+    // own text showing through it, and nothing in it could be read.
+    // `--surface-float` is the token for something that floats above the app,
+    // and it is opaque in both themes.
     const src = readFileSync(SOURCE, 'utf8');
     expect(src).toContain('background: var(--surface-float');
     expect(src).not.toContain('background: var(--glass-bg');
@@ -320,11 +313,12 @@ describe('VisitorStatsDialogComponent', () => {
     expect(src).toContain('not in the JSON it exports');
   });
 
-  it('offers both a range and a scope, and a way to ask again', () => {
+  it('offers a range and a way to ask again', () => {
     const src = readFileSync(SOURCE, 'utf8');
     expect(src).toContain('stats.setRange(option.key)');
-    expect(src).toContain('stats.setScope(option.key)');
     expect(src).toContain('stats.refresh()');
+    // DeepWork owns its GoatCounter site, so there is no scope to switch.
+    expect(src).not.toContain('stats.setScope');
   });
 
   it('shows every breakdown the constants describe, each with its own footnote', () => {
@@ -339,14 +333,11 @@ describe('VisitorStatsDialogComponent', () => {
     expect(constants).toContain('Visitor locations');
     expect(constants).toContain('Browsers');
     expect(constants).toContain('Operating systems');
-    expect(constants).toContain('Languages');
-    expect(constants).toContain('Screen widths');
-    expect(constants).toContain('Campaigns');
     expect(constants).toContain("page: 'toprefs'");
     expect(constants).toContain("page: 'locations'");
   });
 
-  it('draws the same eight cards for every filter, not a shorter report', () => {
+  it('draws the same cards for every filter, not a shorter report', () => {
     const src = readFileSync(SOURCE, 'utf8');
 
     // Both kinds of card draw through the same helper, which is what makes an
@@ -356,8 +347,6 @@ describe('VisitorStatsDialogComponent', () => {
     // The chart frame is unconditional; only its contents change.
     expect(src).toContain('@empty');
     expect(src).toContain('spark-none');
-    // The scope line is unconditional too.
-    expect(src).toContain('scopeNote()');
 
     // The state-dependent shapes that used to stand in for a card are gone.
     expect(src).not.toContain('Not loaded.');
@@ -409,20 +398,11 @@ describe('VisitorStatsDialogComponent', () => {
     expect(src).toContain('@if (!counter.tokenFromBuild())');
   });
 
-  it('shows the app own number as a share of the whole site', () => {
+  it('is a centred report card, not a full-screen sheet', () => {
     const src = readFileSync(SOURCE, 'utf8');
-    expect(src).toContain('stats.siteVisitors()');
-    expect(src).toContain('siteShare(');
-  });
-
-  it('fills the window instead of sitting in a small centred card', () => {
-    const src = readFileSync(SOURCE, 'utf8');
-    // The panel is the page: the backdrop stretches, and the card takes the
-    // whole of it.
-    expect(src).toContain('align-items: stretch');
-    expect(src).toContain('width: 100%');
-    expect(src).toContain('height: 100%');
-    expect(src).not.toContain('max-width: 620px');
+    expect(src).toContain('align-items: center');
+    expect(src).toContain('max-width: 1080px');
+    expect(src).toContain('max-height: min(92vh, 940px)');
   });
 
   it('leaves the sidebar visible, by starting where it ends', () => {
@@ -462,15 +442,9 @@ describe('VisitorStatsDialogComponent', () => {
     expect(src).toMatch(/not a\s+pageview/);
   });
 
-  it('says the desktop app is not counted, at the top where it is read', () => {
+  it('says the desktop app is not counted', () => {
     const src = readFileSync(SOURCE, 'utf8');
     expect(src).toContain('desktop app has no web address');
-  });
-
-  it('explains a filter the API ignored rather than mislabelling the numbers', () => {
-    const src = readFileSync(SOURCE, 'utf8');
-    expect(src).toContain('!stats.scopeFiltered()');
-    expect(src).toContain('ignored the path filter');
   });
 
   it('warns when the token cannot read statistics at all', () => {
