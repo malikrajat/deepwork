@@ -39,9 +39,9 @@ notification**. It now carries the same four answers the card does — **Pause**
 desktop, and the card draws them as well, which is what keeps the alert answerable
 on the platforms whose toast cannot report a press (AC-14). The labels say what a
 press does: **Skip current** moves past the session at the head of the queue and
-leaves the next one waiting, while **Start** begins that waiting session (or
-continues a paused one from its remaining time), so carrying on is one press and
-skipping is a different one.
+starts the next one straight away, while **Start** begins a session that is
+genuinely waiting (or continues a paused one from its remaining time), so a skip
+carries on in one press and Start is only needed when nothing was skipped.
 
 ## Relationship to `001-create-deepwork` and `003-mini-widget-window`
 
@@ -79,8 +79,8 @@ skipping is a different one.
 7. **Answer it from the desktop.** The user is in another window when the toast
    appears. They press **Start**: the waiting session begins, the tone stops and
    the toast is taken back — no window to bring forward. **Skip current** moves
-   past the session at the head of the queue and leaves the next one waiting
-   instead, and **Pause** pauses whatever is running when it is pressed.
+   past the session at the head of the queue and starts the next one, and
+   **Pause** pauses whatever is running when it is pressed.
 8. **Go quiet from the desktop without deciding.** The user presses **Silent**.
    The alert closes and the clock is left exactly as it was: nothing started,
    nothing skipped, nothing paused.
@@ -167,10 +167,10 @@ skipping is a different one.
   one thing on the desktop and another in the app. A press reports the button's
   **id**, never its label, so wording is free to change. **Pause** pauses the
   session that is running when it is pressed, **Skip current** moves past the
-  session at the head of the queue and leaves the next one waiting
-  (`TimerService.skip`), **Start** begins that waiting session or continues a
-  paused one from its remaining time (`TimerService.start`), and **Silent**
-  closes the alert and leaves the clock untouched.
+  session at the head of the queue and starts the next one (`TimerService.skip`),
+  **Start** begins a waiting session or continues a paused one from its remaining
+  time (`TimerService.start`), and **Silent** closes the alert and leaves the
+  clock untouched.
   Every answer stops the ring, and every answer takes the alert's notification
   back (`toast_dismiss`) — a question that has been answered must not stay on
   screen asking. Every post — the raise, a re-ask after a crossing, and a repeat

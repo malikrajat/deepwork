@@ -787,7 +787,8 @@ export class TaskImportPanelComponent {
       this.notifications.showToastMessage(
         'Task template downloaded',
         `${saved.fileName} — ${where}`,
-        'work'
+        'work',
+        this.notifications.nextQuote('taskRecord'),
       );
     } catch (error) {
       this.errorMessage.set(

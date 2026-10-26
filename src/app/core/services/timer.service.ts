@@ -62,11 +62,11 @@ export class TimerService implements OnDestroy {
     // the notification centre long after the alert stops ringing: **Pause** has
     // to stop a session the user started since, and **Start** the next one.
     //
-    // **Skip current** moves past the session at the head of the queue and leaves
-    // the one after it waiting — the same answer the Dashboard's and the widget's
-    // own skip buttons give. **Start** is the one that carries on by itself: it
-    // starts that waiting session, or continues a paused one from its remaining
-    // time. Both labels say which of the two a press is.
+    // **Skip current** moves past the session at the head of the queue and starts
+    // the one after it — the same answer the Dashboard's and the widget's own
+    // skip buttons give, and the one the user expects from a button that says
+    // skip: the next block begins without a second press. **Start** still begins
+    // a waiting session, or continues a paused one from its remaining time.
     //
     // **Silent** never arrives — closing the alert is `NotificationService`'s
     // own job, and it does that before asking the clock anything.
@@ -188,6 +188,14 @@ export class TimerService implements OnDestroy {
     this.log.info('flow', `timer stopped · ${this.timerType()}`);
   }
 
+  /**
+   * Leaves the current session behind and begins the next one.
+   *
+   * Skip is not a pause: the user is saying "not this block", so the block after
+   * it should already be under way. `advanceToNext` sets the next type and its
+   * full duration, and `start` then runs it — the same start the Dashboard and
+   * the widget press, so the two paths cannot drift apart.
+   */
   skip(): void {
     this.stopInterval();
     this.isRunning.set(false);
@@ -196,6 +204,7 @@ export class TimerService implements OnDestroy {
     this.advanceToNext();
     this.persistState();
     this.log.info('flow', `timer skipped · next is ${this.timerType()}`);
+    this.start();
   }
 
   reset(): void {

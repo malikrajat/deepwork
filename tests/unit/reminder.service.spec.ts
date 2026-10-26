@@ -19,6 +19,7 @@ describe('ReminderService', () => {
 
   const notifications = {
     announce: vi.fn(async () => true),
+    nextQuote: vi.fn(() => 'a line for the thing that matters'),
     chime: vi.fn(),
     dismissSystemNotification: vi.fn(async () => undefined),
     onToastAction: vi.fn((_tag: string, handler: (action: string) => void) => {

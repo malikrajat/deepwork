@@ -498,7 +498,8 @@ export class TaskExportPanelComponent {
       this.notifications.showToastMessage(
         'Tasks exported',
         `${result.fileName} — ${where}`,
-        'work'
+        'work',
+        this.notifications.nextQuote('taskRecord'),
       );
     } catch (error) {
       this.message.set(`Export failed: ${error instanceof Error ? error.message : String(error)}`);

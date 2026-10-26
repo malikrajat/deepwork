@@ -46,7 +46,11 @@ function make() {
     unmute: vi.fn(() => attention.soundMuted.set(false)),
   };
 
-  const notifications = { showToastMessage: vi.fn() };
+  const notifications = {
+    showToastMessage: vi.fn(),
+    nextQuote: vi.fn(() => 'a line for the pause'),
+    stopAlert: vi.fn(),
+  };
   const ui = {
     focusMode: signal(false),
     toggleFocusMode: vi.fn(() => ui.focusMode.update((on) => !on)),
@@ -86,6 +90,17 @@ describe('QuietService', () => {
       expect(timer.pause).toHaveBeenCalledTimes(1);
       expect(attention.pauseFor).toHaveBeenCalledWith(30);
       expect(notifications.showToastMessage.mock.calls[0][0]).toBe('Paused for 30 min');
+    });
+
+    it('stops an alert that was already ringing', () => {
+      // A session that finished before Pause was pressed is part of what the
+      // pause is for. Leaving it ringing would keep the tone and the desktop
+      // notification repeating for the length of the pause.
+      const { quiet, notifications } = make();
+
+      quiet.pause(22 * 60);
+
+      expect(notifications.stopAlert).toHaveBeenCalledTimes(1);
     });
 
     it('resumes a timer it stopped when the timed pause runs out', () => {

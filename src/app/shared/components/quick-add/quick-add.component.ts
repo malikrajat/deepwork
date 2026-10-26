@@ -724,7 +724,12 @@ export class QuickAddComponent {
     const today = createTaskFormDefaults().deadline;
     if (!deadline || deadline === today) await this.tasks.addToToday(created.id);
 
-    this.notifications.showToastMessage('Task added to Today', created.title, 'work');
+    this.notifications.showToastMessage(
+      'Task added to Today',
+      created.title,
+      'work',
+      this.notifications.nextQuote('taskAdded'),
+    );
     this.close();
   }
 }

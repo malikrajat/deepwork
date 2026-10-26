@@ -22,6 +22,7 @@ import { QuickAddComponent } from './shared/components/quick-add/quick-add.compo
 import { TaskEditorPanelComponent } from './shared/components/task-editor-panel/task-editor-panel.component';
 import { UpdatePromptComponent } from './shared/components/update-prompt/update-prompt.component';
 import { WaterNudgeComponent } from './shared/components/water-nudge/water-nudge.component';
+import { MovementNudgeComponent } from './shared/components/movement-nudge/movement-nudge.component';
 import { ReminderCardComponent } from './shared/components/reminder-card/reminder-card.component';
 import { VisitorStatsDialogComponent } from './shared/components/visitor-stats-dialog/visitor-stats-dialog.component';
 import { QuietDialogComponent } from './shared/components/quiet-dialog/quiet-dialog.component';
@@ -86,6 +87,7 @@ const COMPACT_LAYOUT_QUERY = '(max-width: 900px)';
     TaskEditorPanelComponent,
     UpdatePromptComponent,
     WaterNudgeComponent,
+    MovementNudgeComponent,
     ReminderCardComponent,
     VisitorStatsDialogComponent,
     QuietDialogComponent,

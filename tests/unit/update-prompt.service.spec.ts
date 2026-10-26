@@ -72,7 +72,11 @@ function fakeUpdates(platform = 'windows', status: UpdateStatus = 'update-availa
 }
 
 function fakeNotifications() {
-  return { announce: vi.fn().mockResolvedValue(undefined), init: vi.fn() };
+  return {
+    announce: vi.fn().mockResolvedValue(undefined),
+    nextQuote: vi.fn(() => 'a line for a newer build'),
+    init: vi.fn(),
+  };
 }
 
 describe('UpdatePromptService', () => {

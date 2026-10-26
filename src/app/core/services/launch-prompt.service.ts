@@ -247,6 +247,7 @@ export class LaunchPromptService implements OnDestroy {
       'DeepWork will start with your computer',
       'It opens at sign-in and waits out of the way, so the timer is there when you are.',
       'work',
+      this.notifications.nextQuote('desktop'),
     );
     return true;
   }
@@ -296,6 +297,7 @@ export class LaunchPromptService implements OnDestroy {
       'No more startup reminders',
       'You can turn them back on in Settings → Desktop.',
       'work',
+      this.notifications.nextQuote('desktop'),
     );
   }
 
@@ -309,6 +311,7 @@ export class LaunchPromptService implements OnDestroy {
       'Startup reminder off',
       'Settings → Desktop has the switch if you want it back.',
       'work',
+      this.notifications.nextQuote('desktop'),
     );
   }
 
@@ -338,6 +341,7 @@ export class LaunchPromptService implements OnDestroy {
       'Taskbar reminder off',
       'You can pin DeepWork any time from the Start menu.',
       'work',
+      this.notifications.nextQuote('desktop'),
     );
   }
 
@@ -479,6 +483,7 @@ export class LaunchPromptService implements OnDestroy {
     }
 
     await this.notifications.announce(title, systemBody, {
+      quote: this.notifications.nextQuote('desktop'),
       tag,
       sticky: true,
       actions: systemActions,
@@ -490,7 +495,14 @@ export class LaunchPromptService implements OnDestroy {
       return;
     }
 
-    this.notifications.showToastMessage(title, body, 'work', null, toastActions, tag);
+    this.notifications.showToastMessage(
+      title,
+      body,
+      'work',
+      this.notifications.nextQuote('desktop'),
+      toastActions,
+      tag,
+    );
   }
 
   /**
@@ -544,6 +556,7 @@ export class LaunchPromptService implements OnDestroy {
               'Could not change the startup setting',
               this.error() ?? 'Try Settings → Desktop.',
               'work',
+              this.notifications.nextQuote('desktop'),
             );
           }
         },

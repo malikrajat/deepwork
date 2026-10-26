@@ -371,6 +371,7 @@ export class InstallService implements OnDestroy {
       'Install DeepWork',
       `Add DeepWork to your ${surface} so your timer is one click away. It opens in its own window and works offline.`,
       {
+        quote: this.notifications.nextQuote('desktop'),
         tag: 'deepwork-install',
         onClick: () => {
           this.highlight();

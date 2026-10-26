@@ -114,6 +114,63 @@ describe('NotificationService', () => {
     expect(svc.ringing()).toBe(false);
   });
 
+  it('stays completely silent while the app is paused', async () => {
+    // Pause is the user asking for none of this: no tone, no card and no
+    // notification. A session can still finish during a pause — one started
+    // after it was set — and it must end without saying anything.
+    (svc as any).sendNotification = vi.fn().mockResolvedValue(undefined);
+    (svc as any).playSound = vi.fn();
+    (svc as any).startRepeatLoop = vi.fn();
+    const attention = TestBed.inject(AttentionService);
+    attention.pauseFor(22 * 60);
+
+    await svc.fireTimerComplete('work');
+    vi.advanceTimersByTime(60);
+
+    expect(svc.ringing()).toBe(false);
+    expect(svc.toast()).toBeNull();
+    expect((svc as any).sendNotification).not.toHaveBeenCalled();
+    expect((svc as any).playSound).not.toHaveBeenCalled();
+    expect((svc as any).startRepeatLoop).not.toHaveBeenCalled();
+  });
+
+  it('ends an alert that was already ringing when the pause is set', async () => {
+    (svc as any).sendNotification = vi.fn().mockResolvedValue(undefined);
+    (svc as any).playSound = vi.fn();
+    (svc as any).startRepeatLoop = vi.fn();
+
+    await svc.fireTimerComplete('work');
+    vi.advanceTimersByTime(60);
+    expect(svc.ringing()).toBe(true);
+    expect(svc.toast()).not.toBeNull();
+
+    TestBed.inject(AttentionService).pauseFor(22 * 60);
+    svc.stopAlert();
+
+    expect(svc.ringing()).toBe(false);
+    expect(svc.toast()).toBeNull();
+  });
+
+  it('does not ring, pulse or re-post on a tick that lands after the pause', async () => {
+    const originalWorker = globalThis.Worker;
+    (globalThis as any).Worker = undefined;
+    try {
+      (svc as any).sendNotification = vi.fn().mockResolvedValue(undefined);
+      (svc as any).playSound = vi.fn();
+      await svc.fireTimerComplete('work');
+      const pulse = svc.alertPulse();
+
+      TestBed.inject(AttentionService).pauseFor(22 * 60);
+      (svc as any).onRepeatTick();
+
+      expect((svc as any).playSound).toHaveBeenCalledTimes(1);
+      expect(svc.alertPulse()).toBe(pulse);
+      expect(svc.ringing()).toBe(false);
+    } finally {
+      (globalThis as any).Worker = originalWorker;
+    }
+  });
+
   it('pulses once per tone, so both surfaces can move on the beat of the sound', async () => {
     // The tone is heard, but an alert that has to be seen repeating needs a
     // count: one edge per raise drives the widget's shake, the card's shake and
@@ -193,8 +250,9 @@ describe('NotificationService', () => {
       'Break is over!',
       'Ready to focus again?',
       1,
-      // The second alert of the run, so the second line of the break list.
-      { quote: BREAK_QUOTES[1], actions: ALERT_ANSWERS, sticky: true },
+      // The first break of the run, so the first line of the break deck — each
+      // deck has a position of its own.
+      { quote: BREAK_QUOTES[0], actions: ALERT_ANSWERS, sticky: true },
     );
   });
 
@@ -223,10 +281,10 @@ describe('NotificationService', () => {
     await svc.fireTimerComplete('short-break');
     vi.runAllTimers();
     // A finished break draws from the other list — about coming back rather than
-    // about stepping away — entered wherever the count has reached.
-    expect(svc.toast()?.quote).toBe(BREAK_QUOTES[2]);
+    // about stepping away — and its own deck starts at its own first line.
+    expect(svc.toast()?.quote).toBe(BREAK_QUOTES[0]);
     // And never glued onto the message it arrived with.
-    expect(svc.toast()?.body).not.toContain(BREAK_QUOTES[2]);
+    expect(svc.toast()?.body).not.toContain(BREAK_QUOTES[0]);
   });
 
   it('gives a finished task a line of its own, walked one per task', () => {
@@ -616,6 +674,25 @@ describe('NotificationService', () => {
     svc.chime();
 
     expect(playBell).toHaveBeenCalledWith((svc as any).audioContext);
+  });
+
+  it('does not announce a finished task while the app is paused', () => {
+    TestBed.inject(AttentionService).pauseFor(60);
+
+    svc.announceTaskCompleted('Write the report');
+    vi.advanceTimersByTime(60);
+
+    expect(svc.toast()).toBeNull();
+  });
+
+  it('chime() stays silent while the app is paused', () => {
+    const playBell = vi.spyOn(svc as any, 'playBell');
+    (svc as any).audioContext = { close: vi.fn() };
+    TestBed.inject(AttentionService).pauseFor(60);
+
+    svc.chime();
+
+    expect(playBell).not.toHaveBeenCalled();
   });
 
   it('chime() stays silent while the timed mute is on', () => {

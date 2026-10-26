@@ -57,7 +57,10 @@ describe('QuickAddComponent — dictation survives “Stop listening”', () => 
         { provide: SpeechService, useValue: speech },
         { provide: UiService, useValue: makeUi() },
         { provide: TaskService, useValue: { createTask: vi.fn(), addToToday: vi.fn() } },
-        { provide: NotificationService, useValue: { showToastMessage: vi.fn() } },
+        {
+          provide: NotificationService,
+          useValue: { showToastMessage: vi.fn(), nextQuote: vi.fn(() => 'a line') },
+        },
       ],
     });
     fixture = TestBed.createComponent(QuickAddComponent);

@@ -118,6 +118,11 @@ pub const MIGRATIONS: &[(i64, &str, &str)] = &[
         "remember the task title on a focus session",
         include_str!("../migrations/013_add_session_task_title.sql"),
     ),
+    (
+        14,
+        "remind the user to stand up and walk",
+        include_str!("../migrations/014_add_movement_reminder.sql"),
+    ),
 ];
 
 /// The list the SQL plugin is configured with.

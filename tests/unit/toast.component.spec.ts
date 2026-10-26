@@ -1,6 +1,8 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { TestBed, ComponentFixture } from '@angular/core/testing';
 import { signal } from '@angular/core';
+import { readFileSync } from 'fs';
+import { resolve } from 'path';
 import { ToastComponent } from '../../src/app/shared/components/toast/toast.component';
 import { NotificationService } from '../../src/app/core/services/notification.service';
 
@@ -79,6 +81,21 @@ describe('ToastComponent', () => {
     fixture.detectChanges();
     const container = fixture.nativeElement.querySelector('.toast-container');
     expect(container?.classList.contains('break')).toBe(true);
+  });
+
+  it('pins the close cross to the top-right corner of the card', () => {
+    // The cross used to be a flex item in the middle of the message row, so it
+    // read as part of the text. A dismiss control belongs in the corner the eye
+    // already looks to, and the card's right padding keeps the message clear of
+    // it. The template is not rendered by this runner, so the rule is read from
+    // the component source — the same approach the widget spec uses.
+    const source = readFileSync(
+      resolve(__dirname, '../../src/app/shared/components/toast/toast.component.ts'),
+      'utf8',
+    );
+    expect(source).toMatch(
+      /\.toast-dismiss \{[^}]*position: absolute;[^}]*top: 8px;[^}]*right: 8px;/,
+    );
   });
 
   it('calls notifications.dismiss() when dismiss button is clicked', () => {

@@ -8,7 +8,6 @@ import {
   isDue,
   nextRingAt,
   parseReminder,
-  quoteForRing,
   reminderBody,
   sortReminders,
 } from '../utils/reminder.util';
@@ -102,6 +101,16 @@ export class ReminderService implements OnDestroy {
 
   /** The timer that asks a crossed notification again. */
   private reaskTimer: ReturnType<typeof setTimeout> | null = null;
+
+  /**
+   * The line the reminder currently standing was raised with.
+   *
+   * Published so the in-app card can draw the same sentence as the notification:
+   * the two surfaces ask one question, and a card that quoted a different line
+   * would read as a second message. Kept across a re-ask too — crossing a toast
+   * does not change the question, so neither should the sentence under it.
+   */
+  readonly activeQuote = signal<string | null>(null);
 
   /** Removes the toast-button handler when this service goes away. */
   private unlistenToast: (() => void) | null = null;
@@ -384,7 +393,7 @@ export class ReminderService implements OnDestroy {
       lastRangAt: now.toISOString(),
     };
     this.replace(standing);
-    await this.post(standing, now);
+    await this.post(standing, now, this.drawQuote());
   }
 
   /** Asks an already-standing reminder again, one rung further up the ladder. */
@@ -395,7 +404,14 @@ export class ReminderService implements OnDestroy {
       lastRangAt: now.toISOString(),
     };
     this.replace(standing);
-    await this.post(standing, now);
+    await this.post(standing, now, this.drawQuote());
+  }
+
+  /** Took the next reminder line, and kept it for a re-ask of the same ring. */
+  private drawQuote(): string {
+    const quote = this.notifications.nextQuote('reminder');
+    this.activeQuote.set(quote);
+    return quote;
   }
 
   /** Writes one changed reminder back and puts the list in its order. */
@@ -416,13 +432,13 @@ export class ReminderService implements OnDestroy {
    * about. The sticky toast is the surface that reaches them without moving
    * anything they are looking at.
    */
-  private async post(reminder: StandingReminder, now: Date): Promise<void> {
+  private async post(reminder: StandingReminder, now: Date, quote: string): Promise<void> {
     this.notifications.chime();
 
     const body = reminderBody(reminder, now);
     try {
       await this.notifications.announce(reminder.title, body, {
-        quote: quoteForRing(reminder.fireCount),
+        quote,
         tag: ReminderService.NOTIFICATION_TAG,
         sticky: true,
         actions: ReminderService.ACTIONS,
@@ -460,7 +476,9 @@ export class ReminderService implements OnDestroy {
   private async repost(): Promise<void> {
     const active = this.active();
     if (!active || this.attention.paused()) return;
-    await this.post(active, new Date());
+    // The same question, so the same line: crossing a toast does not change
+    // what the reminder is asking.
+    await this.post(active, new Date(), this.activeQuote() ?? this.drawQuote());
   }
 
   private clearReask(): void {

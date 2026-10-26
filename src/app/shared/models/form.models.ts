@@ -44,6 +44,10 @@ export interface SettingsFormModel {
   waterAmountMl: number;
   waterGoalMl: number;
   waterAutoLogWhenMinimized: boolean;
+  movementReminders: boolean;
+  movementStart: string;
+  movementEnd: string;
+  movementIntervalMinutes: number;
   carryForwardTasks: boolean;
 }
 
@@ -117,6 +121,10 @@ export function createSettingsFormDefaults(): SettingsFormModel {
     waterAmountMl: DEFAULT_SETTINGS.waterAmountMl,
     waterGoalMl: DEFAULT_SETTINGS.waterGoalMl,
     waterAutoLogWhenMinimized: DEFAULT_SETTINGS.waterAutoLogWhenMinimized,
+    movementReminders: DEFAULT_SETTINGS.movementReminders,
+    movementStart: DEFAULT_SETTINGS.movementStart,
+    movementEnd: DEFAULT_SETTINGS.movementEnd,
+    movementIntervalMinutes: DEFAULT_SETTINGS.movementIntervalMinutes,
     carryForwardTasks: DEFAULT_SETTINGS.carryForwardTasks,
   };
 }

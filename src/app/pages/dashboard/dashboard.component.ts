@@ -15,6 +15,7 @@ import { ConfettiComponent } from '../../shared/components/confetti/confetti.com
 import { TooltipDirective } from '../../shared/directives/tooltip.directive';
 import { DesktopPrefsPanelComponent } from '../../shared/components/desktop-prefs-panel/desktop-prefs-panel.component';
 import { WaterCardComponent } from '../../shared/components/water-card/water-card.component';
+import { DeskHealthCardComponent } from '../../shared/components/desk-health-card/desk-health-card.component';
 import { TimerService } from '../../core/services/timer.service';
 import { NotificationService } from '../../core/services/notification.service';
 import { DbService } from '../../core/services/db.service';
@@ -38,6 +39,7 @@ import { TaskSelectFormModel, createTaskSelectFormDefaults } from '../../shared/
     FormField,
     DesktopPrefsPanelComponent,
     WaterCardComponent,
+    DeskHealthCardComponent,
   ],
   changeDetection: ChangeDetectionStrategy.OnPush,
   host: {
@@ -114,8 +116,6 @@ import { TaskSelectFormModel, createTaskSelectFormDefaults } from '../../shared/
 
     <!-- Main dashboard -->
     <div class="dashboard-wrapper" [class.hidden]="isFullscreen() || ui.isNativeWidget()">
-      
-
       <!-- Main row: Clock (80%) | Timeline (20%) -->
       <div class="main-row animate-fade-in-delay-1">
         <div class="timer-card">
@@ -476,6 +476,10 @@ import { TaskSelectFormModel, createTaskSelectFormDefaults } from '../../shared/
           </div>
         </div>
       </div>
+
+      <!-- The two health reminders, one click from here: the same switches as
+           Settings, without walking to the Settings page to turn one off. -->
+      <app-desk-health-card class="animate-fade-in-delay-2" />
 
       <!-- Today's water: what has been drunk, and one tap to add a glass -->
       <app-water-card class="animate-fade-in-delay-2" />

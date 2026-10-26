@@ -349,31 +349,32 @@ describe('TimerService', () => {
     expect(svc.isRunning()).toBe(false);
   });
 
-  it('moves past the queued session when Skip current is pressed', async () => {
+  it('moves past the queued session when Skip current is pressed, and starts the next', async () => {
     // Skip current is exactly the step it names: the session at the head of the
-    // queue is left behind, and the next one is set up but *not* started. That
-    // keeps it distinct from Start, which is the press that begins it.
+    // queue is left behind, and the one after it begins straight away. A skip
+    // that left the next block waiting made the user press Start to do what the
+    // button already said it would do.
     await svc.init();
 
     alertAction('skip');
 
     expect(svc.timerType()).toBe('short-break');
-    expect(svc.isRunning()).toBe(false);
+    expect(svc.isRunning()).toBe(true);
     expect(svc.remainingSeconds()).toBe(DEFAULT_SETTINGS.shortBreak);
   });
 
-  it('Skip current stops a running session and leaves the next one waiting', async () => {
+  it('Skip current stops a running session and starts the one after it', async () => {
     // A toast waits in the notification centre long after the alert stops
     // ringing, so Skip current can be pressed while something is running. It is
-    // still "not this one": the running session is stopped, and what follows is
-    // left for Start to begin.
+    // still "not this one": the running session is stopped and the next starts.
     await svc.init();
     svc.start();
 
     alertAction('skip');
 
     expect(svc.timerType()).toBe('short-break');
-    expect(svc.isRunning()).toBe(false);
+    expect(svc.isRunning()).toBe(true);
+    expect(svc.remainingSeconds()).toBe(DEFAULT_SETTINGS.shortBreak);
   });
 
   it('starts the session that is waiting when Start is pressed', async () => {
@@ -385,10 +386,13 @@ describe('TimerService', () => {
     expect(svc.timerType()).toBe('work');
   });
 
-  it('Start begins the queued session that a skip left waiting', async () => {
+  it('Start leaves the session a skip already started alone', async () => {
+    // A skip now carries on by itself, so Start is only the way to begin a
+    // session that is genuinely waiting — not a second press to finish a skip.
     await svc.init();
-    svc.skip(); // work → short-break
+    svc.skip(); // work → short-break, already running
     expect(svc.timerType()).toBe('short-break');
+    expect(svc.isRunning()).toBe(true);
 
     alertAction('start');
 

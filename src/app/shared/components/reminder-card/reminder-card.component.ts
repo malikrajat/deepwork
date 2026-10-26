@@ -358,7 +358,10 @@ export class ReminderCardComponent {
   }
 
   protected quote(reminder: StandingReminder): string {
-    return quoteForRing(reminder.fireCount);
+    // The notification was posted with the line the service drew, so the card
+    // reads that one rather than computing a second answer from the ring count.
+    // The list remains the fallback for a card painted before the first post.
+    return this.reminders.activeQuote() ?? quoteForRing(reminder.fireCount);
   }
 
   protected answer(action: ReminderAnswer): void {

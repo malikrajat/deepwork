@@ -15,6 +15,7 @@ import {
   WATER_INTERVAL_OPTIONS,
 } from '../../src/app/core/constants/water.constants';
 import { ALERT_SHAKE_OPTIONS } from '../../src/app/core/constants/alert.constants';
+import { MOVEMENT_INTERVAL_OPTIONS } from '../../src/app/core/constants/movement.constants';
 import { DEFAULT_SETTINGS } from '../../src/app/core/models/settings.model';
 
 /** Today in the user's own timezone, the way the form factory computes it. */
@@ -125,6 +126,16 @@ describe('form model factories', () => {
       expect(WATER_GOAL_OPTIONS).toContain(d.waterGoalMl);
       expect(d.waterAmountMl).toBe(30);
       expect(d.waterGoalMl).toBe(2000);
+    });
+
+    it('starts the stand-and-walk reminder on, on a cadence it offers', () => {
+      const d = createSettingsFormDefaults();
+
+      expect(d.movementReminders).toBe(true);
+      expect(d.movementStart).toBe('09:00');
+      expect(d.movementEnd).toBe('18:00');
+      expect(MOVEMENT_INTERVAL_OPTIONS).toContain(d.movementIntervalMinutes);
+      expect(d.movementIntervalMinutes).toBe(DEFAULT_SETTINGS.movementIntervalMinutes);
     });
 
     it('starts carry-forward on, which is what the app did before the choice existed', () => {

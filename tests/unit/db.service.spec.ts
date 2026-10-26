@@ -151,6 +151,47 @@ describe('DbService (browser/localStorage mode)', () => {
     expect(s.waterAutoLogWhenMinimized).toBe(true);
   });
 
+  it('keeps the stand-and-walk preferences, and repairs values it did not offer', async () => {
+    await db.init();
+    const chosen = {
+      ...DEFAULT_SETTINGS,
+      movementReminders: true,
+      movementStart: '08:15',
+      movementEnd: '17:30',
+      movementIntervalMinutes: 30,
+    };
+    await db.saveSettings(chosen);
+
+    const loaded = await db.getSettings();
+    expect(loaded.movementReminders).toBe(true);
+    expect(loaded.movementStart).toBe('08:15');
+    expect(loaded.movementEnd).toBe('17:30');
+    expect(loaded.movementIntervalMinutes).toBe(30);
+
+    // A window that cannot be read, and a cadence that is not on the menu, fall
+    // back to the defaults rather than to a reminder at 03:00 every 17 minutes.
+    await db.saveSettings({
+      ...chosen,
+      movementStart: 'later',
+      movementIntervalMinutes: 17,
+      movementReminders: 'yes' as unknown as boolean,
+    });
+    const repaired = await db.getSettings();
+    expect(repaired.movementStart).toBe(DEFAULT_SETTINGS.movementStart);
+    expect(repaired.movementIntervalMinutes).toBe(DEFAULT_SETTINGS.movementIntervalMinutes);
+    expect(repaired.movementReminders).toBe(DEFAULT_SETTINGS.movementReminders);
+  });
+
+  it('starts the stand-and-walk reminder on, at its everyday cadence', async () => {
+    await db.init();
+    const s = await db.getSettings();
+
+    expect(s.movementReminders).toBe(true);
+    expect(s.movementStart).toBe('09:00');
+    expect(s.movementEnd).toBe('18:00');
+    expect(s.movementIntervalMinutes).toBe(45);
+  });
+
   it('round-trips the carry-forward choice, and defaults it to on', async () => {
     await db.init();
     // Nothing stored yet: the app carries unfinished work forward, as it always

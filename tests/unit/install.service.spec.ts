@@ -49,7 +49,10 @@ function make(options: {
     delete (globalThis as { __TAURI_INTERNALS__?: unknown }).__TAURI_INTERNALS__;
   }
 
-  const notifications = { announce: vi.fn().mockResolvedValue(undefined) };
+  const notifications = {
+    announce: vi.fn().mockResolvedValue(undefined),
+    nextQuote: vi.fn(() => 'a line for a tool within reach'),
+  };
   const attention = { paused: signal(options.paused ?? false) };
   const log = { info: vi.fn(), warn: vi.fn(), error: vi.fn() };
 

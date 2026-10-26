@@ -298,6 +298,7 @@ export class UpdatePromptService {
 
     try {
       await this.notifications?.announce(title, body, {
+        quote: this.notifications?.nextQuote('update') ?? null,
         tag: NotificationService.UPDATE_NOTIFICATION_TAG,
       });
     } catch (failure) {
