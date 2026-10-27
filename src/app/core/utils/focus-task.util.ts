@@ -13,12 +13,14 @@
  * not today's reads as "no task", which is what an untouched app should say.
  */
 
+import { localDayKey } from './nudge-schedule.util';
+
 const TASK_KEY = 'deepwork_focusTaskId';
 const DAY_KEY = 'deepwork_focusTaskDay';
 
 /** Today, spelled the way the rest of the app's daily state spells it. */
 function dayKey(now: Date): string {
-  return now.toISOString().slice(0, 10);
+  return localDayKey(now);
 }
 
 /** The task this day's focus is for, or null once the day has turned over. */

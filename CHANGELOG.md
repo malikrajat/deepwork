@@ -6,6 +6,60 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 ---
 
 
+## [3.0.2] – 2026-10-26
+
+### Added
+
+- **The first-run setup now asks about the body reminders as well.** The one-time
+  dialog that already offers startup, always-on-top, tray behaviour and the
+  taskbar pin now carries two more switches — **Water reminders** and **Stand &
+  walk reminders** — with a one-line reason for each. They are the same two
+  booleans the Dashboard's desk-health card and Settings already own, written
+  through `SettingsService`, so an "off" chosen here is off on the Dashboard, in
+  Settings and in the notification centre: no card, no tone and no system
+  notification. The Dashboard cards are unchanged and remain the everyday quick
+  toggle. The panel is loaded as its own chunk, so the first paint still fits its
+  existing budget. The dialog itself stays inside the window now: its middle
+  scrolls and **Not now** / **Done** sit in a fixed footer, so both answers stay
+  visible even at the app's 600px minimum height
+  (`reminder-prefs-panel.component.ts`, `welcome-prefs-dialog.component.ts`).
+
+### Fixed
+
+- **A new day starts with a new cycle, not yesterday's.** The timer kept a UTC
+  date rather than the local one, so a launch early in the morning could decide
+  the previous local day was still "today" and restore its session count, its
+  break type and its linked task. The day key is local everywhere now, and a new
+  day resets the count to zero, the type to work, the clock to the full focus
+  duration and the task to none. A session that was still running is recorded as
+  interrupted before the reset, so the time is not lost. The timer also watches
+  the calendar while it runs: an app left open past midnight starts the new day
+  the same way a launch does, so the first session of the day can never complete
+  yesterday's cycle or celebrate it (`timer.service.ts`).
+
+- **Yesterday's water and stand-and-walk reminders no longer arrive on the
+  doorstep.** The "time at the desk" fold pushed the last reminder forward by the
+  time the app was closed, but if the absence swallowed the whole interval the
+  next moment was already in the past — open the app in the morning and it asked
+  immediately. The first pass inside today's working hours now starts today's
+  cadence from that moment, and a fold that would land in the past restarts the
+  interval from the launch instead. No reminder is delivered the instant the
+  window appears (`water-reminder.service.ts`,
+  `movement-reminder.service.ts`).
+
+- **"Today" means the local day in every daily counter.** `getTodaySessions` now
+  starts at local midnight instead of slicing a UTC date, so an evening session
+  stays with the day the user lived it; the Dashboard's completed-task count,
+  the focused-task stamp, an overdue deadline and the daily session list all
+  follow the same local day, and a Dashboard left open across midnight clears
+  the day's focused task and reloads its counters instead of showing
+  yesterday's numbers (`db.service.ts`, `dashboard.component.ts`,
+  `focus-task.util.ts`, `task-board.component.ts`).
+
+- **The version is 3.0.2**, in every file that spells it out, moved in one pass by
+  `npm run version:bump -- 3.0.2`.
+
+
 ## [3.0.1] – 2026-10-27
 
 ### Added

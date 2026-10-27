@@ -4,6 +4,7 @@ import {
   readFocusedTaskId,
   saveFocusedTaskId,
 } from '../../src/app/core/utils/focus-task.util';
+import { localDayKey } from '../../src/app/core/utils/nudge-schedule.util';
 
 /**
  * The task the day's focus is for.
@@ -69,7 +70,7 @@ describe('focused task', () => {
 
   it('stamps the id with the day it was chosen on', () => {
     saveFocusedTaskId('task-1', TODAY);
-    expect(localStorage.getItem('deepwork_focusTaskDay')).toBe(TODAY.toISOString().slice(0, 10));
+    expect(localStorage.getItem('deepwork_focusTaskDay')).toBe(localDayKey(TODAY));
   });
 
   it('defaults to the real today, which is how the app calls it', () => {

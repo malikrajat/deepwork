@@ -8,7 +8,7 @@
  * exactly where they stop agreeing. Keep it in step with `package.json`,
  * `src-tauri/tauri.conf.json` and `src-tauri/Cargo.toml`.
  */
-export const APP_VERSION = '3.0.1';
+export const APP_VERSION = '3.0.2';
 
 /** Product name as it appears in the UI, the installers and the releases. */
 export const APP_NAME = 'DeepWork';
