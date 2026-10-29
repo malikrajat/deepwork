@@ -80,7 +80,15 @@ export interface AppSettings {
    * two clicks and the app checks whether they happened before it speaks again.
    */
   taskbarPinNudge: boolean;
-  /** Nudge the user to drink water during their working hours. */
+  /**
+   * Nudge the user to drink water during their working hours.
+   *
+   * Off by default. DeepWork is a focus app, and a bell every hour is the first
+   * thing that makes a focused desk feel noisy; the reminder is a feature to opt
+   * into, not one to opt out of. When it is off the app still offers it — a
+   * persistent prompt every two hours in the working window, with one-click
+   * setup — so the feature is discoverable without being imposed.
+   */
   waterReminders: boolean;
   /** `HH:MM` local time — the first minute of the day a reminder may fire. */
   waterStart: string;
@@ -110,10 +118,16 @@ export interface AppSettings {
   /**
    * Nudge the user to stand up and walk during their working hours.
    *
+   * Off by default, for the same reason the water reminder is: a focus app that
+   * rings every forty-five minutes is working against the focus it exists to
+   * protect. The feature stays available, and the app offers it with a persistent
+   * two-hourly prompt rather than turning it on for everyone.
+   *
    * A desk job is a seated job: the damage is not one long sitting but the
-   * hours that pass without a reason to leave the chair. The reminder asks
-   * rather than announces — it carries a quote and two answers, and nothing
-   * else closes it — and its bell repeats until one of them is pressed.
+   * hours that pass without a reason to leave the chair. Once enabled, the
+   * reminder asks rather than announces — it carries a quote and two answers,
+   * and nothing else closes it — and its bell repeats until one of them is
+   * pressed.
    */
   movementReminders: boolean;
   /** `HH:MM` local time — the first minute a movement reminder may fire. */
@@ -163,11 +177,11 @@ export const DEFAULT_SETTINGS: AppSettings = {
   launchPrompted: false,
   startupNudge: true,
   taskbarPinNudge: true,
-  // On by default: the nudge is what the feature is for, and it asks rather than
-  // announces — a card that waits for Yes or Not now, inside working hours, on
-  // the notification sound the user already chose. Anyone who does not want it
-  // turns it off, which stops the reminders and the tally with them.
-  waterReminders: true,
+  // Off by default: a focus app does not ring every hour uninvited. The feature
+  // is offered instead — `BodyReminderPromptService` shows a persistent, sticky
+  // prompt every two hours while it is off, with one-click setup and a one-click
+  // way to stop the offers.
+  waterReminders: false,
   waterStart: DEFAULT_WATER_START,
   waterEnd: DEFAULT_WATER_END,
   waterIntervalMinutes: DEFAULT_WATER_INTERVAL_MINUTES,
@@ -176,11 +190,10 @@ export const DEFAULT_SETTINGS: AppSettings = {
   // On by default: the mini widget is the user saying "leave me alone", so the
   // reminder counts the glass rather than asking for it.
   waterAutoLogWhenMinimized: true,
-  // On by default, and for the same reason the water reminder is: it asks a
-  // question rather than announcing a fact, and either answer is one click. A
-  // health nudge that has to be found in Settings before it does anything is a
-  // health nudge most people never meet.
-  movementReminders: true,
+  // Off by default, for the same reason the water reminder is: the reminder is
+  // noise until the user asks for it, and the offer to turn it on is what makes
+  // it discoverable. See `BodyReminderPromptService`.
+  movementReminders: false,
   movementStart: DEFAULT_MOVEMENT_START,
   movementEnd: DEFAULT_MOVEMENT_END,
   movementIntervalMinutes: DEFAULT_MOVEMENT_INTERVAL_MINUTES,

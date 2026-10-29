@@ -10,6 +10,23 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Added
 
+- **A quiet, persistent offer for the two body reminders while they are off.**
+  The water and stand-and-walk features are now opt-in, so DeepWork raises the
+  same question in the app and on the desktop every two hours inside the
+  reminder's own working window: a short line about what it helps with, a
+  motivational quote, and two answers — **Set up** and **Stop asking**. The
+  notification is sticky and the card has no timeout, so the question waits for
+  an answer instead of sliding away while the user is heads-down. **Set up**
+  writes the same `waterReminders` / `movementReminders` value the Dashboard and
+  Settings own, starts the reminder's scheduler, and then replaces the question
+  with the configuration it applied — the working window, the cadence and, for
+  water, 50 ml per glass — plus the one-click way to turn it off from the
+  Dashboard. **Stop asking** ends the offers for that feature in one click and is
+  remembered across launches. Both offers are staggered by an hour on a fresh
+  install, only one is raised per pass, and neither speaks while the app is
+  paused or the first-run setup is open (`body-reminder-prompt.service.ts`,
+  `body-reminder-prompt.constants.ts`).
+
 - **The first-run setup now asks about the body reminders as well.** The one-time
   dialog that already offers startup, always-on-top, tray behaviour and the
   taskbar pin now carries two more switches — **Water reminders** and **Stand &
@@ -23,6 +40,22 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   scrolls and **Not now** / **Done** sit in a fixed footer, so both answers stay
   visible even at the app's 600px minimum height
   (`reminder-prefs-panel.component.ts`, `welcome-prefs-dialog.component.ts`).
+
+### Changed
+
+- **The water and stand-and-walk reminders now start off.** DeepWork is a focus
+  app: a bell every forty-five or sixty minutes is exactly the noise the app
+  exists to keep out, so both features are opt-in rather than on by default.
+  Nothing is taken away — both switches are still on the Dashboard, in Settings
+  and in the first-run setup, and the new offer above makes them discoverable
+  without imposing them. Existing installs keep the value already stored for
+  them; nothing is switched on or off behind the user's back
+  (`settings.model.ts`, `reminder-prefs-panel.component.ts`).
+
+- **A water drink now defaults to 50 ml instead of 30 ml.** The amount picker is
+  unchanged; only the value a fresh install (or an unset/repairable one) starts
+  on has moved, and existing stores keep the amount they were saved with
+  (`water.constants.ts`).
 
 ### Fixed
 
@@ -55,6 +88,15 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   the day's focused task and reloads its counters instead of showing
   yesterday's numbers (`db.service.ts`, `dashboard.component.ts`,
   `focus-task.util.ts`, `task-board.component.ts`).
+
+- **The contact surfaces no longer publish a personal mobile number, and About
+  stays lit beside them.** The WhatsApp channel was the only place the number
+  appeared, so it is gone from the contact list, the About page and the privacy
+  policy; what remains is email, the portfolio, LinkedIn, GitHub and Medium. The
+  sidebar also keeps **About** highlighted on Contact, Privacy and Terms: those
+  pages are opened from About, and the navigation no longer goes dark the moment
+  one of them is visited (`about.constants.ts`, `legal.constants.ts`,
+  `sidebar.component.ts`).
 
 - **The version is 3.0.2**, in every file that spells it out, moved in one pass by
   `npm run version:bump -- 3.0.2`.

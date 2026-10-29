@@ -2,14 +2,14 @@ import { test, expect } from '@playwright/test';
 
 /** Sidebar nav items: { nav label → expected page-title } */
 const navRoutes = [
-  { navLabel: 'Dashboard',  pageTitle: 'Dashboard' },
-  { navLabel: 'Tasks',      pageTitle: 'Tasks' },
-  { navLabel: 'Matrix',     pageTitle: 'Eisenhower Matrix' },
-  { navLabel: 'Today',      pageTitle: 'Today' },
-  { navLabel: 'Analytics',  pageTitle: 'Analytics' },
-  { navLabel: 'Habits',     pageTitle: 'Habits' },
-  { navLabel: 'Journal',    pageTitle: 'Journal' },
-  { navLabel: 'Settings',   pageTitle: 'Settings' },
+  { navLabel: 'Dashboard', pageTitle: 'Dashboard' },
+  { navLabel: 'Tasks', pageTitle: 'Tasks' },
+  { navLabel: 'Matrix', pageTitle: 'Eisenhower Matrix' },
+  { navLabel: 'Today', pageTitle: 'Today' },
+  { navLabel: 'Analytics', pageTitle: 'Analytics' },
+  { navLabel: 'Habits', pageTitle: 'Habits' },
+  { navLabel: 'Journal', pageTitle: 'Journal' },
+  { navLabel: 'Settings', pageTitle: 'Settings' },
 ];
 
 test.describe('Sidebar Navigation', () => {
@@ -30,6 +30,16 @@ test.describe('Sidebar Navigation', () => {
 
     const tasksLink = page.locator('a.nav-item', { hasText: 'Tasks' });
     await expect(tasksLink).toHaveClass(/active/, { timeout: 3000 });
+  });
+
+  test('keeps About highlighted on Contact and the policy pages', async ({ page }) => {
+    const aboutLink = page.locator('a.nav-item', { hasText: 'About' });
+
+    for (const path of ['/about', '/contact', '/privacy', '/terms']) {
+      await page.goto(path);
+      await expect(aboutLink).toHaveClass(/active/, { timeout: 3000 });
+      await expect(page.locator('a.nav-item.active')).toHaveCount(1);
+    }
   });
 
   test('Today and Tasks sit in each other’s old nav positions', async ({ page }) => {

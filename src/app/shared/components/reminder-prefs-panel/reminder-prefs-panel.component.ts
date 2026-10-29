@@ -21,8 +21,9 @@ import { SettingsService } from '../../../core/services/settings.service';
   template: `
     <div class="reminders">
       <p class="why">
-        Reminders look after the body doing the work. Off means off everywhere — no card, no tone
-        and no notification. You can change either one from the Dashboard at any time.
+        Both start off so DeepWork stays quiet and out of the way. Turn on what helps you — off
+        means off everywhere, with no card, tone or notification. You can change either one from the
+        Dashboard at any time.
       </p>
 
       <div class="row">
@@ -47,7 +48,9 @@ import { SettingsService } from '../../../core/services/settings.service';
       <div class="row">
         <div class="copy">
           <span class="label">Stand &amp; walk reminders</span>
-          <span class="detail">A short nudge to leave the chair and move during your working hours.</span>
+          <span class="detail"
+            >A short nudge to leave the chair and move during your working hours.</span
+          >
         </div>
         <button
           type="button"
@@ -56,9 +59,7 @@ import { SettingsService } from '../../../core/services/settings.service';
           [class.on]="movementOn()"
           [attr.aria-checked]="movementOn()"
           [attr.aria-label]="
-            movementOn()
-              ? 'Turn stand and walk reminders off'
-              : 'Turn stand and walk reminders on'
+            movementOn() ? 'Turn stand and walk reminders off' : 'Turn stand and walk reminders on'
           "
           [disabled]="busy()"
           (click)="toggleMovement()"
@@ -80,7 +81,7 @@ import { SettingsService } from '../../../core/services/settings.service';
 
       .why {
         margin: 0 0 2px;
-        font-size: 11.5px;
+        font-size: 12px;
         line-height: 1.45;
         color: var(--color-text-muted, #a1a1aa);
       }

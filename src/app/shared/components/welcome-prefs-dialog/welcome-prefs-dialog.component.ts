@@ -132,7 +132,7 @@ import { MINI_WIDGET_HELP } from '../../../core/constants/desktop-prefs.constant
       }
       .dialog-subtitle {
         margin: 4px 0 0;
-        font-size: 12.5px;
+        font-size: 13px;
         line-height: 1.45;
         color: var(--color-text-muted, #a1a1aa);
       }
@@ -163,7 +163,7 @@ import { MINI_WIDGET_HELP } from '../../../core/constants/desktop-prefs.constant
         border-radius: 12px;
         background: rgba(139, 92, 246, 0.08);
         border: 1px solid rgba(139, 92, 246, 0.2);
-        font-size: 11.5px;
+        font-size: 12px;
         line-height: 1.45;
         color: var(--color-text-secondary, #d4d4d8);
       }
