@@ -3,7 +3,8 @@ import { TimerType } from '../models/session.model';
 import { SettingsService } from './settings.service';
 import { AttentionService } from './attention.service';
 import { NotificationSound } from '../models/settings.model';
-import { BREAK_QUOTES, FOCUS_QUOTES, TASK_QUOTES, quoteAt } from '../constants/alert.constants';
+import type { NotificationQuoteKind } from '../constants/notification-quotes.constants';
+import { QuoteRotation } from '../utils/quote-rotation';
 
 /**
  * A button on a card.
@@ -178,8 +179,8 @@ export interface NotificationOptions {
  * that finishes while the user is reading somewhere else should not be missed.
  * Anything that counts as an answer — the toast's close button in the full
  * window, one of the four answers on the card or on the Windows toast
- * (**Pause**, **Next**, **Resume**, **Hold up**), or any of the mini widget's
- * controls while the window is shrunk — ends the ring.
+ * (**Pause**, **Skip current**, **Start**, **Silent**), or any of the mini
+ * widget's controls while the window is shrunk — ends the ring.
  *
  * Everything that repeats hangs off one signal, {@link alertPulse}: the tone, the
  * card, the widget's shake and the colour both surfaces take for that repeat. One
@@ -212,17 +213,18 @@ export class NotificationService implements OnDestroy {
    * posted to Windows and drawn on the card, which is what keeps the two
    * surfaces one question instead of two that happen to agree.
    *
-   * The clock comes first and the way out last: **Pause**, **Next** and
-   * **Resume** each answer the alert and then act on the timer — **Next** moves
-   * to the next session and starts it, so the answer carries on by itself — and
-   * **Hold up** is the "not now" — it closes the alert and leaves the clock
-   * exactly as it was. See {@link runAlertAction}.
+   * The clock comes first and the way out last, and each label says exactly what
+   * it does: **Pause** stops the running clock, **Skip current** leaves the
+   * finished session behind and starts whatever comes next, **Start** begins the
+   * waiting session (continuing a paused one from its remaining time rather than
+   * restarting it), and **Silent** is the "not now" — it closes the alert and
+   * leaves the clock exactly as it was. See {@link runAlertAction}.
    */
   private static readonly ALERT_ACTIONS: NotificationAction[] = [
     { id: 'pause', label: 'Pause' },
-    { id: 'next', label: 'Next' },
-    { id: 'resume', label: 'Resume' },
-    { id: 'hold', label: 'Hold up' },
+    { id: 'skip', label: 'Skip current' },
+    { id: 'start', label: 'Start' },
+    { id: 'silent', label: 'Silent' },
   ];
 
   /**
@@ -234,6 +236,16 @@ export class NotificationService implements OnDestroy {
    * its repeats depend on; these are the ones the one-off messages use.
    */
   static readonly WATER_NOTIFICATION_TAG = 'deepwork-water';
+  /**
+   * The stand-and-walk reminder's handle.
+   *
+   * Its own tag for the same reason the water reminder has one: a tagged post
+   * replaces the one before it, and a movement nudge must not take the place of
+   * an unanswered water question or a completion alert in the notification
+   * centre. The repeats re-post under this tag, so the bell raises one
+   * notification rather than stacking a copy per ring.
+   */
+  static readonly MOVEMENT_NOTIFICATION_TAG = 'deepwork-move';
   static readonly UPDATE_NOTIFICATION_TAG = 'deepwork-update';
   /**
    * The two suggestions. Handles of their own so a reminder can be replaced by
@@ -287,20 +299,16 @@ export class NotificationService implements OnDestroy {
   } | null = null;
   /** How many repeats of the current alert have been delivered. */
   private alertRepeats = 0;
+
   /**
-   * How many alerts have been raised, which is the index the quote list is
-   * walked by — one line per finished session rather than one per tone.
-   */
-  private alertCount = 0;
-  /**
-   * How many finished tasks have been announced, which is the index `TASK_QUOTES`
-   * is walked by.
+   * The one place a quote is drawn from, for every message the app raises.
    *
-   * Counted here rather than in the page that raises the card, so a task closed
-   * from the matrix, from a board or from anywhere else added later draws from one
-   * list in one order — and two tasks in a row never get the same sentence.
+   * Keeping the decks and their positions here means the focus list, the task
+   * list, the water deck and the rest are walked in one order no matter which
+   * service or page happens to raise the message — and a line does not come back
+   * on the next launch because the position is remembered in storage.
    */
-  private completedTaskCount = 0;
+  private readonly quotes = new QuoteRotation();
 
   /** Toast state — consumed by the toast component */
   readonly toast = signal<ToastNotification | null>(null);
@@ -493,11 +501,11 @@ export class NotificationService implements OnDestroy {
   }
 
   /**
-   * Answers the alert's **Pause**, **Next** and **Resume** with the clock.
+   * Answers the alert's **Pause**, **Skip current** and **Start** with the clock.
    *
    * `TimerService` registers this once, in its constructor, and that is the
    * whole of the wiring: the alert does not know what a session is, and the
-   * timer does not have to know where its buttons are drawn. **Hold up** never
+   * timer does not have to know where its buttons are drawn. **Silent** never
    * reaches the handler — closing the alert is this service's own job, and a
    * message that could outlive its own "not now" would be one nobody trusts.
    *
@@ -520,19 +528,21 @@ export class NotificationService implements OnDestroy {
    * **Every** button answers it: the user has dealt with the message, so the
    * ring stops, the card goes and the toast is taken back — a reminder that
    * stays on screen after it was answered is one the user learns to ignore, the
-   * same rule the water reminder follows. What differs is the clock: **Hold up**
+   * same rule the water reminder follows. What differs is the clock: **Silent**
    * leaves it exactly as it was, which is what makes it the "not now" answer,
-   * while Pause, Next and Resume are handed to {@link onAlertAction}.
+   * while Pause, Skip current and Start are handed to {@link onAlertAction}.
    *
    * The buttons can be pressed long after the alert was raised — a toast lives
    * in the notification centre until the user clears it — so Pause still pauses
-   * a session the user started since, and Resume starts the next one. That is
-   * the point of answering from there rather than going to find the window.
+   * a session the user started since, Skip current clears whatever is at the
+   * head of the queue and starts what comes next, and Start begins the waiting
+   * session. That is the point of answering from there rather than going to find
+   * the window.
    */
   private runAlertAction(action: string): void {
     this.dismiss();
     void this.dismissSystemNotification(NotificationService.ALERT_NOTIFICATION_TAG);
-    if (action === 'hold') return;
+    if (action === 'silent') return;
     this.alertActionHandler?.(action);
   }
 
@@ -547,17 +557,24 @@ export class NotificationService implements OnDestroy {
    * keeps coming back. See `FOCUS_QUOTES` and `BREAK_QUOTES`.
    */
   async fireTimerComplete(type: TimerType, nextType?: TimerType): Promise<void> {
+    // A pause is the user asking for none of this: no tone, no card and no
+    // desktop notification. A session that finishes anyway — one started after
+    // the pause was set, from the Dashboard, the widget or the keyboard — ends in
+    // silence, which is exactly what was asked for. The alert is not held for
+    // later either: it is news, and news that arrives late is just noise.
+    if (this.attention.paused()) return;
+
     let title: string;
     let body: string;
 
     if (type === 'work') {
-      if (nextType === 'long-break') {
-        title = 'Cycle complete!';
-        body = 'Great work! Time for a long break.';
-      } else {
-        title = 'Focus session complete!';
-        body = 'Great work! Time for a short break.';
-      }
+      // One sentence for both halves of the cycle: the work is what finished,
+      // and "Task is over." is the news whether a short or a long break follows.
+      title = 'Task is over.';
+      body =
+        nextType === 'long-break'
+          ? 'Great work! Time for a long break.'
+          : 'Great work! Time for a short break.';
     } else if (type === 'long-break') {
       title = 'Long break is over!';
       body = 'Feeling refreshed? Ready for a new cycle!';
@@ -566,8 +583,7 @@ export class NotificationService implements OnDestroy {
       body = 'Ready to focus again?';
     }
 
-    const quote = quoteAt(type === 'work' ? FOCUS_QUOTES : BREAK_QUOTES, this.alertCount);
-    this.alertCount += 1;
+    const quote = this.nextQuote(type === 'work' ? 'focus' : 'break');
 
     // The four answers belong to the alert rather than to one post: the toast is
     // re-posted on every repeat under the alert's own tag, and Windows replaces
@@ -593,6 +609,14 @@ export class NotificationService implements OnDestroy {
       actions,
       sticky: true,
     });
+    // The post is awaited, so a pause can land while it is in flight. The user
+    // asked for quiet before this alert was on screen, which makes it one of the
+    // things the pause covers: take it back rather than letting the first ring
+    // through.
+    if (this.attention.paused()) {
+      this.stopAlert();
+      return;
+    }
     this.alertIsSticky = this.canAnswerOnNotification && posted;
     this.playSound();
     this.showAlertToast(title, body, type, quote);
@@ -616,6 +640,24 @@ export class NotificationService implements OnDestroy {
     this.alertIsSticky = false;
     this.stopRepeatLoop();
     this.toast.set(null);
+  }
+
+  /**
+   * Ends a ringing alert because the user asked for quiet.
+   *
+   * A pause covers what the app is saying *now*, not only what it would say
+   * next: an alert that was already on screen and already ringing when Pause was
+   * pressed is part of "none of this", so it stops, its card goes, and the
+   * repeat loop is torn down instead of being left to talk over the pause.
+   *
+   * Deliberately separate from {@link dismiss}: answering the alert with
+   * **Silent** also stops the ring but leaves the notification centre alone,
+   * while a pause takes the toast back too — there is nothing left to answer.
+   */
+  stopAlert(): void {
+    if (!this.ringing()) return;
+    this.dismiss();
+    void this.dismissSystemNotification(NotificationService.ALERT_NOTIFICATION_TAG);
   }
 
   /**
@@ -647,7 +689,7 @@ export class NotificationService implements OnDestroy {
    * re-post failed.
    */
   private async repostAlert(): Promise<void> {
-    if (!this.ringing() || !this.pendingRepeat) return;
+    if (!this.ringing() || !this.pendingRepeat || this.attention.paused()) return;
     const { title, body, quote, actions } = this.pendingRepeat;
     const posted = await this.sendNotification(title, body, this.alertRepeats, {
       quote,
@@ -702,9 +744,27 @@ export class NotificationService implements OnDestroy {
    * twice in a row.
    */
   announceTaskCompleted(title: string): void {
-    const quote = quoteAt(TASK_QUOTES, this.completedTaskCount);
-    this.completedTaskCount += 1;
+    // A pause covers this too: a finished task is a card, and the card is the
+    // part of the app the pause promised to stop drawing. The task itself is
+    // already saved — only the announcement is skipped.
+    if (this.attention.paused()) return;
+
+    const quote = this.nextQuote('task');
     this.showToast('Task completed', title, 'work', quote);
+  }
+
+  /**
+   * The next line from the deck that belongs to `kind`.
+   *
+   * Every message that carries a quote — the session alerts, a finished task,
+   * the water reminder, the stand-and-walk reminder, a standing reminder and the
+   * app's own confirmations — asks here rather than keeping a counter of its
+   * own. Two callers then cannot
+   * draw the same line at the same time, and one deck's position cannot reset
+   * while another's carries on.
+   */
+  nextQuote(kind: NotificationQuoteKind): string {
+    return this.quotes.next(kind);
   }
 
   /**
@@ -818,12 +878,7 @@ export class NotificationService implements OnDestroy {
    * is what lets an answer on either surface take the other one down (see
    * {@link dismissSystemNotification}).
    */
-  private showAlertToast(
-    title: string,
-    body: string,
-    type: TimerType,
-    quote: string | null,
-  ): void {
+  private showAlertToast(title: string, body: string, type: TimerType, quote: string | null): void {
     const actions: ToastAction[] = NotificationService.ALERT_ACTIONS.map((action) => ({
       label: action.label,
       // Both surfaces go through `runAlertAction`, so a button on the card can
@@ -964,8 +1019,10 @@ export class NotificationService implements OnDestroy {
   ): void {
     // The timed mute lives in `AttentionService`; it silences the tone only,
     // which is what the tray's mute has always meant and now also says when it
-    // will end.
-    if (this.attention.soundMuted() && !ignoreMute) return;
+    // will end. A pause silences the tone as well — it is the broader promise of
+    // the two, and a pause that still rang would not be a pause. The preview in
+    // Settings is the one exception: the user is pressing a button to hear it.
+    if (!ignoreMute && (this.attention.soundMuted() || this.attention.paused())) return;
     if (sound === 'none') return;
 
     try {
@@ -1079,6 +1136,14 @@ export class NotificationService implements OnDestroy {
    */
   private onRepeatTick(): void {
     if (!this.pendingRepeat) return;
+    // A pause that began while the alert was ringing ends it, rather than
+    // letting the repeat loop talk over the pause for the next twenty-two
+    // hours. `stopAlert` normally does this the moment the pause is set; this is
+    // the guard for a tick that was already in flight.
+    if (this.attention.paused()) {
+      this.stopAlert();
+      return;
+    }
     const { title, body, type, quote, actions } = this.pendingRepeat;
     this.alertRepeats += 1;
     // Everything visual hangs off this: one shake and one new colour per tone,

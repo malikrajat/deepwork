@@ -39,9 +39,9 @@ const makeMockSettings = () => ({
  */
 const ALERT_ANSWERS = [
   { id: 'pause', label: 'Pause' },
-  { id: 'next', label: 'Next' },
-  { id: 'resume', label: 'Resume' },
-  { id: 'hold', label: 'Hold up' },
+  { id: 'skip', label: 'Skip current' },
+  { id: 'start', label: 'Start' },
+  { id: 'silent', label: 'Silent' },
 ];
 
 describe('NotificationService', () => {
@@ -114,6 +114,63 @@ describe('NotificationService', () => {
     expect(svc.ringing()).toBe(false);
   });
 
+  it('stays completely silent while the app is paused', async () => {
+    // Pause is the user asking for none of this: no tone, no card and no
+    // notification. A session can still finish during a pause — one started
+    // after it was set — and it must end without saying anything.
+    (svc as any).sendNotification = vi.fn().mockResolvedValue(undefined);
+    (svc as any).playSound = vi.fn();
+    (svc as any).startRepeatLoop = vi.fn();
+    const attention = TestBed.inject(AttentionService);
+    attention.pauseFor(22 * 60);
+
+    await svc.fireTimerComplete('work');
+    vi.advanceTimersByTime(60);
+
+    expect(svc.ringing()).toBe(false);
+    expect(svc.toast()).toBeNull();
+    expect((svc as any).sendNotification).not.toHaveBeenCalled();
+    expect((svc as any).playSound).not.toHaveBeenCalled();
+    expect((svc as any).startRepeatLoop).not.toHaveBeenCalled();
+  });
+
+  it('ends an alert that was already ringing when the pause is set', async () => {
+    (svc as any).sendNotification = vi.fn().mockResolvedValue(undefined);
+    (svc as any).playSound = vi.fn();
+    (svc as any).startRepeatLoop = vi.fn();
+
+    await svc.fireTimerComplete('work');
+    vi.advanceTimersByTime(60);
+    expect(svc.ringing()).toBe(true);
+    expect(svc.toast()).not.toBeNull();
+
+    TestBed.inject(AttentionService).pauseFor(22 * 60);
+    svc.stopAlert();
+
+    expect(svc.ringing()).toBe(false);
+    expect(svc.toast()).toBeNull();
+  });
+
+  it('does not ring, pulse or re-post on a tick that lands after the pause', async () => {
+    const originalWorker = globalThis.Worker;
+    (globalThis as any).Worker = undefined;
+    try {
+      (svc as any).sendNotification = vi.fn().mockResolvedValue(undefined);
+      (svc as any).playSound = vi.fn();
+      await svc.fireTimerComplete('work');
+      const pulse = svc.alertPulse();
+
+      TestBed.inject(AttentionService).pauseFor(22 * 60);
+      (svc as any).onRepeatTick();
+
+      expect((svc as any).playSound).toHaveBeenCalledTimes(1);
+      expect(svc.alertPulse()).toBe(pulse);
+      expect(svc.ringing()).toBe(false);
+    } finally {
+      (globalThis as any).Worker = originalWorker;
+    }
+  });
+
   it('pulses once per tone, so both surfaces can move on the beat of the sound', async () => {
     // The tone is heard, but an alert that has to be seen repeating needs a
     // count: one edge per raise drives the widget's shake, the card's shake and
@@ -155,7 +212,7 @@ describe('NotificationService', () => {
     // than as the message's last sentence — and the four answers, which travel
     // with every post so a repeat can never strip them from the toast.
     expect(sendNotification).toHaveBeenLastCalledWith(
-      'Focus session complete!',
+      'Task is over.',
       'Great work! Time for a short break.',
       0,
       { quote: FOCUS_QUOTES[0], actions: ALERT_ANSWERS, sticky: true },
@@ -168,7 +225,7 @@ describe('NotificationService', () => {
     // A repeat says something new ("Reminder 2 · …") and quotes the same line:
     // the sentence belongs to the alert, not to the tone that re-announces it.
     expect(sendNotification).toHaveBeenLastCalledWith(
-      'Focus session complete!',
+      'Task is over.',
       'Great work! Time for a short break.',
       2,
       { quote: FOCUS_QUOTES[0], actions: ALERT_ANSWERS, sticky: true },
@@ -193,8 +250,9 @@ describe('NotificationService', () => {
       'Break is over!',
       'Ready to focus again?',
       1,
-      // The second alert of the run, so the second line of the break list.
-      { quote: BREAK_QUOTES[1], actions: ALERT_ANSWERS, sticky: true },
+      // The first break of the run, so the first line of the break deck — each
+      // deck has a position of its own.
+      { quote: BREAK_QUOTES[0], actions: ALERT_ANSWERS, sticky: true },
     );
   });
 
@@ -223,10 +281,10 @@ describe('NotificationService', () => {
     await svc.fireTimerComplete('short-break');
     vi.runAllTimers();
     // A finished break draws from the other list — about coming back rather than
-    // about stepping away — entered wherever the count has reached.
-    expect(svc.toast()?.quote).toBe(BREAK_QUOTES[2]);
+    // about stepping away — and its own deck starts at its own first line.
+    expect(svc.toast()?.quote).toBe(BREAK_QUOTES[0]);
     // And never glued onto the message it arrived with.
-    expect(svc.toast()?.body).not.toContain(BREAK_QUOTES[2]);
+    expect(svc.toast()?.body).not.toContain(BREAK_QUOTES[0]);
   });
 
   it('gives a finished task a line of its own, walked one per task', () => {
@@ -257,17 +315,13 @@ describe('NotificationService', () => {
     const plugin = await import('@tauri-apps/plugin-notification');
     vi.mocked(invoke).mockResolvedValue(undefined as never);
 
-    await (svc as any).sendNotification(
-      'Focus session complete!',
-      'Great work! Time for a short break.',
-      3,
-    );
+    await (svc as any).sendNotification('Task is over.', 'Great work! Time for a short break.', 3);
 
     // The tag is the whole point of going through the shell's own command: it is
     // what Windows replaces rather than stacking a second toast beside, and the
     // count in the body is what makes the replacement something new to read.
     expect(invoke).toHaveBeenCalledWith('alert_notify', {
-      title: 'Focus session complete!',
+      title: 'Task is over.',
       body: 'Reminder 3 · Great work! Time for a short break.',
       tag: 'deepwork-alert',
       // A bare post has no quote of its own, and it repeats on its own clock, so
@@ -283,7 +337,7 @@ describe('NotificationService', () => {
 
   it('posts the alert’s four answers as buttons on the desktop toast', async () => {
     // The toast is where the user is looking, so the clock's controls belong on
-    // it: Pause, Next and Resume act, and Hold up closes the alert without
+    // it: Pause, Skip current and Start act, and Silent closes the alert without
     // touching the clock. Windows is the only platform whose toast reports a
     // press, and the id — not the label — is what comes back.
     const { invoke } = await import('@tauri-apps/api/core');
@@ -316,7 +370,7 @@ describe('NotificationService', () => {
     await svc.fireTimerComplete('work');
 
     expect(sendNotification).toHaveBeenCalledWith(
-      'Focus session complete!',
+      'Task is over.',
       'Great work! Time for a short break.',
       0,
       { quote: FOCUS_QUOTES[0], actions: ALERT_ANSWERS, sticky: true },
@@ -328,7 +382,7 @@ describe('NotificationService', () => {
   it('leaves a sticky toast alone on every tone, but still re-posts where it cannot stick', () => {
     const sendNotification = ((svc as any).sendNotification = vi.fn().mockResolvedValue(true));
     const pending = {
-      title: 'Focus session complete!',
+      title: 'Task is over.',
       body: 'Great work! Time for a short break.',
       type: 'work' as const,
       quote: FOCUS_QUOTES[0],
@@ -363,7 +417,7 @@ describe('NotificationService', () => {
     // back after three minutes, and keeps coming back until a button is pressed.
     const sendNotification = ((svc as any).sendNotification = vi.fn().mockResolvedValue(true));
     const pending = {
-      title: 'Focus session complete!',
+      title: 'Task is over.',
       body: 'Great work! Time for a short break.',
       type: 'work' as const,
       quote: FOCUS_QUOTES[0],
@@ -389,8 +443,8 @@ describe('NotificationService', () => {
     await vi.advanceTimersByTimeAsync(3 * 60_000);
     expect(sendNotification).toHaveBeenCalledTimes(2);
 
-    // Any answer — here Hold up — ends the asking.
-    (svc as any).runAlertAction('hold');
+    // Any answer — here Silent — ends the asking.
+    (svc as any).runAlertAction('silent');
     await vi.advanceTimersByTimeAsync(3 * 60_000);
     expect(sendNotification).toHaveBeenCalledTimes(2);
   });
@@ -402,17 +456,17 @@ describe('NotificationService', () => {
     const handler = vi.fn();
     svc.onAlertAction(handler);
 
-    (svc as any).runAlertAction('resume');
+    (svc as any).runAlertAction('start');
 
     expect(svc.ringing()).toBe(false);
-    expect(handler).toHaveBeenCalledWith('resume');
+    expect(handler).toHaveBeenCalledWith('start');
   });
 
-  it('closes the alert on Hold up without asking the clock anything', () => {
+  it('closes the alert on Silent without asking the clock anything', () => {
     const handler = vi.fn();
     svc.onAlertAction(handler);
 
-    (svc as any).runAlertAction('hold');
+    (svc as any).runAlertAction('silent');
 
     expect(svc.ringing()).toBe(false);
     expect(handler).not.toHaveBeenCalled();
@@ -432,10 +486,10 @@ describe('NotificationService', () => {
       ALERT_ANSWERS.map((answer) => answer.label),
     );
 
-    // The card's own answer takes the same path as the toast's — Resume starts
-    // the session that is waiting, and the alert is closed on the way.
+    // The card's own answer takes the same path as the toast's — Start begins the
+    // session that is waiting, and the alert is closed on the way.
     await svc.toast()?.actions?.[2].run();
-    expect(handler).toHaveBeenCalledWith('resume');
+    expect(handler).toHaveBeenCalledWith('start');
     expect(svc.toast()).toBeNull();
   });
 
@@ -529,17 +583,13 @@ describe('NotificationService', () => {
     // What a non-Windows desktop, or a shell older than the command, reports.
     vi.mocked(invoke).mockRejectedValue(new Error('command alert_notify not found'));
 
-    await (svc as any).sendNotification(
-      'Focus session complete!',
-      'Great work! Time for a short break.',
-      2,
-    );
+    await (svc as any).sendNotification('Task is over.', 'Great work! Time for a short break.', 2);
 
     // The plugin path has no tag to post under, so the id it does take is the
     // only handle there is, and the count is what keeps repeats distinguishable.
     expect(plugin.sendNotification).toHaveBeenCalledWith({
       id: 7301,
-      title: 'Focus session complete!',
+      title: 'Task is over.',
       body: 'Reminder 2 · Great work! Time for a short break.',
     });
   });
@@ -624,6 +674,25 @@ describe('NotificationService', () => {
     svc.chime();
 
     expect(playBell).toHaveBeenCalledWith((svc as any).audioContext);
+  });
+
+  it('does not announce a finished task while the app is paused', () => {
+    TestBed.inject(AttentionService).pauseFor(60);
+
+    svc.announceTaskCompleted('Write the report');
+    vi.advanceTimersByTime(60);
+
+    expect(svc.toast()).toBeNull();
+  });
+
+  it('chime() stays silent while the app is paused', () => {
+    const playBell = vi.spyOn(svc as any, 'playBell');
+    (svc as any).audioContext = { close: vi.fn() };
+    TestBed.inject(AttentionService).pauseFor(60);
+
+    svc.chime();
+
+    expect(playBell).not.toHaveBeenCalled();
   });
 
   it('chime() stays silent while the timed mute is on', () => {

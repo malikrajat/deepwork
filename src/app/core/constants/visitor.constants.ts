@@ -2,20 +2,19 @@
  * Everything the web build needs in order to talk to GoatCounter.
  *
  * DeepWork has no server, so its visitor counter is somebody else's server:
- * GoatCounter, which the author already runs for <https://rajatmalik.dev/>. The
- * two share one site — GoatCounter does not record the domain a pageview
- * belongs to, only its path — so DeepWork writes every page under its own
- * `/deepwork` prefix. That single prefix is what keeps the two apps apart in a
- * dashboard that cannot tell them apart by hostname; see
- * <https://www.goatcounter.com/help/domains>.
+ * GoatCounter. The app has a site of its own — `app-deepwork.goatcounter.com` —
+ * so every pageview in it belongs to DeepWork and the paths can stay exactly as
+ * the router writes them (`/`, `/tasks`, `/settings`). Nothing needs a prefix and
+ * nothing needs filtering: one site, one app.
  *
- * Nothing here is a secret. The API token the details popup needs is *not* in
- * this file, or anywhere else in the source: it is typed in by hand at runtime
- * and kept in this browser's `localStorage` (see `VisitorCounterService`).
+ * Nothing here is a secret. The API token is public by nature once it is in this
+ * file — it is compiled into the bundle — so it should be a read-only token
+ * (`Read statistics` and nothing else). A token pasted into the popup overrides
+ * it on that machine; see `VisitorCounterService`.
  */
 
-/** The GoatCounter site code: `rajatmalik` means rajatmalik.goatcounter.com. */
-export const GOATCOUNTER_SITE_CODE = 'rajatmalik';
+/** The GoatCounter site code: `app-deepwork` means app-deepwork.goatcounter.com. */
+export const GOATCOUNTER_SITE_CODE = 'app-deepwork';
 
 /** The site's origin — the dashboard, the counter endpoints and the API alike. */
 export const GOATCOUNTER_ORIGIN = `https://${GOATCOUNTER_SITE_CODE}.goatcounter.com`;
@@ -40,46 +39,34 @@ export const GOATCOUNTER_SCRIPT_URL = 'https://gc.zgo.at/count.v5.js';
 export const GOATCOUNTER_SCRIPT_INTEGRITY =
   'sha384-atnOLvQb9t+jTSipvd75X2yginT4PjVbqDdlJAmxMm+wYElFmeR6EmLP5bYeoRVQ';
 
-/**
- * The prefix every DeepWork pageview is filed under, and the path the visitor
- * counter reads for its own number.
- *
- * The dashboard route counts as `/deepwork/` rather than `/deepwork` so that
- * the app's own root is a real path in the list — the counter endpoint looks
- * paths up by exact name, and a leading-slash form is what the dashboard shows.
- */
-export const GOATCOUNTER_PATH_PREFIX = '/deepwork';
-
-/** The page title sent with each pageview, so the dashboard can name the page. */
+/** The title sent with each pageview, so the dashboard can name the page. */
 export const GOATCOUNTER_TITLE_PREFIX = 'DeepWork';
 
 /** This browser's API token. Kept out of the database on purpose: exports are shared. */
 export const VISITOR_TOKEN_KEY = 'deepwork_goatcounter_token';
 
 /**
- * The GoatCounter API token, when the app is built with one baked in.
+ * The GoatCounter API token the app ships with, so the details popup works
+ * without anyone having to paste one.
  *
- * Paste it between the quotes to have the details popup work without anybody
- * having to paste one; leave it empty to ship without.
+ * **Read this before replacing it.** Whatever is written here is published: the
+ * web build is served to anyone who opens the site and this constant ends up in
+ * the JavaScript bundle, where it can be read in devtools. Make the token at
+ * <https://app-deepwork.goatcounter.com/user/api> with **Read statistics** and
+ * nothing else — with only that permission the most a reader can do is read the
+ * same numbers this popup exists to show.
  *
- * **Read this before filling it in.** Whatever is written here is published:
- *
- * - The web build is served to anyone who opens the site, and this constant ends
- *   up in the JavaScript bundle. A token in a bundle is not a secret — anyone can
- *   read it in devtools and then ask GoatCounter the same questions this app
- *   asks.
- * - It is committed to the repository as well, where it stays in the history even
- *   after it is deleted from this file.
- * - A token is shown once, when it is created, and can be deleted at any time —
- *   <https://rajatmalik.goatcounter.com/user/api> is where both happen. Deleting
- *   it there is the fix if one written here ever needs withdrawing; the app then
- *   falls back to the popup's own field, which keeps its token in the browser.
- *
- * Give it **Read statistics** and nothing else. With only that permission the
- * most a reader can do is read the same visitor numbers this popup exists to
- * show; with "update sites" or "export" it would be worth having.
+ * A token is shown once, when it is created, and can be deleted at any time;
+ * deleting it is the fix if one written here ever needs withdrawing. The popup
+ * then falls back to its own field, which keeps a token in this browser.
  */
 export const GOATCOUNTER_API_TOKEN = '1c695hmitnua1tky3tyuqkvf41m5zmxfxrgx26x4hca0oy546a';
+
+/** Where the API token is made (`/user/api` on a GoatCounter site). */
+export const GOATCOUNTER_TOKENS_URL = `${GOATCOUNTER_ORIGIN}/user/api`;
+
+/** Where the raw numbers live. */
+export const GOATCOUNTER_DASHBOARD_URL = GOATCOUNTER_ORIGIN;
 
 /** Set to `'1'` when the user asks not to be counted at all. */
 export const VISITOR_OPTOUT_KEY = 'deepwork_visit_counting_off';
@@ -93,15 +80,14 @@ export const VISITOR_COUNTER_TTL_MS = 15 * 60 * 1000;
 /**
  * The gap kept between API requests.
  *
- * GoatCounter allows four API requests a second, and the popup asks a dozen
- * questions in one go, so requests are queued rather than fired together: a
- * burst would be answered with 429s for five of them. 300 ms keeps the popup
- * inside three a second with room for the odd retry.
+ * GoatCounter allows four API requests a second — and every authenticated call
+ * costs a CORS preflight OPTIONS *plus* the GET, so one question is two requests
+ * against that budget. A 300 ms gap looked safe and was not: a dozen questions
+ * drew 429s on the preflight, which the browser reports as an opaque CORS
+ * failure. One second keeps a batch at roughly two requests a second, which is
+ * what the reference site's own panel measured as reliably clean.
  */
-export const GOATCOUNTER_API_GAP_MS = 300;
-
-/** Pages of `/api/v0/paths` read when working out DeepWork's own path IDs (200 each). */
-export const GOATCOUNTER_PATH_PAGES = 5;
+export const GOATCOUNTER_API_GAP_MS = 1000;
 
 /**
  * How many rows a list in the details popup shows.
@@ -130,23 +116,6 @@ export type VisitorRangeKey = (typeof VISITOR_RANGES)[number]['key'];
 export const VISITOR_DEFAULT_RANGE: VisitorRangeKey = '7d';
 
 /**
- * Which slice of the site the popup reads.
- *
- * `site` exists because the two apps share one GoatCounter site: someone who
- * wants to know how the whole thing is doing can ask for it, and the toggle is
- * also the workaround if GoatCounter ever refuses to filter by path.
- */
-export const VISITOR_SCOPES = [
-  { key: 'deepwork', label: 'DeepWork only' },
-  { key: 'site', label: 'Whole site' },
-] as const;
-
-export type VisitorScopeKey = (typeof VISITOR_SCOPES)[number]['key'];
-
-/** The default scope: this app's own pages. */
-export const VISITOR_DEFAULT_SCOPE: VisitorScopeKey = 'deepwork';
-
-/**
  * The breakdowns asked for, in the order the popup shows them.
  *
  * Every one of these is a `/api/v0/stats/{page}` page — the same lists the
@@ -154,6 +123,11 @@ export const VISITOR_DEFAULT_SCOPE: VisitorScopeKey = 'deepwork';
  * footnote the popup prints at the foot of its card: a list of names and numbers
  * on its own does not say what it counted, and "how did they find this" is the
  * question the whole popup exists to answer.
+ *
+ * These four are the reference panel's set, plus the operating systems that sit
+ * under "browsers & platforms" there. Every request costs a preflight and a GET
+ * against a four-a-second limit, so the report stays to the lists a reader
+ * actually acts on; the dashboard has the rest.
  */
 export const VISITOR_STAT_SECTIONS = [
   {
@@ -179,24 +153,6 @@ export const VISITOR_STAT_SECTIONS = [
     page: 'systems',
     label: 'Operating systems',
     note: 'The system behind the browser, including the Linux distribution where one can be named.',
-  },
-  {
-    key: 'languages',
-    page: 'languages',
-    label: 'Languages',
-    note: 'The language the browser asked for, which is not always where the visitor is.',
-  },
-  {
-    key: 'sizes',
-    page: 'sizes',
-    label: 'Screen widths',
-    note: 'How wide the browser window was, in the bands GoatCounter records.',
-  },
-  {
-    key: 'campaigns',
-    page: 'campaigns',
-    label: 'Campaigns',
-    note: 'Visits that arrived on a link carrying utm_ parameters.',
   },
 ] as const;
 
@@ -248,16 +204,8 @@ export const GOATCOUNTER_PERMISSION_FLAGS = [
 /**
  * "Read statistics" — the one box to tick when making the token.
  *
- * Everything the popup asks for (`/stats/total`, `/stats/hits`, `/stats/{page}`,
- * `/paths`) is behind this permission, and nothing else is used: a token made
- * with only this ticked can read numbers and cannot change a single thing.
+ * Everything the popup asks for (`/stats/total`, `/stats/hits`, `/stats/{page}`)
+ * is behind this permission, and nothing else is used: a token made with only
+ * this ticked can read numbers and cannot change a single thing.
  */
 export const GOATCOUNTER_STATS_PERMISSION = 64;
-
-/**
- * Where the API token is made (`/user/api` on a GoatCounter site), and where the
- * raw numbers live. The token needs the "read statistics" permission and
- * nothing else — see `VisitorStatsService` for what each answer means.
- */
-export const GOATCOUNTER_TOKENS_URL = `${GOATCOUNTER_ORIGIN}/user/api`;
-export const GOATCOUNTER_DASHBOARD_URL = GOATCOUNTER_ORIGIN;

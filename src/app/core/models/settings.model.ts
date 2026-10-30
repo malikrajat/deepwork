@@ -5,6 +5,11 @@ import {
   DEFAULT_WATER_INTERVAL_MINUTES,
   DEFAULT_WATER_START,
 } from '../constants/water.constants';
+import {
+  DEFAULT_MOVEMENT_END,
+  DEFAULT_MOVEMENT_INTERVAL_MINUTES,
+  DEFAULT_MOVEMENT_START,
+} from '../constants/movement.constants';
 import { DEFAULT_ALERT_SHAKE_MS } from '../constants/alert.constants';
 
 export type ThemePreference = 'system' | 'light' | 'dark';
@@ -103,6 +108,21 @@ export interface AppSettings {
    */
   waterAutoLogWhenMinimized: boolean;
   /**
+   * Nudge the user to stand up and walk during their working hours.
+   *
+   * A desk job is a seated job: the damage is not one long sitting but the
+   * hours that pass without a reason to leave the chair. The reminder asks
+   * rather than announces — it carries a quote and two answers, and nothing
+   * else closes it — and its bell repeats until one of them is pressed.
+   */
+  movementReminders: boolean;
+  /** `HH:MM` local time — the first minute a movement reminder may fire. */
+  movementStart: string;
+  /** `HH:MM` local time — the last minute a movement reminder may fire. */
+  movementEnd: string;
+  /** Minutes between movement reminders; see `MOVEMENT_INTERVAL_OPTIONS`. */
+  movementIntervalMinutes: number;
+  /**
    * What happens to work that was not finished on the day it was for.
    *
    * On — an unfinished task keeps its place and stays open, so nothing the user
@@ -156,6 +176,14 @@ export const DEFAULT_SETTINGS: AppSettings = {
   // On by default: the mini widget is the user saying "leave me alone", so the
   // reminder counts the glass rather than asking for it.
   waterAutoLogWhenMinimized: true,
+  // On by default, and for the same reason the water reminder is: it asks a
+  // question rather than announcing a fact, and either answer is one click. A
+  // health nudge that has to be found in Settings before it does anything is a
+  // health nudge most people never meet.
+  movementReminders: true,
+  movementStart: DEFAULT_MOVEMENT_START,
+  movementEnd: DEFAULT_MOVEMENT_END,
+  movementIntervalMinutes: DEFAULT_MOVEMENT_INTERVAL_MINUTES,
   // On by default: this is what the app did before the choice existed, and
   // closing someone's work for them is the kind of thing that has to be asked
   // for. Turning it off is what an empty-every-morning board looks like.

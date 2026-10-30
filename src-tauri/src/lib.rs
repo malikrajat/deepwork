@@ -1473,6 +1473,14 @@ pub fn run() {
                 } else {
                     restore(&window);
                 }
+
+                // macOS keeps a standard Mac window: the title bar, the traffic
+                // lights and the resize grip are the user's, and the window is
+                // the app's only chrome-free shape when they deliberately ask
+                // for the widget. Re-asserted at startup because a decoration
+                // change can be dropped while the window is still being created.
+                #[cfg(target_os = "macos")]
+                let _ = window.set_decorations(true);
             }
 
             // Keep the stored startup path valid across reinstalls/moves.
@@ -1737,16 +1745,18 @@ pub fn run() {
             // widget rather than bury the timer in the tray: Windows reports a
             // minimise as a 0x0 resize, which the frontend turns into the widget.
             //
-            // That 0x0 is the *whole* test on Windows, where it is what the OS
-            // sends for a minimise and nothing else. Elsewhere a 0x0 can also be
-            // reported for a window that has merely been un-mapped or moved off
-            // the screen — and the widget is the only window in this app without
-            // a title bar, so a stray 0x0 must not be allowed to take the frame
-            // away. There the window's own state has to agree as well.
+            // Windows is the only platform this app does it on. The 0x0 is what
+            // the taskbar's minimise button sends there and nothing else, while
+            // elsewhere it can also describe a window that was merely un-mapped
+            // or moved off-screen — and the widget is the only window in this app
+            // without a title bar. On macOS the traffic lights are the user's, and
+            // taking the frame away on a minimise is exactly how a window ends up
+            // with no close, minimise or zoom controls and no way back. The
+            // desktop's own minimise is left alone there; the widget is still
+            // reachable from the app's own control when the user asks for it.
             WindowEvent::Resized(size) => {
                 let looks_minimised = size.width == 0 && size.height == 0;
-                let confirmed = cfg!(windows) || window.is_minimized().unwrap_or(false);
-                if looks_minimised && confirmed {
+                if cfg!(windows) && looks_minimised {
                     log::info!(target: logging::SYSTEM, "window minimised: turning into the mini widget");
                     request_mini_widget(window);
                 }

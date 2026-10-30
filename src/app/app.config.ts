@@ -1,6 +1,7 @@
 import {
   ApplicationConfig,
   ErrorHandler,
+  Injector,
   inject,
   provideAppInitializer,
   provideBrowserGlobalErrorListeners,
@@ -38,6 +39,7 @@ export const appConfig: ApplicationConfig = {
       const schedule = inject(ScheduleService);
       const waterReminder = inject(WaterReminderService);
       const reminder = inject(ReminderService);
+      const injector = inject(Injector);
       const trayMenu = inject(TrayMenuService);
       const desktopPrefs = inject(DesktopPrefsService);
       const ui = inject(UiService);
@@ -54,6 +56,14 @@ export const appConfig: ApplicationConfig = {
       // One ticker for the water reminder: it reads the settings on every
       // tick, so turning the reminder on or off needs no restart.
       waterReminder.start();
+      // The stand-and-walk reminder is the same shape: its own single loop,
+      // reading the settings on every pass, sharing the attention state and the
+      // notification sound with every other message the app raises. It is
+      // loaded after the critical services because its card, its quote deck and
+      // its scheduler are not part of the first paint — the chunk arrives here,
+      // before the window is shown, so the first tick still has somewhere to run.
+      const { MovementReminderService } = await import('./core/services/movement-reminder.service');
+      injector.get(MovementReminderService).start();
       await trayMenu.init();
       // Reconciles "start with system" with the real OS state and applies
       // the saved always-on-top preference before the UI appears.

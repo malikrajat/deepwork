@@ -6,6 +6,175 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 ---
 
 
+## [3.0.1] – 2026-10-27
+
+### Added
+
+- **A stand-and-walk reminder for the body that does the work.** A desk job is a
+  seated job: the damage is not one long sitting but the hours that pass without
+  a reason to leave the chair. **Settings → Stand & Walk** is the new card for it
+  — an on/off switch with **Test**, working hours, and a cadence of every 20, 30,
+  45, 60, 90 or 120 minutes — and it carries the reason the feature exists in one
+  plain line, chosen by the day so the card does not repeat itself. The reminder
+  asks from both surfaces: a card in the app and a system notification, with the
+  same quote and the same two answers. **I'm up** closes the question and starts
+  a full interval; **Snooze 10 min** closes it and brings it back in ten. There
+  is no timeout and no close cross, and the bell repeats on the user's own
+  **Repeat Reminder Every** interval — re-posting the notification under its own
+  `deepwork-move` tag so the repeats raise one notification rather than stack a
+  copy per ring — until one of the answers is pressed. The answer is deliberately
+  the first step rather than "did you walk?": the card asks the user to get up, so
+  it cannot also ask them to confirm they already have. The reminder respects the
+  working day and the tray's pause, waits a full interval after it is switched on
+  or after the app was closed (time with DeepWork closed is not time at the desk),
+  and never arrives overdue on the doorstep. While the window is the mini widget
+  it asks on the notification where the buttons can be pressed; where they cannot,
+  the card comes forward, because a movement break cannot be counted for the user
+  the way a glass of water can (`movement-reminder.service.ts`,
+  `movement-nudge.component.ts`, `movement.constants.ts`, `movement.util.ts`).
+
+- **The dashboard's desk health card: one click turns either health reminder off.**
+  It used to take a walk to Settings to stop an interrupting reminder. **Desk
+  health** now sits on the Dashboard, above the water card, with two switches —
+  **Water** and **Stand & Walk** — each showing the reminder's own live status
+  ("Next reminder at 11:00", "Waiting for your answer", "Off"), and one link to
+  the Settings page for the details. The switches write through the same
+  `SettingsService` fields and re-tick the same schedulers, so the dashboard and
+  Settings cannot disagree. The card also carries a why-line about sitting still,
+  so the feature explains itself where the user meets it
+  (`desk-health-card.component.ts`).
+
+- **The movement voice and its own quote deck.** `MOVEMENT_QUOTES` holds sixty
+  lines written for this reminder — about backs, shoulders, eyes, circulation and
+  the next hour — and `NotificationService` walks them one per ring through the
+  existing `move` quote kind. None is copied from a quote site, and every line is
+  about leaving the chair rather than productivity in the abstract. The dashboard
+  and Settings why-lines come from a separate short deck, so displaying one there
+  does not consume the line the next notification was meant to carry
+  (`notification-quotes.constants.ts`, `movement.constants.ts`).
+
+### Changed
+
+- **The stand-and-walk feature is lazy-loaded so the initial bundle stays inside
+  its existing budget.** Its scheduler is imported after the critical start-up
+  services, and its card is deferred on idle like the app's other on-demand
+  panels. The initial bundle moved from 627.78 kB back to 616.10 kB, under the
+  unchanged 620 kB budget; the feature's chunks arrive before its first reminder
+  is due (`app.config.ts`, `app.html`).
+
+- **Every notification now arrives with a line that belongs to it.** The
+  motivational quote is no longer optional or absent from half the app: a water
+  reminder gets a water line, a finished task gets a line about the list, a
+  session and a break draw from their own decks, and the pause, resume, mute,
+  unmute, captured-task, export, desktop-setup and update messages each have a
+  deck too. The decks are also much deeper — the session, task, water and
+  standing-reminder lists now hold sixty lines each, and the smaller ones twenty
+  to forty — so a day of notifications no longer cycles through the same few
+  sentences. A shared rotation remembers its place per deck across launches, so
+  the first message of a new session is not always the first line
+  (`notification-quotes.constants.ts`, `quote-rotation.ts`,
+  `NotificationService.nextQuote`).
+
+- **The visitor report has a GoatCounter site of its own.** The web app now
+  counts on `app-deepwork.goatcounter.com` instead of sharing the author's site
+  with rajatmalik.dev, so pageviews are filed under the route itself (`/tasks`,
+  not `/deepwork/tasks`) and there is no "DeepWork only / whole site" switch to
+  explain. `Settings → Visitor Counter → Details` follows the reference
+  dashboard's shape: a **Private dashboard** heading, four figures across the
+  top, then the breakdowns as cards with a footnote each, and the way to the raw
+  dashboard at the foot. The settings row keeps its one number and its **Details**
+  button; the figure and every list are mapped into that existing card and
+  popup. The installed desktop app is still never counted.
+
+- **The completion alert says what happened, and each of its four answers says
+  exactly what it will do.** A focus session that runs out now posts the system
+  notification as **Task is over.** — the same news for the short-break and the
+  long-break end of a cycle, because the work is what finished. The four buttons
+  are **Pause**, **Skip current**, **Start** and **Silent**, in that order, on
+  the Windows toast and on the card:
+  **Pause** stops whatever is running when it is pressed; **Skip current** moves
+  past the session at the head of the queue and leaves the next one waiting;
+  **Start** begins that waiting session, or continues a paused one from its
+  remaining time rather than restarting the block; and **Silent** closes the
+  alert without touching the clock. The old **Next** did both halves in one press
+  (skip *and* start), which made it impossible to skip without also carrying on,
+  and **Hold up** read like a second kind of pause. The ids changed with the
+  meanings (`next`/`resume`/`hold` → `skip`/`start`/`silent`), so a stale toast
+  cannot report an answer the clock no longer has. `TimerService.skipAndStart`
+  had no callers left and is gone (`NotificationService`, `TimerService`).
+
+### Fixed
+
+- **A pause now silences the completion alert, including one already ringing.**
+  Pause stopped the timer and the app's reminders, but the alert a finished
+  session raises never asked `AttentionService` whether the app was quiet: a
+  session started after Pause was set — or one that had already finished and was
+  ringing when Pause was pressed — still played the tone, drew the card and
+  re-posted the notification on every repeat for as long as the pause lasted. A
+  pause now takes a ringing alert down with it, and the alert, its tone and its
+  repeat ticks all check the pause before speaking. The card a finished task
+  raises is held back for the same reason: a pause means no cards
+  (`notification.service.ts`, `quiet.service.ts`).
+
+- **The toast's close cross sits in the top-right corner of the card.** It was a
+  flex item vertically centred in the message row, which read as part of the
+  text; it is now pinned to the corner, with the card's right padding keeping the
+  message clear of it (`toast.component.ts`).
+
+- **Skip current now starts the next session.** **Skip current** on the
+  completion alert — and every skip button on the Dashboard and the mini widget —
+  moves past the session at the head of the queue and begins the one after it
+  instead of leaving it waiting for a second press (`TimerService.skip`).
+
+- **A Mac keeps its close, minimise and zoom buttons.** Two things were taking
+  the window's frame away on macOS. The window was created with
+  `transparent: true` and `shadow: false` — settings that exist for the Windows
+  widget's rounded corners — and the 0×0 resize that a minimise produces was
+  being read as "turn into the mini widget" on every platform, not only on
+  Windows, where the taskbar is what sends it. A frameless 136×76 widget has no
+  traffic lights and no way back except the expand arrow, which is exactly what
+  "the controls are not available" looks like. macOS now gets its own resolved
+  window configuration (`tauri.macos.conf.json`): opaque, shadowed, decorated,
+  with `titleBarStyle: Visible` and `hiddenTitle: false`. The decoration is also
+  re-asserted once at startup, because the desktop layer can drop a change made
+  while the window is still being created. The minimise→widget transform is now
+  Windows-only; the app's own widget control is still there for anyone who wants
+  the small window on a Mac (`tauri.macos.conf.json`, `src-tauri/src/lib.rs`,
+  `UiService`).
+
+- **A DMG built by CI opens without Gatekeeper's "Apple could not verify…"
+  dialog.** The downloaded build was not damaged and contained nothing
+  suspicious: it was **unsigned and unnotarized**, and a file that came through
+  a browser carries the quarantine flag that a locally built app never has. That
+  is why building on the same Mac worked and a CI artefact did not. The macOS
+  installer job now imports a Developer ID certificate from `APPLE_CERTIFICATE`
+  into a temporary keychain before `tauri build`, lets Tauri sign and notarize
+  (with `APPLE_ID`, `APPLE_PASSWORD` and `APPLE_TEAM_ID`), and then verifies the
+  result with `codesign --verify --deep --strict`, `xcrun stapler validate` and
+  `spctl --assess --type execute`. Everything is gated on `APPLE_CERTIFICATE`:
+  with no secret the variables are removed and the job still produces the same
+  unsigned DMG as before, so a fork or a machine without an Apple account does
+  not break. `docs/code-signing.md` now describes the wired pipeline, the
+  secrets it needs, and the `xattr`/Privacy & Security route for builds that
+  predate it (`.github/workflows/ci.yml`, `docs/code-signing.md`).
+
+### Database
+
+- **Migration 14 adds the four stand-and-walk settings, and nothing else.** It is
+  additive on purpose: `movement_reminders`, `movement_start`, `movement_end` and
+  `movement_interval_minutes` are added with defaults (on, 09:00, 18:00 and 45
+  minutes), so an existing database keeps every task, session, drink and setting
+  it had. No row is deleted, no column is dropped, and the browser store gets the
+  same values by merging `DEFAULT_SETTINGS` into whatever it already holds. A
+  stored time that cannot be read and a cadence that is not on the menu are
+  repaired on read, the same way the water reminder's are
+  (`014_add_movement_reminder.sql`, `db.service.ts`).
+
+- **The version is 3.0.1**, in every file that spells it out, moved in one pass by
+  `npm run version:bump -- 3.0.1`.
+
+
+
 ## [3.0.0] – 2026-10-26
 
 > **Progress.** This entry was written as the work landed, not after it: each

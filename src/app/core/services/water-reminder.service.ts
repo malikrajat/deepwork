@@ -7,7 +7,6 @@ import {
   minuteOfDay,
   nextWindowOpen,
   parseTimeOfDay,
-  quoteFor,
   waterPrefsOf,
 } from '../utils/water.util';
 import { LogService } from './log.service';
@@ -416,7 +415,7 @@ export class WaterReminderService implements OnDestroy {
     const prefs = this.prefs();
     const glass = formatMillilitres(prefs.amountMl);
     const title = `Drink water — ${glass}`;
-    const quote = quoteFor(this.nudgeCount);
+    const quote = this.notifications.nextQuote('water');
 
     // A minimised window is not pulled back over the user's work — but only a
     // reminder whose notification cannot carry the answers may count the glass

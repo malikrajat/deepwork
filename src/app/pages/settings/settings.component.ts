@@ -5,6 +5,7 @@ import {
   WATER_GOAL_OPTIONS,
   WATER_INTERVAL_OPTIONS,
 } from '../../core/constants/water.constants';
+import { MOVEMENT_INTERVAL_OPTIONS } from '../../core/constants/movement.constants';
 import { ALERT_SHAKE_OPTIONS, formatShakeDuration } from '../../core/constants/alert.constants';
 import { DbService } from '../../core/services/db.service';
 import { SettingsService } from '../../core/services/settings.service';
@@ -12,10 +13,12 @@ import { ThemeService } from '../../core/services/theme.service';
 import { NotificationService } from '../../core/services/notification.service';
 import { TaskService } from '../../core/services/task.service';
 import { WaterReminderService } from '../../core/services/water-reminder.service';
+import { MovementReminderService } from '../../core/services/movement-reminder.service';
 import { AttentionService } from '../../core/services/attention.service';
 import { LaunchPromptService } from '../../core/services/launch-prompt.service';
 import { DesktopPrefsService } from '../../core/services/desktop-prefs.service';
 import { formatMillilitres, parseTimeOfDay } from '../../core/utils/water.util';
+import { movementWhyFor } from '../../core/utils/movement.util';
 import { NUDGE_SETTINGS_HELP } from '../../core/constants/nudge.constants';
 import { DesktopPrefsPanelComponent } from '../../shared/components/desktop-prefs-panel/desktop-prefs-panel.component';
 import { QuietPanelComponent } from '../../shared/components/quiet-panel/quiet-panel.component';
@@ -320,9 +323,8 @@ import { SettingsFormModel, createSettingsFormDefaults } from '../../shared/mode
           <span>
             While minimised
             <small class="setting-note"
-              >Ask from the notification and leave the mini widget where it is. Where a
-              notification cannot carry the two answers, the drink is counted for you
-              instead.</small
+              >Ask from the notification and leave the mini widget where it is. Where a notification
+              cannot carry the two answers, the drink is counted for you instead.</small
             >
           </span>
           <div class="toggle-control">
@@ -338,6 +340,96 @@ import { SettingsFormModel, createSettingsFormDefaults } from '../../shared/mode
               <span class="knob"></span>
             </button>
           </div>
+        </div>
+      </div>
+
+      <!-- Stand & Walk: the reminder for the body that does the work -->
+      <div class="setting-group">
+        <div class="group-header">
+          <svg
+            width="16"
+            height="16"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+          >
+            <circle cx="13" cy="4" r="2" />
+            <path d="M13 7 10 12l3 2 2 6" />
+            <path d="M10 12 6 14l-2 4" />
+            <path d="M15 14l3 2 1 4" />
+          </svg>
+          <span>Stand &amp; Walk</span>
+        </div>
+        <div class="setting-item">
+          <span>
+            Remind me to move
+            <small class="setting-note"
+              >A quote and a two-minute walk during your working hours, with your notification sound
+              — only I&apos;m up or Snooze closes it, and the bell repeats until one does</small
+            >
+          </span>
+          <div class="toggle-control">
+            <button
+              type="button"
+              class="switch"
+              role="switch"
+              [attr.aria-checked]="settingsModel().movementReminders"
+              [class.on]="settingsModel().movementReminders"
+              (click)="toggleMovementReminders()"
+            >
+              <span class="knob"></span>
+            </button>
+            <button type="button" class="action-btn" (click)="testMovementReminder()">Test</button>
+          </div>
+        </div>
+        <div class="setting-item">
+          <span>Working hours from</span>
+          <input
+            type="time"
+            [value]="settingsModel().movementStart"
+            [disabled]="!settingsModel().movementReminders"
+            (change)="setMovementTime('movementStart', $event)"
+          />
+        </div>
+        <div class="setting-item">
+          <span>Working hours to</span>
+          <input
+            type="time"
+            [value]="settingsModel().movementEnd"
+            [disabled]="!settingsModel().movementReminders"
+            (change)="setMovementTime('movementEnd', $event)"
+          />
+        </div>
+        <div class="setting-item">
+          <span>
+            Remind me every
+            <small class="setting-note"
+              >Every twenty minutes to every two hours — nothing to type</small
+            >
+          </span>
+          <select
+            [value]="settingsModel().movementIntervalMinutes"
+            [disabled]="!settingsModel().movementReminders"
+            (change)="setMovementInterval($event)"
+          >
+            @for (option of movementIntervalOptions; track option) {
+              <option
+                [value]="option"
+                [selected]="option === settingsModel().movementIntervalMinutes"
+              >
+                {{ option }} min
+              </option>
+            }
+          </select>
+        </div>
+        <div class="setting-item">
+          <span>
+            Why it helps
+            <small class="setting-note">{{ movementWhy }}</small>
+          </span>
         </div>
       </div>
 
@@ -933,6 +1025,7 @@ export class SettingsComponent implements OnInit {
   private readonly theme = inject(ThemeService);
   private readonly notifications = inject(NotificationService);
   private readonly waterReminder = inject(WaterReminderService);
+  private readonly movementReminder = inject(MovementReminderService);
   private readonly taskService = inject(TaskService);
   private readonly attention = inject(AttentionService);
   protected readonly launch = inject(LaunchPromptService);
@@ -944,6 +1037,10 @@ export class SettingsComponent implements OnInit {
   protected readonly waterAmountOptions = WATER_AMOUNT_OPTIONS;
   protected readonly waterGoalOptions = WATER_GOAL_OPTIONS;
   protected readonly formatWater = formatMillilitres;
+
+  /** The fixed choices the stand-and-walk reminder offers, and its why-line. */
+  protected readonly movementIntervalOptions = MOVEMENT_INTERVAL_OPTIONS;
+  protected readonly movementWhy = movementWhyFor(new Date());
 
   /** The fixed choices the alert's shake offers, and how they read. */
   protected readonly alertShakeOptions = ALERT_SHAKE_OPTIONS;
@@ -993,6 +1090,10 @@ export class SettingsComponent implements OnInit {
       waterAmountMl: s.waterAmountMl,
       waterGoalMl: s.waterGoalMl,
       waterAutoLogWhenMinimized: s.waterAutoLogWhenMinimized,
+      movementReminders: s.movementReminders,
+      movementStart: s.movementStart,
+      movementEnd: s.movementEnd,
+      movementIntervalMinutes: s.movementIntervalMinutes,
       carryForwardTasks: s.carryForwardTasks,
     });
   }
@@ -1050,6 +1151,45 @@ export class SettingsComponent implements OnInit {
     await this.waterReminder.tick();
   }
 
+  /** Turns the stand-and-walk reminder on or off, and lets its loop re-plan. */
+  async toggleMovementReminders(): Promise<void> {
+    const next = !this.settingsModel().movementReminders;
+    this.settingsModel.update((model) => ({ ...model, movementReminders: next }));
+    await this.settingsService.updateField('movementReminders', next);
+    await this.movementReminder.tick();
+  }
+
+  /** One end of the movement reminder's working hours. */
+  async setMovementTime(key: 'movementStart' | 'movementEnd', event: Event): Promise<void> {
+    const value = (event.target as HTMLInputElement).value;
+    if (parseTimeOfDay(value) === null) return;
+
+    this.settingsModel.update((model) => ({ ...model, [key]: value }));
+    await this.settingsService.updateField(key, value);
+    await this.movementReminder.tick();
+  }
+
+  /**
+   * The cadence, from the fixed list the reminder offers.
+   *
+   * A value that is not on the list is ignored rather than stored, for the same
+   * reason the water numbers are: a stale template or a fought-with DOM must not
+   * be able to set a reminder the app cannot reason about.
+   */
+  async setMovementInterval(event: Event): Promise<void> {
+    const value = Number((event.target as HTMLSelectElement).value);
+    if (!MOVEMENT_INTERVAL_OPTIONS.includes(value)) return;
+
+    this.settingsModel.update((model) => ({ ...model, movementIntervalMinutes: value }));
+    await this.settingsService.updateField('movementIntervalMinutes', value);
+    await this.movementReminder.tick();
+  }
+
+  /** Sends the movement reminder now — the one button that proves it works. */
+  async testMovementReminder(): Promise<void> {
+    await this.movementReminder.remindNow();
+  }
+
   /**
    * Carry-forward: whether unfinished work survives the day it was for.
    *
@@ -1105,6 +1245,7 @@ export class SettingsComponent implements OnInit {
       'Sound is back on',
       'Reminders will ring again when they arrive.',
       'work',
+      this.notifications.nextQuote('unmute'),
     );
   }
 
@@ -1182,6 +1323,10 @@ export class SettingsComponent implements OnInit {
         waterAmountMl: s.waterAmountMl,
         waterGoalMl: s.waterGoalMl,
         waterAutoLogWhenMinimized: s.waterAutoLogWhenMinimized,
+        movementReminders: s.movementReminders,
+        movementStart: s.movementStart,
+        movementEnd: s.movementEnd,
+        movementIntervalMinutes: s.movementIntervalMinutes,
         carryForwardTasks: s.carryForwardTasks,
       });
       alert('Import complete! All data has been restored.');

@@ -11,6 +11,7 @@ import { ThemeService } from '../../src/app/core/services/theme.service';
 import { InstallService } from '../../src/app/core/services/install.service';
 import { NotificationService } from '../../src/app/core/services/notification.service';
 import { WaterReminderService } from '../../src/app/core/services/water-reminder.service';
+import { MovementReminderService } from '../../src/app/core/services/movement-reminder.service';
 import { DEFAULT_SETTINGS } from '../../src/app/core/models/settings.model';
 
 const SOURCE = resolve(__dirname, '../../src/app/pages/settings/settings.component.ts');
@@ -45,8 +46,12 @@ describe('SettingsComponent', () => {
         { provide: DbService, useValue: { init: vi.fn().mockResolvedValue(undefined) } },
         { provide: ThemeService, useValue: { apply: vi.fn() } },
         { provide: InstallService, useValue: {} },
-        { provide: NotificationService, useValue: {} },
+        {
+          provide: NotificationService,
+          useValue: { showToastMessage: vi.fn(), nextQuote: vi.fn(() => 'a line') },
+        },
         { provide: WaterReminderService, useValue: {} },
+        { provide: MovementReminderService, useValue: {} },
       ],
     });
 
@@ -75,6 +80,23 @@ describe('SettingsComponent', () => {
     await (component as unknown as { initAsync(): Promise<void> }).initAsync();
 
     expect(component.settingsModel().carryForwardTasks).toBe(false);
+  });
+
+  it('offers the stand-and-walk reminder as a switch bound to the stored value', () => {
+    const src = readFileSync(SOURCE, 'utf8');
+
+    expect(src).toContain('Stand &amp; Walk');
+    expect(src).toContain('[attr.aria-checked]="settingsModel().movementReminders"');
+    expect(src).toContain('(click)="toggleMovementReminders()"');
+    expect(src).toContain('(click)="testMovementReminder()"');
+  });
+
+  it('starts the movement switch where the stored settings put it', async () => {
+    const { component } = setup({ movementReminders: false });
+
+    await (component as unknown as { initAsync(): Promise<void> }).initAsync();
+
+    expect(component.settingsModel().movementReminders).toBe(false);
   });
 
   it('turning it off closes the work that is already past its day, at once', async () => {

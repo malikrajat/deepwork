@@ -64,6 +64,16 @@
        widget is still on screen, and puts the question up once it is not. -->
   <app-water-nudge />
 
+  <!-- The stand-and-walk reminder is the same kind of question: it hides itself
+       in the mini widget, where the sticky notification is the surface, and asks
+       from the shell because the user may be on any page when it arrives. It is
+       deferred on idle for the same reason as the panels below — its card is not
+       part of the first paint, and the first reminder is a full interval away —
+       so the chunk is in place long before the first question can arrive. -->
+  @defer (on idle) {
+    <app-movement-nudge />
+  }
+
   <!-- The standing reminder is the one question that never gives up. It is drawn
        from the shell because it has to be able to ask from any page, and it hides
        itself in the mini widget: the sticky notification is the surface there. -->

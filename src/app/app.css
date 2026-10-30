@@ -53,12 +53,15 @@
   -webkit-overflow-scrolling: touch;
   /* The `env()` terms are the notch and the home indicator, and they are 0px
      everywhere else — so the padding below is the desktop padding on a desktop
-     and the desktop padding *plus the cutout* on a phone. */
-  padding: var(--space-xl) var(--space-2xl);
-  padding-top: calc(var(--space-xl) + var(--safe-top));
-  padding-right: calc(var(--space-2xl) + var(--safe-right));
-  padding-bottom: calc(var(--space-xl) + var(--safe-bottom));
-  padding-left: calc(var(--space-2xl) + var(--safe-left));
+     and the desktop padding *plus the cutout* on a phone.
+
+     One gutter on every side, because the content is the page: 48px of padding
+     around a 1200px window is a quarter of a card's width given away before
+     anything is drawn, and the sidebar beside it already separates the two. */
+  padding-top: calc(var(--shell-gutter) + var(--safe-top));
+  padding-right: calc(var(--shell-gutter) + var(--safe-right));
+  padding-bottom: calc(var(--shell-gutter) + var(--safe-bottom));
+  padding-left: calc(var(--shell-gutter) + var(--safe-left));
   background: transparent;
   position: relative;
   transition: padding 0.3s ease;
@@ -66,11 +69,11 @@
 
 /* Focus Mode */
 .focus-mode .main-content {
-  padding: var(--space-lg) var(--space-xl);
-  padding-top: calc(var(--space-lg) + var(--safe-top));
-  padding-right: calc(var(--space-xl) + var(--safe-right));
-  padding-bottom: calc(var(--space-lg) + var(--safe-bottom));
-  padding-left: calc(var(--space-xl) + var(--safe-left));
+  padding: var(--shell-gutter);
+  padding-top: calc(var(--shell-gutter) + var(--safe-top));
+  padding-right: calc(var(--shell-gutter) + var(--safe-right));
+  padding-bottom: calc(var(--shell-gutter) + var(--safe-bottom));
+  padding-left: calc(var(--shell-gutter) + var(--safe-left));
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -269,17 +272,17 @@
   }
 
   .main-content {
-    padding: var(--space-lg);
-    padding-top: calc(var(--space-lg) + var(--safe-top));
-    padding-right: calc(var(--space-lg) + var(--safe-right));
-    padding-bottom: calc(var(--space-xl) + var(--safe-bottom));
-    padding-left: calc(var(--space-lg) + var(--safe-left));
+    padding: var(--shell-gutter);
+    padding-top: calc(var(--shell-gutter) + var(--safe-top));
+    padding-right: calc(var(--shell-gutter) + var(--safe-right));
+    padding-bottom: calc(var(--shell-gutter) + var(--safe-bottom));
+    padding-left: calc(var(--shell-gutter) + var(--safe-left));
   }
 
   .focus-mode .main-content {
     padding: var(--space-md);
-    padding-top: calc(var(--space-lg) + var(--safe-top));
-    padding-bottom: calc(var(--space-lg) + var(--safe-bottom));
+    padding-top: calc(var(--shell-gutter) + var(--safe-top));
+    padding-bottom: calc(var(--shell-gutter) + var(--safe-bottom));
   }
 
   /* The focus-mode exit button is the one control in that view, so it keeps a
@@ -291,18 +294,17 @@
 
 @media (max-width: 640px) {
   .main-content {
-    padding: var(--space-md);
+    padding: var(--shell-gutter);
     padding-top: calc(var(--space-sm) + var(--safe-top));
-    padding-right: calc(var(--space-md) + var(--safe-right));
-    /* Room for the quick-add button, which floats over the last of the page. */
-    padding-bottom: calc(var(--space-3xl) + var(--safe-bottom));
-    padding-left: calc(var(--space-md) + var(--safe-left));
+    padding-right: calc(var(--shell-gutter) + var(--safe-right));
+    padding-bottom: calc(var(--shell-gutter) + var(--safe-bottom));
+    padding-left: calc(var(--shell-gutter) + var(--safe-left));
   }
 
   .focus-mode .main-content {
-    padding: var(--space-sm);
+    padding: var(--shell-gutter);
     padding-top: calc(var(--space-md) + var(--safe-top));
-    padding-bottom: calc(var(--space-md) + var(--safe-bottom));
+    padding-bottom: calc(var(--shell-gutter) + var(--safe-bottom));
   }
 }
 
@@ -328,15 +330,16 @@
   .main-content {
     max-width: var(--content-max-width);
     margin-inline: auto;
-    /* More air than a 1400px window wants: 48px of padding is a comfortable
-       margin at 1440 and a hairline at 3840. */
-    padding-right: calc(var(--space-3xl) + var(--safe-right));
-    padding-left: calc(var(--space-3xl) + var(--safe-left));
+    /* The same gutter as every other size. Capping the column is what makes a
+       4K window readable — adding more padding on top of the cap only narrows
+       the pages that already chose their own width. */
+    padding-right: calc(var(--shell-gutter) + var(--safe-right));
+    padding-left: calc(var(--shell-gutter) + var(--safe-left));
   }
 
   .focus-mode .main-content {
     max-width: none;
-    padding-right: calc(var(--space-2xl) + var(--safe-right));
-    padding-left: calc(var(--space-2xl) + var(--safe-left));
+    padding-right: calc(var(--shell-gutter) + var(--safe-right));
+    padding-left: calc(var(--shell-gutter) + var(--safe-left));
   }
 }

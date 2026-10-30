@@ -1,7 +1,7 @@
 {
   "$schema": "../node_modules/@tauri-apps/cli/config.schema.json",
   "productName": "DeepWork",
-  "version": "3.0.0",
+  "version": "3.0.1",
   "identifier": "com.deepwork.app",
   "build": {
     "frontendDist": "../dist/deepwork/browser",
@@ -24,7 +24,9 @@
         "shadow": false,
         "center": true,
         "dragDropEnabled": false,
-        "devtools": true
+        "devtools": true,
+        "titleBarStyle": "Visible",
+        "hiddenTitle": false
       }
     ],
     "security": {

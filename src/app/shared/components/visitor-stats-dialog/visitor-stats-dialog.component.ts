@@ -2,11 +2,9 @@ import { ChangeDetectionStrategy, Component, effect, inject, signal } from '@ang
 import {
   GOATCOUNTER_DASHBOARD_URL,
   GOATCOUNTER_ORIGIN,
-  GOATCOUNTER_PATH_PREFIX,
   GOATCOUNTER_TOKENS_URL,
   VISITOR_KPIS,
   VISITOR_RANGES,
-  VISITOR_SCOPES,
   VISITOR_STAT_SECTIONS,
   type VisitorKpiKey,
   type VisitorSectionKey,
@@ -39,6 +37,12 @@ interface SparkBar {
  * screen, their language, their time zone — read from the browser as the popup
  * renders and sent nowhere. It is the honest answer to "what do you know about
  * me?", and it is here rather than in the dashboard on purpose.
+ *
+ * The shape follows the author's own site panel: a "private dashboard" heading,
+ * four figures across the top, then the breakdowns as cards with a one-line
+ * footnote each, and the way to the raw dashboard at the foot. DeepWork has a
+ * GoatCounter site of its own, so the numbers are this app's alone — there is no
+ * second app to separate out and no scope switch.
  */
 @Component({
   selector: 'app-visitor-stats-dialog',
@@ -60,14 +64,13 @@ interface SparkBar {
           aria-labelledby="visitor-stats-title"
           (click)="$event.stopPropagation()"
         >
-          <div class="dialog-head">
-            <div>
-              <h2 id="visitor-stats-title" class="dialog-title gradient-text">Visitor counter</h2>
-              <p class="dialog-subtitle">
-                {{ siteLabel }} · the web app only — the installed desktop app has no web address to
-                report, so it is never counted. Two apps share this one GoatCounter site, and every
-                number below says which of them it covers.
-              </p>
+          <header class="dialog-head">
+            <div class="head-text">
+              <p class="eyebrow">Private dashboard</p>
+              <h2 id="visitor-stats-title" class="dialog-title">
+                Who is visiting <span class="gradient-text">DeepWork</span>
+              </h2>
+              <p class="dialog-subtitle">{{ sourceNote() }}</p>
             </div>
             <button type="button" class="close-btn" aria-label="Close" (click)="close()">
               <svg
@@ -83,17 +86,16 @@ interface SparkBar {
                 <line x1="18" y1="6" x2="6" y2="18" />
               </svg>
             </button>
-          </div>
+          </header>
 
           <!-- Everything above the facts needs a token; without one, ask for it. -->
           @if (!stats.hasToken()) {
             <section class="token-box">
               <h3 class="block-title">Read the numbers</h3>
               <p class="block-text">
-                GoatCounter's public counter can only say how many people visited the whole site —
-                which also carries rajatmalik.dev. Its API can say who came from where, on which
-                browser, in which country, on which screen size — and for that it needs an API
-                token.
+                DeepWork has its own GoatCounter site, so the public counter already says how many
+                people visited the web app. The API can say where they came from, on which browser
+                and in which country — and for that it needs a token.
               </p>
               <div class="token-row">
                 <input
@@ -137,7 +139,7 @@ interface SparkBar {
               }
             </section>
           } @else {
-            <section class="controls">
+            <section class="controls" aria-label="Report controls">
               <div class="chip-row" role="group" aria-label="Date range">
                 @for (option of ranges; track option.key) {
                   <button
@@ -150,26 +152,14 @@ interface SparkBar {
                   </button>
                 }
               </div>
-              <div class="chip-row" role="group" aria-label="Which pages">
-                @for (option of scopes; track option.key) {
-                  <button
-                    type="button"
-                    class="chip"
-                    [class.active]="stats.scope() === option.key"
-                    (click)="stats.setScope(option.key)"
-                  >
-                    {{ option.label }}
-                  </button>
-                }
-                <button
-                  type="button"
-                  class="chip refresh"
-                  [disabled]="stats.loading()"
-                  (click)="stats.refresh()"
-                >
-                  {{ stats.loading() ? 'Reading…' : 'Refresh' }}
-                </button>
-              </div>
+              <button
+                type="button"
+                class="chip refresh"
+                [disabled]="stats.loading()"
+                (click)="stats.refresh()"
+              >
+                {{ stats.loading() ? 'Reading…' : 'Refresh' }}
+              </button>
             </section>
 
             @if (stats.error(); as failure) {
@@ -185,14 +175,13 @@ interface SparkBar {
             }
 
             <!-- Nothing below this line appears or disappears with the filter.
-                 Every range and every scope draws the same four tiles, the same
-                 chart frame and the same eight cards; what changes is the numbers
-                 in them, and a card with nothing to report says 0 rather than
-                 going away. A dashboard that rearranges itself when you narrow the
-                 dates is one you have to re-read every time. -->
+                 Every range draws the same four tiles and the same cards; what
+                 changes is the numbers in them, and a card with nothing to report
+                 says 0 rather than going away. A dashboard that rearranges itself
+                 when you narrow the dates is one you have to re-read every time. -->
             @if (stats.noData()) {
               <p class="is-note">
-                Nothing has been filed under <code>{{ pathPrefix }}</code> yet — the counter is in
+                Nothing has been recorded on <code>{{ siteLabel }}</code> yet — the counter is in
                 place, but nobody has been counted on the web app so far. Looking at it yourself in
                 the browser is a visit, so this page is likely to be the first.
               </p>
@@ -221,14 +210,13 @@ interface SparkBar {
             </div>
 
             <section class="totals">
-              <p class="total-caption">
-                A visitor is one browser session, counted once for each page it opens — not a
-                pageview, and not a person being followed. Crawlers GoatCounter recognises are left
-                out, and an ad blocker hides a visit from it entirely.
-                @if (stats.bundle().totals?.partial) {
-                  <em>The page list was truncated, so this figure is a floor.</em>
-                }
-              </p>
+              <div class="totals-head">
+                <span class="block-title">{{ rangeLabel() }} in visitors</span>
+                <span class="total-extras">
+                  <span>{{ countOrDash(stats.bundle().totals?.events) }} events</span>
+                  <span>{{ countOrDash(stats.bundle().totals?.visitorsUtc) }} by UTC days</span>
+                </span>
+              </div>
 
               <!-- The chart frame is always here, even with nothing to plot: an
                    empty range is a flat line, not a missing chart. -->
@@ -248,51 +236,21 @@ interface SparkBar {
                 <span>{{ sparkEnd() }}</span>
               </div>
 
-              <div class="total-extras">
-                <span>{{ countOrDash(stats.bundle().totals?.events) }} events</span>
-                <span>{{ countOrDash(stats.bundle().totals?.visitorsUtc) }} by UTC days</span>
-                <span class="site-share">{{ scopeNote() }}</span>
-              </div>
-            </section>
-
-            @if (!stats.scopeFiltered()) {
-              <p class="is-warning">
-                GoatCounter ignored the path filter, so the lists below cover the whole site — both
-                apps together. The headline number and the pages come from the app's own paths
-                either way.
+              <p class="total-caption">
+                A visitor is one browser session, counted once for each page it opens — not a
+                pageview, and not a person being followed. Crawlers GoatCounter recognises are left
+                out, and an ad blocker hides a visit from it entirely.
               </p>
-            }
+            </section>
 
             @if (stats.failures()['totals'] || stats.failures()['pages']; as failure) {
               <p class="is-error">{{ failure }}</p>
             }
 
             <!-- Every card GoatCounter has an answer for, always in the same
-                 order and always present: eight of them, whether or not a range
-                 had any visitors in it. -->
+                 order and always present, whether or not a range had any
+                 visitors in it. -->
             <div class="blocks">
-              <section class="stat-block">
-                <h3 class="block-title">Pages<span>visitors each</span></h3>
-                <ul class="stat-list">
-                  @for (row of rowsOrZero(stats.bundle().pages, stats.loading()); track row.name) {
-                    <li>
-                      <span class="stat-name" [title]="row.name">{{ row.name }}</span>
-                      <span class="stat-bar" aria-hidden="true">
-                        <span class="stat-bar-fill" [style.width.%]="row.share * 100"></span>
-                      </span>
-                      <span class="stat-count">{{ row.count }}</span>
-                    </li>
-                  }
-                </ul>
-                @if (stats.pagesTruncated()) {
-                  <p class="block-hint">The busiest pages only.</p>
-                }
-                <p class="block-note">
-                  Each page of this app, with the number of visitors that opened it. The busiest
-                  first.
-                </p>
-              </section>
-
               @for (section of statSections; track section.key) {
                 <section class="stat-block">
                   <h3 class="block-title">{{ section.label }}</h3>
@@ -304,17 +262,19 @@ interface SparkBar {
                         row of rowsOrZero(rowsFor(section.key), stats.loading());
                         track row.name
                       ) {
-                        <li>
-                          <span class="stat-name" [title]="row.name">
-                            {{ row.name }}
+                        <li class="stat-row">
+                          <span class="stat-body">
+                            <span class="stat-name" [title]="row.name">{{ row.name }}</span>
                             @if (row.note) {
                               <small>{{ row.note }}</small>
                             }
                           </span>
-                          <span class="stat-bar" aria-hidden="true">
-                            <span class="stat-bar-fill" [style.width.%]="row.share * 100"></span>
-                          </span>
                           <span class="stat-count">{{ row.count }}</span>
+                          <span
+                            class="stat-bar"
+                            aria-hidden="true"
+                            [style.width.%]="row.share * 100"
+                          ></span>
                         </li>
                       }
                     </ul>
@@ -322,6 +282,28 @@ interface SparkBar {
                   <p class="block-note">{{ section.note }}</p>
                 </section>
               }
+
+              <section class="stat-block">
+                <h3 class="block-title">Top pages<span>visitors each</span></h3>
+                <ul class="stat-list">
+                  @for (row of rowsOrZero(stats.bundle().pages, stats.loading()); track row.name) {
+                    <li class="stat-row">
+                      <span class="stat-body">
+                        <span class="stat-name" [title]="row.name">{{ row.name }}</span>
+                      </span>
+                      <span class="stat-count">{{ row.count }}</span>
+                      <span class="stat-bar" aria-hidden="true" [style.width.%]="row.share * 100"></span>
+                    </li>
+                  }
+                </ul>
+                @if (stats.pagesTruncated()) {
+                  <p class="block-hint">The busiest pages only.</p>
+                }
+                <p class="block-note">
+                  Each page of this app, with the number of visitors that opened it. The busiest
+                  first.
+                </p>
+              </section>
             </div>
 
             <section class="token-state">
@@ -390,18 +372,26 @@ interface SparkBar {
             </button>
           </section>
 
-          <div class="dialog-actions">
-            <a
-              appExternalLink
-              class="btn-ghost"
-              [href]="dashboardUrl"
-              target="_blank"
-              rel="noopener"
-            >
-              Open the dashboard
-            </a>
-            <button type="button" class="btn-primary" (click)="close()">Close</button>
-          </div>
+          <footer class="dialog-foot">
+            <p>
+              Totals and breakdowns come from GoatCounter for
+              <code>{{ siteLabel }}</code
+              >. The installed desktop app has no web address to report, so it is never counted. The
+              raw numbers, and the graph they sit beside, are in the dashboard.
+            </p>
+            <div class="foot-actions">
+              <a
+                appExternalLink
+                class="btn-ghost"
+                [href]="dashboardUrl"
+                target="_blank"
+                rel="noopener"
+              >
+                Open the dashboard
+              </a>
+              <button type="button" class="btn-primary" (click)="close()">Close</button>
+            </div>
+          </footer>
         </div>
       </div>
     }
@@ -421,51 +411,52 @@ interface SparkBar {
         left: 0;
         z-index: 220;
         display: flex;
-        /* The panel is the page: this used to centre a small card, which left a
-           dashboard of five columns' worth of numbers in a 620px column. */
-        align-items: stretch;
+        align-items: center;
         justify-content: center;
-        padding: 0;
-        background: rgba(6, 5, 12, 0.74);
+        padding: 16px;
+        background: rgba(6, 5, 12, 0.66);
         backdrop-filter: blur(6px);
         animation: dialog-fade 0.2s ease-out;
       }
+      /* The reference panel is a report, not a full-screen sheet: a centred
+         card wide enough for four columns, as tall as the window allows, with
+         its own scroll. */
       .dialog-card {
         width: 100%;
-        max-width: none;
-        height: 100%;
-        max-height: none;
+        max-width: 1080px;
+        max-height: min(92vh, 940px);
         overflow-y: auto;
-        padding: 22px 30px 20px;
-        border-radius: 0;
+        padding: clamp(20px, 3vw, 32px);
+        border-radius: 18px;
         /* Opaque, not glassy. --glass-bg is 4.5% white — a surface *inside* a
            card that is already there, which is exactly right for a settings group
            and exactly wrong for the one panel that has to be read on its own. On
            that background this popup was a see-through sheet with the app's own
            text showing through it. --surface-float is the token for something
-           that floats above the app: 0.9 in the dark theme, 0.92 in the light
-           one, so the same rule reads in both. */
-        background: var(--surface-float, rgba(15, 11, 31, 0.94));
-        backdrop-filter: blur(22px);
-        border: none;
-        box-shadow: none;
+           that floats above the app. */
+        background: var(--surface-float, rgba(15, 11, 31, 0.96));
+        border: 1px solid var(--glass-border, rgba(255, 255, 255, 0.1));
+        box-shadow: 0 28px 80px rgba(0, 0, 0, 0.45);
         animation: dialog-rise 0.24s ease-out;
       }
       .dialog-head {
-        position: sticky;
-        top: -22px;
-        z-index: 3;
         display: flex;
         align-items: flex-start;
         justify-content: space-between;
-        gap: 12px;
-        /* Its own background, because the page scrolls under it. */
-        background: var(--surface-float, rgba(15, 11, 31, 0.94));
-        padding: 22px 0 10px;
-        margin-bottom: 6px;
+        gap: 16px;
+        padding-bottom: 16px;
+        border-bottom: 1px solid var(--glass-border, rgba(255, 255, 255, 0.08));
+      }
+      .eyebrow {
+        margin: 0 0 6px;
+        font-size: 10px;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.14em;
+        color: var(--color-accent-primary, #a78bfa);
       }
       .dialog-title {
-        font-size: 26px;
+        font-size: clamp(22px, 3vw, 30px);
         font-weight: 800;
         letter-spacing: -0.6px;
         margin: 0;
@@ -474,7 +465,7 @@ interface SparkBar {
         margin: 6px 0 0;
         /* A cap, even on a full-width page: a line of prose 1800px long is not
            read, it is scanned. */
-        max-width: 860px;
+        max-width: 760px;
         font-size: 13px;
         line-height: 1.5;
         color: var(--color-text-muted, #a1a1aa);
@@ -484,9 +475,9 @@ interface SparkBar {
         display: inline-flex;
         align-items: center;
         justify-content: center;
-        width: 30px;
-        height: 30px;
-        border-radius: 8px;
+        width: 38px;
+        height: 38px;
+        border-radius: 10px;
         cursor: pointer;
         background: transparent;
         border: 1px solid var(--glass-border, rgba(255, 255, 255, 0.12));
@@ -498,6 +489,9 @@ interface SparkBar {
       }
 
       .block-title {
+        display: flex;
+        align-items: baseline;
+        gap: 6px;
         margin: 0 0 8px;
         font-size: 11px;
         font-weight: 700;
@@ -562,57 +556,18 @@ interface SparkBar {
         border-color: rgba(139, 92, 246, 0.55);
       }
 
+      /* The range picker sits above the report, the refresh at its right. */
       .controls {
-        margin-top: 16px;
-      }
-
-      /* The four figures across the top. auto-fit keeps them side by side on a
-         wide window and stacks them on a narrow one, which is the whole
-         responsive story the panel needs. */
-      .kpi-grid {
-        display: grid;
-        grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
+        display: flex;
+        align-items: flex-start;
+        justify-content: space-between;
         gap: 12px;
         margin-top: 16px;
-      }
-      .kpi {
-        display: flex;
-        flex-direction: column;
-        gap: 4px;
-        padding: 14px 16px;
-        border-radius: 14px;
-        background: rgba(139, 92, 246, 0.05);
-        border: 1px solid rgba(139, 92, 246, 0.16);
-        /* The accent stripe the reference dashboard has down the left edge. */
-        border-left: 3px solid var(--color-accent-primary, #a78bfa);
-      }
-      .kpi-label {
-        font-size: 11px;
-        font-weight: 700;
-        text-transform: uppercase;
-        letter-spacing: 0.08em;
-        color: var(--color-text-muted, #a1a1aa);
-      }
-      .kpi-value {
-        font-size: 34px;
-        font-weight: 800;
-        line-height: 1.1;
-        letter-spacing: -1px;
-        color: var(--color-text-primary, #f4f4f5);
-      }
-      .kpi-empty {
-        opacity: 0.5;
-      }
-      .kpi-note {
-        font-size: 11px;
-        line-height: 1.4;
-        color: var(--color-text-muted, #a1a1aa);
       }
       .chip-row {
         display: flex;
         flex-wrap: wrap;
         gap: 6px;
-        margin-bottom: 8px;
       }
       .chip {
         padding: 4px 11px;
@@ -638,38 +593,81 @@ interface SparkBar {
         cursor: not-allowed;
       }
       .chip.refresh {
-        margin-left: auto;
+        flex: 0 0 auto;
+      }
+
+      /* The four figures across the top. auto-fit keeps them side by side on a
+         wide window and stacks them on a narrow one, which is the whole
+         responsive story the panel needs. */
+      .kpi-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
+        gap: 12px;
+        margin-top: 16px;
+      }
+      .kpi {
+        display: flex;
+        flex-direction: column;
+        gap: 4px;
+        padding: 14px 16px;
+        border-radius: 12px;
+        background: rgba(139, 92, 246, 0.05);
+        border: 1px solid rgba(139, 92, 246, 0.16);
+        /* The accent stripe the reference dashboard has down the left edge. */
+        border-left: 3px solid var(--color-accent-primary, #a78bfa);
+      }
+      .kpi-label {
+        font-size: 10px;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.1em;
+        color: var(--color-text-muted, #a1a1aa);
+      }
+      .kpi-value {
+        font-size: 32px;
+        font-weight: 800;
+        line-height: 1.1;
+        letter-spacing: -1px;
+        color: var(--color-text-primary, #f4f4f5);
+      }
+      .kpi-empty {
+        opacity: 0.5;
+      }
+      .kpi-note {
+        font-size: 11px;
+        line-height: 1.4;
+        color: var(--color-text-muted, #a1a1aa);
       }
 
       .totals {
         margin-top: 14px;
       }
-      .total-caption {
-        margin: 8px 0 0;
-        font-size: 12px;
-        line-height: 1.5;
-        color: var(--color-text-muted, #a1a1aa);
+      .totals-head {
+        display: flex;
+        align-items: baseline;
+        justify-content: space-between;
+        gap: 12px;
       }
-      .total-caption em {
-        font-style: italic;
-        color: #fcd34d;
+      .totals-head .block-title {
+        margin: 0;
       }
       .total-extras {
         display: flex;
         flex-wrap: wrap;
         gap: 12px;
-        margin-top: 6px;
-        font-size: 12px;
+        font-size: 11px;
         color: var(--color-text-muted, #a1a1aa);
       }
-      /* The denominator: which of the two numbers on this screen is this app's. */
-      .site-share {
-        color: var(--color-accent-primary, #a78bfa);
+      .total-caption {
+        margin: 10px 0 0;
+        font-size: 11px;
+        line-height: 1.5;
+        color: var(--color-text-muted, #a1a1aa);
       }
 
       /* Two columns for everything GoatCounter breaks down, so the popup is a
          report to read rather than a list to scroll. auto-fit means one column on
-         a narrow window and three or four — on a wide one, without a media query
+         a narrow window and three or four on a wide one, without a media query
          to keep in step. */
       .blocks {
         display: grid;
@@ -687,7 +685,7 @@ interface SparkBar {
         gap: 1px;
       }
       .block-title span {
-        margin-left: 6px;
+        margin-left: 2px;
         font-weight: 500;
         text-transform: none;
         letter-spacing: 0;
@@ -729,22 +727,29 @@ interface SparkBar {
         color: var(--color-text-muted, #a1a1aa);
       }
 
+      /* One row per name. The bar is the row's own underline — the reference
+         dashboard's treatment — rather than a column in the middle, so a long
+         hostname keeps the whole width for itself. */
       .stat-list {
         list-style: none;
         margin: 0;
         padding: 0;
         display: flex;
         flex-direction: column;
-        gap: 4px;
+        gap: 6px;
       }
-      .stat-list li {
+      .stat-row {
+        position: relative;
         display: grid;
-        grid-template-columns: minmax(0, 1.1fr) minmax(40px, 1.6fr) auto;
-        /* First baseline, so the bar and the count line up with the *name* when a
-           row carries a second line under it rather than with the middle of both. */
+        grid-template-columns: minmax(0, 1fr) auto;
         align-items: baseline;
         gap: 8px;
-        font-size: 12px;
+        padding-bottom: 6px;
+        font-size: 13px;
+      }
+      .stat-body {
+        display: grid;
+        min-width: 0;
       }
       .stat-name {
         min-width: 0;
@@ -761,25 +766,20 @@ interface SparkBar {
         line-height: 1.35;
         color: var(--color-text-muted, #a1a1aa);
       }
-      .stat-bar {
-        align-self: center;
-        height: 6px;
-        border-radius: 999px;
-        background: rgba(255, 255, 255, 0.05);
-        overflow: hidden;
-      }
-      .stat-bar-fill {
-        display: block;
-        height: 100%;
-        border-radius: 999px;
-        background: linear-gradient(90deg, rgba(139, 92, 246, 0.85), rgba(6, 182, 212, 0.75));
-      }
       .stat-count {
-        min-width: 34px;
+        min-width: 30px;
         text-align: right;
-        font-weight: 600;
+        font-weight: 700;
         font-variant-numeric: tabular-nums;
         color: var(--color-text-primary, #f4f4f5);
+      }
+      .stat-bar {
+        position: absolute;
+        left: 0;
+        bottom: 0;
+        height: 2px;
+        border-radius: 999px;
+        background: linear-gradient(90deg, rgba(139, 92, 246, 0.9), rgba(6, 182, 212, 0.8));
       }
 
       .fact-list {
@@ -875,6 +875,32 @@ interface SparkBar {
         background: #ede9fe;
       }
 
+      .dialog-foot {
+        margin-top: 20px;
+        padding-top: 14px;
+        border-top: 1px solid var(--glass-border, rgba(255, 255, 255, 0.08));
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        flex-wrap: wrap;
+        gap: 12px;
+        font-size: 12px;
+        line-height: 1.5;
+        color: var(--color-text-muted, #a1a1aa);
+      }
+      .dialog-foot p {
+        margin: 0;
+        max-width: 620px;
+      }
+      .dialog-foot code {
+        color: var(--color-accent-primary, #a78bfa);
+      }
+      .foot-actions {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+      }
+
       .is-error,
       .is-warning,
       .is-note {
@@ -900,13 +926,6 @@ interface SparkBar {
         border: 1px solid rgba(251, 191, 36, 0.2);
       }
 
-      .dialog-actions {
-        display: flex;
-        justify-content: flex-end;
-        align-items: center;
-        gap: 8px;
-        margin-top: 20px;
-      }
       .btn-ghost,
       .btn-primary {
         display: inline-flex;
@@ -968,35 +987,30 @@ interface SparkBar {
 
       /* ===== Phone layout =====
 
-         The panel is the whole window at every width, which is the right shape
-         for a report — but parts of it were measured for a wide window. The cards
-         sit in a grid whose tracks are 300px at the very least, so on a 320px
-         phone a track is wider than the panel holding it and the report scrolls
-         sideways behind its own header; the header is sticky at a negative offset
-         that is exactly the card's top padding, so the two have to move together;
-         and the token row asks for a 60-character paste beside two buttons.
+         The card is nearly the whole window at every width, which is the right
+         shape for a report — but parts of it were measured for a wide window. The
+         cards sit in a grid whose tracks are 300px at the very least, so on a
+         320px phone a track is wider than the card holding it and the report
+         scrolls sideways; and the token row asks for a 60-character paste beside
+         two buttons.
 
-         Nothing here is added or removed: the same eight cards, the same four
-         tiles and the same rows are drawn, narrowed. */
+         Nothing here is added or removed: the same four tiles and the same cards
+         are drawn, narrowed. */
       @media (max-width: 640px) {
+        .dialog-backdrop {
+          padding: 0;
+          align-items: stretch;
+        }
         .dialog-card {
+          max-width: none;
+          max-height: none;
+          border-radius: 0;
+          border: none;
           padding: 16px 14px 14px;
-          /* The panel is the page and has its own scroll; a flick that reaches
+          /* The card is the page and has its own scroll; a flick that reaches
              the end of it must not carry on into the app behind. */
           overscroll-behavior-y: contain;
           -webkit-overflow-scrolling: touch;
-        }
-        /* The sticky header is pinned by the negative of the card's top padding,
-           and carries that padding itself so the report slides under an opaque
-           band rather than under the first line of the title. Changing one of the
-           two without the other is what puts the header on top of the text. */
-        .dialog-head {
-          top: -16px;
-          /* The band bleeds to the panel's edges as it scrolls under, so the
-             report does not slide past it in the two 14px gutters. */
-          margin-right: -14px;
-          margin-left: -14px;
-          padding: 16px 14px 10px;
         }
         .dialog-subtitle {
           max-width: 100%;
@@ -1006,9 +1020,9 @@ interface SparkBar {
           height: 44px;
         }
 
-        /* One column each. A 300px track minimum inside a 292px panel is the
+        /* One column each. A 300px track minimum inside a 292px card is the
            overflow itself, and 'minmax(0, 1fr)' is what lets a column be narrower
-           than the longest word in it instead of holding the panel open. */
+           than the longest word in it instead of holding the card open. */
         .blocks,
         .kpi-grid {
           grid-template-columns: minmax(0, 1fr);
@@ -1033,23 +1047,30 @@ interface SparkBar {
           flex: 1 1 auto;
         }
 
+        .controls,
+        .totals-head,
         .token-state,
         .count-row,
-        .dialog-actions {
+        .dialog-foot {
           flex-wrap: wrap;
         }
-        .dialog-actions .btn-ghost,
-        .dialog-actions .btn-primary {
+        .chip.refresh {
+          flex: 1 1 100%;
+        }
+        .foot-actions,
+        .foot-actions .btn-ghost,
+        .foot-actions .btn-primary {
           flex: 1 1 auto;
+        }
+        .foot-actions .btn-ghost,
+        .foot-actions .btn-primary {
           justify-content: center;
         }
 
-        /* A thumb is not a mouse. The chips are the range and scope pickers and
-           the buttons are the way in and out of the report. The switch keeps the
-           42x22 pill it is drawn as — growing the box would leave the 16px knob
-           sitting in its corner — and takes its 44px from an invisible box around
-           it, which is also what a coarse pointer gets on the desktop preferences
-           and the same control here. */
+        /* A thumb is not a mouse. The chips are the range picker and the buttons
+           are the way in and out of the report. The switch keeps the 42x22 pill
+           it is drawn as — growing the box would leave the 16px knob sitting in
+           its corner — and takes its 44px from an invisible box around it. */
         .chip {
           min-height: 44px;
           padding: 8px 14px;
@@ -1072,12 +1093,10 @@ export class VisitorStatsDialogComponent {
   protected readonly counter = inject(VisitorCounterService);
 
   protected readonly ranges = VISITOR_RANGES;
-  protected readonly scopes = VISITOR_SCOPES;
   protected readonly statSections = VISITOR_STAT_SECTIONS;
   protected readonly kpis = VISITOR_KPIS;
   protected readonly dashboardUrl = GOATCOUNTER_DASHBOARD_URL;
   protected readonly tokensUrl = GOATCOUNTER_TOKENS_URL;
-  protected readonly pathPrefix = GOATCOUNTER_PATH_PREFIX;
   /** Which GoatCounter site these numbers came from, without the scheme. */
   protected readonly siteLabel = GOATCOUNTER_ORIGIN.replace('https://', '');
 
@@ -1124,6 +1143,20 @@ export class VisitorStatsDialogComponent {
     await this.stats.saveToken(value);
   }
 
+  /**
+   * The line under the title: where the numbers came from, and which of them are
+   * live. The reference panel uses the same spot to say what the reader is
+   * looking at, and it is the only place that can say it before the cards.
+   */
+  protected sourceNote(): string {
+    if (!this.stats.hasToken()) {
+      return 'The public counter is connected. Add a read-only token to see the full breakdown.';
+    }
+    if (this.stats.loading()) return `Reading ${this.siteLabel}…`;
+    if (this.stats.error()) return 'Some figures could not be read — see the message below.';
+    return `Live from ${this.siteLabel} · ${this.rangeLabel()} · the web app only.`;
+  }
+
   /** The rows for one breakdown, or `null` while it is still on its way. */
   protected rowsFor(key: VisitorSectionKey): VisitorStatRow[] | null {
     return this.stats.bundle().sections[key] ?? null;
@@ -1141,11 +1174,6 @@ export class VisitorStatsDialogComponent {
     return VISITOR_RANGES.find((entry) => entry.key === this.stats.range())?.label ?? 'This range';
   }
 
-  /** Which slice of the site the headline covers. */
-  protected scopeLabel(): string {
-    return this.stats.scope() === 'deepwork' ? 'DeepWork only' : 'The whole GoatCounter site';
-  }
-
   /**
    * One tile's figure, or `null` while it is still on the way.
    *
@@ -1159,11 +1187,11 @@ export class VisitorStatsDialogComponent {
   }
 
   /**
-   * A tile's footnote — and for the range tile, which range and which scope, so
-   * the four figures on screen cannot be mistaken for each other.
+   * A tile's footnote — and for the range tile, which range it covers, so the
+   * four figures on screen cannot be mistaken for each other.
    */
   protected kpiNote(key: VisitorKpiKey, fallback: string): string {
-    return key === 'range' ? `${this.rangeLabel()} · ${this.scopeLabel()}` : fallback;
+    return key === 'range' ? `${this.rangeLabel()} · this app` : fallback;
   }
 
   /**
@@ -1193,38 +1221,6 @@ export class VisitorStatsDialogComponent {
   protected sparkEnd(): string {
     const bars = this.sparkBars();
     return bars.length ? bars[bars.length - 1].label : 'now';
-  }
-
-  /**
-   * What the four figures cover, in one line, in every state.
-   *
-   * One GoatCounter site carries two apps, so this line is the report's own
-   * answer to "which numbers am I looking at" — and it is never absent, because
-   * a scope line that disappears with the filter is exactly the kind of thing
-   * that makes a dashboard have to be re-read.
-   */
-  protected scopeNote(): string {
-    if (this.stats.scope() === 'site') {
-      return 'the whole GoatCounter site — this app and rajatmalik.dev together';
-    }
-
-    const site = this.stats.siteVisitors();
-    return site === null
-      ? 'DeepWork’s own pages; “Whole site” has the other app in it'
-      : this.siteShare(site);
-  }
-
-  /**
-   * The app's visitors as a share of the whole site's, in words.
-   *
-   * This is the line that stops the number above being misread: one GoatCounter
-   * site carries two apps, and "12 visitors" means something different depending
-   * on whether it is the site's number or DeepWork's share of it.
-   */
-  protected siteShare(site: number): string {
-    const mine = this.stats.bundle().totals?.visitors ?? 0;
-    if (site <= 0) return '';
-    return `${mine} of this site's ${site} visitors in this range were on DeepWork's pages`;
   }
 
   /** The sparkline, scaled so the tallest day fills the box. */

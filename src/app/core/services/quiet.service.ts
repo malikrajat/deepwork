@@ -105,6 +105,10 @@ export class QuietService implements OnDestroy {
     this.timerWasPaused = this.timer.isRunning();
     this.timer.pause();
     this.attention.pauseFor(minutes);
+    // A session that had already finished and was ringing is part of what the
+    // user asked to stop — otherwise Pause would only silence the *next* alert
+    // and the current one would repeat for as long as the pause lasts.
+    this.notifications.stopAlert();
     this.clearScheduledResume();
 
     if (minutes !== null && this.timerWasPaused) this.scheduleResume(minutes);
@@ -115,6 +119,7 @@ export class QuietService implements OnDestroy {
         ? 'Timer and reminders are paused until you resume. Every surface has the same Resume.'
         : `Back at ${this.attention.pauseLabel()}. Reminders are held until then.`,
       this.timer.timerType(),
+      this.notifications.nextQuote('pause'),
     );
     this.log?.info('flow', `pause · ${minutes === null ? 'until resumed' : `${minutes} min`}`);
   }
@@ -142,7 +147,12 @@ export class QuietService implements OnDestroy {
       held > 0
         ? `Back to ${this.timer.timerType() === 'work' ? 'focus' : 'break'}. ${held} held reminder${held === 1 ? '' : 's'} will arrive with the next one.`
         : `Back to ${this.timer.timerType() === 'work' ? 'focus' : 'break'}.`;
-    this.notifications.showToastMessage('Resumed', body, this.timer.timerType());
+    this.notifications.showToastMessage(
+      'Resumed',
+      body,
+      this.timer.timerType(),
+      this.notifications.nextQuote('resume'),
+    );
   }
 
   // ── Mute ───────────────────────────────────────────────────────────────────
@@ -154,6 +164,7 @@ export class QuietService implements OnDestroy {
       'Reminder sound muted',
       muteConfirmation(this.attention.muteLabel()),
       'work',
+      this.notifications.nextQuote('mute'),
     );
     this.log?.info('flow', `reminder sound muted until ${this.attention.muteLabel()}`);
   }
@@ -165,6 +176,7 @@ export class QuietService implements OnDestroy {
       'Sound is back on',
       'Reminders will ring again when they arrive.',
       'work',
+      this.notifications.nextQuote('unmute'),
     );
   }
 
@@ -196,6 +208,7 @@ export class QuietService implements OnDestroy {
         'Timer resumed',
         `Pause over — back to ${this.timer.timerType() === 'work' ? 'focus' : 'break'}.`,
         this.timer.timerType(),
+        this.notifications.nextQuote('resume'),
       );
     }, minutes * 60_000);
   }

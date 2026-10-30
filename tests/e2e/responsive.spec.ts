@@ -46,6 +46,23 @@ const ROUTES = [
 ];
 
 /**
+ * Waits for a page to render.
+ *
+ * The dashboard has no page title of its own — the timer is the top of that
+ * page — so the shell it draws is what proves it arrived.
+ */
+async function expectPageRendered(
+  page: Page,
+  route: { path: string; title: string },
+): Promise<void> {
+  const marker = route.path === '/dashboard' ? '.dashboard-wrapper' : '.page-title';
+  await expect(page.locator(marker).first()).toBeVisible({ timeout: 8000 });
+  if (route.path !== '/dashboard') {
+    await expect(page.locator('.page-title').first()).toHaveText(route.title);
+  }
+}
+
+/**
  * What a phone actually is, in CSS pixels.
  *
  * 360x740 is the most common Android shape and the one the work was aimed at;
@@ -194,9 +211,7 @@ for (const size of PHONE_SIZES) {
     test('every page fits the window sideways', async ({ page }) => {
       for (const route of ROUTES) {
         await page.goto(route.path);
-        await expect(page.locator('.page-title').first()).toHaveText(route.title, {
-          timeout: 8000,
-        });
+        await expectPageRendered(page, route);
         await settleAnimations(page);
 
         const problems = await overflowingElements(page);
@@ -228,7 +243,7 @@ for (const size of PHONE_SIZES) {
 
     test('the sidebar leaves the row, so the page gets the width', async ({ page }) => {
       await page.goto('/dashboard');
-      await expect(page.locator('.page-title').first()).toHaveText('Dashboard', { timeout: 8000 });
+      await expect(page.locator('.dashboard-wrapper').first()).toBeVisible({ timeout: 8000 });
 
       // The whole point of the drawer: a 240px column would leave 120px here.
       expect(await columnWidth(page)).toBeGreaterThan(size.width - 40);
@@ -247,9 +262,7 @@ for (const size of SCREEN_SIZES) {
     test('every page still fits, with the sidebar in the row', async ({ page }) => {
       for (const route of ROUTES) {
         await page.goto(route.path);
-        await expect(page.locator('.page-title').first()).toHaveText(route.title, {
-          timeout: 8000,
-        });
+        await expectPageRendered(page, route);
         await settleAnimations(page);
 
         const problems = await overflowingElements(page);
@@ -390,7 +403,7 @@ test.describe('the navigation drawer', () => {
 
   test('opens from the menu button and closes when a page is chosen', async ({ page }) => {
     await page.goto('/dashboard');
-    await expect(page.locator('.page-title').first()).toHaveText('Dashboard', { timeout: 8000 });
+    await expect(page.locator('.dashboard-wrapper').first()).toBeVisible({ timeout: 8000 });
 
     const menu = page.locator('.mobile-menu-btn');
     await expect(menu).toHaveAttribute('aria-expanded', 'false');
@@ -414,7 +427,7 @@ test.describe('the navigation drawer', () => {
 
   test('closes on a tap outside it, and on Escape', async ({ page }) => {
     await page.goto('/dashboard');
-    await expect(page.locator('.page-title').first()).toHaveText('Dashboard', { timeout: 8000 });
+    await expect(page.locator('.dashboard-wrapper').first()).toBeVisible({ timeout: 8000 });
     const menu = page.locator('.mobile-menu-btn');
 
     await menu.click();
@@ -451,7 +464,7 @@ test.describe('the desktop window', () => {
 
   test('keeps the sidebar, and none of the mobile furniture', async ({ page }) => {
     await page.goto('/dashboard');
-    await expect(page.locator('.page-title').first()).toHaveText('Dashboard', { timeout: 8000 });
+    await expect(page.locator('.dashboard-wrapper').first()).toBeVisible({ timeout: 8000 });
 
     await expect(page.locator('.nav-label').first()).toBeVisible();
     await expect(page.locator('.mobile-menu-btn')).not.toBeVisible();

@@ -110,7 +110,10 @@ import { alertTheme } from '../../../core/constants/alert.constants';
         display: flex;
         align-items: center;
         gap: 12px;
-        padding: 14px 18px;
+        /* The right padding is the close cross's column: the button is pinned to
+           the corner, so the message has to end before it rather than run under
+           it. */
+        padding: 14px 46px 14px 18px;
         border-radius: 14px;
         backdrop-filter: blur(20px);
         pointer-events: all;
@@ -269,7 +272,16 @@ import { alertTheme } from '../../../core/constants/alert.constants';
         outline-offset: 1px;
       }
 
+      /* The cross sits in the top-right corner of the card, where every other
+         dismiss control in the app lives — not in the vertical middle of the
+         message row, which reads as part of the text rather than as the way
+         out. It is out of the flex flow for that reason; the card's right
+         padding keeps the message from running underneath it. */
       .toast-dismiss {
+        position: absolute;
+        top: 8px;
+        right: 8px;
+        z-index: 1;
         width: 28px;
         height: 28px;
         border-radius: 8px;
@@ -402,6 +414,9 @@ import { alertTheme } from '../../../core/constants/alert.constants';
         .toast-container {
           min-width: 0;
           max-width: 100%;
+          /* The thumb-sized cross is wider than the desktop one, so the message
+             gives it the extra room it needs. */
+          padding-right: 62px;
         }
         .toast-dismiss {
           width: 44px;

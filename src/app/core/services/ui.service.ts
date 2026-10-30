@@ -166,6 +166,7 @@ export class UiService {
       if (!decorated) await this.forceWindowFrame(win);
 
       await win.setDecorations(true);
+      await this.restoreMacTitleBarStyle(win);
       await win.setResizable(true);
       await win.setMinSize(new LogicalSize(MAIN_MIN_SIZE.width, MAIN_MIN_SIZE.height));
     } catch (e) {
@@ -186,6 +187,31 @@ export class UiService {
   private async forceWindowFrame(win: TauriWindow): Promise<void> {
     await win.setDecorations(false);
     await win.setDecorations(true);
+    await this.restoreMacTitleBarStyle(win);
+  }
+
+  /**
+   * Puts back the part of a macOS window that decoration changes do not carry.
+   *
+   * `setDecorations()` rebuilds the window's style mask from scratch, and the
+   * mask it builds does not include `FullSizeContentView` — the bit that lays the
+   * page *under* the native title bar. Once that bit is gone the webview starts
+   * below the bar, while the shell still reserves the bar's 28px strip, and the
+   * result is an empty band between the title bar and the app that nothing can
+   * scroll away. Asking for the configured style again is what puts the bit back;
+   * `TitleBarStyle::Visible` sets it in the desktop layer.
+   *
+   * This is where the widget, the full-screen repair and startup all end up, so
+   * no path back to the full window can leave the page below the bar. Inert on
+   * every platform that has no such bar.
+   */
+  private async restoreMacTitleBarStyle(win: TauriWindow): Promise<void> {
+    if (!this.nativeMacTitlebar) return;
+    try {
+      await win.setTitleBarStyle('visible');
+    } catch (e) {
+      console.warn('Tauri title bar style unavailable', e);
+    }
   }
 
   /**

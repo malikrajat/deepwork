@@ -219,6 +219,12 @@
   --space-2xl: 48px;
   --space-3xl: 64px;
 
+  /* The shell's own gutter: the gap between the window edge and the page, and
+     the gap between the sidebar's edge and its contents. It is the same at every
+     size above the phone breakpoint, where the smaller `--space-md` takes over
+     because a 320px screen cannot give 20px twice and still show a card. */
+  --shell-gutter: 20px;
+
   /* Typography */
   --font-sans: 'Inter', system-ui, -apple-system, sans-serif;
   --font-mono: 'JetBrains Mono', 'Fira Code', monospace;

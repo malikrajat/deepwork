@@ -126,11 +126,11 @@ describe('the alert quotes', () => {
     // A focus session and a break are opposite instructions — step away, come
     // back — so they are two lists rather than one, and long enough that a day
     // of sessions does not repeat itself.
-    expect(FOCUS_QUOTES.length).toBeGreaterThanOrEqual(20);
-    expect(BREAK_QUOTES.length).toBeGreaterThanOrEqual(20);
+    expect(FOCUS_QUOTES.length).toBeGreaterThanOrEqual(50);
+    expect(BREAK_QUOTES.length).toBeGreaterThanOrEqual(50);
     // The card raised when a *task* is finished draws from a third list, so a
     // busy list of tasks cannot quietly become a list of session lines.
-    expect(TASK_QUOTES.length).toBeGreaterThanOrEqual(20);
+    expect(TASK_QUOTES.length).toBeGreaterThanOrEqual(50);
     expect(new Set([...FOCUS_QUOTES, ...BREAK_QUOTES, ...TASK_QUOTES]).size).toBe(
       FOCUS_QUOTES.length + BREAK_QUOTES.length + TASK_QUOTES.length,
     );

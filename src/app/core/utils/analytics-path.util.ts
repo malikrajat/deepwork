@@ -1,23 +1,20 @@
 /**
  * What DeepWork files its pageviews under.
  *
- * GoatCounter has no idea which domain a pageview came from — `a.example.com/x`
- * and `b.example.com/x` are the same row to it — so an app that shares a site
- * with another app has to say which one it is in the path. DeepWork therefore
- * writes every page under `/deepwork`, which is what keeps it apart from
- * rajatmalik.dev in a dashboard that cannot tell them apart by hostname; see
- * <https://www.goatcounter.com/help/domains>.
+ * The app has its own GoatCounter site (`app-deepwork.goatcounter.com`), so it
+ * owns every path on it. A pageview is filed under the route the router is on,
+ * with no prefix and no filtering: `/` is the dashboard, `/tasks` is the task
+ * list. GoatCounter records no domain, which is exactly why a dedicated site
+ * matters — there is no second app here to tell DeepWork apart from.
  *
  * The router's URL is the right input rather than `location.pathname`, because
  * the address bar carries whatever base the app happens to be served from — the
  * router strips that base already, so the same route produces the same row
  * whether the app is served from the root of its own domain or from a
- * subdirectory. The prefix is a naming choice, not a copy of the deploy path:
- * `/deepwork/tasks` is what this app files under, today and after any move.
+ * subdirectory.
  */
 
-import { GOATCOUNTER_PATH_PREFIX, GOATCOUNTER_TITLE_PREFIX } from '../constants/visitor.constants';
-import type { GoatCounterPath } from '../models/visitor-stats.model';
+import { GOATCOUNTER_TITLE_PREFIX } from '../constants/visitor.constants';
 
 /** The page names behind each route, for the dashboard's page titles. */
 const PAGE_NAMES: Record<string, string> = {
@@ -39,22 +36,12 @@ function pathOnly(url: string): string {
   return url.split(/[?#]/)[0] ?? '';
 }
 
-/** `/` → `/deepwork/`, `/tasks` → `/deepwork/tasks`. Never `/deepwork/deepwork/…`. */
+/** `/` → `/`, `/tasks` → `/tasks`. Never a trailing slash, never a double prefix. */
 export function countedPath(routerUrl: string): string {
   const raw = pathOnly(routerUrl) || '/';
   const withLeadingSlash = raw.startsWith('/') ? raw : `/${raw}`;
-
-  // Defensive, not decorative: the router's own URL never carries the base href,
-  // but `location.pathname` on a GitHub Pages build does, and a caller that
-  // passed that would otherwise file everything twice under the prefix.
-  if (isCountedPath(withLeadingSlash)) {
-    return withLeadingSlash === GOATCOUNTER_PATH_PREFIX
-      ? `${GOATCOUNTER_PATH_PREFIX}/`
-      : withLeadingSlash;
-  }
-
   const trimmed = withLeadingSlash.replace(/\/+$/, '');
-  return trimmed === '' ? `${GOATCOUNTER_PATH_PREFIX}/` : `${GOATCOUNTER_PATH_PREFIX}${trimmed}`;
+  return trimmed === '' ? '/' : trimmed;
 }
 
 /** `DeepWork — Settings`, which is what the GoatCounter dashboard will show. */
@@ -70,30 +57,4 @@ export function pageTitleFor(routerUrl: string): string {
 function titleCase(segment: string): string {
   const words = segment.replace(/[-_]+/g, ' ').trim();
   return words.charAt(0).toUpperCase() + words.slice(1);
-}
-
-/** Does this path belong to DeepWork's slice of the shared site? */
-export function isCountedPath(path: string): boolean {
-  return path === GOATCOUNTER_PATH_PREFIX || path.startsWith(`${GOATCOUNTER_PATH_PREFIX}/`);
-}
-
-/**
- * The path IDs DeepWork's pageviews are stored under.
- *
- * The API filters by path *ID*, not by name, so a scoped question ("how many
- * people read this app, not the other site on this account") starts by looking
- * the app's own paths up and handing their IDs to the rest of the queries.
- */
-export function selectPathIds(paths: readonly GoatCounterPath[]): number[] {
-  return paths.filter((entry) => isCountedPath(entry.path)).map((entry) => entry.id);
-}
-
-/** A path rendered for a reader: the `/deepwork` prefix is noise in the popup. */
-export function displayPath(path: string): string {
-  if (path === `${GOATCOUNTER_PATH_PREFIX}/`) return '/ (dashboard)';
-  if (path === GOATCOUNTER_PATH_PREFIX) return '/ (dashboard)';
-  if (path.startsWith(`${GOATCOUNTER_PATH_PREFIX}/`)) {
-    return path.slice(GOATCOUNTER_PATH_PREFIX.length);
-  }
-  return path;
 }

@@ -5,6 +5,7 @@ import {
   WATER_GOAL_OPTIONS,
   WATER_INTERVAL_OPTIONS,
 } from '../constants/water.constants';
+import { MOVEMENT_INTERVAL_OPTIONS } from '../constants/movement.constants';
 import { ALERT_SHAKE_OPTIONS } from '../constants/alert.constants';
 import { TimerState, PomodoroSession } from '../models/session.model';
 import { AppSettings, DEFAULT_SETTINGS } from '../models/settings.model';
@@ -422,6 +423,18 @@ export class DbService {
         r.water_auto_log_when_minimized === undefined || r.water_auto_log_when_minimized === null
           ? DEFAULT_SETTINGS.waterAutoLogWhenMinimized
           : r.water_auto_log_when_minimized !== 0,
+      movementReminders:
+        r.movement_reminders === undefined || r.movement_reminders === null
+          ? DEFAULT_SETTINGS.movementReminders
+          : r.movement_reminders !== 0,
+      movementStart:
+        typeof r.movement_start === 'string' ? r.movement_start : DEFAULT_SETTINGS.movementStart,
+      movementEnd:
+        typeof r.movement_end === 'string' ? r.movement_end : DEFAULT_SETTINGS.movementEnd,
+      movementIntervalMinutes:
+        typeof r.movement_interval_minutes === 'number'
+          ? r.movement_interval_minutes
+          : DEFAULT_SETTINGS.movementIntervalMinutes,
       carryForwardTasks:
         r.carry_forward_tasks === undefined || r.carry_forward_tasks === null
           ? DEFAULT_SETTINGS.carryForwardTasks
@@ -449,7 +462,11 @@ export class DbService {
        carry_forward_tasks = $20,
        launch_prompted = $21,
        startup_nudge = $22,
-       taskbar_pin_nudge = $23
+       taskbar_pin_nudge = $23,
+       movement_reminders = $24,
+       movement_start = $25,
+       movement_end = $26,
+       movement_interval_minutes = $27
        WHERE id = 1`,
       [
         merged.workDuration,
@@ -475,6 +492,10 @@ export class DbService {
         merged.launchPrompted ? 1 : 0,
         merged.startupNudge ? 1 : 0,
         merged.taskbarPinNudge ? 1 : 0,
+        merged.movementReminders ? 1 : 0,
+        merged.movementStart,
+        merged.movementEnd,
+        merged.movementIntervalMinutes,
       ],
     );
   }
@@ -1079,6 +1100,21 @@ function repairSettings(settings: AppSettings): AppSettings {
       typeof settings.taskbarPinNudge === 'boolean'
         ? settings.taskbarPinNudge
         : DEFAULT_SETTINGS.taskbarPinNudge,
+    movementStart:
+      parseTimeOfDay(settings.movementStart) !== null
+        ? settings.movementStart
+        : DEFAULT_SETTINGS.movementStart,
+    movementEnd:
+      parseTimeOfDay(settings.movementEnd) !== null
+        ? settings.movementEnd
+        : DEFAULT_SETTINGS.movementEnd,
+    movementIntervalMinutes: MOVEMENT_INTERVAL_OPTIONS.includes(settings.movementIntervalMinutes)
+      ? settings.movementIntervalMinutes
+      : DEFAULT_SETTINGS.movementIntervalMinutes,
+    movementReminders:
+      typeof settings.movementReminders === 'boolean'
+        ? settings.movementReminders
+        : DEFAULT_SETTINGS.movementReminders,
   };
 }
 

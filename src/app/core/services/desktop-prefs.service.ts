@@ -230,6 +230,7 @@ export class DesktopPrefsService {
         'Pin DeepWork to the taskbar?',
         'Keep your timer one click away. Windows will ask you to confirm.',
         {
+          quote: this.notifications.nextQuote('desktop'),
           tag: NotificationService.PIN_NOTIFICATION_TAG,
           sticky: true,
           actions: [
@@ -262,6 +263,7 @@ export class DesktopPrefsService {
         'Pin DeepWork to the taskbar',
         'Right-click DeepWork in the list, then choose “Pin to taskbar”. Windows keeps this one for you.',
         'work',
+        this.notifications.nextQuote('desktop'),
       );
     } catch (err) {
       this.error.set(this.describe(err, 'Could not open the app list.'));
@@ -269,6 +271,7 @@ export class DesktopPrefsService {
         'Pin DeepWork to the taskbar',
         'Right-click DeepWork in the Start menu, then choose “Pin to taskbar”.',
         'work',
+        this.notifications.nextQuote('desktop'),
       );
     }
   }

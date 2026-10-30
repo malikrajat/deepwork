@@ -27,8 +27,11 @@ describe('WaterReminderService', () => {
   let totalMl: WritableSignal<number>;
   let goalReached: WritableSignal<boolean>;
   let miniMode: WritableSignal<boolean>;
+  /** Walks a small fake deck, so two reminders never quote the same line. */
+  let quoteCursor = 0;
   const notifications = {
     announce: vi.fn(async () => true),
+    nextQuote: vi.fn(() => `water line ${(quoteCursor += 1)}`),
     chime: vi.fn(),
     init: vi.fn(),
     // True only where the OS notification can carry buttons and report a press
@@ -89,7 +92,9 @@ describe('WaterReminderService', () => {
     totalMl = signal(0);
     goalReached = signal(false);
     miniMode = signal(false);
+    quoteCursor = 0;
     notifications.announce.mockClear();
+    notifications.nextQuote.mockClear();
     notifications.chime.mockClear();
     notifications.onToastAction.mockClear();
     notifications.onToastDismissed.mockClear();

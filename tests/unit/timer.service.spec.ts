@@ -328,8 +328,7 @@ describe('TimerService', () => {
    */
   function alertAction(action: string): void {
     const handler = mockNotifications.onAlertAction.mock.calls[0]?.[0] as
-      | ((pressed: string) => void)
-      | undefined;
+      ((pressed: string) => void) | undefined;
     expect(handler).toBeTypeOf('function');
     handler?.(action);
   }
@@ -350,59 +349,81 @@ describe('TimerService', () => {
     expect(svc.isRunning()).toBe(false);
   });
 
-  it('moves on and starts the next session when Next is pressed', async () => {
-    // Next is the answer of someone who has decided to carry on: the finished
-    // session is already recorded, so it moves to the next type and runs it.
-    // Leaving it waiting made the user press play again for a clock they had
-    // just answered.
+  it('moves past the queued session when Skip current is pressed, and starts the next', async () => {
+    // Skip current is exactly the step it names: the session at the head of the
+    // queue is left behind, and the one after it begins straight away. A skip
+    // that left the next block waiting made the user press Start to do what the
+    // button already said it would do.
     await svc.init();
 
-    alertAction('next');
+    alertAction('skip');
 
     expect(svc.timerType()).toBe('short-break');
     expect(svc.isRunning()).toBe(true);
     expect(svc.remainingSeconds()).toBe(DEFAULT_SETTINGS.shortBreak);
   });
 
-  it('Next starts the focus session that follows a break too', async () => {
-    await svc.init();
-    svc.skip(); // work → short-break
-    expect(svc.timerType()).toBe('short-break');
-
-    alertAction('next');
-
-    expect(svc.timerType()).toBe('work');
-    expect(svc.isRunning()).toBe(true);
-  });
-
-  it('Next from a running session stops it, moves on and starts the next one', async () => {
+  it('Skip current stops a running session and starts the one after it', async () => {
     // A toast waits in the notification centre long after the alert stops
-    // ringing, so Next can be pressed while something is running. It is still
-    // "this one is done, carry on": the session it was over is skipped.
+    // ringing, so Skip current can be pressed while something is running. It is
+    // still "not this one": the running session is stopped and the next starts.
     await svc.init();
     svc.start();
 
-    alertAction('next');
+    alertAction('skip');
 
     expect(svc.timerType()).toBe('short-break');
     expect(svc.isRunning()).toBe(true);
+    expect(svc.remainingSeconds()).toBe(DEFAULT_SETTINGS.shortBreak);
   });
 
-  it('starts the session that is waiting when Resume is pressed', async () => {
+  it('starts the session that is waiting when Start is pressed', async () => {
     await svc.init();
 
-    alertAction('resume');
+    alertAction('start');
 
     expect(svc.isRunning()).toBe(true);
+    expect(svc.timerType()).toBe('work');
   });
 
-  it('leaves the clock alone when Hold up is pressed', async () => {
-    // Hold up is the answer that only closes the alert: nothing started,
+  it('Start leaves the session a skip already started alone', async () => {
+    // A skip now carries on by itself, so Start is only the way to begin a
+    // session that is genuinely waiting — not a second press to finish a skip.
+    await svc.init();
+    svc.skip(); // work → short-break, already running
+    expect(svc.timerType()).toBe('short-break');
+    expect(svc.isRunning()).toBe(true);
+
+    alertAction('start');
+
+    expect(svc.timerType()).toBe('short-break');
+    expect(svc.isRunning()).toBe(true);
+    expect(svc.remainingSeconds()).toBe(DEFAULT_SETTINGS.shortBreak);
+  });
+
+  it('Start resumes a paused session from where it stopped', async () => {
+    // The user's "resume from where we paused": the remaining time is the
+    // session's own, not a fresh full block.
+    await svc.init();
+    svc.start();
+    vi.advanceTimersByTime(60_000);
+    svc.pause();
+    const remaining = svc.remainingSeconds();
+    expect(remaining).toBe(DEFAULT_SETTINGS.workDuration - 60);
+
+    alertAction('start');
+
+    expect(svc.isRunning()).toBe(true);
+    expect(svc.remainingSeconds()).toBe(remaining);
+  });
+
+  it('leaves the clock alone when Silent is pressed', async () => {
+    // Silent is the answer that only closes the alert: nothing started,
     // nothing skipped, nothing paused.
     await svc.init();
     svc.start();
 
-    alertAction('hold');
+    alertAction('silent');
 
     expect(svc.isRunning()).toBe(true);
     expect(svc.timerType()).toBe('work');

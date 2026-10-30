@@ -39,6 +39,7 @@ describe('LaunchPromptService', () => {
 
   const notifications = {
     announce: vi.fn(async () => undefined),
+    nextQuote: vi.fn(() => 'a line for setting it up once'),
     showToastMessage: vi.fn(),
     dismiss: vi.fn(),
     init: vi.fn(),

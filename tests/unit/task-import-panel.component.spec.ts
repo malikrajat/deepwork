@@ -86,7 +86,10 @@ describe('TaskImportPanelComponent', () => {
       providers: [
         { provide: TaskImportService, useValue: importService },
         { provide: DownloadService, useValue: { describe: vi.fn(() => 'Downloads') } },
-        { provide: NotificationService, useValue: { showToastMessage: vi.fn() } },
+        {
+          provide: NotificationService,
+          useValue: { showToastMessage: vi.fn(), nextQuote: vi.fn(() => 'a line') },
+        },
       ],
     });
     panel = TestBed.runInInjectionContext(() => new TaskImportPanelComponent());
