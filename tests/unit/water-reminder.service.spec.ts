@@ -190,6 +190,35 @@ describe('WaterReminderService', () => {
       expect(formatClockTime(restarted.nextAt()!)).toBe('11:20');
     });
 
+    it('starts today afresh instead of carrying yesterday’s cadence', async () => {
+      // The report: the app was shut down for the night and the first launch in
+      // the morning asked for water immediately, because the previous day's
+      // reminder was already overdue. A new day starts its own interval.
+      const restarted = build();
+      localStorage.setItem('deepwork.water.lastFired.v1', at(17, 0, 26).toISOString());
+      localStorage.setItem('deepwork.water.lastAlive.v1', at(18, 0, 26).toISOString());
+
+      await restarted.tick(at(9, 0, 27));
+
+      expect(notifications.announce).not.toHaveBeenCalled();
+      expect(formatClockTime(restarted.nextAt()!)).toBe('10:00');
+    });
+
+    it('restarts from now when the folded cadence is already overdue', async () => {
+      // The app was running at 11:00 but the last reminder was at 9:00 — a
+      // pause, a quiet stretch, a switch that was off. Folding only the 30
+      // minutes away would leave the reminder due at 10:30, in the past, and it
+      // would fire on the doorstep. A launch starts the cadence from now.
+      const restarted = build();
+      localStorage.setItem('deepwork.water.lastFired.v1', at(9, 0).toISOString());
+      localStorage.setItem('deepwork.water.lastAlive.v1', at(11, 0).toISOString());
+
+      await restarted.tick(at(11, 30));
+
+      expect(notifications.announce).not.toHaveBeenCalled();
+      expect(formatClockTime(restarted.nextAt()!)).toBe('12:30');
+    });
+
     it('still reminds a full interval after the app comes back', async () => {
       // The same restart, but this time the loop is run on: the cadence fires
       // on the shifted schedule rather than being lost.

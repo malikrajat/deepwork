@@ -1,6 +1,7 @@
 import { ChangeDetectionStrategy, Component, inject } from '@angular/core';
 import { DesktopPrefsService } from '../../../core/services/desktop-prefs.service';
 import { DesktopPrefsPanelComponent } from '../desktop-prefs-panel/desktop-prefs-panel.component';
+import { ReminderPrefsPanelComponent } from '../reminder-prefs-panel/reminder-prefs-panel.component';
 import { MINI_WIDGET_HELP } from '../../../core/constants/desktop-prefs.constants';
 
 /**
@@ -19,7 +20,7 @@ import { MINI_WIDGET_HELP } from '../../../core/constants/desktop-prefs.constant
 @Component({
   selector: 'app-welcome-prefs-dialog',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [DesktopPrefsPanelComponent],
+  imports: [DesktopPrefsPanelComponent, ReminderPrefsPanelComponent],
   host: {
     '(document:keydown.escape)': 'dismiss()',
   },
@@ -33,36 +34,45 @@ import { MINI_WIDGET_HELP } from '../../../core/constants/desktop-prefs.constant
           aria-labelledby="welcome-prefs-title"
           (click)="$event.stopPropagation()"
         >
-          <h2 id="welcome-prefs-title" class="dialog-title gradient-text">
-            Make DeepWork work your way
-          </h2>
-          <p class="dialog-subtitle">
-            Three settings, changeable now or any time later. The first two stay off until you
-            choose them; the third keeps DeepWork running in the tray when you close the window.
-          </p>
+          <header class="dialog-head">
+            <h2 id="welcome-prefs-title" class="dialog-title gradient-text">
+              Make DeepWork work your way
+            </h2>
+            <p class="dialog-subtitle">
+              Set up startup, window behaviour and reminders once. Change any of it later.
+            </p>
+          </header>
 
           <div class="dialog-body">
             <app-desktop-prefs-panel />
-          </div>
+            <!-- The reminder switches are deferred into their own chunk: this
+                 dialog is part of the first paint, and the panel is not needed
+                 for the dialog's first frame. -->
+            @defer (on immediate) {
+              <app-reminder-prefs-panel />
+            } @placeholder {
+              <div class="reminders-loading" aria-hidden="true"></div>
+            }
 
-          <div class="widget-tip">
-            <span class="widget-tip-icon" aria-hidden="true">
-              <svg
-                width="14"
-                height="14"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                stroke-width="2"
-              >
-                <rect x="3" y="3" width="18" height="18" rx="2" />
-                <line x1="9" y1="12" x2="15" y2="12" />
-              </svg>
-            </span>
-            <div>
-              <strong>{{ miniHelp.heading }}</strong>
-              <p>{{ miniHelp.body }}</p>
-              <p class="widget-tip-hint">{{ miniHelp.hint }}</p>
+            <div class="widget-tip">
+              <span class="widget-tip-icon" aria-hidden="true">
+                <svg
+                  width="14"
+                  height="14"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="2"
+                >
+                  <rect x="3" y="3" width="18" height="18" rx="2" />
+                  <line x1="9" y1="12" x2="15" y2="12" />
+                </svg>
+              </span>
+              <div>
+                <strong>{{ miniHelp.heading }}</strong>
+                <p>{{ miniHelp.body }}</p>
+                <p class="widget-tip-hint">{{ miniHelp.hint }}</p>
+              </div>
             </div>
           </div>
 
@@ -91,7 +101,15 @@ import { MINI_WIDGET_HELP } from '../../../core/constants/desktop-prefs.constant
       .dialog-card {
         width: 100%;
         max-width: 460px;
-        padding: 26px 26px 20px;
+        /* The card never grows past the window: the switches scroll inside it,
+           while the two answers stay fixed at the foot. On the app's 600px
+           minimum height that is what keeps "Not now" and "Done" on screen. */
+        max-height: calc(100vh - 48px);
+        max-height: calc(100dvh - 48px);
+        display: flex;
+        flex-direction: column;
+        overflow: hidden;
+        padding: 22px 24px 16px;
         border-radius: 20px;
         /* --surface-float, not --glass-bg: the latter is a 4.5% white film meant
          for a panel sitting inside a card, and a dialog is the one surface with
@@ -103,32 +121,50 @@ import { MINI_WIDGET_HELP } from '../../../core/constants/desktop-prefs.constant
         box-shadow: 0 26px 60px rgba(0, 0, 0, 0.5);
         animation: dialog-rise 0.24s ease-out;
       }
+      .dialog-head {
+        flex: 0 0 auto;
+      }
       .dialog-title {
-        font-size: 20px;
+        font-size: 19px;
         font-weight: 800;
         letter-spacing: -0.3px;
         margin: 0;
       }
       .dialog-subtitle {
-        margin: 6px 0 0;
+        margin: 4px 0 0;
         font-size: 13px;
-        line-height: 1.5;
+        line-height: 1.45;
         color: var(--color-text-muted, #a1a1aa);
       }
       .dialog-body {
-        margin-top: 18px;
+        flex: 1 1 auto;
+        min-height: 0;
+        margin-top: 12px;
+        padding-right: 3px;
+        overflow-y: auto;
+        overscroll-behavior-y: contain;
+        -webkit-overflow-scrolling: touch;
+      }
+
+      /* Holds the deferred panel's height so the dialog does not jump when the
+         chunk arrives a moment after the first frame. */
+      .reminders-loading {
+        height: 112px;
+        margin-top: 14px;
+        border-radius: 12px;
+        background: rgba(255, 255, 255, 0.02);
       }
 
       .widget-tip {
         display: flex;
-        gap: 10px;
-        margin-top: 16px;
-        padding: 12px 14px;
+        gap: 9px;
+        margin-top: 12px;
+        padding: 10px 12px;
         border-radius: 12px;
         background: rgba(139, 92, 246, 0.08);
         border: 1px solid rgba(139, 92, 246, 0.2);
         font-size: 12px;
-        line-height: 1.5;
+        line-height: 1.45;
         color: var(--color-text-secondary, #d4d4d8);
       }
       .widget-tip-icon {
@@ -144,22 +180,27 @@ import { MINI_WIDGET_HELP } from '../../../core/constants/desktop-prefs.constant
       }
       .widget-tip strong {
         display: block;
-        margin-bottom: 3px;
+        margin-bottom: 2px;
         color: var(--color-text-primary, #f4f4f5);
       }
       .widget-tip p {
         margin: 0;
       }
       .widget-tip-hint {
-        margin-top: 6px !important;
+        margin-top: 4px !important;
         color: var(--color-accent-primary, #a78bfa);
       }
 
+      /* Fixed at the foot of the card, outside the scrolling body, so an answer
+         is always one glance away however much the setup above grows. */
       .dialog-actions {
+        flex: 0 0 auto;
         display: flex;
         justify-content: flex-end;
         gap: 8px;
-        margin-top: 22px;
+        margin-top: 12px;
+        padding-top: 12px;
+        border-top: 1px solid rgba(139, 92, 246, 0.14);
       }
       .btn-ghost,
       .btn-primary {
@@ -214,9 +255,9 @@ import { MINI_WIDGET_HELP } from '../../../core/constants/desktop-prefs.constant
          only ever shown in the desktop app — but that window can be resized to a
          phone's width and to less than its own height, and there the frame is most
          of what there is: the card is capped to the window rather than centred
-         past its edges, its own content scrolls from there so the two buttons at
-         the foot stay reachable, and the frame takes the safe-area insets the
-         same way the shell does. */
+         past its edges, the middle of the card scrolls while the two buttons stay
+         fixed at the foot, and the frame takes the safe-area insets the same way
+         the shell does. */
       @media (max-width: 640px) {
         .dialog-backdrop {
           padding: 12px;
@@ -227,15 +268,17 @@ import { MINI_WIDGET_HELP } from '../../../core/constants/desktop-prefs.constant
           align-items: flex-start;
         }
         .dialog-card {
-          padding: 20px 16px 16px;
+          padding: 18px 14px 12px;
           max-height: calc(100vh - 24px - var(--safe-top) - var(--safe-bottom));
           max-height: calc(100dvh - 24px - var(--safe-top) - var(--safe-bottom));
-          overflow-y: auto;
-          overscroll-behavior-y: contain;
-          -webkit-overflow-scrolling: touch;
+        }
+        .dialog-body {
+          padding-right: 2px;
         }
         .dialog-actions {
           flex-wrap: wrap;
+          margin-top: 10px;
+          padding-top: 10px;
         }
         .btn-ghost,
         .btn-primary {

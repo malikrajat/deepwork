@@ -119,7 +119,7 @@ export const OFFLINE_AI: {
 };
 
 /** How a link is drawn and grouped: the icon and the label both come from it. */
-export type ContactKind = 'email' | 'website' | 'linkedin' | 'github' | 'chat' | 'writing';
+export type ContactKind = 'email' | 'website' | 'linkedin' | 'github' | 'writing';
 
 /** A way to reach the developer. */
 export interface ContactLink {
@@ -131,7 +131,7 @@ export interface ContactLink {
 }
 
 /** The address for work, project and role enquiries — what the About page offers. */
-export const CONTACT_EMAIL = 'contact@rajatmalik.dev';
+export const CONTACT_EMAIL = 'contact@therate.dev';
 
 /** The address for help with the app itself — what the diagnostics panel points at. */
 export const SUPPORT_EMAIL = 'support@rajatmalik.dev';
@@ -160,12 +160,6 @@ export const CONTACT_LINKS: readonly ContactLink[] = [
     label: 'GitHub',
     value: 'github.com/malikrajat',
     url: 'https://github.com/malikrajat',
-  },
-  {
-    kind: 'chat',
-    label: 'WhatsApp',
-    value: '+91 800-387-4742 · 10:00–20:00 IST',
-    url: 'https://wa.me/918003874742',
   },
   {
     kind: 'writing',

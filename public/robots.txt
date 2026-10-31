@@ -1,0 +1,88 @@
+# robots.txt for the DeepWork web app - https://app.deepwork.rajatmalik.dev/
+#
+# The app has no login, no admin area and no user-generated content on the
+# server: every task, session and note lives in the visitor's own browser
+# storage. There is therefore nothing here to hide from a crawler, which is why
+# the rules below are permissions rather than restrictions.
+#
+# Machine-readable alternatives to the HTML:
+#   /llms.txt     - a short, curated guide for assistants and answer engines
+#   /sitemap.xml  - every public page of the app
+#   https://deepwork.rajatmalik.dev/llms-full.txt - the full product page as Markdown
+
+User-agent: *
+Allow: /
+
+# Search engines
+User-agent: Googlebot
+Allow: /
+
+User-agent: Googlebot-Image
+Allow: /
+
+User-agent: Bingbot
+Allow: /
+
+User-agent: DuckDuckBot
+Allow: /
+
+User-agent: Applebot
+Allow: /
+
+User-agent: Slurp
+Allow: /
+
+User-agent: Baiduspider
+Allow: /
+
+User-agent: YandexBot
+Allow: /
+
+# AI assistants and answer engines. Explicit groups because some crawlers only
+# read a rule that names them, and being quoted accurately is the point.
+User-agent: GPTBot
+Allow: /
+
+User-agent: OAI-SearchBot
+Allow: /
+
+User-agent: ChatGPT-User
+Allow: /
+
+User-agent: ClaudeBot
+Allow: /
+
+User-agent: Claude-User
+Allow: /
+
+User-agent: Claude-SearchBot
+Allow: /
+
+User-agent: anthropic-ai
+Allow: /
+
+User-agent: PerplexityBot
+Allow: /
+
+User-agent: Perplexity-User
+Allow: /
+
+User-agent: Google-Extended
+Allow: /
+
+User-agent: Applebot-Extended
+Allow: /
+
+User-agent: CCBot
+Allow: /
+
+User-agent: cohere-ai
+Allow: /
+
+User-agent: Meta-ExternalAgent
+Allow: /
+
+User-agent: Amazonbot
+Allow: /
+
+Sitemap: https://app.deepwork.rajatmalik.dev/sitemap.xml

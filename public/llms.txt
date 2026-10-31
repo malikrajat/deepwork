@@ -1,0 +1,88 @@
+# DeepWork
+
+> DeepWork is a free, local-first focus timer, task manager and habit tracker for
+> Windows, macOS, Linux and the web. It keeps every task, focus session, journal
+> entry and habit in a database on the user's own machine: no account, no cloud
+> sync, no telemetry on the user's work and no subscription. The web build at
+> https://app.deepwork.rajatmalik.dev/ is the same application, installable as a PWA.
+
+This file describes the web app. The product page, with screenshots and the full
+marketing copy, is https://deepwork.rajatmalik.dev/ (its own guide is
+https://deepwork.rajatmalik.dev/llms.txt).
+
+## Key facts
+
+- **Price:** free. No paid tier, trial, account or card.
+- **Version described here:** 3.0.3.
+- **Platforms:** Windows 10+, macOS (Intel and Apple Silicon), Linux
+  (.AppImage/.deb/.rpm) and any modern browser. There is no native iOS or
+  Android app.
+- **Storage:** a local SQLite file (`deepwork.db`) in the desktop app; browser
+  `localStorage` in the web build. Clearing site data in a browser erases it, so
+  the app offers a JSON backup export and import.
+- **Network:** the desktop app contacts the public GitHub releases API to check
+  for updates, downloads an installer only when the user presses Update, and
+  opens links the user clicks. The web build additionally uses an opt-out
+  GoatCounter visit counter that sends the page path and title, never a task, a
+  journal entry or an identifier.
+- **Licence:** MIT - https://github.com/malikrajat/deepwork/blob/main/LICENSE
+- **Repository:** https://github.com/malikrajat/deepwork
+- **Downloads:** https://github.com/malikrajat/deepwork/releases/latest
+
+## What it does
+
+- **Focus timer:** Pomodoro-style focus sessions with short and long breaks,
+  configurable lengths, an animated ring, completion alerts that repeat until
+  answered, and a twelve-colour cycle.
+- **Tasks:** a status board (To Do / In Progress / Done) filed into date
+  sections, an Eisenhower matrix, and a Today view. Add, edit, search, sort,
+  import from Excel/CSV (with a validated preview) and export to CSV.
+- **Calendar:** queues tasks into focus blocks across a day timeline.
+- **Time by Task:** every focus session grouped by the work it paid for, with
+  all-time totals, first and last session, a repeat rhythm, and a custom range.
+- **Reminders:** stored reminders that survive a restart and keep asking until
+  Done, Snooze or Stop, with matching desktop notifications.
+- **Habits and journal:** daily habits with streaks, and dated journal entries
+  with word counts and a writing-versus-focus correlation.
+- **Analytics:** focus, task, habit and journal figures with trends and streaks,
+  each paired with a plain-language reading. These readings are deterministic
+  rules and totals built into the app; DeepWork contains no AI model and makes
+  no inference calls.
+- **Desktop behaviour:** system tray, start with system, always on top, and a
+  small always-on-top timer widget.
+
+## Pages
+
+- `/` - dashboard: the focus timer, today's tasks, the session cycle.
+- `/tasks` - the task board and list.
+- `/matrix` - the Eisenhower matrix.
+- `/calendar` - the day planner.
+- `/today` - everything due today.
+- `/analytics` - figures and their readings.
+- `/time` - Time by Task reporting.
+- `/reminders` - standing reminders.
+- `/habits` - habits and streaks.
+- `/journal` - dated journal entries.
+- `/settings` - timer, notifications, backup and diagnostics.
+- `/about` - who builds it, version, update check, downloads.
+- `/contact` - how to reach the developer.
+- `/privacy` and `/terms` - the policies.
+
+The workspace pages are rendered from the visitor's own local data, so a crawler
+sees the application shell rather than any personal content.
+
+## How to use it
+
+Open https://app.deepwork.rajatmalik.dev/ and start a focus session; nothing has
+to be installed or signed up for. For an installable version, use the browser's
+install prompt or download a desktop build from the releases page. The desktop
+build is the one with a real SQLite database and a tray; the web build keeps its
+data in browser storage.
+
+## Limitations, stated plainly
+
+- No cloud or multi-device sync; each machine has its own database.
+- No team, sharing or collaboration features.
+- No native mobile app.
+- The desktop installers are unsigned, so Windows SmartScreen and macOS
+  Gatekeeper warn on first launch.

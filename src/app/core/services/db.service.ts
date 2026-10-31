@@ -561,15 +561,18 @@ export class DbService {
   }
 
   async getTodaySessions(): Promise<PomodoroSession[]> {
+    // Local midnight, not the UTC date: the day the user is living in is the one
+    // whose sessions belong here. A UTC slice kept yesterday's evening sessions
+    // in "today" for anyone east of Greenwich and dropped today's evening ones
+    // for anyone west of it.
+    const since = localDayStart().toISOString();
     if (this.isBrowser) {
-      const today = new Date().toISOString().slice(0, 10);
       const all = this.lsGet<PomodoroSession[]>('sessions', []);
-      return all.filter((s) => s.startedAt >= today);
+      return all.filter((s) => s.startedAt >= since);
     }
-    const today = new Date().toISOString().slice(0, 10);
     const rows = await this.query<any>(
       `SELECT * FROM sessions WHERE started_at >= $1 ORDER BY started_at ASC`,
-      [today],
+      [since],
     );
     return rows.map((r) => ({
       id: r.id,

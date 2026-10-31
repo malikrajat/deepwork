@@ -6,6 +6,7 @@ import {
   inject,
   signal,
 } from '@angular/core';
+import { RouterLink } from '@angular/router';
 import {
   APP_ISSUES_URL,
   APP_NAME,
@@ -48,7 +49,7 @@ interface DownloadRow extends DownloadTarget {
  */
 @Component({
   selector: 'app-about',
-  imports: [ExternalLinkDirective],
+  imports: [ExternalLinkDirective, RouterLink],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <div class="page-header animate-fade-in">
@@ -108,8 +109,9 @@ interface DownloadRow extends DownloadTarget {
           }
 
           <div class="cta-row">
+            <a class="btn primary" routerLink="/contact">Send a message</a>
             <a
-              class="btn primary"
+              class="btn"
               appExternalLink
               [href]="emailLink.url"
               target="_blank"
@@ -180,9 +182,6 @@ interface DownloadRow extends DownloadTarget {
                             d="M9 19c-4 1.5-4-2.5-6-3m12 5v-3.5a3 3 0 00-.8-2.3c2.7-.3 4.8-1.6 4.8-5.6a4.4 4.4 0 00-1.2-3 4.1 4.1 0 00-.1-3s-1.4-.4-4.5 1.7a10.6 10.6 0 00-5.4 0C4.7 3.2 3.3 3.6 3.3 3.6a4.1 4.1 0 00-.1 3A4.4 4.4 0 002 9.6c0 4 2.1 5.3 4.8 5.6a3 3 0 00-.8 2.3V21"
                           />
                         }
-                        @case ('chat') {
-                          <path d="M21 12a8 8 0 01-8 8H8l-4 3v-5.4A8 8 0 1121 12z" />
-                        }
                         @case ('writing') {
                           <path d="M4 20h4L20 8a2.8 2.8 0 00-4-4L4 16z" />
                           <line x1="14" y1="6" x2="18" y2="10" />
@@ -217,6 +216,36 @@ interface DownloadRow extends DownloadTarget {
                 </a>
               </li>
             }
+          </ul>
+        </section>
+
+        <section class="card">
+          <div class="card-header">
+            <h2>Policies &amp; contact</h2>
+            <p class="card-subtitle">
+              What {{ appName }} does with your data, the terms it ships under, and the quickest way
+              to reach me.
+            </p>
+          </div>
+          <ul class="link-list policy-list">
+            <li>
+              <a routerLink="/contact">
+                <span class="policy-name">Contact us</span>
+                <span class="policy-note">Send a message, or write to {{ emailLink.value }}</span>
+              </a>
+            </li>
+            <li>
+              <a routerLink="/privacy">
+                <span class="policy-name">Privacy policy</span>
+                <span class="policy-note">What stays on your machine, and what does not</span>
+              </a>
+            </li>
+            <li>
+              <a routerLink="/terms">
+                <span class="policy-name">Terms &amp; conditions</span>
+                <span class="policy-note">The licence you get, and the limits of the promise</span>
+              </a>
+            </li>
           </ul>
         </section>
       </div>
@@ -971,6 +1000,22 @@ interface DownloadRow extends DownloadTarget {
       .link-list li a:hover {
         text-decoration: underline;
       }
+      .policy-list li a {
+        display: flex;
+        flex-direction: column;
+        gap: 2px;
+        padding: 2px 0;
+      }
+      .policy-name {
+        font-size: 13px;
+        font-weight: 600;
+        color: var(--color-accent-secondary);
+      }
+      .policy-note {
+        font-size: 11px;
+        line-height: 1.5;
+        color: var(--color-text-muted);
+      }
 
       /* ── Update check ───────────────────────────────────────────────── */
       .update-row {
@@ -1316,7 +1361,8 @@ interface DownloadRow extends DownloadTarget {
         .fact,
         .option-list li,
         .download-name,
-        .link-list li a {
+        .link-list li a,
+        .policy-name {
           font-size: 16px;
         }
         .hero-who h2 {
@@ -1328,6 +1374,7 @@ interface DownloadRow extends DownloadTarget {
         .hero-location,
         .contact-label,
         .contact-value,
+        .policy-note,
         .download-detail,
         .update-detail,
         .update-note,
