@@ -449,7 +449,7 @@ Use an accessible accordion (`<details>` is fine). Questions:
 - Small print: `Built with Tauri 2 and Angular. No analytics on this site unless
   you add a privacy-respecting counter — if you do, say so here and make it
   opt-out.`
-- Version: `v3.0.2` from `package.json`.
+- Version: `v3.0.3` from `package.json`.
 
 ### 4. Copy bank
 

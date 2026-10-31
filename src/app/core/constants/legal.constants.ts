@@ -87,6 +87,7 @@ export const LEGAL_DOCUMENTS: Record<LegalDocumentId, LegalDocument> = {
         heading: 'If you contact the developer',
         paragraphs: [
           'If you send an email, the address you write from and anything you include are used only to read and answer your message. They are not added to a mailing list, sold or shared, except where the law requires it. You can ask for the correspondence to be deleted at any time.',
+          'Messages sent through the contact form are delivered by Web3Forms, an email relay that hands the name, address and message to this developer’s inbox. It processes them only to make that delivery, under its own privacy policy, and the same promise applies: they are used to read and answer your message and for nothing else.',
         ],
       },
       {

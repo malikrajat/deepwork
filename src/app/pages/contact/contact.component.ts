@@ -1,4 +1,12 @@
-import { ChangeDetectionStrategy, Component, signal } from '@angular/core';
+import {
+  ChangeDetectionStrategy,
+  Component,
+  ElementRef,
+  afterNextRender,
+  inject,
+  signal,
+  viewChild,
+} from '@angular/core';
 import { RouterLink } from '@angular/router';
 import {
   email,
@@ -15,6 +23,8 @@ import { ContactFormModel, createContactFormDefaults } from '../../shared/models
 import { FormFieldWrapperComponent } from '../../shared/components/form-field/form-field-wrapper.component';
 import { ExternalLinkDirective } from '../../shared/directives/external-link.directive';
 import { noXss, trimmedRequired } from '../../shared/validators/form-validators';
+import { ContactService } from '../../core/services/contact.service';
+import { HCaptchaService } from '../../core/services/hcaptcha.service';
 
 /** A mobile number is optional, so an empty value is allowed; a filled one has to look like one. */
 const PHONE_PATTERN = /^[+()\d\s-]{6,20}$/;
@@ -75,54 +85,68 @@ const MESSAGE_MAX_LENGTH = 2000;
               either if you would like a reply that way.
             </p>
           </div>
+        }
 
-          <form class="contact-form" novalidate (submit)="submitForm($event)">
-            <app-form-field label="Name" [fieldState]="contactForm.name()">
+        <form class="contact-form" [hidden]="sent()" novalidate (submit)="submitForm($event)">
+          <app-form-field label="Name" [fieldState]="contactForm.name()">
+            <input
+              type="text"
+              [formField]="contactForm.name"
+              placeholder="Your full name"
+              autocomplete="name"
+            />
+          </app-form-field>
+
+          <div class="form-row">
+            <app-form-field label="Email (optional)" [fieldState]="contactForm.email()">
               <input
-                type="text"
-                [formField]="contactForm.name"
-                placeholder="Your full name"
-                autocomplete="name"
+                type="email"
+                [formField]="contactForm.email"
+                placeholder="you@example.com"
+                autocomplete="email"
               />
             </app-form-field>
 
-            <div class="form-row">
-              <app-form-field label="Email (optional)" [fieldState]="contactForm.email()">
-                <input
-                  type="email"
-                  [formField]="contactForm.email"
-                  placeholder="you@example.com"
-                  autocomplete="email"
-                />
-              </app-form-field>
-
-              <app-form-field label="Mobile number (optional)" [fieldState]="contactForm.mobile()">
-                <input
-                  type="tel"
-                  inputmode="tel"
-                  [formField]="contactForm.mobile"
-                  placeholder="+00 00000 00000"
-                  autocomplete="tel"
-                />
-              </app-form-field>
-            </div>
-
-            <app-form-field label="Message" [fieldState]="contactForm.message()">
-              <textarea
-                [formField]="contactForm.message"
-                rows="6"
-                placeholder="Tell me what you have in mind — a role, a project, or something about the app."
-              ></textarea>
+            <app-form-field label="Mobile number (optional)" [fieldState]="contactForm.mobile()">
+              <input
+                type="tel"
+                inputmode="tel"
+                [formField]="contactForm.mobile"
+                placeholder="+00 00000 00000"
+                autocomplete="tel"
+              />
             </app-form-field>
+          </div>
 
-            <div class="submit-row">
-              <button type="submit" class="submit-btn" [disabled]="contactForm().invalid()">
-                Send message
-              </button>
-              <span class="submit-note">No mailing list. Your details are only used to reply.</span>
-            </div>
-          </form>
-        }
+          <app-form-field label="Message" [fieldState]="contactForm.message()">
+            <textarea
+              [formField]="contactForm.message"
+              rows="6"
+              placeholder="Tell me what you have in mind — a role, a project, or something about the app."
+            ></textarea>
+          </app-form-field>
+
+          <div class="captcha-row">
+            <div #captchaHost class="captcha-host"></div>
+            @if (captchaError()) {
+              <p class="captcha-error" role="alert">{{ captchaError() }}</p>
+            }
+          </div>
+
+          <div class="submit-row">
+            <button
+              type="submit"
+              class="submit-btn"
+              [disabled]="contactForm().invalid() || submitting()"
+            >
+              {{ submitting() ? 'Sending…' : 'Send message' }}
+            </button>
+            <span class="submit-note">No mailing list. Your details are only used to reply.</span>
+          </div>
+          @if (submitError()) {
+            <p class="submit-error" role="alert" aria-live="polite">{{ submitError() }}</p>
+          }
+        </form>
       </section>
 
       <section class="card" aria-labelledby="direct-contact-title">
@@ -217,6 +241,9 @@ const MESSAGE_MAX_LENGTH = 2000;
         flex-direction: column;
         gap: var(--space-md);
       }
+      .contact-form[hidden] {
+        display: none;
+      }
       .form-row {
         display: grid;
         grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -265,6 +292,32 @@ const MESSAGE_MAX_LENGTH = 2000;
         font-size: 11px;
         line-height: 1.5;
         color: var(--color-text-muted);
+      }
+
+      .captcha-row {
+        display: flex;
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 6px;
+        /* The widget is about this tall; reserving it stops the button below
+           from jumping down when the script arrives. */
+        min-height: 78px;
+      }
+      .captcha-host {
+        max-width: 100%;
+        /* The widget is a fixed-width iframe; on a narrow phone it is a few
+           pixels wider than the card, and clipping that empty edge is better
+           than a page that scrolls sideways. */
+        overflow: hidden;
+      }
+      .captcha-error,
+      .submit-error {
+        font-size: 12px;
+        line-height: 1.5;
+        color: #f87171;
+      }
+      .submit-error {
+        margin-top: -4px;
       }
 
       .sent {
@@ -464,11 +517,33 @@ const MESSAGE_MAX_LENGTH = 2000;
   ],
 })
 export class ContactComponent {
+  private readonly contactService = inject(ContactService);
+  private readonly captcha = inject(HCaptchaService);
+
   readonly developer = DEVELOPER;
   readonly contacts = CONTACT_LINKS;
   readonly emailLink = CONTACT_LINKS.find((link) => link.kind === 'email')!;
   readonly channels = CONTACT_LINKS.filter((link) => link.kind !== 'email');
   readonly emailUrl = `mailto:${this.emailLink.value}`;
+
+  private readonly captchaHost = viewChild<ElementRef<HTMLDivElement>>('captchaHost');
+
+  /** Why the captcha could not be drawn, if it could not. */
+  readonly captchaError = this.captcha.error;
+
+  /** True while a message is on its way to Web3Forms. */
+  readonly submitting = signal(false);
+
+  /** Why the last attempt failed, in a sentence beside the button. */
+  readonly submitError = signal<string | null>(null);
+
+  constructor() {
+    // The widget needs a real element, so it is drawn once the first paint has
+    // produced the container it lives in.
+    afterNextRender(() => {
+      void this.mountCaptcha();
+    });
+  }
 
   readonly contactModel = signal<ContactFormModel>(createContactFormDefaults());
   readonly contactForm = form(this.contactModel, (s) => {
@@ -499,13 +574,50 @@ export class ContactComponent {
 
   async submitForm(event: Event): Promise<void> {
     event.preventDefault();
-    await submit(this.contactForm, async () => {
+    if (this.submitting() || this.contactForm().invalid()) return;
+
+    const captchaToken = this.captcha.token();
+    if (!captchaToken) {
+      this.submitError.set('Please complete the captcha before sending.');
+      return;
+    }
+
+    this.submitError.set(null);
+    this.submitting.set(true);
+
+    try {
+      const delivered = await submit(this.contactForm, async () => {
+        await this.contactService.send({ ...this.contactModel(), captchaToken });
+      });
+
+      // `submit` answers false when the form was not valid; nothing was sent.
+      if (!delivered) return;
+
       this.contactForm().reset(createContactFormDefaults());
+      this.captcha.reset();
       this.sent.set(true);
-    });
+    } catch (error) {
+      this.submitError.set(
+        error instanceof Error && error.message
+          ? error.message
+          : 'Your message could not be sent. Please try again.',
+      );
+      // A captcha token is single-use, so a retry needs a fresh one.
+      this.captcha.reset();
+    } finally {
+      this.submitting.set(false);
+    }
   }
 
   writeAnother(): void {
     this.sent.set(false);
+    this.submitError.set(null);
+    this.captcha.reset();
+  }
+
+  private async mountCaptcha(): Promise<void> {
+    const host = this.captchaHost()?.nativeElement;
+    if (!host) return;
+    await this.captcha.render(host);
   }
 }

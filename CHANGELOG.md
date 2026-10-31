@@ -6,6 +6,53 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 ---
 
 
+## [3.0.3] – 2026-10-30
+
+### Added
+
+- **The contact form now delivers its message.** Pressing **Send message** used
+  to clear the fields and show the confirmation without anything leaving the
+  page. The form posts to Web3Forms, which relays the name, email address,
+  mobile number (when given) and message to the owner's own inbox, with the
+  sender's address set as the reply-to so answering works the normal way. A
+  failed delivery is a sentence beside the button with the message still in the
+  fields, and the button says **Sending…** while the request is in flight
+  (`contact.service.ts`, `contact.component.ts`).
+
+- **The form is protected by hCaptcha.** A submission without a solved challenge
+  is refused before it leaves the page, with a line beside the button saying so,
+  and the widget is reset after every attempt so a single-use token is never
+  reused. The token travels to Web3Forms as `h-captcha-response`, which is the
+  field its server verifies when hCaptcha is enabled for the form. The widget
+  follows the app's light or dark theme and reports a script that cannot load
+  (an ad blocker is the usual reason) instead of leaving the form quietly
+  unsendable (`hcaptcha.service.ts`).
+
+- **The form's configuration lives in one place.** The Web3Forms access key,
+  endpoint, hCaptcha site key and subject are in `environment.ts`, not inlined
+  at the call site, with a note on what the key can and cannot do. It is the
+  public form identifier Web3Forms expects in the browser; restricting it to
+  this site's domain in the Web3Forms dashboard is the step that stops a copy
+  being used elsewhere (`src/environments/environment.ts`).
+
+### Changed
+
+- **The version check reads three more places.** `src/index.html`'s JSON-LD, the
+  version line in `public/llms.txt` and the site brief's artefact version all
+  spell the release out, and until now none of them was compared. The bump
+  script updates all three with the rest, so a release cannot ship a stale
+  number in the markup a crawler reads (`scripts/bump-version.mjs`).
+
+- **The privacy policy says who carries the contact form's message.** The
+  "If you contact the developer" section now names Web3Forms as the email relay
+  and repeats the promise that applies to an ordinary email: the details are
+  used to read and answer the message and for nothing else
+  (`legal.constants.ts`).
+
+- **The version is 3.0.3**, in every file that spells it out, moved in one pass by
+  `npm run version:bump -- 3.0.3`.
+
+
 ## [3.0.2] – 2026-10-26
 
 ### Added

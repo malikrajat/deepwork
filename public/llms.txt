@@ -13,7 +13,7 @@ https://deepwork.rajatmalik.dev/llms.txt).
 ## Key facts
 
 - **Price:** free. No paid tier, trial, account or card.
-- **Version described here:** 3.0.2.
+- **Version described here:** 3.0.3.
 - **Platforms:** Windows 10+, macOS (Intel and Apple Silicon), Linux
   (.AppImage/.deb/.rpm) and any modern browser. There is no native iOS or
   Android app.
