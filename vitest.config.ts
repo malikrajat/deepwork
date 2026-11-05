@@ -10,10 +10,10 @@ export default defineConfig({
     globals: true,
     environment: 'jsdom',
     include: ['tests/unit/**/*.spec.ts'],
-    // The dictation feature was removed from `src/` (the dictation and speech
-    // services are gone), and these three specs still import it, so they cannot
-    // load. Delete them with the feature, or restore the sources to get them
-    // running again — until then they are skipped rather than failing the run.
+    // The old native dictation feature was removed from `src/` along with its
+    // Rust commands. These three specs still describe that desktop engine and
+    // cannot load; the browser-only voice typing that replaced it lives in
+    // `speech.service.ts` and is covered by `speech-web.service.spec.ts`.
     exclude: [
       'tests/unit/speech.service.spec.ts',
       'tests/unit/speech-log.spec.ts',

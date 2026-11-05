@@ -6,6 +6,32 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 ---
 
 
+## [3.1.0] – 2026-11-04
+
+### Added
+
+- **Voice typing in the browser build.** The task form's title and description,
+  the quick-add dialog, the Calendar's new-task field and the journal now carry a
+  microphone in the web app. Speaking inserts text at the caret in the field the
+  microphone belongs to, rather than in a separate transcript box. The desktop
+  app never shows a microphone: the feature is gated on the browser environment,
+  so the packaged Tauri build is exactly as typed as it was before
+  (`speech.service.ts`, `mic-button.component.ts`, `dictation.util.ts`).
+
+- **Permission and error handling that says what to do next.** The first press
+  asks the browser for microphone access. A refusal is reported as an app toast
+  with a **Try again** action, explains that the browser will not prompt a second
+  time by itself, and names the site-settings route back; the microphone stays
+  visible in a blocked state. Missing microphones, a busy device, silence, an
+  unreachable speech service, unsupported languages and browsers without the Web
+  Speech API each get their own message. A declined or failed session never
+  leaves the microphone running (`speech.service.ts`).
+
+### Changed
+
+- **The version is 3.1.0**, in every file that spells it out, moved in one pass by
+  `npm run version:bump -- 3.1.0`.
+
 ## [3.0.3] – 2026-10-30
 
 ### Added

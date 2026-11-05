@@ -12,6 +12,8 @@ import {
 import { form, FormField, required, validate, maxLength, submit } from '@angular/forms/signals';
 import { TaskService } from '../../../core/services/task.service';
 import { TaskEditorRequest, TaskEditorService } from '../../../core/services/task-editor.service';
+import { SpeechService } from '../../../core/services/speech.service';
+import { insertDictationIntoField } from '../../../core/utils/dictation.util';
 import {
   RecurrenceConfig,
   TASK_DESCRIPTION_MAX_LENGTH,
@@ -23,6 +25,7 @@ import { QUADRANT_CONFIG } from '../../../core/constants/theme.constants';
 import { TaskFormModel, createTaskFormDefaults } from '../../models/form.models';
 import { futureDate, noXss, trimmedRequired } from '../../validators/form-validators';
 import { FormFieldWrapperComponent } from '../form-field/form-field-wrapper.component';
+import { MicButtonComponent } from '../mic-button/mic-button.component';
 
 /** Readable names for the priority options, used in the defaults summary. */
 const PRIORITY_LABELS: Record<string, string> = {
@@ -49,7 +52,7 @@ const PRIORITY_LABELS: Record<string, string> = {
  */
 @Component({
   selector: 'app-task-editor-panel',
-  imports: [FormField, FormFieldWrapperComponent],
+  imports: [FormField, FormFieldWrapperComponent, MicButtonComponent],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     @if (editor.isOpen()) {
@@ -78,12 +81,15 @@ const PRIORITY_LABELS: Record<string, string> = {
         </div>
         <form class="panel-form" (submit)="submitForm($event)">
           <app-form-field label="Title" [fieldState]="taskForm.title()" [hint]="titleHint()">
-            <input
-              #taskTitleInput
-              type="text"
-              [formField]="taskForm.title"
-              placeholder="What needs to be done?"
-            />
+            <div class="dictation-field" [class.with-dictation]="speech.available">
+              <input
+                #taskTitleInput
+                type="text"
+                [formField]="taskForm.title"
+                placeholder="What needs to be done?"
+              />
+              <app-mic-button owner="task-title" (dictation)="insertIntoTitle($event)" />
+            </div>
           </app-form-field>
 
           <!-- A title is enough: state plainly what the hidden fields will be -->
@@ -123,11 +129,18 @@ const PRIORITY_LABELS: Record<string, string> = {
                 [fieldState]="taskForm.description()"
                 [hint]="descriptionHint()"
               >
-                <textarea
-                  [formField]="taskForm.description"
-                  rows="3"
-                  placeholder="Optional details..."
-                ></textarea>
+                <div class="dictation-field is-textarea" [class.with-dictation]="speech.available">
+                  <textarea
+                    #taskDescriptionInput
+                    [formField]="taskForm.description"
+                    rows="3"
+                    placeholder="Optional details..."
+                  ></textarea>
+                  <app-mic-button
+                    owner="task-description"
+                    (dictation)="insertIntoDescription($event)"
+                  />
+                </div>
               </app-form-field>
               <div class="form-row">
                 <app-form-field label="Priority" [fieldState]="taskForm.priority()">
@@ -285,6 +298,38 @@ const PRIORITY_LABELS: Record<string, string> = {
         display: grid;
         grid-template-columns: 1fr 1fr;
         gap: 12px;
+      }
+
+      /* The microphone sits inside the field it writes into: the text appears
+         where the caret already is, not in a separate transcript box. The
+         padding is only taken while the browser build actually offers one, so
+         the desktop app keeps the full-width field it has always had. */
+      .dictation-field {
+        position: relative;
+        display: flex;
+        width: 100%;
+      }
+      .dictation-field > input,
+      .dictation-field > textarea {
+        flex: 1;
+        min-width: 0;
+      }
+      .dictation-field.with-dictation > input {
+        padding-right: 44px;
+      }
+      .dictation-field.with-dictation > textarea {
+        padding-right: 44px;
+      }
+      .dictation-field > app-mic-button {
+        position: absolute;
+        right: 7px;
+        top: 50%;
+        transform: translateY(-50%);
+      }
+      .dictation-field.is-textarea > app-mic-button {
+        top: auto;
+        bottom: 7px;
+        transform: none;
       }
       .form-actions {
         display: flex;
@@ -481,6 +526,7 @@ const PRIORITY_LABELS: Record<string, string> = {
 export class TaskEditorPanelComponent {
   private readonly tasks = inject(TaskService);
   readonly editor = inject(TaskEditorService);
+  readonly speech = inject(SpeechService);
 
   readonly titleMax = TASK_TITLE_MAX_LENGTH;
   readonly descriptionMax = TASK_DESCRIPTION_MAX_LENGTH;
@@ -558,6 +604,8 @@ export class TaskEditorPanelComponent {
 
   /** The panel's title field — focused as soon as the panel opens. */
   private readonly taskTitleInput = viewChild<ElementRef<HTMLInputElement>>('taskTitleInput');
+  private readonly taskDescriptionInput =
+    viewChild<ElementRef<HTMLTextAreaElement>>('taskDescriptionInput');
 
   constructor() {
     // Every request fills the form, so one panel can answer all of them: `Cancel`
@@ -578,6 +626,22 @@ export class TaskEditorPanelComponent {
     effect(() => {
       if (!this.editor.isOpen()) return;
       this.taskTitleInput()?.nativeElement.focus();
+    });
+
+    // Closing the form ends its microphones. The describer may still have words
+    // in flight; leaving them attached to a panel nobody can see is worse than
+    // stopping the session.
+    effect(() => {
+      if (this.editor.isOpen()) return;
+      this.speech.stopOwner('task-title');
+      this.speech.stopOwner('task-description');
+    });
+
+    // Collapsing the advanced section takes the description field — and its
+    // microphone — off screen. A session with no visible button is a session
+    // the user cannot stop.
+    effect(() => {
+      if (!this.advancedOpen()) this.speech.stopOwner('task-description');
     });
   }
 
@@ -619,6 +683,18 @@ export class TaskEditorPanelComponent {
 
   close(): void {
     this.editor.close();
+  }
+
+  /** One finished phrase, placed where the caret was in the title. */
+  insertIntoTitle(text: string): void {
+    const field = this.taskTitleInput()?.nativeElement;
+    if (field) insertDictationIntoField(field, text, TASK_TITLE_MAX_LENGTH);
+  }
+
+  /** One finished phrase, placed where the caret was in the description. */
+  insertIntoDescription(text: string): void {
+    const field = this.taskDescriptionInput()?.nativeElement;
+    if (field) insertDictationIntoField(field, text, TASK_DESCRIPTION_MAX_LENGTH);
   }
 
   submitForm(event: Event): void {

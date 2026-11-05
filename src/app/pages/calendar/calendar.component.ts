@@ -38,6 +38,9 @@ import {
 } from '../../core/models/schedule.model';
 import { TooltipDirective } from '../../shared/directives/tooltip.directive';
 import { TaskEditorService } from '../../core/services/task-editor.service';
+import { SpeechService } from '../../core/services/speech.service';
+import { MicButtonComponent } from '../../shared/components/mic-button/mic-button.component';
+import { insertDictationIntoField } from '../../core/utils/dictation.util';
 
 interface BlockLayout {
   block: ScheduleBlock;
@@ -128,7 +131,7 @@ function persistCollapsedGroups(value: Record<string, boolean>): void {
  */
 @Component({
   selector: 'app-calendar',
-  imports: [TooltipDirective],
+  imports: [TooltipDirective, MicButtonComponent],
   changeDetection: ChangeDetectionStrategy.OnPush,
   host: {
     '(window:pointermove)': 'onPointerMove($event)',
@@ -695,16 +698,23 @@ function persistCollapsedGroups(value: Record<string, boolean>): void {
               </div>
 
               <div>
-                <input
-                  class="panel-search"
-                  type="text"
-                  placeholder="New task title…"
-                  [value]="newTitle()"
-                  [attr.maxlength]="titleMax"
-                  (input)="onNewTitle($event)"
-                  (keydown.enter)="createTask(target.startMin)"
-                  aria-label="New task title"
-                />
+                <div class="panel-new-field" [class.with-dictation]="speech.available">
+                  <input
+                    #newTitleInput
+                    class="panel-search"
+                    type="text"
+                    placeholder="New task title…"
+                    [value]="newTitle()"
+                    [attr.maxlength]="titleMax"
+                    (input)="onNewTitle($event)"
+                    (keydown.enter)="createTask(target.startMin)"
+                    aria-label="New task title"
+                  />
+                  <app-mic-button
+                    owner="calendar-new-title"
+                    (dictation)="insertIntoNewTitle($event)"
+                  />
+                </div>
                 <div class="panel-new-row">
                   <select
                     [value]="newPomodoros()"
@@ -1633,6 +1643,24 @@ function persistCollapsedGroups(value: Record<string, boolean>): void {
         color: var(--color-text-primary);
         font-size: 11px;
       }
+      .panel-new-field {
+        position: relative;
+        display: flex;
+        margin-bottom: 6px;
+      }
+      .panel-new-field > .panel-search {
+        flex: 1;
+        margin-bottom: 0;
+      }
+      .panel-new-field.with-dictation > .panel-search {
+        padding-right: 40px;
+      }
+      .panel-new-field > app-mic-button {
+        position: absolute;
+        right: 5px;
+        top: 50%;
+        transform: translateY(-50%);
+      }
       .panel-search::placeholder {
         color: var(--color-text-muted);
       }
@@ -2221,6 +2249,7 @@ export class CalendarComponent implements OnInit, OnDestroy {
   protected readonly schedule = inject(ScheduleService);
   private readonly taskService = inject(TaskService);
   private readonly taskEditor = inject(TaskEditorService);
+  protected readonly speech = inject(SpeechService);
 
   protected readonly pomodoroChoices = [1, 2, 3, 4, 5, 6];
   protected readonly pxPerMinute = 1.8;
@@ -2228,6 +2257,7 @@ export class CalendarComponent implements OnInit, OnDestroy {
   protected readonly titleMax = TASK_TITLE_MAX_LENGTH;
 
   private readonly gridRef = viewChild<ElementRef<HTMLElement>>('grid');
+  private readonly newTitleInput = viewChild<ElementRef<HTMLInputElement>>('newTitleInput');
   private readonly clock = signal(new Date());
   private timerId: ReturnType<typeof setInterval> | null = null;
 
@@ -2483,6 +2513,7 @@ export class CalendarComponent implements OnInit, OnDestroy {
 
   ngOnDestroy(): void {
     if (this.timerId !== null) clearInterval(this.timerId);
+    this.speech.stopOwner('calendar-new-title');
   }
 
   // ── Formatting helpers used by the template ───────────────────────────────
@@ -2686,9 +2717,11 @@ export class CalendarComponent implements OnInit, OnDestroy {
     this.panel.set(null);
     this.search.set('');
     this.newTitle.set('');
+    this.speech.stopOwner('calendar-new-title');
   }
 
   private resetPanelInputs(): void {
+    this.speech.stopOwner('calendar-new-title');
     this.search.set('');
     this.newTitle.set('');
     this.newPomodoros.set(1);
@@ -2700,6 +2733,12 @@ export class CalendarComponent implements OnInit, OnDestroy {
 
   protected onNewTitle(event: Event): void {
     this.newTitle.set((event.target as HTMLInputElement).value);
+  }
+
+  /** One finished phrase, placed where the caret was in the new-task title. */
+  protected insertIntoNewTitle(text: string): void {
+    const field = this.newTitleInput()?.nativeElement;
+    if (field) insertDictationIntoField(field, text, TASK_TITLE_MAX_LENGTH);
   }
 
   protected onNewPomodoros(event: Event): void {
@@ -2715,6 +2754,7 @@ export class CalendarComponent implements OnInit, OnDestroy {
   protected async createTask(startMin: MinuteOfDay): Promise<void> {
     const title = normalizeTaskTitle(this.newTitle());
     if (!title) return;
+    this.speech.stopOwner('calendar-new-title');
     const created = await this.taskService.createTask({
       title,
       quadrant: this.slotQuadrant(),
