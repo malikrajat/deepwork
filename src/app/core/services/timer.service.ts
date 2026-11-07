@@ -283,6 +283,30 @@ export class TimerService implements OnDestroy {
     this.currentTaskTitle = taskId ? taskTitle : null;
   }
 
+  /**
+   * Begins a fresh focus block for a task, replacing whatever the clock was doing.
+   *
+   * This is what a card's start-focus control asks for from another page. The
+   * caller asks the user first when a session is already running, because the
+   * running block is recorded as interrupted here — `stop` is the one place that
+   * writes it down, so starting over cannot quietly lose the time already spent.
+   * A paused session is simply left behind; it was never recording anything.
+   */
+  startFocusOnTask(taskId: string, taskTitle: string | null = null): void {
+    if (this.isRunning()) {
+      this.stop();
+    } else {
+      this.stopInterval();
+      this.startedAt = null;
+      this.activeStartedAt.set(null);
+    }
+
+    this.timerType.set('work');
+    this.remainingSeconds.set(this.getDurationForType('work'));
+    this.linkTask(taskId, taskTitle);
+    this.start();
+  }
+
   private tick(): void {
     const now = Date.now();
     const elapsed = Math.round((now - this.lastTickTime) / 1000);

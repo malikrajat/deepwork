@@ -637,4 +637,44 @@ describe('TaskService', () => {
     expect(settled.quadrant).toBe('urgent');
     expect(mockDb.updateTask).toHaveBeenCalledTimes(1);
   });
+
+  // ── focusQuadrant (which quadrant the start-focus button follows) ─────────
+
+  it('focusQuadrant() is null when no open work has a quadrant', async () => {
+    mockDb.getTasks.mockResolvedValueOnce([
+      makeTask({ title: 'unassigned' }),
+      makeTask({ title: 'done', quadrant: 'urgent-important', status: 'done' }),
+    ]);
+    await svc.loadTasks();
+
+    expect(svc.focusQuadrant()).toBeNull();
+  });
+
+  it('focusQuadrant() follows Do First before the later quadrants', async () => {
+    mockDb.getTasks.mockResolvedValueOnce([
+      makeTask({ title: 'schedule', quadrant: 'important' }),
+      makeTask({ title: 'do first', quadrant: 'urgent-important' }),
+      makeTask({ title: 'delegate', quadrant: 'urgent' }),
+    ]);
+    await svc.loadTasks();
+
+    expect(svc.focusQuadrant()).toBe('urgent-important');
+  });
+
+  it('focusQuadrant() moves on when the current quadrant has no open work left', async () => {
+    mockDb.getTasks.mockResolvedValueOnce([
+      makeTask({ title: 'finished', quadrant: 'urgent-important', status: 'done' }),
+      makeTask({ title: 'next', quadrant: 'important' }),
+    ]);
+    await svc.loadTasks();
+
+    expect(svc.focusQuadrant()).toBe('important');
+  });
+
+  it('focusQuadrant() skips an empty quadrant instead of reporting it', async () => {
+    mockDb.getTasks.mockResolvedValueOnce([makeTask({ title: 'delegate', quadrant: 'urgent' })]);
+    await svc.loadTasks();
+
+    expect(svc.focusQuadrant()).toBe('urgent');
+  });
 });

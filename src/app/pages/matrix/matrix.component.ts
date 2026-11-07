@@ -19,6 +19,7 @@ import { Task, TaskQuadrant, TaskStatus } from '../../core/models/task.model';
 import { QUADRANT_CONFIG, STATUS_CONFIG, STATUS_CYCLE } from '../../core/constants/theme.constants';
 import { TooltipDirective } from '../../shared/directives/tooltip.directive';
 import { TaskEditorService } from '../../core/services/task-editor.service';
+import { FocusLauncherService } from '../../core/services/focus-launcher.service';
 import { buildBoardLayout, sharesFor, splitShares } from '../../core/utils/quadrant-layout.util';
 import type { BoardPlacement } from '../../core/utils/quadrant-layout.util';
 
@@ -353,6 +354,29 @@ interface MatrixContextMenu {
                         [style.background]="'var(--priority-p' + task.priority + '-color)'"
                         appTooltip="Priority {{ task.priority }}"
                       ></span>
+                      @if (canStartFocus(task)) {
+                        <button
+                          class="card-focus"
+                          type="button"
+                          [attr.aria-label]="'Start focus on ' + task.title"
+                          appTooltip="Start focus on this task"
+                          (pointerdown)="$event.stopPropagation()"
+                          (mousedown)="$event.stopPropagation()"
+                          (click)="startFocus(task, $event)"
+                        >
+                          <svg
+                            width="13"
+                            height="13"
+                            viewBox="0 0 24 24"
+                            fill="none"
+                            stroke="currentColor"
+                            stroke-width="2"
+                          >
+                            <circle cx="12" cy="12" r="9" />
+                            <circle cx="12" cy="12" r="3" />
+                          </svg>
+                        </button>
+                      }
                       <button
                         class="card-edit"
                         type="button"
@@ -574,6 +598,29 @@ interface MatrixContextMenu {
                     [style.background]="'var(--priority-p' + task.priority + '-color)'"
                     appTooltip="Priority {{ task.priority }}"
                   ></span>
+                  @if (canStartFocus(task)) {
+                    <button
+                      class="card-focus"
+                      type="button"
+                      [attr.aria-label]="'Start focus on ' + task.title"
+                      appTooltip="Start focus on this task"
+                      (pointerdown)="$event.stopPropagation()"
+                      (mousedown)="$event.stopPropagation()"
+                      (click)="startFocus(task, $event)"
+                    >
+                      <svg
+                        width="13"
+                        height="13"
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="currentColor"
+                        stroke-width="2"
+                      >
+                        <circle cx="12" cy="12" r="9" />
+                        <circle cx="12" cy="12" r="3" />
+                      </svg>
+                    </button>
+                  }
                   <button
                     class="card-edit"
                     type="button"
@@ -635,6 +682,18 @@ interface MatrixContextMenu {
             <span class="menu-option-label">Edit task</span>
             <span class="menu-option-desc">Title, date, priority, repeat</span>
           </button>
+          @if (canStartFocus(menu.task)) {
+            <button
+              class="menu-option"
+              type="button"
+              role="menuitem"
+              (click)="startFocusFromMenu(menu.task)"
+            >
+              <span class="menu-dot focus"></span>
+              <span class="menu-option-label">Start focus</span>
+              <span class="menu-option-desc">Start timer on dashboard</span>
+            </button>
+          }
         </div>
 
         <div class="menu-section">
@@ -1127,7 +1186,8 @@ interface MatrixContextMenu {
       /* The way into the task form straight from a card, without right-clicking
          for the menu — the complaint this answers was that a card could be read
          here but never changed. */
-      .card-edit {
+      .card-edit,
+      .card-focus {
         width: 22px;
         height: 22px;
         border-radius: 6px;
@@ -1141,11 +1201,13 @@ interface MatrixContextMenu {
         cursor: pointer;
         transition: all 0.2s;
       }
-      .card-edit:hover {
+      .card-edit:hover,
+      .card-focus:hover {
         background: rgba(139, 92, 246, 0.12);
         color: var(--color-text-primary);
       }
-      .card-edit:focus-visible {
+      .card-edit:focus-visible,
+      .card-focus:focus-visible {
         outline: 2px solid var(--color-accent-primary);
         outline-offset: 1px;
       }
@@ -1283,6 +1345,9 @@ interface MatrixContextMenu {
       }
       .menu-dot.edit {
         background: var(--color-accent-primary);
+      }
+      .menu-dot.focus {
+        background: #34d399;
       }
       .menu-option-label {
         font-size: 12px;
@@ -1558,7 +1623,8 @@ interface MatrixContextMenu {
            was designed at while the thing being tapped is the size of the
            finger tapping it. */
         .collapse-btn,
-        .card-edit {
+        .card-edit,
+        .card-focus {
           width: 44px;
           height: 44px;
         }
@@ -1745,6 +1811,7 @@ export class MatrixComponent implements OnInit {
   private readonly db = inject(DbService);
   private readonly notifications = inject(NotificationService);
   private readonly taskEditor = inject(TaskEditorService);
+  private readonly focusLauncher = inject(FocusLauncherService);
 
   private readonly wrapperRef = viewChild<ElementRef<HTMLElement>>('wrapper');
   private readonly contextMenuRef = viewChild<ElementRef<HTMLElement>>('contextMenu');
@@ -1890,6 +1957,26 @@ export class MatrixComponent implements OnInit {
   editTaskFromMenu(task: Task): void {
     this.closeContextMenu();
     this.taskEditor.openEdit(task);
+  }
+
+  /** Whether the card is in the quadrant the day is working through. */
+  canStartFocus(task: Task): boolean {
+    return this.focusLauncher.canStart(task);
+  }
+
+  /**
+   * The card's target button, and the menu's "Start focus": both hand the task
+   * to the shared launcher, which starts the clock and opens the dashboard.
+   */
+  startFocus(task: Task, event: Event): void {
+    event.stopPropagation();
+    this.closeContextMenu();
+    void this.focusLauncher.start(task);
+  }
+
+  startFocusFromMenu(task: Task): void {
+    this.closeContextMenu();
+    void this.focusLauncher.start(task);
   }
 
   /** A quadrant's "+" (or the unassigned list's) opens the form already sorted. */

@@ -38,6 +38,7 @@ import {
 } from '../../core/models/schedule.model';
 import { TooltipDirective } from '../../shared/directives/tooltip.directive';
 import { TaskEditorService } from '../../core/services/task-editor.service';
+import { FocusLauncherService } from '../../core/services/focus-launcher.service';
 import { SpeechService } from '../../core/services/speech.service';
 import { MicButtonComponent } from '../../shared/components/mic-button/mic-button.component';
 import { insertDictationIntoField } from '../../core/utils/dictation.util';
@@ -338,6 +339,27 @@ function persistCollapsedGroups(value: Record<string, boolean>): void {
                       >
                         📌
                       </button>
+                      @if (canStartFocus(item.task)) {
+                        <button
+                          type="button"
+                          class="rail-focus"
+                          [attr.aria-label]="'Start focus on ' + item.task.title"
+                          appTooltip="Start focus on this task"
+                          (click)="startFocus(item.task, $event)"
+                        >
+                          <svg
+                            width="11"
+                            height="11"
+                            viewBox="0 0 24 24"
+                            fill="none"
+                            stroke="currentColor"
+                            stroke-width="2"
+                          >
+                            <circle cx="12" cy="12" r="9" />
+                            <circle cx="12" cy="12" r="3" />
+                          </svg>
+                        </button>
+                      }
                       <button
                         type="button"
                         class="rail-edit"
@@ -517,6 +539,27 @@ function persistCollapsedGroups(value: Record<string, boolean>): void {
                         [attr.aria-label]="'Mark ' + task.title + ' complete'"
                       ></button>
                       <span class="ev-title" [appTooltip]="task.title">{{ task.title }}</span>
+                      @if (canStartFocus(task)) {
+                        <button
+                          class="ev-focus"
+                          type="button"
+                          [attr.aria-label]="'Start focus on ' + task.title"
+                          appTooltip="Start focus on this task"
+                          (click)="startFocus(task, $event)"
+                        >
+                          <svg
+                            width="11"
+                            height="11"
+                            viewBox="0 0 24 24"
+                            fill="none"
+                            stroke="currentColor"
+                            stroke-width="2"
+                          >
+                            <circle cx="12" cy="12" r="9" />
+                            <circle cx="12" cy="12" r="3" />
+                          </svg>
+                        </button>
+                      }
                     </div>
                   }
                   <span
@@ -661,6 +704,16 @@ function persistCollapsedGroups(value: Record<string, boolean>): void {
                       >
                         Edit
                       </button>
+                      @if (canStartFocus(task)) {
+                        <button
+                          type="button"
+                          class="start-focus-task"
+                          (click)="startFocus(task, $event)"
+                          appTooltip="Start the focus timer on this task"
+                        >
+                          Start focus
+                        </button>
+                      }
                     </div>
                   </div>
                 }
@@ -1179,6 +1232,10 @@ function persistCollapsedGroups(value: Record<string, boolean>): void {
         border-color: rgba(139, 92, 246, 0.6);
         color: var(--color-text-primary);
       }
+      .rail-actions button.rail-focus:hover {
+        border-color: rgba(52, 211, 153, 0.6);
+        color: #6ee7b7;
+      }
       .rail-empty,
       .rail-note {
         font-size: 10px;
@@ -1379,6 +1436,26 @@ function persistCollapsedGroups(value: Record<string, boolean>): void {
       .ev-check:hover {
         border-color: var(--color-accent-primary);
         background: rgba(139, 92, 246, 0.25);
+      }
+      /* Starts the clock from the block the user is reading, without opening the
+         slot panel first. */
+      .ev-focus {
+        width: 16px;
+        height: 16px;
+        flex-shrink: 0;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 0;
+        border: none;
+        border-radius: 5px;
+        background: transparent;
+        color: var(--color-text-muted);
+        cursor: pointer;
+      }
+      .ev-focus:hover {
+        background: rgba(52, 211, 153, 0.18);
+        color: #6ee7b7;
       }
       .ev-resize {
         position: absolute;
@@ -1607,6 +1684,10 @@ function persistCollapsedGroups(value: Record<string, boolean>): void {
       .panel-task-actions button.edit-task:hover {
         border-color: rgba(139, 92, 246, 0.6);
         color: var(--color-text-primary);
+      }
+      .panel-task-actions button.start-focus-task:hover {
+        border-color: rgba(52, 211, 153, 0.6);
+        color: #6ee7b7;
       }
       .panel-note {
         padding: 10px 12px;
@@ -2249,6 +2330,7 @@ export class CalendarComponent implements OnInit, OnDestroy {
   protected readonly schedule = inject(ScheduleService);
   private readonly taskService = inject(TaskService);
   private readonly taskEditor = inject(TaskEditorService);
+  private readonly focusLauncher = inject(FocusLauncherService);
   protected readonly speech = inject(SpeechService);
 
   protected readonly pomodoroChoices = [1, 2, 3, 4, 5, 6];
@@ -2703,6 +2785,22 @@ export class CalendarComponent implements OnInit, OnDestroy {
   protected editTask(task: Task, event: Event): void {
     event.stopPropagation();
     this.taskEditor.openEdit(task);
+  }
+
+  /**
+   * The start control on a rail card, a timeline block or the slot panel.
+   *
+   * The calendar already knows where the task sits in the plan; the shared
+   * launcher knows how to begin it. Clicking starts a fresh focus block and
+   * opens the dashboard with the task selected under the clock.
+   */
+  protected canStartFocus(task: Task): boolean {
+    return this.focusLauncher.canStart(task);
+  }
+
+  protected startFocus(task: Task, event: Event): void {
+    event.stopPropagation();
+    void this.focusLauncher.start(task);
   }
 
   // ── Slot panel ────────────────────────────────────────────────────────────

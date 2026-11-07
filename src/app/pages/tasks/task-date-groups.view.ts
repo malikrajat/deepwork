@@ -27,6 +27,14 @@ export interface TaskDateGroup {
   doneCount: number;
   /** Sort weight; smaller numbers sit closer to the top of the page. */
   order: number;
+  /**
+   * Whether the section lies before today.
+   *
+   * Past sections are read-only lists: the work they hold has already slipped,
+   * and moving it around today would rewrite history rather than plan the day.
+   * Today and every future section stay interactive.
+   */
+  isPast: boolean;
 }
 
 const DAY_MS = 86_400_000;
@@ -172,7 +180,8 @@ export function groupTasksByDate(tasks: readonly Task[], now = new Date()): Task
   const groups = new Map<string, TaskDateGroup>();
 
   for (const task of tasks) {
-    const bucket = bucketFor(taskDay(task, now), today);
+    const day = taskDay(task, now);
+    const bucket = bucketFor(day, today);
 
     const existing = groups.get(bucket.key);
     if (existing) {
@@ -186,6 +195,7 @@ export function groupTasksByDate(tasks: readonly Task[], now = new Date()): Task
       tasks: [task],
       doneCount: task.status === 'done' ? 1 : 0,
       order: bucket.order,
+      isPast: day.day < today.day,
     });
   }
 

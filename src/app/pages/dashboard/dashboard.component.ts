@@ -164,7 +164,7 @@ import { TaskSelectFormModel, createTaskSelectFormDefaults } from '../../shared/
               [timerType]="timer.timerType()"
             />
             <!-- Task selector -->
-            @if (taskService.todayTasks().length > 0) {
+            @if (taskGroups().length > 0) {
               <div class="task-selector">
                 <select
                   [formField]="taskSelectForm.taskId"
@@ -1387,23 +1387,38 @@ export class DashboardComponent implements OnInit, OnDestroy {
   readonly selectedTaskQuadrant = computed(() => {
     const id = this.selectedTaskId();
     if (!id) return '';
-    const task = this.taskService.todayTasks().find((t) => t.id === id);
+    // The picker can name a task that was started from the Tasks page and is not
+    // on today's list, so the badge reads the task itself rather than today's
+    // subset.
+    const task = this.taskService.tasks().find((t) => t.id === id);
     return task?.quadrant ?? '';
   });
   readonly taskGroups = computed(() => {
-    const tasks = this.taskService.todayTasks();
-    const order = (Object.keys(QUADRANT_CONFIG) as TaskQuadrant[]).map((q) => ({
-      quadrant: q,
-      label: `${QUADRANT_CONFIG[q].emoji} ${QUADRANT_CONFIG[q].label}`,
-    }));
-    // Show only the highest-priority quadrant that still has open tasks
-    for (const g of order) {
-      const groupTasks = tasks.filter((t) => t.quadrant === g.quadrant);
-      if (groupTasks.length > 0) {
-        return [{ ...g, tasks: groupTasks }];
-      }
+    // The picker shows the quadrant the day is working through — the same one
+    // whose cards carry the start-focus button on every page. A task started
+    // from elsewhere may not be on today's list, so it is added to the group
+    // when the focused id names it; otherwise it would be selected but invisible.
+    const quadrant = this.taskService.focusQuadrant();
+    if (!quadrant) return [];
+    const tasks = this.taskService.todayTasks().filter((task) => task.quadrant === quadrant);
+    const selectedId = this.selectedTaskId();
+    const selected = selectedId
+      ? this.taskService.tasks().find((task) => task.id === selectedId)
+      : null;
+    if (
+      selected &&
+      selected.quadrant === quadrant &&
+      !tasks.some((task) => task.id === selected.id)
+    ) {
+      tasks.push(selected);
     }
-    return [];
+    return [
+      {
+        quadrant,
+        label: `${QUADRANT_CONFIG[quadrant].emoji} ${QUADRANT_CONFIG[quadrant].label}`,
+        tasks,
+      },
+    ];
   });
   private confettiTimeout: ReturnType<typeof setTimeout> | null = null;
   /** Watches for midnight so the page's "today" counters start the day at zero. */
@@ -1480,7 +1495,10 @@ export class DashboardComponent implements OnInit, OnDestroy {
   });
   readonly activeTask = computed<Task | null>(() => {
     const selectedTaskId = this.selectedTaskId();
-    return this.taskService.todayTasks().find((task) => task.id === selectedTaskId) ?? null;
+    if (!selectedTaskId) return null;
+    // A task started from another page may not be on today's list; the card
+    // names whatever is linked, not only today's subset.
+    return this.taskService.tasks().find((task) => task.id === selectedTaskId) ?? null;
   });
   readonly openTodayTasks = computed(() => this.taskService.todayTasks().length);
   /** The local day the page's counters belong to; rolled by the day watcher. */
@@ -1489,7 +1507,8 @@ export class DashboardComponent implements OnInit, OnDestroy {
     const today = this.todayKey();
     return this.taskService
       .tasks()
-      .filter((task) => task.completedAt && localDayKey(new Date(task.completedAt)) === today).length;
+      .filter((task) => task.completedAt && localDayKey(new Date(task.completedAt)) === today)
+      .length;
   });
   readonly averageFocusTimeDisplay = computed(() => {
     const focusSessions = this.todaySessions().filter(
@@ -1606,9 +1625,10 @@ export class DashboardComponent implements OnInit, OnDestroy {
   }
 
   focusNextTask(): void {
+    const quadrant = this.taskService.focusQuadrant();
     const nextTask = this.taskService
       .todayTasks()
-      .find((task) => task.id !== this.selectedTaskId());
+      .find((task) => task.quadrant === quadrant && task.id !== this.selectedTaskId());
     if (nextTask) this.selectTask(nextTask.id);
   }
 
