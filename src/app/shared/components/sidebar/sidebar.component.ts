@@ -14,6 +14,15 @@ interface NavItem {
   icon: string;
 }
 
+/**
+ * Pages that belong to the About section without being nav entries of their
+ * own: they are opened from About, and Contact is also reachable from the two
+ * policy pages. The About item stays lit while one of them is open, so walking
+ * from About to Contact or a policy does not leave the navigation with nothing
+ * selected.
+ */
+const ABOUT_SECTION_PATHS = new Set(['/contact', '/privacy', '/terms']);
+
 @Component({
   selector: 'app-sidebar',
   imports: [RouterLink, SafeHtmlPipe],
@@ -611,6 +620,9 @@ export class SidebarComponent {
   isActive(path: string): boolean {
     const currentPath = this.currentUrl().split(/[?#]/)[0];
     if (path === '') return currentPath === '/' || currentPath === '/dashboard';
+    if (path === 'about') {
+      return currentPath === '/about' || ABOUT_SECTION_PATHS.has(currentPath);
+    }
     return currentPath === '/' + path || currentPath.startsWith('/' + path + '/');
   }
 

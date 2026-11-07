@@ -140,12 +140,13 @@ describe('DbService (browser/localStorage mode)', () => {
     expect(repaired.waterAutoLogWhenMinimized).toBe(DEFAULT_SETTINGS.waterAutoLogWhenMinimized);
   });
 
-  it('starts with the water reminder on, counting a mouthful', async () => {
+  it('starts with the water reminder off, counting 50 ml when it is turned on', async () => {
     await db.init();
     const s = await db.getSettings();
 
-    expect(s.waterReminders).toBe(true);
-    expect(s.waterAmountMl).toBe(30);
+    // Off by default: the app offers the reminder instead of ringing uninvited.
+    expect(s.waterReminders).toBe(false);
+    expect(s.waterAmountMl).toBe(50);
     expect(s.waterGoalMl).toBe(2000);
     // A minimised window is left alone until the user asks otherwise.
     expect(s.waterAutoLogWhenMinimized).toBe(true);
@@ -182,11 +183,13 @@ describe('DbService (browser/localStorage mode)', () => {
     expect(repaired.movementReminders).toBe(DEFAULT_SETTINGS.movementReminders);
   });
 
-  it('starts the stand-and-walk reminder on, at its everyday cadence', async () => {
+  it('starts the stand-and-walk reminder off, at its everyday cadence', async () => {
     await db.init();
     const s = await db.getSettings();
 
-    expect(s.movementReminders).toBe(true);
+    // Off by default, like the water reminder: the cadence is ready for when the
+    // user accepts the offer, but nothing is scheduled until they do.
+    expect(s.movementReminders).toBe(false);
     expect(s.movementStart).toBe('09:00');
     expect(s.movementEnd).toBe('18:00');
     expect(s.movementIntervalMinutes).toBe(45);

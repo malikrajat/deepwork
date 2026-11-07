@@ -83,6 +83,13 @@ export const appConfig: ApplicationConfig = {
       // already been answered. After the preferences it depends on, never before
       // them: "already marked" is a fact about the operating system.
       await launchPrompt.init();
+      // The other half of the two body reminders being off by default: while
+      // either one is off, offer it every two hours inside its working window.
+      // Loaded here rather than imported at the top so the offer and its copy
+      // stay out of the first paint, like the stand-and-walk feature itself.
+      const { BodyReminderPromptService } =
+        await import('./core/services/body-reminder-prompt.service');
+      injector.get(BodyReminderPromptService).start();
     }),
   ],
 };

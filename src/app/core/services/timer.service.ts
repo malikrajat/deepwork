@@ -5,6 +5,7 @@ import { DbService } from './db.service';
 import { SettingsService } from './settings.service';
 import { LogService } from './log.service';
 import { NotificationService } from './notification.service';
+import { localDayKey } from '../utils/nudge-schedule.util';
 
 @Injectable({ providedIn: 'root' })
 export class TimerService implements OnDestroy {
@@ -48,6 +49,10 @@ export class TimerService implements OnDestroy {
   });
 
   private intervalId: ReturnType<typeof setInterval> | null = null;
+  /** Watches the calendar so a run that crosses midnight starts a new day too. */
+  private dayIntervalId: ReturnType<typeof setInterval> | null = null;
+  /** The local day the current cycle belongs to. */
+  private day = localDayKey(new Date());
   private startedAt: string | null = null;
   /** The linked task's title, passed with `linkTask` by the page that chose it. */
   private currentTaskTitle: string | null = null;
@@ -91,25 +96,29 @@ export class TimerService implements OnDestroy {
     await this.db.init();
     await this.settingsService.loadSettings();
 
-    const today = new Date().toISOString().slice(0, 10);
+    const today = localDayKey(new Date());
+    this.day = today;
     const saved = await this.db.getTimerState();
     const isNewDay = !saved?.lastActiveDate || saved.lastActiveDate !== today;
 
-    if (saved && saved.isRunning && saved.startedAt) {
+    if (isNewDay) {
+      // A new day is a new cycle. Yesterday's count, its break type, its linked
+      // task and a session that was still running are references to a day that
+      // is over, and carrying any of them forward is what made the third session
+      // of a fresh day look like the fourth of the last one.
+      this.beginFreshDay();
+      void this.persistState();
+    } else if (saved && saved.isRunning && saved.startedAt) {
       // Calculate elapsed time since interruption
       const elapsed = Math.floor((Date.now() - new Date(saved.startedAt).getTime()) / 1000);
       const remaining = Math.max(0, saved.remainingSeconds - elapsed);
       this.timerType.set(saved.type);
-      this.sessionCount.set(isNewDay ? 0 : saved.sessionCount);
-      // The task a session is for is a per-day choice, so a session interrupted
-      // yesterday is not resumed against yesterday's task: it is carried over as
-      // an untasked session, which is what starting the day without picking one
-      // means. Restoring it regardless was one of the two ways a task chose weeks
-      // ago came back and named work it had nothing to do with (see CHANGELOG).
-      this.currentTaskId.set(isNewDay ? null : saved.taskId);
-      // The saved state carries the id, not the name. A session resumed from an
-      // earlier day is untasked anyway; one resumed today is named by the Time
-      // page from the task row.
+      this.sessionCount.set(saved.sessionCount);
+      // Within the same day the interrupted session keeps its task. A session
+      // from an earlier day never reaches here — it starts the day fresh.
+      this.currentTaskId.set(saved.taskId);
+      // The saved state carries the id, not the name. One resumed today is named
+      // by the Time page from the task row.
       this.currentTaskTitle = null;
       this.remainingSeconds.set(remaining);
       this.activeStartedAt.set(saved.startedAt);
@@ -117,11 +126,13 @@ export class TimerService implements OnDestroy {
       this.hasInterruptedSession.set(true);
     } else if (saved) {
       this.timerType.set(saved.type);
-      this.sessionCount.set(isNewDay ? 0 : saved.sessionCount);
+      this.sessionCount.set(saved.sessionCount);
       this.remainingSeconds.set(saved.remainingSeconds || this.getDurationForType(saved.type));
     } else {
       this.remainingSeconds.set(this.getDurationForType('work'));
     }
+
+    this.watchDay();
   }
 
   onComplete(callback: ((completedType: TimerType) => void) | null): void {
@@ -217,6 +228,54 @@ export class TimerService implements OnDestroy {
     this.remainingSeconds.set(this.getDurationForType('work'));
     this.persistState();
     this.log.info('flow', 'timer reset');
+  }
+
+  /**
+   * Puts the clock back to a clean first session: work type, count zero, full
+   * duration, no task. It holds no day reference of its own — the caller has
+   * already decided the day has turned over.
+   */
+  private beginFreshDay(): void {
+    this.timerType.set('work');
+    this.sessionCount.set(0);
+    this.remainingSeconds.set(this.getDurationForType('work'));
+    this.currentTaskId.set(null);
+    this.currentTaskTitle = null;
+    this.startedAt = null;
+    this.activeStartedAt.set(null);
+    this.hasInterruptedSession.set(false);
+  }
+
+  /** Starts watching the local calendar, once per service. */
+  private watchDay(): void {
+    if (this.dayIntervalId) return;
+    this.dayIntervalId = setInterval(() => this.ensureCurrentDay(), 30_000);
+  }
+
+  /**
+   * Starts a new cycle when the local day has moved on while the app stayed
+   * open.
+   *
+   * A run that crosses midnight used to keep yesterday's count and break type,
+   * so the first session of the new day could complete the old day's cycle and
+   * celebrate work that was finished yesterday. A session that was actually
+   * running is recorded as interrupted first, so the time is not lost; then the
+   * clock starts the day as it does on a launch.
+   */
+  private ensureCurrentDay(now: Date = new Date()): void {
+    const day = localDayKey(now);
+    if (day === this.day) return;
+    this.day = day;
+
+    if (this.isRunning()) {
+      this.stopInterval();
+      this.isRunning.set(false);
+      this.activeStartedAt.set(null);
+      this.recordSession(true);
+    }
+    this.beginFreshDay();
+    void this.persistState();
+    this.log.info('flow', 'new day: timer reset to a fresh focus session');
   }
 
   linkTask(taskId: string | null, taskTitle: string | null = null): void {
@@ -337,7 +396,7 @@ export class TimerService implements OnDestroy {
       taskId: this.currentTaskId(),
       sessionCount: this.sessionCount(),
       startedAt: this.startedAt,
-      lastActiveDate: new Date().toISOString().slice(0, 10),
+      lastActiveDate: localDayKey(new Date()),
     };
     await this.db.saveTimerState(state);
   }
@@ -355,6 +414,10 @@ export class TimerService implements OnDestroy {
 
   ngOnDestroy(): void {
     this.stopInterval();
+    if (this.dayIntervalId) {
+      clearInterval(this.dayIntervalId);
+      this.dayIntervalId = null;
+    }
     this.persistState();
   }
 }

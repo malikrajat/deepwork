@@ -157,6 +157,19 @@ describe('MovementReminderService', () => {
       // The whole gap counts as time away, so the cadence waits a full interval.
       expect(formatClockTime(restarted.nextAt()!)).toBe('17:45');
     });
+
+    it('starts today afresh instead of carrying yesterday’s cadence', async () => {
+      // A reminder from yesterday is not today's debt: the first launch of a new
+      // day waits a full interval instead of firing the moment the window opens.
+      localStorage.setItem('deepwork.movement.lastFired.v1', at(17, 0, 26).toISOString());
+      localStorage.setItem('deepwork.movement.lastAlive.v1', at(18, 0, 26).toISOString());
+      const restarted = build();
+
+      await restarted.tick(at(9, 0, 27));
+
+      expect(notifications.announce).not.toHaveBeenCalled();
+      expect(formatClockTime(restarted.nextAt()!)).toBe('09:45');
+    });
   });
 
   describe('what it asks', () => {

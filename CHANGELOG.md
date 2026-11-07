@@ -6,6 +6,149 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 ---
 
 
+## [3.0.3] – 2026-10-30
+
+### Added
+
+- **The contact form now delivers its message.** Pressing **Send message** used
+  to clear the fields and show the confirmation without anything leaving the
+  page. The form posts to Web3Forms, which relays the name, email address,
+  mobile number (when given) and message to the owner's own inbox, with the
+  sender's address set as the reply-to so answering works the normal way. A
+  failed delivery is a sentence beside the button with the message still in the
+  fields, and the button says **Sending…** while the request is in flight
+  (`contact.service.ts`, `contact.component.ts`).
+
+- **The form is protected by hCaptcha.** A submission without a solved challenge
+  is refused before it leaves the page, with a line beside the button saying so,
+  and the widget is reset after every attempt so a single-use token is never
+  reused. The token travels to Web3Forms as `h-captcha-response`, which is the
+  field its server verifies when hCaptcha is enabled for the form. The widget
+  follows the app's light or dark theme and reports a script that cannot load
+  (an ad blocker is the usual reason) instead of leaving the form quietly
+  unsendable (`hcaptcha.service.ts`).
+
+- **The form's configuration lives in one place.** The Web3Forms access key,
+  endpoint, hCaptcha site key and subject are in `environment.ts`, not inlined
+  at the call site, with a note on what the key can and cannot do. It is the
+  public form identifier Web3Forms expects in the browser; restricting it to
+  this site's domain in the Web3Forms dashboard is the step that stops a copy
+  being used elsewhere (`src/environments/environment.ts`).
+
+### Changed
+
+- **The version check reads three more places.** `src/index.html`'s JSON-LD, the
+  version line in `public/llms.txt` and the site brief's artefact version all
+  spell the release out, and until now none of them was compared. The bump
+  script updates all three with the rest, so a release cannot ship a stale
+  number in the markup a crawler reads (`scripts/bump-version.mjs`).
+
+- **The privacy policy says who carries the contact form's message.** The
+  "If you contact the developer" section now names Web3Forms as the email relay
+  and repeats the promise that applies to an ordinary email: the details are
+  used to read and answer the message and for nothing else
+  (`legal.constants.ts`).
+
+- **The version is 3.0.3**, in every file that spells it out, moved in one pass by
+  `npm run version:bump -- 3.0.3`.
+
+
+## [3.0.2] – 2026-10-26
+
+### Added
+
+- **A quiet, persistent offer for the two body reminders while they are off.**
+  The water and stand-and-walk features are now opt-in, so DeepWork raises the
+  same question in the app and on the desktop every two hours inside the
+  reminder's own working window: a short line about what it helps with, a
+  motivational quote, and two answers — **Set up** and **Stop asking**. The
+  notification is sticky and the card has no timeout, so the question waits for
+  an answer instead of sliding away while the user is heads-down. **Set up**
+  writes the same `waterReminders` / `movementReminders` value the Dashboard and
+  Settings own, starts the reminder's scheduler, and then replaces the question
+  with the configuration it applied — the working window, the cadence and, for
+  water, 50 ml per glass — plus the one-click way to turn it off from the
+  Dashboard. **Stop asking** ends the offers for that feature in one click and is
+  remembered across launches. Both offers are staggered by an hour on a fresh
+  install, only one is raised per pass, and neither speaks while the app is
+  paused or the first-run setup is open (`body-reminder-prompt.service.ts`,
+  `body-reminder-prompt.constants.ts`).
+
+- **The first-run setup now asks about the body reminders as well.** The one-time
+  dialog that already offers startup, always-on-top, tray behaviour and the
+  taskbar pin now carries two more switches — **Water reminders** and **Stand &
+  walk reminders** — with a one-line reason for each. They are the same two
+  booleans the Dashboard's desk-health card and Settings already own, written
+  through `SettingsService`, so an "off" chosen here is off on the Dashboard, in
+  Settings and in the notification centre: no card, no tone and no system
+  notification. The Dashboard cards are unchanged and remain the everyday quick
+  toggle. The panel is loaded as its own chunk, so the first paint still fits its
+  existing budget. The dialog itself stays inside the window now: its middle
+  scrolls and **Not now** / **Done** sit in a fixed footer, so both answers stay
+  visible even at the app's 600px minimum height
+  (`reminder-prefs-panel.component.ts`, `welcome-prefs-dialog.component.ts`).
+
+### Changed
+
+- **The water and stand-and-walk reminders now start off.** DeepWork is a focus
+  app: a bell every forty-five or sixty minutes is exactly the noise the app
+  exists to keep out, so both features are opt-in rather than on by default.
+  Nothing is taken away — both switches are still on the Dashboard, in Settings
+  and in the first-run setup, and the new offer above makes them discoverable
+  without imposing them. Existing installs keep the value already stored for
+  them; nothing is switched on or off behind the user's back
+  (`settings.model.ts`, `reminder-prefs-panel.component.ts`).
+
+- **A water drink now defaults to 50 ml instead of 30 ml.** The amount picker is
+  unchanged; only the value a fresh install (or an unset/repairable one) starts
+  on has moved, and existing stores keep the amount they were saved with
+  (`water.constants.ts`).
+
+### Fixed
+
+- **A new day starts with a new cycle, not yesterday's.** The timer kept a UTC
+  date rather than the local one, so a launch early in the morning could decide
+  the previous local day was still "today" and restore its session count, its
+  break type and its linked task. The day key is local everywhere now, and a new
+  day resets the count to zero, the type to work, the clock to the full focus
+  duration and the task to none. A session that was still running is recorded as
+  interrupted before the reset, so the time is not lost. The timer also watches
+  the calendar while it runs: an app left open past midnight starts the new day
+  the same way a launch does, so the first session of the day can never complete
+  yesterday's cycle or celebrate it (`timer.service.ts`).
+
+- **Yesterday's water and stand-and-walk reminders no longer arrive on the
+  doorstep.** The "time at the desk" fold pushed the last reminder forward by the
+  time the app was closed, but if the absence swallowed the whole interval the
+  next moment was already in the past — open the app in the morning and it asked
+  immediately. The first pass inside today's working hours now starts today's
+  cadence from that moment, and a fold that would land in the past restarts the
+  interval from the launch instead. No reminder is delivered the instant the
+  window appears (`water-reminder.service.ts`,
+  `movement-reminder.service.ts`).
+
+- **"Today" means the local day in every daily counter.** `getTodaySessions` now
+  starts at local midnight instead of slicing a UTC date, so an evening session
+  stays with the day the user lived it; the Dashboard's completed-task count,
+  the focused-task stamp, an overdue deadline and the daily session list all
+  follow the same local day, and a Dashboard left open across midnight clears
+  the day's focused task and reloads its counters instead of showing
+  yesterday's numbers (`db.service.ts`, `dashboard.component.ts`,
+  `focus-task.util.ts`, `task-board.component.ts`).
+
+- **The contact surfaces no longer publish a personal mobile number, and About
+  stays lit beside them.** The WhatsApp channel was the only place the number
+  appeared, so it is gone from the contact list, the About page and the privacy
+  policy; what remains is email, the portfolio, LinkedIn, GitHub and Medium. The
+  sidebar also keeps **About** highlighted on Contact, Privacy and Terms: those
+  pages are opened from About, and the navigation no longer goes dark the moment
+  one of them is visited (`about.constants.ts`, `legal.constants.ts`,
+  `sidebar.component.ts`).
+
+- **The version is 3.0.2**, in every file that spells it out, moved in one pass by
+  `npm run version:bump -- 3.0.2`.
+
+
 ## [3.0.1] – 2026-10-27
 
 ### Added

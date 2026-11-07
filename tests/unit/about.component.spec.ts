@@ -1,5 +1,6 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { TestBed } from '@angular/core/testing';
+import { provideRouter } from '@angular/router';
 import { AboutComponent } from '../../src/app/pages/about/about.component';
 import { UpdateService } from '../../src/app/core/services/update.service';
 import { UpdatePromptService } from '../../src/app/core/services/update-prompt.service';
@@ -8,7 +9,7 @@ import {
   APP_VERSION,
   APP_WEB_APP_URL,
 } from '../../src/app/core/constants/app-info.constants';
-import { DEVELOPER } from '../../src/app/core/constants/about.constants';
+import { CONTACT_EMAIL, DEVELOPER } from '../../src/app/core/constants/about.constants';
 import type { ReleaseAsset, ReleaseInfo } from '../../src/app/core/models/update.model';
 
 /**
@@ -103,6 +104,7 @@ function mount(
   TestBed.configureTestingModule({
     imports: [AboutComponent],
     providers: [
+      provideRouter([]),
       { provide: UpdateService, useValue: updates },
       { provide: UpdatePromptService, useValue: prompt },
     ],
@@ -132,9 +134,20 @@ describe('AboutComponent', () => {
       (a) => a.getAttribute('href'),
     );
 
-    expect(links.some((href) => href?.startsWith('mailto:contact@rajatmalik.dev'))).toBe(true);
+    expect(links.some((href) => href?.startsWith(`mailto:${CONTACT_EMAIL}`))).toBe(true);
     expect(links.some((href) => href?.includes('linkedin.com/in/errajatmalik'))).toBe(true);
     expect(links.some((href) => href?.includes('github.com/malikrajat'))).toBe(true);
+  });
+
+  it('links to the contact, privacy and terms pages', () => {
+    const fixture = mount(fakeUpdates());
+    const links = Array.from((fixture.nativeElement as HTMLElement).querySelectorAll('a')).map(
+      (a) => a.getAttribute('href'),
+    );
+
+    expect(links).toContain('/contact');
+    expect(links).toContain('/privacy');
+    expect(links).toContain('/terms');
   });
 
   it('leaves out the résumé, the skills, the numbers and the work list', () => {

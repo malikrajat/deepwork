@@ -92,6 +92,11 @@ describe('WelcomePrefsDialogComponent', () => {
     expect(src).toContain('<app-desktop-prefs-panel');
   });
 
+  it('offers the body reminders in the same first-run setup', () => {
+    const src = readFileSync(SOURCE, 'utf8');
+    expect(src).toContain('<app-reminder-prefs-panel');
+  });
+
   it('explains the mini widget before the user finds it by accident', () => {
     const src = readFileSync(SOURCE, 'utf8');
     expect(src).toContain('miniHelp');
@@ -103,6 +108,21 @@ describe('WelcomePrefsDialogComponent', () => {
     expect(src).toContain('Not now');
     expect(src).toContain('Done');
     expect(src).toContain('document:keydown.escape');
+  });
+
+  it('keeps the answers fixed at the foot while the setup scrolls', () => {
+    // The dialog grew past a 600px window and its two answers fell off screen.
+    // The card is now a column, only the middle scrolls, and the actions are
+    // outside that scrolling region so they are always visible.
+    const src = readFileSync(SOURCE, 'utf8');
+    expect(src).toContain('flex-direction: column');
+    expect(src).toContain('overflow-y: auto');
+    expect(src).toContain('flex: 0 0 auto');
+
+    const body = src.indexOf('class="dialog-body"');
+    const actions = src.indexOf('class="dialog-actions"');
+    expect(body).toBeGreaterThan(-1);
+    expect(actions).toBeGreaterThan(body);
   });
 
   it('is announced as a modal dialog', () => {

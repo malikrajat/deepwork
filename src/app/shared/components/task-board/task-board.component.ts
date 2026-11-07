@@ -2,6 +2,7 @@ import { ChangeDetectionStrategy, Component, computed, input, output } from '@an
 import { CdkDragDrop, DragDropModule } from '@angular/cdk/drag-drop';
 import { Task, TaskQuadrant, TaskStatus, taskActivityIso } from '../../../core/models/task.model';
 import { isPinnedToToday } from '../../../core/utils/task-day.util';
+import { localDayKey } from '../../../core/utils/nudge-schedule.util';
 import { QUADRANT_CONFIG, STATUS_CONFIG } from '../../../core/constants/theme.constants';
 import { TooltipDirective } from '../../directives/tooltip.directive';
 import { formatActivityLabel } from '../../../core/utils/task-activity.util';
@@ -751,7 +752,9 @@ export class TaskBoardComponent {
 
   isOverdue(task: Task): boolean {
     if (!task.deadline) return false;
-    return new Date(task.deadline) < new Date(new Date().toISOString().slice(0, 10));
+    // Deadlines are chosen as calendar dates, so "overdue" is a question about
+    // the local day — the same day the rest of the app starts over at midnight.
+    return new Date(task.deadline) < new Date(localDayKey(new Date()));
   }
 
   formatDeadline(deadline: string): string {

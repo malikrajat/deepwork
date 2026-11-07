@@ -6,6 +6,7 @@ import { DbService } from '../../src/app/core/services/db.service';
 import { SettingsService } from '../../src/app/core/services/settings.service';
 import { NotificationService } from '../../src/app/core/services/notification.service';
 import { DEFAULT_SETTINGS } from '../../src/app/core/models/settings.model';
+import { localDayKey } from '../../src/app/core/utils/nudge-schedule.util';
 
 const makeMockDb = () => ({
   init: vi.fn().mockResolvedValue(undefined),
@@ -124,12 +125,58 @@ describe('TimerService', () => {
       taskId: 'task-from-today',
       sessionCount: 3,
       startedAt: new Date(Date.now() - 60_000).toISOString(),
-      lastActiveDate: new Date().toISOString().slice(0, 10),
+      lastActiveDate: localDayKey(new Date()),
     });
 
     await svc.init();
 
     expect(svc.currentTaskId()).toBe('task-from-today');
+  });
+
+  it('init() starts a fresh cycle on a new day instead of restoring yesterday’s', async () => {
+    // The report: two focus sessions yesterday and one today, and the third
+    // completion celebrated yesterday's cycle. Nothing about the old day — its
+    // count, its break type, its task — may come back with the new one.
+    mockDb.getTimerState.mockResolvedValue({
+      isRunning: true,
+      type: 'short-break',
+      remainingSeconds: 120,
+      taskId: 'task-from-yesterday',
+      sessionCount: 3,
+      startedAt: new Date(Date.now() - 60_000).toISOString(),
+      lastActiveDate: '2000-01-01',
+    });
+
+    await svc.init();
+
+    expect(svc.timerType()).toBe('work');
+    expect(svc.sessionCount()).toBe(0);
+    expect(svc.remainingSeconds()).toBe(DEFAULT_SETTINGS.workDuration);
+    expect(svc.currentTaskId()).toBeNull();
+    expect(svc.hasInterruptedSession()).toBe(false);
+  });
+
+  it('starts a new cycle when the app is left open past midnight', async () => {
+    vi.setSystemTime(new Date(2026, 0, 15, 23, 59, 0));
+    mockDb.getTimerState.mockResolvedValue({
+      isRunning: false,
+      type: 'work',
+      remainingSeconds: 100,
+      taskId: null,
+      sessionCount: 3,
+      startedAt: null,
+      lastActiveDate: localDayKey(new Date(2026, 0, 15, 23, 59, 0)),
+    });
+
+    await svc.init();
+    expect(svc.sessionCount()).toBe(3);
+
+    vi.setSystemTime(new Date(2026, 0, 16, 0, 1, 0));
+    await vi.advanceTimersByTimeAsync(30_000);
+
+    expect(svc.sessionCount()).toBe(0);
+    expect(svc.timerType()).toBe('work');
+    expect(svc.remainingSeconds()).toBe(DEFAULT_SETTINGS.workDuration);
   });
 
   // ── start / pause / stop ─────────────────────────────────────────────

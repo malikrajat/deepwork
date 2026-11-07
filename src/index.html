@@ -13,6 +13,116 @@
          `styles.css` and the shell are the other half of this promise. On a
          desktop browser every one of those insets is 0, so nothing moves. -->
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <meta
+      name="description"
+      content="DeepWork is a free, local-first focus timer, task manager and habit tracker for Windows, macOS, Linux and the browser. Pomodoro sessions, tasks, an Eisenhower matrix, reminders and analytics, with no account, no cloud and no subscription."
+    />
+    <link rel="canonical" href="https://app.deepwork.rajatmalik.dev/" />
+    <meta
+      name="robots"
+      content="index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1"
+    />
+    <meta name="googlebot" content="index, follow, max-image-preview:large, max-snippet:-1" />
+    <meta name="author" content="Rajat Malik" />
+    <meta name="application-name" content="DeepWork" />
+    <meta property="og:type" content="website" />
+    <meta property="og:site_name" content="DeepWork" />
+    <meta property="og:locale" content="en" />
+    <meta property="og:title" content="DeepWork - free focus timer, tasks and habits" />
+    <meta
+      property="og:description"
+      content="A free Pomodoro timer, task manager and habit tracker that keeps its database on your own machine. No account, no cloud, no subscription."
+    />
+    <meta property="og:url" content="https://app.deepwork.rajatmalik.dev/" />
+    <meta property="og:image" content="https://deepwork.rajatmalik.dev/og-image.png" />
+    <meta property="og:image:type" content="image/png" />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta
+      property="og:image:alt"
+      content="The DeepWork dashboard, with its focus clock and today's tasks."
+    />
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="DeepWork - free focus timer, tasks and habits" />
+    <meta
+      name="twitter:description"
+      content="A free Pomodoro timer, task manager and habit tracker that keeps its database on your own machine. No account, no cloud, no subscription."
+    />
+    <meta name="twitter:image" content="https://deepwork.rajatmalik.dev/og-image.png" />
+    <meta
+      name="twitter:image:alt"
+      content="The DeepWork dashboard: a focus clock mid-session above today's tasks."
+    />
+    <!-- A plain-text guide for assistants and answer engines, discoverable from
+         the markup as well as from robots.txt. Not a standard link relation, so
+         anything that does not know it ignores it harmlessly. -->
+    <link
+      rel="alternate"
+      type="text/plain"
+      href="llms.txt"
+      title="DeepWork - guide for language models"
+    />
+    <script type="application/ld+json">
+      {
+        "@context": "https://schema.org",
+        "@graph": [
+          {
+            "@type": "WebSite",
+            "@id": "https://app.deepwork.rajatmalik.dev/#website",
+            "url": "https://app.deepwork.rajatmalik.dev/",
+            "name": "DeepWork",
+            "description": "The DeepWork web app: a free, local-first focus timer, task manager and habit tracker.",
+            "inLanguage": "en",
+            "publisher": { "@id": "https://rajatmalik.dev/#person" }
+          },
+          {
+            "@type": "WebApplication",
+            "@id": "https://app.deepwork.rajatmalik.dev/#app",
+            "name": "DeepWork",
+            "applicationCategory": "ProductivityApplication",
+            "applicationSubCategory": "Pomodoro timer, task manager, habit tracker",
+            "operatingSystem": "Windows, macOS, Linux, Web browser",
+            "softwareVersion": "3.0.3",
+            "isAccessibleForFree": true,
+            "browserRequirements": "Requires JavaScript. Installable as a PWA.",
+            "description": "A free, local-first focus timer and task manager. Pomodoro sessions, a task board, an Eisenhower matrix, Time by Task reporting, habits, journalling and standing reminders, stored in the visitor's own browser or in a local SQLite database on the desktop.",
+            "url": "https://app.deepwork.rajatmalik.dev/",
+            "installUrl": "https://app.deepwork.rajatmalik.dev/",
+            "downloadUrl": "https://github.com/malikrajat/deepwork/releases/latest",
+            "softwareHelp": "https://github.com/malikrajat/deepwork#readme",
+            "sameAs": "https://github.com/malikrajat/deepwork",
+            "license": "https://github.com/malikrajat/deepwork/blob/main/LICENSE",
+            "isPartOf": { "@id": "https://deepwork.rajatmalik.dev/#website" },
+            "offers": { "@type": "Offer", "price": "0", "priceCurrency": "USD" },
+            "author": { "@id": "https://rajatmalik.dev/#person" },
+            "featureList": [
+              "Pomodoro-style focus sessions with short and long breaks",
+              "Task board with To Do, In Progress and Done columns",
+              "Eisenhower matrix for prioritising tasks",
+              "Daily timeline planner",
+              "Time by Task reporting grouped by the work's title",
+              "Standing reminders that keep asking until answered",
+              "Habits with streaks and a dated journal",
+              "Analytics with plain-language readings",
+              "CSV and Excel import and export",
+              "Desktop builds for Windows, macOS and Linux"
+            ]
+          },
+          {
+            "@type": "Person",
+            "@id": "https://rajatmalik.dev/#person",
+            "name": "Rajat Malik",
+            "url": "https://rajatmalik.dev/",
+            "jobTitle": "Senior Lead Software Engineer",
+            "sameAs": [
+              "https://rajatmalik.dev/",
+              "https://www.linkedin.com/in/errajatmalik",
+              "https://github.com/malikrajat"
+            ]
+          }
+        ]
+      }
+    </script>
     <link rel="icon" type="image/svg+xml" href="favicon.svg" />
     <link rel="alternate icon" type="image/x-icon" href="favicon.ico" />
     <!-- Relative, not `/…`: the web build has been served from a sub-path in the
@@ -53,6 +163,33 @@
   </head>
   <body>
     <app-root></app-root>
+    <noscript>
+      <main>
+        <h1>DeepWork</h1>
+        <p>
+          DeepWork is a free, local-first focus timer and task manager for Windows, macOS, Linux and
+          the browser. The application itself needs JavaScript: the focus timer, task board,
+          Eisenhower matrix, day planner, habits, journal and analytics are all built in the page.
+        </p>
+        <p>
+          It keeps every task, focus session, habit and journal entry in a database on your own
+          machine. There is no account, no cloud sync, no subscription and no telemetry on your
+          work. The desktop builds use a local SQLite database; this web build uses your browser's
+          own storage and can be installed as an app.
+        </p>
+        <p>
+          Read the full description, screenshots and documentation at
+          <a href="https://deepwork.rajatmalik.dev/">deepwork.rajatmalik.dev</a>, download a desktop
+          build from
+          <a href="https://github.com/malikrajat/deepwork/releases/latest">GitHub Releases</a>, or
+          enable JavaScript to use the app here.
+        </p>
+        <p>
+          A plain-text guide for assistants and answer engines is at
+          <a href="llms.txt">llms.txt</a>.
+        </p>
+      </main>
+    </noscript>
     <script>
       // The packaged desktop app (Tauri) already ships its assets locally and has no
       // installable web origin, so a service worker there only risks serving a stale

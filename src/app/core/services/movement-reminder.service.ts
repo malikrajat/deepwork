@@ -14,6 +14,7 @@ import { LogService } from './log.service';
 import { NotificationAction, NotificationService } from './notification.service';
 import { SettingsService } from './settings.service';
 import { UiService } from './ui.service';
+import { localDayKey } from '../utils/nudge-schedule.util';
 
 /** How often the schedule is re-checked. */
 const TICK_MS = 30_000;
@@ -261,6 +262,11 @@ export class MovementReminderService implements OnDestroy {
         this.nextAt.set(nextWindowOpen(now, workingHours.start, workingHours.end));
         return;
       }
+
+      // The first pass inside today's hours starts from today. Yesterday's
+      // cadence is not a debt this morning owes: the first reminder is a full
+      // interval away, not one that arrives with the sunrise.
+      this.resetCadenceForNewDay(now);
 
       const last = this.lastFiredAt();
       // A reminder the user asked for waits a full interval; one that was already
@@ -521,13 +527,28 @@ export class MovementReminderService implements OnDestroy {
     if (this.awayTimeFolded) return;
     this.awayTimeFolded = true;
 
+    const last = this.lastFiredAt();
+    if (!last) return;
+    // A reminder from an earlier day belongs to that day's cadence; the first
+    // pass inside today's hours starts today afresh instead.
+    if (localDayKey(last) !== localDayKey(now)) return;
+
     const away = this.awayMs(now);
     if (away <= 0) return;
 
-    const last = this.lastFiredAt();
-    if (!last) return;
+    // Only the time at the desk counts, so the cadence is pushed forward by the
+    // absence. If that still leaves the next moment already behind the clock —
+    // the absence swallowed the whole interval — the launch starts a fresh one
+    // rather than firing a reminder on the doorstep.
+    const folded = last.getTime() + away;
+    const intervalMs = Math.max(1, this.prefs().intervalMinutes) * 60_000;
+    this.remember(new Date(folded + intervalMs <= now.getTime() ? now.getTime() : folded));
+  }
 
-    this.remember(new Date(Math.min(last.getTime() + away, now.getTime())));
+  /** Starts today's cadence from now when the last reminder was yesterday's. */
+  private resetCadenceForNewDay(now: Date): void {
+    const last = this.lastFiredAt();
+    if (last && localDayKey(last) !== localDayKey(now)) this.remember(now);
   }
 
   /** How long DeepWork was not running, in milliseconds. */

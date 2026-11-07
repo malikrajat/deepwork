@@ -27,6 +27,7 @@ import { Task, TaskQuadrant } from '../../core/models/task.model';
 import { QUADRANT_CONFIG } from '../../core/constants/theme.constants';
 import { TaskEditorService } from '../../core/services/task-editor.service';
 import { readFocusedTaskId, saveFocusedTaskId } from '../../core/utils/focus-task.util';
+import { localDayKey } from '../../core/utils/nudge-schedule.util';
 import { TaskSelectFormModel, createTaskSelectFormDefaults } from '../../shared/models/form.models';
 
 @Component({
@@ -1405,6 +1406,8 @@ export class DashboardComponent implements OnInit, OnDestroy {
     return [];
   });
   private confettiTimeout: ReturnType<typeof setTimeout> | null = null;
+  /** Watches for midnight so the page's "today" counters start the day at zero. */
+  private dayIntervalId: ReturnType<typeof setInterval> | null = null;
 
   readonly sessionsBeforeLongBreak = computed(
     () => this.settingsService.settings().sessionsBeforeLongBreak,
@@ -1480,9 +1483,13 @@ export class DashboardComponent implements OnInit, OnDestroy {
     return this.taskService.todayTasks().find((task) => task.id === selectedTaskId) ?? null;
   });
   readonly openTodayTasks = computed(() => this.taskService.todayTasks().length);
+  /** The local day the page's counters belong to; rolled by the day watcher. */
+  private readonly todayKey = signal(localDayKey(new Date()));
   readonly completedTodayTasks = computed(() => {
-    const today = new Date().toISOString().slice(0, 10);
-    return this.taskService.tasks().filter((task) => task.completedAt?.startsWith(today)).length;
+    const today = this.todayKey();
+    return this.taskService
+      .tasks()
+      .filter((task) => task.completedAt && localDayKey(new Date(task.completedAt)) === today).length;
   });
   readonly averageFocusTimeDisplay = computed(() => {
     const focusSessions = this.todaySessions().filter(
@@ -1551,6 +1558,28 @@ export class DashboardComponent implements OnInit, OnDestroy {
     });
 
     this.loadTodaySessions();
+    this.watchDay();
+  }
+
+  /**
+   * Starts the page's counters over when the local day turns while it is open.
+   *
+   * The timer service starts its own cycle over at midnight; this is the other
+   * half — the session list, the daily goal and the completed-task count read
+   * from the database, and without a reload they would keep showing yesterday's
+   * numbers until the page was left and opened again.
+   */
+  private watchDay(): void {
+    if (this.dayIntervalId) return;
+    this.dayIntervalId = setInterval(() => {
+      const day = localDayKey(new Date());
+      if (day === this.todayKey()) return;
+      this.todayKey.set(day);
+      // A focused task is a choice for one day, so the new day starts without
+      // one — the same rule `readFocusedTaskId` applies on the next launch.
+      this.selectTask('');
+      void this.loadTodaySessions();
+    }, 60_000);
   }
 
   startTimer(): void {
@@ -1663,6 +1692,10 @@ export class DashboardComponent implements OnInit, OnDestroy {
     if (this.confettiTimeout) {
       clearTimeout(this.confettiTimeout);
       this.confettiTimeout = null;
+    }
+    if (this.dayIntervalId) {
+      clearInterval(this.dayIntervalId);
+      this.dayIntervalId = null;
     }
     this.timer.onComplete(null);
   }

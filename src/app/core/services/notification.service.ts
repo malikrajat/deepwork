@@ -255,6 +255,17 @@ export class NotificationService implements OnDestroy {
    */
   static readonly STARTUP_NOTIFICATION_TAG = 'deepwork-startup';
   static readonly PIN_NOTIFICATION_TAG = 'deepwork-pin';
+  /**
+   * The two setup offers, one per body reminder.
+   *
+   * Each has its own handle for the same reason the reminders do: a tagged post
+   * replaces the one before it, so the offer for water must not take the place of
+   * an unanswered stand-and-walk question or the completion alert. The same
+   * handle is reused for the confirmation after **Set up**, so turning a reminder
+   * on replaces the offer rather than leaving both on screen.
+   */
+  static readonly WATER_SETUP_NOTIFICATION_TAG = 'deepwork-water-setup';
+  static readonly MOVEMENT_SETUP_NOTIFICATION_TAG = 'deepwork-move-setup';
 
   private readonly settingsService = inject(SettingsService);
   /**

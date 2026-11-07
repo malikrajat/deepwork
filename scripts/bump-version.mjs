@@ -100,6 +100,25 @@ const targets = [
     read: (src) => [src.match(/APP_VERSION = '([^']+)'/)[1]],
     write: (src, from, to) => src.replace(`APP_VERSION = '${from}'`, `APP_VERSION = '${to}'`),
   },
+  {
+    // The structured data a search engine or an answer engine reads, which is
+    // outside every build system's version.
+    file: 'src/index.html',
+    read: (src) => [src.match(/"softwareVersion": "([^"]+)"/)[1]],
+    write: (src, from, to) =>
+      src.replace(`"softwareVersion": "${from}"`, `"softwareVersion": "${to}"`),
+  },
+  {
+    file: 'public/llms.txt',
+    read: (src) => [src.match(/\*\*Version described here:\*\* (\d+\.\d+\.\d+)/)[1]],
+    write: (src, from, to) =>
+      src.replace(`**Version described here:** ${from}`, `**Version described here:** ${to}`),
+  },
+  {
+    file: 'docs/website-prompt.md',
+    read: (src) => [src.match(/Version: `v([^`]+)`/)[1]],
+    write: (src, from, to) => src.replace(`Version: \`v${from}\``, `Version: \`v${to}\``),
+  },
   doc('README.md'),
   doc('SETUP.md'),
   doc('docs/code-signing.md'),

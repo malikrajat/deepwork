@@ -61,6 +61,14 @@ export interface SearchFormModel {
   query: string;
 }
 
+/** Contact form model — name and message are required, the rest are optional. */
+export interface ContactFormModel {
+  name: string;
+  email: string;
+  mobile: string;
+  message: string;
+}
+
 // ─────────────────────────────────────────────────────────────────────────────
 // Default form values (factory functions to avoid shared references)
 // ─────────────────────────────────────────────────────────────────────────────
@@ -131,6 +139,10 @@ export function createSettingsFormDefaults(): SettingsFormModel {
 
 export function createSearchFormDefaults(): SearchFormModel {
   return { query: '' };
+}
+
+export function createContactFormDefaults(): ContactFormModel {
+  return { name: '', email: '', mobile: '', message: '' };
 }
 
 export function createTaskSelectFormDefaults(): TaskSelectFormModel {

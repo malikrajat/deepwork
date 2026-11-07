@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  One URL. The app is a single-page build served from a domain root, and GitHub
+  Pages answers every deep route (/about, /tasks, ...) with the same shell under
+  a 404 status. Listing those routes here would submit URLs a crawler records as
+  not found, so only the address that really is a 200 is listed. The routes are
+  documented in llms.txt for assistants, which do not care about the status.
+
+  `lastmod` is the day the app's public copy last changed, not the day the build
+  ran. A date that moves without the content moving tells a crawler something
+  untrue.
+-->
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+  <url>
+    <loc>https://app.deepwork.rajatmalik.dev/</loc>
+    <lastmod>2026-10-30</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>1.0</priority>
+  </url>
+</urlset>
