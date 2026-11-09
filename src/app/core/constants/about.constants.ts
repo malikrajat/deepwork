@@ -131,7 +131,7 @@ export interface ContactLink {
 }
 
 /** The address for work, project and role enquiries — what the About page offers. */
-export const CONTACT_EMAIL = 'contact@therate.dev';
+export const CONTACT_EMAIL = 'contact@rajatmalik.dev';
 
 /** The address for help with the app itself — what the diagnostics panel points at. */
 export const SUPPORT_EMAIL = 'support@rajatmalik.dev';
