@@ -17,6 +17,7 @@ import { MovementReminderService } from '../../core/services/movement-reminder.s
 import { AttentionService } from '../../core/services/attention.service';
 import { LaunchPromptService } from '../../core/services/launch-prompt.service';
 import { DesktopPrefsService } from '../../core/services/desktop-prefs.service';
+import { ConfirmDialogService } from '../../core/services/confirm-dialog.service';
 import { formatMillilitres, parseTimeOfDay } from '../../core/utils/water.util';
 import { movementWhyFor } from '../../core/utils/movement.util';
 import { NUDGE_SETTINGS_HELP } from '../../core/constants/nudge.constants';
@@ -1028,6 +1029,7 @@ export class SettingsComponent implements OnInit {
   private readonly movementReminder = inject(MovementReminderService);
   private readonly taskService = inject(TaskService);
   private readonly attention = inject(AttentionService);
+  private readonly confirmDialog = inject(ConfirmDialogService);
   protected readonly launch = inject(LaunchPromptService);
   protected readonly desktop = inject(DesktopPrefsService);
   protected readonly nudgeHelp = NUDGE_SETTINGS_HELP;
@@ -1301,7 +1303,15 @@ export class SettingsComponent implements OnInit {
         alert('Invalid DeepWork export file.');
         return;
       }
-      if (!confirm('This will overwrite your current data. Continue?')) return;
+      const confirmed = await this.confirmDialog.confirm({
+        tone: 'danger',
+        title: 'Replace your data?',
+        message:
+          'Importing this file overwrites the tasks and focus sessions already on this device. This cannot be undone.',
+        confirmLabel: 'Replace data',
+        cancelLabel: 'Keep current data',
+      });
+      if (!confirmed) return;
       await this.db.importBackup(data);
       await this.settingsService.loadSettings();
       this.theme.apply();

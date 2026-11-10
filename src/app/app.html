@@ -36,6 +36,11 @@
     @defer (on idle) {
       <app-quiet-dialog />
     }
+    <!-- Every in-app question — "start a new session?" included — is drawn by
+         this one card instead of the browser's own confirm, whose title belongs
+         to the host and whose buttons do not follow the app's theme. It lives in
+         the shell because the question can be asked from any page. -->
+    <app-confirm-dialog />
     <app-update-prompt />
     <app-welcome-prefs-dialog />
     <!-- The first-run question about starting with the computer. It is separate

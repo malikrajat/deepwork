@@ -26,6 +26,7 @@ import { MovementNudgeComponent } from './shared/components/movement-nudge/movem
 import { ReminderCardComponent } from './shared/components/reminder-card/reminder-card.component';
 import { VisitorStatsDialogComponent } from './shared/components/visitor-stats-dialog/visitor-stats-dialog.component';
 import { QuietDialogComponent } from './shared/components/quiet-dialog/quiet-dialog.component';
+import { ConfirmDialogComponent } from './shared/components/confirm-dialog/confirm-dialog.component';
 import { InstallDialogComponent } from './shared/components/install-dialog/install-dialog.component';
 import { TimerService } from './core/services/timer.service';
 import { UiService } from './core/services/ui.service';
@@ -91,6 +92,7 @@ const COMPACT_LAYOUT_QUERY = '(max-width: 900px)';
     ReminderCardComponent,
     VisitorStatsDialogComponent,
     QuietDialogComponent,
+    ConfirmDialogComponent,
     InstallDialogComponent,
   ],
   templateUrl: './app.html',
