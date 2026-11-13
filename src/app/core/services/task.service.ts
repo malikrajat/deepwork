@@ -127,6 +127,29 @@ export class TaskService {
     return this.todayOrdered(this.todaysTasks(today));
   });
 
+  /**
+   * The quadrant the day's focus belongs to.
+   *
+   * The Eisenhower order is the rule: finish **Do First** before touching
+   * **Schedule**, then **Delegate**, then **Eliminate**. This is the first
+   * quadrant in that order that still has open work on today's list, and every
+   * task surface reads it — the dashboard's task picker and the start-focus
+   * button on the Today, Tasks, Matrix and Calendar cards — so the button is on
+   * the same tasks everywhere, and moves to the next quadrant by itself once the
+   * current one is finished.
+   *
+   * `todayTasks()` excludes Done, so a quadrant drops out the moment its last
+   * task is completed. Unassigned work is not part of the ladder and gets no
+   * start control.
+   */
+  readonly focusQuadrant = computed<TaskQuadrant | null>(() => {
+    const open = this.todayTasks();
+    for (const quadrant of Object.keys(QUADRANT_CONFIG) as TaskQuadrant[]) {
+      if (open.some((task) => task.quadrant === quadrant)) return quadrant;
+    }
+    return null;
+  });
+
   /** Daily sequence: quadrant priority first, then the order the user dragged. */
   private todayOrdered(tasks: Task[]): Task[] {
     return [...tasks].sort((a, b) => {

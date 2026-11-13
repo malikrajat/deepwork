@@ -6,18 +6,19 @@ import {
   inject,
   signal,
 } from '@angular/core';
-import { Router } from '@angular/router';
 import { TaskService } from '../../core/services/task.service';
 import { DbService } from '../../core/services/db.service';
 import { Task } from '../../core/models/task.model';
 import {
   BoardMove,
+  BoardQuadrantChange,
   TaskBoardComponent,
 } from '../../shared/components/task-board/task-board.component';
 import { sequenceAfterMove } from '../../shared/components/task-board/task-board.view';
 import { TooltipDirective } from '../../shared/directives/tooltip.directive';
 import { TaskEditorService } from '../../core/services/task-editor.service';
-import { readFocusedTaskId, saveFocusedTaskId } from '../../core/utils/focus-task.util';
+import { FocusLauncherService } from '../../core/services/focus-launcher.service';
+import { readFocusedTaskId } from '../../core/utils/focus-task.util';
 
 /**
  * Today is the same status board as the Tasks page, scoped to the day's list:
@@ -138,11 +139,14 @@ import { readFocusedTaskId, saveFocusedTaskId } from '../../core/utils/focus-tas
           [actions]="boardActions"
           [showOrder]="true"
           [highlightedTaskId]="focusedTaskId()"
+          [focusQuadrant]="taskService.focusQuadrant()"
+          [contextMenuEnabled]="true"
           emptyText="Nothing here today"
           (moved)="onMoved($event)"
           (editRequested)="editTask($event)"
           (focusRequested)="focusTask($event)"
           (deleteRequested)="deleteTask($event)"
+          (quadrantRequested)="onQuadrantRequested($event)"
         />
       }
     </div>
@@ -422,10 +426,12 @@ import { readFocusedTaskId, saveFocusedTaskId } from '../../core/utils/focus-tas
   ],
 })
 export class TodayComponent implements OnInit {
-  private readonly taskService = inject(TaskService);
   private readonly db = inject(DbService);
-  private readonly router = inject(Router);
   private readonly taskEditor = inject(TaskEditorService);
+  private readonly focusLauncher = inject(FocusLauncherService);
+
+  /** The quadrant the day's start-focus controls belong to. */
+  readonly taskService = inject(TaskService);
 
   todayLabel = new Date().toLocaleDateString(undefined, {
     weekday: 'long',
@@ -487,15 +493,19 @@ export class TodayComponent implements OnInit {
     await this.taskService.reorderToday(sequence);
   }
 
+  /** The right-click menu's quadrant choice, kept in step with the Matrix. */
+  async onQuadrantRequested(change: BoardQuadrantChange): Promise<void> {
+    if (change.task.quadrant === change.quadrant) return;
+    await this.taskService.setQuadrant(change.task.id, change.quadrant);
+  }
+
   /** The delete control on a card removes the task, matching the Tasks board. */
   async deleteTask(task: Task): Promise<void> {
     await this.taskService.deleteTask(task.id);
   }
 
-  focusTask(task: Task): void {
-    saveFocusedTaskId(task.id);
-    this.focusedId.set(task.id);
-    this.router.navigate(['/dashboard']);
+  async focusTask(task: Task): Promise<void> {
+    if (await this.focusLauncher.start(task)) this.focusedId.set(task.id);
   }
 
   /**

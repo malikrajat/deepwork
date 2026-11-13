@@ -13,6 +13,7 @@ import { ActivatedRoute, Router } from '@angular/router';
 import { TaskService } from '../../core/services/task.service';
 import { DbService } from '../../core/services/db.service';
 import { TaskAddPrefill, TaskEditorService } from '../../core/services/task-editor.service';
+import { FocusLauncherService } from '../../core/services/focus-launcher.service';
 import { Task, taskActivityIso } from '../../core/models/task.model';
 import { ImportCommitResult } from '../../core/models/task-import.model';
 import { TooltipDirective } from '../../shared/directives/tooltip.directive';
@@ -20,6 +21,7 @@ import { TaskImportPanelComponent } from '../../shared/components/task-import-pa
 import { TaskExportPanelComponent } from '../../shared/components/task-export-panel/task-export-panel.component';
 import {
   BoardMove,
+  BoardQuadrantChange,
   TaskBoardComponent,
 } from '../../shared/components/task-board/task-board.component';
 import { SearchFormModel, createSearchFormDefaults } from '../../shared/models/form.models';
@@ -177,7 +179,8 @@ type SortKey = 'updated' | 'priority' | 'deadline' | 'newest';
         </button>
         <span class="board-hint"
           >Drag a card into another column to change its status · <kbd>1</kbd> <kbd>2</kbd>
-          <kbd>3</kbd> with a card focused</span
+          <kbd>3</kbd> with a card focused · right-click today's and future cards for every
+          option</span
         >
       </div>
 
@@ -266,12 +269,16 @@ type SortKey = 'updated' | 'priority' | 'deadline' | 'newest';
                   <app-task-board
                     [tasks]="group.tasks"
                     [actions]="boardActions"
+                    [focusQuadrant]="focusQuadrant()"
+                    [contextMenuEnabled]="!group.isPast"
                     emptyText="Drop a task here"
                     (moved)="onMoved($event)"
                     (opened)="openEditPanel($event)"
                     (editRequested)="openEditPanel($event)"
+                    (focusRequested)="startFocus($event)"
                     (todayToggled)="toggleToday($event)"
                     (deleteRequested)="deleteTask($event.id)"
+                    (quadrantRequested)="onQuadrantRequested($event)"
                   />
                 </div>
               }
@@ -843,9 +850,12 @@ type SortKey = 'updated' | 'priority' | 'deadline' | 'newest';
 })
 export class TasksComponent implements OnInit {
   private taskService = inject(TaskService);
+  /** Exposed to the board so its start-focus controls follow today's quadrant. */
+  readonly focusQuadrant = this.taskService.focusQuadrant;
   private db = inject(DbService);
   private readonly route = inject(ActivatedRoute);
   private readonly router = inject(Router);
+  private readonly focusLauncher = inject(FocusLauncherService);
 
   sortBy = signal<SortKey>('updated');
   importOpen = signal(false);
@@ -905,7 +915,7 @@ export class TasksComponent implements OnInit {
   }
 
   /** Buttons every card on this page carries. */
-  readonly boardActions = ['today', 'edit', 'delete'] as const;
+  readonly boardActions = ['today', 'focus', 'edit', 'delete'] as const;
 
   // Search form
   private readonly searchModel = signal<SearchFormModel>(createSearchFormDefaults());
@@ -1065,6 +1075,16 @@ export class TasksComponent implements OnInit {
     this.taskEditor.openEdit(task);
   }
 
+  /**
+   * Starts the task from this page: the shared launcher selects it, starts the
+   * focus clock and opens the dashboard, where the task is waiting under the
+   * clock. It follows the active quadrant, so only Do First — or whichever
+   * quadrant is next once that one is finished — offers the control.
+   */
+  startFocus(task: Task): void {
+    void this.focusLauncher.start(task);
+  }
+
   closeImportPanel(): void {
     this.importOpen.set(false);
   }
@@ -1087,6 +1107,17 @@ export class TasksComponent implements OnInit {
   async onMoved(move: BoardMove): Promise<void> {
     if (move.task.status === move.status) return;
     await this.taskService.setStatus(move.task, move.status);
+  }
+
+  /**
+   * The right-click menu's quadrant choice. The Matrix reads a task's own
+   * `quadrant`, so writing it here puts the card in that column there too; the
+   * menu is only offered on today's and future sections, where the move is
+   * planning rather than rewriting a day that has already gone.
+   */
+  async onQuadrantRequested(change: BoardQuadrantChange): Promise<void> {
+    if (change.task.quadrant === change.quadrant) return;
+    await this.taskService.setQuadrant(change.task.id, change.quadrant);
   }
 
   async toggleToday(task: Task): Promise<void> {

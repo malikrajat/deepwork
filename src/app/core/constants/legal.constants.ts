@@ -104,7 +104,7 @@ export const LEGAL_DOCUMENTS: Record<LegalDocumentId, LegalDocument> = {
       },
       {
         heading: 'Contact',
-        paragraphs: ['Questions about this policy can go to contact@therate.dev.'],
+        paragraphs: ['Questions about this policy can go to contact@rajatmalik.dev.'],
       },
     ],
   },
@@ -193,7 +193,7 @@ export const LEGAL_DOCUMENTS: Record<LegalDocumentId, LegalDocument> = {
       },
       {
         heading: 'Contact',
-        paragraphs: ['Questions about these terms can go to contact@therate.dev.'],
+        paragraphs: ['Questions about these terms can go to contact@rajatmalik.dev.'],
       },
     ],
   },

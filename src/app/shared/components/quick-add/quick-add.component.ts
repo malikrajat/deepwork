@@ -10,7 +10,9 @@ import {
 } from '@angular/core';
 import { TaskService } from '../../../core/services/task.service';
 import { NotificationService } from '../../../core/services/notification.service';
+import { SpeechService } from '../../../core/services/speech.service';
 import { UiService } from '../../../core/services/ui.service';
+import { insertDictationIntoField } from '../../../core/utils/dictation.util';
 import {
   TASK_DESCRIPTION_MAX_LENGTH,
   TASK_TITLE_MAX_LENGTH,
@@ -18,6 +20,7 @@ import {
 } from '../../../core/models/task.model';
 import { createTaskFormDefaults } from '../../models/form.models';
 import { TooltipDirective } from '../../directives/tooltip.directive';
+import { MicButtonComponent } from '../mic-button/mic-button.component';
 
 /**
  * The floating "add a task for today" button, on every page.
@@ -28,7 +31,7 @@ import { TooltipDirective } from '../../directives/tooltip.directive';
  */
 @Component({
   selector: 'app-quick-add',
-  imports: [TooltipDirective],
+  imports: [TooltipDirective, MicButtonComponent],
   changeDetection: ChangeDetectionStrategy.OnPush,
   host: { '(window:keydown)': 'onKeydown($event)' },
   template: `
@@ -109,20 +112,24 @@ import { TooltipDirective } from '../../directives/tooltip.directive';
               <h3>New task</h3>
             </div>
 
-            <label class="qa-field">
-              <span
-                >Title <em>(required)</em>
+            <div class="qa-field">
+              <label class="qa-label" for="qa-title">
+                Title <em>(required)</em>
                 <span class="qa-count">{{ title().length }}/{{ titleMax }}</span>
-              </span>
-              <input
-                #titleInput
-                type="text"
-                [value]="title()"
-                [attr.maxlength]="titleMax"
-                placeholder="What needs to be done?"
-                (input)="onTitleInput($event)"
-              />
-            </label>
+              </label>
+              <div class="qa-dictation-field" [class.with-dictation]="speech.available">
+                <input
+                  #titleInput
+                  id="qa-title"
+                  type="text"
+                  [value]="title()"
+                  [attr.maxlength]="titleMax"
+                  placeholder="What needs to be done?"
+                  (input)="onTitleInput($event)"
+                />
+                <app-mic-button owner="quick-add-title" (dictation)="insertIntoTitle($event)" />
+              </div>
+            </div>
 
             <button
               class="qa-advanced-toggle"
@@ -149,19 +156,30 @@ import { TooltipDirective } from '../../directives/tooltip.directive';
 
             @if (advancedOpen()) {
               <div class="qa-advanced">
-                <label class="qa-field">
-                  <span
-                    >Description <em>(optional)</em>
+                <div class="qa-field">
+                  <label class="qa-label" for="qa-description">
+                    Description <em>(optional)</em>
                     <span class="qa-count">{{ description().length }}/{{ descriptionMax }}</span>
-                  </span>
-                  <textarea
-                    rows="2"
-                    [value]="description()"
-                    [attr.maxlength]="descriptionMax"
-                    placeholder="Anything worth remembering"
-                    (input)="onDescriptionInput($event)"
-                  ></textarea>
-                </label>
+                  </label>
+                  <div
+                    class="qa-dictation-field is-textarea"
+                    [class.with-dictation]="speech.available"
+                  >
+                    <textarea
+                      #descriptionInput
+                      id="qa-description"
+                      rows="2"
+                      [value]="description()"
+                      [attr.maxlength]="descriptionMax"
+                      placeholder="Anything worth remembering"
+                      (input)="onDescriptionInput($event)"
+                    ></textarea>
+                    <app-mic-button
+                      owner="quick-add-description"
+                      (dictation)="insertIntoDescription($event)"
+                    />
+                  </div>
+                </div>
                 <label class="qa-field">
                   <span>Priority <em>(default P3 Medium)</em></span>
                   <select [value]="priority()" (change)="priority.set(inputValue($event))">
@@ -370,7 +388,8 @@ import { TooltipDirective } from '../../directives/tooltip.directive';
         flex-direction: column;
         gap: 5px;
       }
-      .qa-field > span {
+      .qa-field > span,
+      .qa-label {
         display: flex;
         align-items: center;
         gap: 6px;
@@ -387,6 +406,35 @@ import { TooltipDirective } from '../../directives/tooltip.directive';
         margin-left: auto;
         font-size: 10px;
         font-variant-numeric: tabular-nums;
+      }
+
+      /* A microphone lives inside the field it writes into, so the phrase lands
+         at the caret rather than in a separate transcript. The right padding is
+         only taken while the browser build offers one. */
+      .qa-dictation-field {
+        position: relative;
+        display: flex;
+        width: 100%;
+      }
+      .qa-dictation-field > input,
+      .qa-dictation-field > textarea {
+        flex: 1;
+        min-width: 0;
+      }
+      .qa-dictation-field.with-dictation > input,
+      .qa-dictation-field.with-dictation > textarea {
+        padding-right: 46px;
+      }
+      .qa-dictation-field > app-mic-button {
+        position: absolute;
+        right: 8px;
+        top: 50%;
+        transform: translateY(-50%);
+      }
+      .qa-dictation-field.is-textarea > app-mic-button {
+        top: auto;
+        bottom: 8px;
+        transform: none;
       }
       .qa-field input,
       .qa-field textarea,
@@ -590,6 +638,7 @@ export class QuickAddComponent {
   private readonly tasks = inject(TaskService);
   private readonly notifications = inject(NotificationService);
   readonly ui = inject(UiService);
+  readonly speech = inject(SpeechService);
 
   readonly titleMax = TASK_TITLE_MAX_LENGTH;
   readonly descriptionMax = TASK_DESCRIPTION_MAX_LENGTH;
@@ -612,6 +661,8 @@ export class QuickAddComponent {
   );
 
   private readonly titleInput = viewChild<ElementRef<HTMLInputElement>>('titleInput');
+  private readonly descriptionInput =
+    viewChild<ElementRef<HTMLTextAreaElement>>('descriptionInput');
 
   /** The last tray request this component has answered. */
   private answeredRequest = 0;
@@ -632,6 +683,13 @@ export class QuickAddComponent {
       this.answeredRequest = request;
       if (this.open()) this.titleInput()?.nativeElement.focus();
       else this.openDialog();
+    });
+
+    // The description field lives behind "Advanced options". Collapsing it must
+    // also end its microphone: a hidden session would keep the device open with
+    // no button left to stop it.
+    effect(() => {
+      if (!this.advancedOpen()) this.speech.stopOwner('quick-add-description');
     });
   }
 
@@ -662,6 +720,20 @@ export class QuickAddComponent {
 
   close(): void {
     this.open.set(false);
+    this.speech.stopOwner('quick-add-title');
+    this.speech.stopOwner('quick-add-description');
+  }
+
+  /** One finished phrase, placed where the caret was in the title. */
+  insertIntoTitle(text: string): void {
+    const field = this.titleInput()?.nativeElement;
+    if (field) insertDictationIntoField(field, text, TASK_TITLE_MAX_LENGTH);
+  }
+
+  /** One finished phrase, placed where the caret was in the description. */
+  insertIntoDescription(text: string): void {
+    const field = this.descriptionInput()?.nativeElement;
+    if (field) insertDictationIntoField(field, text, TASK_DESCRIPTION_MAX_LENGTH);
   }
 
   private reset(): void {

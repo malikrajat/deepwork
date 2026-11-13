@@ -38,7 +38,7 @@ const sourceOf = (relative: string): string => readFileSync(resolve(__dirname, r
 describe('boardColumns', () => {
   it('returns one column per status, in cycle order', () => {
     const columns = boardColumns([]);
-    expect(columns.map(c => c.status)).toEqual(STATUS_CYCLE);
+    expect(columns.map((c) => c.status)).toEqual(STATUS_CYCLE);
   });
 
   it('labels every column and gives it the shared status colour class', () => {
@@ -54,9 +54,9 @@ describe('boardColumns', () => {
     const done = makeTask({ title: 'Done one', status: 'done' });
 
     const columns = boardColumns([todo, doing, done]);
-    expect(columns[0].tasks.map(t => t.title)).toEqual(['Todo one']);
-    expect(columns[1].tasks.map(t => t.title)).toEqual(['Doing one']);
-    expect(columns[2].tasks.map(t => t.title)).toEqual(['Done one']);
+    expect(columns[0].tasks.map((t) => t.title)).toEqual(['Todo one']);
+    expect(columns[1].tasks.map((t) => t.title)).toEqual(['Doing one']);
+    expect(columns[2].tasks.map((t) => t.title)).toEqual(['Done one']);
   });
 
   it('keeps the order the page handed over (the board never re-sorts)', () => {
@@ -65,7 +65,7 @@ describe('boardColumns', () => {
       makeTask({ title: 'Second', status: 'todo' }),
       makeTask({ title: 'Third', status: 'todo' }),
     ];
-    expect(boardColumns(tasks)[0].tasks.map(t => t.title)).toEqual(['First', 'Second', 'Third']);
+    expect(boardColumns(tasks)[0].tasks.map((t) => t.title)).toEqual(['First', 'Second', 'Third']);
   });
 
   it('leaves a column empty rather than dropping it', () => {
@@ -149,6 +149,31 @@ describe('sequenceAfterMove', () => {
  * it: one board component, no leftover status checkboxes or filter pills, and a
  * colour rule for every status class.
  */
+/**
+ * The right-click menu belongs to today's and future work only. These checks
+ * pin the gate to the board input: the Tasks page passes it per date section,
+ * Today passes it for the whole day, and a past section never gets it.
+ */
+describe('Task board right-click menu', () => {
+  it('offers the menu from a card and exposes a quadrant choice', () => {
+    const board = sourceOf('../../src/app/shared/components/task-board/task-board.component.ts');
+    expect(board).toContain('(contextmenu)="openContextMenu(task, $event)"');
+    expect(board).toContain('readonly quadrantRequested = output<BoardQuadrantChange>()');
+    expect(board).toContain('<span class="menu-section-title">Move to quadrant</span>');
+    expect(board).toContain('<span class="menu-section-title">Status</span>');
+    expect(board).toContain('class="menu-option"');
+  });
+
+  it('enables it on Today and on today/future sections of the Tasks page', () => {
+    expect(sourceOf('../../src/app/pages/today/today.component.ts')).toContain(
+      '[contextMenuEnabled]="true"',
+    );
+    expect(sourceOf('../../src/app/pages/tasks/tasks.component.ts')).toContain(
+      '[contextMenuEnabled]="!group.isPast"',
+    );
+  });
+});
+
 describe('Task board consistency across pages', () => {
   it('renders the same board component on Tasks and Today', () => {
     expect(sourceOf('../../src/app/pages/tasks/tasks.component.ts')).toContain('<app-task-board');
@@ -174,7 +199,7 @@ describe('Task board consistency across pages', () => {
   });
 
   it('gives every status its own colour class', () => {
-    const classes = STATUS_CYCLE.map(status => STATUS_CONFIG[status].cardClass);
+    const classes = STATUS_CYCLE.map((status) => STATUS_CONFIG[status].cardClass);
     expect(new Set(classes).size).toBe(classes.length);
   });
 });

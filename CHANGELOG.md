@@ -5,6 +5,76 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ---
 
+## [3.1.0] – 2026-11-16
+
+### Added
+
+- **Right-click a card on the Tasks and Today boards for the same menu the
+  Matrix offers.** A board card now carries Edit task, Start focus (when the
+  day's quadrant allows it), Add to Today / Remove from Today, Move to quadrant
+  and Status in one panel, so a task's status or quadrant can be changed without
+  dragging it or opening the editor (`task-board.component.ts`,
+  `tasks.component.ts`, `today.component.ts`).
+
+- **The menu is offered for today's and future work only.** The Tasks page's
+  date sections now say whether they lie in the past, and a past section leaves
+  the menu off — its cards keep the browser's own menu and cannot be re-sorted
+  from a day that has already gone. Today, Tomorrow and every later section get
+  the full menu (`task-date-groups.view.ts`).
+
+
+- **Start a task's focus session from wherever it is listed.** Today, the Tasks
+  board, the Matrix and the Calendar now carry the same start-focus control
+  beside a card's Edit button — on a board card, a matrix card and its
+  right-click menu, a calendar queue card, a timeline block and the slot panel.
+  Pressing it selects the task in the Dashboard's picker under the clock, starts
+  a fresh focus block on it and hands over to the Dashboard
+  (`focus-launcher.service.ts`, `task-board.component.ts`, `today.component.ts`,
+  `tasks.component.ts`, `matrix.component.ts`, `calendar.component.ts`).
+
+- **The control follows the Eisenhower order.** It is offered only for open work
+  in the day's active quadrant — Do First, then Schedule, Delegate and Eliminate
+  — so finishing the last Do First task moves the button to Schedule everywhere
+  at once. Unassigned work gets no control. `TaskService.focusQuadrant()` is the
+  one rule every surface reads (`task.service.ts`).
+
+- **Voice typing in the browser build.** The task form's title and description,
+  the quick-add dialog, the Calendar's new-task field and the journal now carry a
+  microphone in the web app. Speaking inserts text at the caret in the field the
+  microphone belongs to, rather than in a separate transcript box. The desktop
+  app never shows a microphone: the feature is gated on the browser environment,
+  so the packaged Tauri build is exactly as typed as it was before
+  (`speech.service.ts`, `mic-button.component.ts`, `dictation.util.ts`).
+
+- **Permission and error handling that says what to do next.** The first press
+  asks the browser for microphone access. A refusal is reported as an app toast
+  with a **Try again** action, explains that the browser will not prompt a second
+  time by itself, and names the site-settings route back; the microphone stays
+  visible in a blocked state. Missing microphones, a busy device, silence, an
+  unreachable speech service, unsupported languages and browsers without the Web
+  Speech API each get their own message. A declined or failed session never
+  leaves the microphone running (`speech.service.ts`).
+
+### Changed
+
+- **Today's existing focus button now starts the session too.** It used to only
+  link the task and open the Dashboard; it now goes through the same launcher as
+  the new controls, so the same confirmation and fresh-session rules apply
+  (`today.component.ts`).
+
+- **Starting a task while a session is already running asks first.** Confirming
+  records the running block as interrupted and begins a new focus block on the
+  chosen task; cancelling leaves the clock, the task selection and the page
+  untouched. A paused session is left behind rather than resumed under the new
+  task (`timer.service.ts`).
+
+- **The Dashboard's task picker keeps a task started from elsewhere visible**,
+  even when that task is not on today's list, and its Current Focus card names
+  whatever is linked rather than only today's subset
+  (`dashboard.component.ts`).
+
+- **The version is 3.1.0**, in every file that spells it out, moved in one pass by
+  `npm run version:bump -- 3.1.0`.
 
 ## [3.0.3] – 2026-10-30
 
@@ -53,7 +123,7 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   `npm run version:bump -- 3.0.3`.
 
 
-## [3.0.2] – 2026-10-26
+## [3.0.2] – 2026-11-07
 
 ### Added
 

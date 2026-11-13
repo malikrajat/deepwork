@@ -123,6 +123,14 @@ test.describe('Today Page', () => {
     const taskTitle = `Focus Nav ${Date.now()}`;
     await createTask(page, taskTitle);
 
+    // The start control follows the active quadrant — Do First first — so the
+    // task is put in Q1 before the button is expected to be on its card.
+    await page.locator('.task-card', { hasText: taskTitle }).locator('.edit-btn').click();
+    await page.locator('.slide-panel').getByRole('button', { name: 'Advanced options' }).click();
+    await page.locator('.slide-panel select').nth(1).selectOption('urgent-important');
+    await page.locator('.slide-panel').getByRole('button', { name: 'Save Changes' }).click();
+    await expect(page.locator('.slide-panel')).toHaveCount(0);
+
     await page.goto('/today');
     await expect(page.locator('.page-title')).toHaveText('Today', { timeout: 8000 });
 
@@ -132,8 +140,17 @@ test.describe('Today Page', () => {
     // Click the focus (target/circle) button
     await card.locator('.focus-btn').click();
     // The dashboard is the app's root route — `/dashboard` redirects to `/`
-    await expect(page.locator('.page-title')).toHaveText('Dashboard', { timeout: 5000 });
-    expect(await page.evaluate(() => localStorage.getItem('deepwork_focusTaskId'))).toBeTruthy();
+    await expect(page).toHaveURL(/\/$/);
+    await expect(
+      page.locator('.timer-controls').getByRole('button', { name: 'Pause' }),
+    ).toBeVisible({ timeout: 5000 });
+
+    // The task is selected in the picker under the clock and named by the
+    // current-focus card, and the stored choice is what the dashboard restored.
+    const focusedId = await page.evaluate(() => localStorage.getItem('deepwork_focusTaskId'));
+    expect(focusedId).toBeTruthy();
+    await expect(page.locator('.task-selector select')).toHaveValue(focusedId!);
+    await expect(page.locator('.insight-card.task-card h2')).toHaveText(taskTitle);
   });
 
   test('a card can be edited from Today without leaving the page', async ({ page }) => {

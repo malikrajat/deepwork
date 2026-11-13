@@ -98,6 +98,27 @@ describe('task date sections', () => {
     ]);
   });
 
+  it('marks only the sections before today as past', () => {
+    const groups = groupTasksByDate(
+      [
+        task('today', { deadline: '2026-09-18' }),
+        task('tomorrow', { deadline: '2026-09-19' }),
+        task('next month', { deadline: '2026-10-02' }),
+        task('yesterday', { deadline: '2026-09-17' }),
+        task('last month', { deadline: '2026-08-05' }),
+      ],
+      TODAY,
+    );
+
+    expect(groups.map((group) => [group.key, group.isPast])).toEqual([
+      ['today', false],
+      ['tomorrow', false],
+      ['month-2026-10', false],
+      ['yesterday', true],
+      ['month-2026-08', true],
+    ]);
+  });
+
   it('keeps the page order inside a section and counts the finished ones', () => {
     const groups = groupTasksByDate(
       [

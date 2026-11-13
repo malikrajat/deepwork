@@ -1,9 +1,22 @@
-import { ChangeDetectionStrategy, Component, computed, input, output } from '@angular/core';
+import {
+  ChangeDetectionStrategy,
+  Component,
+  ElementRef,
+  computed,
+  input,
+  output,
+  signal,
+  viewChild,
+} from '@angular/core';
 import { CdkDragDrop, DragDropModule } from '@angular/cdk/drag-drop';
 import { Task, TaskQuadrant, TaskStatus, taskActivityIso } from '../../../core/models/task.model';
 import { isPinnedToToday } from '../../../core/utils/task-day.util';
 import { localDayKey } from '../../../core/utils/nudge-schedule.util';
-import { QUADRANT_CONFIG, STATUS_CONFIG } from '../../../core/constants/theme.constants';
+import {
+  QUADRANT_CONFIG,
+  STATUS_CONFIG,
+  STATUS_CYCLE,
+} from '../../../core/constants/theme.constants';
 import { TooltipDirective } from '../../directives/tooltip.directive';
 import { formatActivityLabel } from '../../../core/utils/task-activity.util';
 import { BoardColumn, adjacentStatus, boardColumns, statusShortcut } from './task-board.view';
@@ -27,6 +40,32 @@ export interface BoardMove {
   index: number;
 }
 
+/** A right-click menu asking the page to re-sort a task. */
+export interface BoardQuadrantChange {
+  task: Task;
+  quadrant: TaskQuadrant | null;
+}
+
+const QUADRANT_IDS: readonly TaskQuadrant[] = [
+  'urgent-important',
+  'important',
+  'urgent',
+  'neither',
+];
+
+/** Secondary line shown next to each status inside the right-click menu. */
+const STATUS_HINTS: Record<TaskStatus, string> = {
+  todo: 'Not started',
+  'in-progress': 'Working on it',
+  done: 'Completed',
+};
+
+interface BoardContextMenu {
+  task: Task;
+  x: number;
+  y: number;
+}
+
 /**
  * The Jira-style task board: one column per task status, cards dragged between
  * them to change status.
@@ -45,6 +84,14 @@ export interface BoardMove {
   selector: 'app-task-board',
   imports: [DragDropModule, TooltipDirective],
   changeDetection: ChangeDetectionStrategy.OnPush,
+  host: {
+    '(document:pointerdown)': 'closeContextMenu()',
+    '(document:click)': 'closeContextMenu()',
+    '(document:contextmenu)': 'closeContextMenu()',
+    '(document:keydown.escape)': 'closeContextMenu()',
+    '(window:blur)': 'closeContextMenu()',
+    '(window:resize)': 'closeContextMenu()',
+  },
   template: `
     <div class="board" cdkDropListGroup>
       @for (column of columns(); track column.status) {
@@ -75,6 +122,7 @@ export interface BoardMove {
                 [attr.aria-label]="cardLabel(task)"
                 (click)="opened.emit(task)"
                 (keydown)="onCardKeydown(task, $event)"
+                (contextmenu)="openContextMenu(task, $event)"
               >
                 <span class="card-accent" aria-hidden="true"></span>
 
@@ -176,12 +224,13 @@ export interface BoardMove {
                     </button>
                   }
 
-                  @if (hasAction('focus')) {
+                  @if (canStartFocus(task)) {
                     <button
                       class="icon-btn focus-btn"
                       type="button"
                       [class.on]="task.id === highlightedTaskId()"
-                      appTooltip="Focus & go to timer"
+                      appTooltip="Start focus on this task"
+                      [attr.aria-label]="'Start focus on ' + task.title"
                       (click)="focusRequested.emit(task); $event.stopPropagation()"
                     >
                       <svg
@@ -251,6 +300,143 @@ export interface BoardMove {
         </section>
       }
     </div>
+
+    @if (contextMenu(); as menu) {
+      <div
+        #contextMenu
+        class="board-menu"
+        role="menu"
+        tabindex="-1"
+        [attr.aria-label]="'Actions for ' + menu.task.title"
+        [style.left.px]="menu.x"
+        [style.top.px]="menu.y"
+        (pointerdown)="$event.stopPropagation()"
+        (click)="$event.stopPropagation()"
+        (contextmenu)="$event.preventDefault(); $event.stopPropagation()"
+        (keydown.escape)="closeContextMenu()"
+      >
+        <div class="menu-header">
+          <span class="menu-title">{{ menu.task.title }}</span>
+          <span class="menu-subtitle">{{ taskContextLabel(menu.task) }}</span>
+        </div>
+
+        <div class="menu-section">
+          <button
+            class="menu-option"
+            type="button"
+            role="menuitem"
+            (click)="editFromMenu(menu.task)"
+          >
+            <span class="menu-dot edit"></span>
+            <span class="menu-option-label">Edit task</span>
+            <span class="menu-option-desc">Title, date, priority, repeat</span>
+          </button>
+          @if (canStartFocus(menu.task)) {
+            <button
+              class="menu-option"
+              type="button"
+              role="menuitem"
+              (click)="focusFromMenu(menu.task)"
+            >
+              <span class="menu-dot focus"></span>
+              <span class="menu-option-label">Start focus</span>
+              <span class="menu-option-desc">Start timer on dashboard</span>
+            </button>
+          }
+          @if (hasAction('today')) {
+            <button
+              class="menu-option"
+              type="button"
+              role="menuitem"
+              (click)="toggleTodayFromMenu(menu.task)"
+            >
+              <span class="menu-dot today"></span>
+              <span class="menu-option-label">{{
+                pinnedToday(menu.task) ? 'Remove from Today' : 'Add to Today'
+              }}</span>
+              <span class="menu-option-desc">{{
+                pinnedToday(menu.task) ? 'Take it off the day' : 'Work on it today'
+              }}</span>
+            </button>
+          }
+        </div>
+
+        <div class="menu-section">
+          <span class="menu-section-title">Move to quadrant</span>
+          @for (q of quadrantOptions; track q.id) {
+            <button
+              class="menu-option"
+              type="button"
+              role="menuitemradio"
+              [attr.aria-checked]="menu.task.quadrant === q.id"
+              [class.is-current]="menu.task.quadrant === q.id"
+              (click)="moveFromMenu(menu.task, q.id)"
+            >
+              <span class="menu-dot" [style.background]="q.color"></span>
+              <span class="menu-option-label">{{ q.label }}</span>
+              <span class="menu-option-desc">{{ q.desc }}</span>
+              @if (menu.task.quadrant === q.id) {
+                <svg
+                  class="menu-check"
+                  width="13"
+                  height="13"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="3"
+                >
+                  <polyline points="20,6 9,17 4,12" />
+                </svg>
+              }
+            </button>
+          }
+          @if (menu.task.quadrant) {
+            <button
+              class="menu-option"
+              type="button"
+              role="menuitemradio"
+              aria-checked="false"
+              (click)="moveFromMenu(menu.task, null)"
+            >
+              <span class="menu-dot unassigned"></span>
+              <span class="menu-option-label">Unassigned</span>
+              <span class="menu-option-desc">Back to task list</span>
+            </button>
+          }
+        </div>
+
+        <div class="menu-section">
+          <span class="menu-section-title">Status</span>
+          @for (option of statusOptions; track option.status) {
+            <button
+              class="menu-option"
+              type="button"
+              role="menuitemradio"
+              [attr.aria-checked]="menu.task.status === option.status"
+              [class.is-current]="menu.task.status === option.status"
+              (click)="setStatusFromMenu(menu.task, option.status)"
+            >
+              <span class="menu-dot" [style.background]="option.color"></span>
+              <span class="menu-option-label">{{ option.label }}</span>
+              <span class="menu-option-desc">{{ option.hint }}</span>
+              @if (menu.task.status === option.status) {
+                <svg
+                  class="menu-check"
+                  width="13"
+                  height="13"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="3"
+                >
+                  <polyline points="20,6 9,17 4,12" />
+                </svg>
+              }
+            </button>
+          }
+        </div>
+      </div>
+    }
   `,
   styles: [
     `
@@ -664,6 +850,136 @@ export interface BoardMove {
           width: 18px;
         }
       }
+
+      /* Right-click menu: the same choices the Matrix offers, on a board card.
+         It is fixed to the pointer so it can open over a column's own scroll
+         area, and it shares the Matrix's panel look so the app has one menu. */
+      .board-menu {
+        position: fixed;
+        z-index: 1200;
+        width: 300px;
+        max-width: calc(100vw - 16px);
+        max-height: calc(100vh - 16px);
+        max-height: calc(100dvh - 16px);
+        overflow-y: auto;
+        padding: 8px;
+        background: var(--surface-float);
+        backdrop-filter: blur(18px);
+        border: 1px solid rgba(139, 92, 246, 0.28);
+        border-radius: 14px;
+        box-shadow: 0 18px 50px rgba(0, 0, 0, 0.5);
+        animation: board-menu-in 0.12s ease-out;
+      }
+      @keyframes board-menu-in {
+        from {
+          opacity: 0;
+          transform: translateY(-4px) scale(0.98);
+        }
+        to {
+          opacity: 1;
+          transform: translateY(0) scale(1);
+        }
+      }
+      .menu-header {
+        padding: 6px 10px 10px;
+        margin-bottom: 4px;
+        border-bottom: 1px solid var(--glass-border);
+      }
+      .menu-title {
+        display: -webkit-box;
+        -webkit-line-clamp: 2;
+        -webkit-box-orient: vertical;
+        overflow: hidden;
+        overflow-wrap: anywhere;
+        font-size: 12px;
+        font-weight: 700;
+        color: var(--color-text-primary);
+      }
+      .menu-subtitle {
+        display: block;
+        margin-top: 3px;
+        font-size: 10px;
+        color: var(--color-text-muted);
+      }
+      .menu-section {
+        padding: 2px 0;
+      }
+      .menu-section + .menu-section {
+        margin-top: 6px;
+        padding-top: 8px;
+        border-top: 1px solid var(--glass-border);
+      }
+      .menu-section-title {
+        display: block;
+        padding: 2px 10px 6px;
+        font-size: 10px;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.08em;
+        color: var(--color-text-muted);
+      }
+      .menu-option {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        width: 100%;
+        padding: 7px 10px;
+        border: none;
+        border-radius: 8px;
+        background: transparent;
+        color: var(--color-text-secondary);
+        text-align: left;
+        cursor: pointer;
+        transition:
+          background 0.15s,
+          color 0.15s;
+      }
+      .menu-option:hover,
+      .menu-option:focus-visible {
+        background: rgba(139, 92, 246, 0.13);
+        color: var(--color-text-primary);
+        outline: none;
+      }
+      .menu-option.is-current {
+        background: rgba(139, 92, 246, 0.08);
+      }
+      .menu-dot {
+        width: 8px;
+        height: 8px;
+        border-radius: 50%;
+        flex-shrink: 0;
+      }
+      .menu-dot.unassigned {
+        background: var(--color-text-muted);
+      }
+      .menu-dot.edit {
+        background: var(--color-accent-primary);
+      }
+      .menu-dot.focus {
+        background: #34d399;
+      }
+      .menu-dot.today {
+        background: var(--priority-p2-color);
+      }
+      .menu-option-label {
+        font-size: 12px;
+        font-weight: 600;
+        color: var(--color-text-primary);
+        white-space: nowrap;
+      }
+      .menu-option-desc {
+        margin-left: auto;
+        font-size: 10px;
+        color: var(--color-text-muted);
+        text-align: right;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+      }
+      .menu-check {
+        flex-shrink: 0;
+        color: var(--color-accent-primary);
+      }
     `,
   ],
 })
@@ -676,8 +992,22 @@ export class TaskBoardComponent {
   readonly showOrder = input(false);
   /** Task that is linked to the timer, so its focus button reads as active. */
   readonly highlightedTaskId = input<string | null>(null);
+  /**
+   * The quadrant the day is currently working through. Cards outside it keep
+   * their edit and delete controls but do not offer "start focus": the matrix
+   * order says Do First comes before the other quadrants.
+   */
+  readonly focusQuadrant = input<TaskQuadrant | null>(null);
   /** What an empty column says. */
   readonly emptyText = input('Nothing here yet');
+  /**
+   * Whether a card opens the right-click menu.
+   *
+   * The board is shared: Today and the Tasks page's today/future sections pass
+   * `true`, while the Tasks page's past sections leave it off. A past card is a
+   * record of work that has already slipped, not something to re-sort today.
+   */
+  readonly contextMenuEnabled = input(false);
 
   /** A card was dragged or nudged into another status column. */
   readonly moved = output<BoardMove>();
@@ -688,6 +1018,26 @@ export class TaskBoardComponent {
   /** The card's pencil: the page opens its editor, or links to the one on Tasks. */
   readonly editRequested = output<Task>();
   readonly deleteRequested = output<Task>();
+  /** The right-click menu's quadrant choice. */
+  readonly quadrantRequested = output<BoardQuadrantChange>();
+
+  /** The menu's live position and task; `null` when it is closed. */
+  readonly contextMenu = signal<BoardContextMenu | null>(null);
+  private readonly contextMenuRef = viewChild<ElementRef<HTMLElement>>('contextMenu');
+
+  readonly quadrantOptions = QUADRANT_IDS.map((id) => ({
+    id,
+    color: QUADRANT_CONFIG[id].color,
+    label: QUADRANT_CONFIG[id].label,
+    desc: QUADRANT_CONFIG[id].description,
+  }));
+
+  readonly statusOptions = STATUS_CYCLE.map((status) => ({
+    status,
+    label: STATUS_CONFIG[status].label,
+    hint: STATUS_HINTS[status],
+    color: STATUS_CONFIG[status].color,
+  }));
 
   readonly columns = computed<BoardColumn[]>(() => boardColumns(this.tasks()));
 
@@ -695,9 +1045,94 @@ export class TaskBoardComponent {
     return this.actions().includes(action);
   }
 
+  /**
+   * The start button is for open work in the quadrant the day is on, and only
+   * where the page asked for a focus control at all.
+   */
+  canStartFocus(task: Task): boolean {
+    return (
+      this.hasAction('focus') && task.status !== 'done' && task.quadrant === this.focusQuadrant()
+    );
+  }
+
   /** Whether the card's star is *today's*, not one left over from an earlier day. */
   pinnedToday(task: Task): boolean {
     return isPinnedToToday(task);
+  }
+
+  // ── Right-click menu ──────────────────────────────────────────────────────
+
+  /**
+   * Opens the card menu at the pointer, keeping it inside the viewport.
+   *
+   * A past section passes `contextMenuEnabled = false`, so the browser's own
+   * menu stays available there and no task is re-written by accident.
+   */
+  openContextMenu(task: Task, event: MouseEvent): void {
+    if (!this.contextMenuEnabled()) return;
+    event.preventDefault();
+    event.stopPropagation();
+    this.openMenuAt(task, event.clientX, event.clientY);
+  }
+
+  closeContextMenu(): void {
+    if (this.contextMenu()) this.contextMenu.set(null);
+  }
+
+  private openMenuAt(task: Task, clientX: number, clientY: number): void {
+    const margin = 8;
+    // A little taller than the Matrix's menu: a board card can also carry the
+    // Today toggle and the status hints.
+    const menuWidth = 300;
+    const menuHeight = 510;
+    const viewportWidth = typeof window === 'undefined' ? 0 : window.innerWidth;
+    const viewportHeight = typeof window === 'undefined' ? 0 : window.innerHeight;
+    const maxX = viewportWidth ? viewportWidth - menuWidth - margin : clientX;
+    const maxY = viewportHeight ? viewportHeight - menuHeight - margin : clientY;
+
+    this.contextMenu.set({
+      task,
+      x: Math.max(margin, Math.min(clientX, maxX)),
+      y: Math.max(margin, Math.min(clientY, maxY)),
+    });
+
+    // Move keyboard focus into the menu so Tab/Enter work after a right-click.
+    setTimeout(() => {
+      const element = this.contextMenuRef()?.nativeElement;
+      element?.querySelector<HTMLElement>('.menu-option')?.focus();
+    });
+  }
+
+  editFromMenu(task: Task): void {
+    this.closeContextMenu();
+    this.editRequested.emit(task);
+  }
+
+  focusFromMenu(task: Task): void {
+    this.closeContextMenu();
+    this.focusRequested.emit(task);
+  }
+
+  toggleTodayFromMenu(task: Task): void {
+    this.closeContextMenu();
+    this.todayToggled.emit(task);
+  }
+
+  moveFromMenu(task: Task, quadrant: TaskQuadrant | null): void {
+    this.closeContextMenu();
+    if (task.quadrant === quadrant) return;
+    this.quadrantRequested.emit({ task, quadrant });
+  }
+
+  setStatusFromMenu(task: Task, status: TaskStatus): void {
+    this.closeContextMenu();
+    if (task.status === status) return;
+    this.moved.emit({ task, status, index: 0 });
+  }
+
+  taskContextLabel(task: Task): string {
+    const quadrant = task.quadrant ? QUADRANT_CONFIG[task.quadrant].label : 'Unassigned';
+    return `${quadrant} · ${STATUS_CONFIG[task.status].label}`;
   }
 
   /**
@@ -727,6 +1162,16 @@ export class TaskBoardComponent {
       event.preventDefault();
       const next = adjacentStatus(task.status, event.key === 'ArrowRight' ? 1 : -1);
       if (next) this.moved.emit({ task, status: next, index: 0 });
+      return;
+    }
+
+    if (
+      this.contextMenuEnabled() &&
+      (event.key === 'ContextMenu' || (event.shiftKey && event.key === 'F10'))
+    ) {
+      event.preventDefault();
+      const rect = (event.currentTarget as HTMLElement).getBoundingClientRect();
+      this.openMenuAt(task, rect.left + 16, rect.top + 16);
       return;
     }
 

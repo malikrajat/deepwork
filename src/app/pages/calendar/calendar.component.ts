@@ -38,6 +38,10 @@ import {
 } from '../../core/models/schedule.model';
 import { TooltipDirective } from '../../shared/directives/tooltip.directive';
 import { TaskEditorService } from '../../core/services/task-editor.service';
+import { FocusLauncherService } from '../../core/services/focus-launcher.service';
+import { SpeechService } from '../../core/services/speech.service';
+import { MicButtonComponent } from '../../shared/components/mic-button/mic-button.component';
+import { insertDictationIntoField } from '../../core/utils/dictation.util';
 
 interface BlockLayout {
   block: ScheduleBlock;
@@ -128,7 +132,7 @@ function persistCollapsedGroups(value: Record<string, boolean>): void {
  */
 @Component({
   selector: 'app-calendar',
-  imports: [TooltipDirective],
+  imports: [TooltipDirective, MicButtonComponent],
   changeDetection: ChangeDetectionStrategy.OnPush,
   host: {
     '(window:pointermove)': 'onPointerMove($event)',
@@ -335,6 +339,27 @@ function persistCollapsedGroups(value: Record<string, boolean>): void {
                       >
                         📌
                       </button>
+                      @if (canStartFocus(item.task)) {
+                        <button
+                          type="button"
+                          class="rail-focus"
+                          [attr.aria-label]="'Start focus on ' + item.task.title"
+                          appTooltip="Start focus on this task"
+                          (click)="startFocus(item.task, $event)"
+                        >
+                          <svg
+                            width="11"
+                            height="11"
+                            viewBox="0 0 24 24"
+                            fill="none"
+                            stroke="currentColor"
+                            stroke-width="2"
+                          >
+                            <circle cx="12" cy="12" r="9" />
+                            <circle cx="12" cy="12" r="3" />
+                          </svg>
+                        </button>
+                      }
                       <button
                         type="button"
                         class="rail-edit"
@@ -514,6 +539,27 @@ function persistCollapsedGroups(value: Record<string, boolean>): void {
                         [attr.aria-label]="'Mark ' + task.title + ' complete'"
                       ></button>
                       <span class="ev-title" [appTooltip]="task.title">{{ task.title }}</span>
+                      @if (canStartFocus(task)) {
+                        <button
+                          class="ev-focus"
+                          type="button"
+                          [attr.aria-label]="'Start focus on ' + task.title"
+                          appTooltip="Start focus on this task"
+                          (click)="startFocus(task, $event)"
+                        >
+                          <svg
+                            width="11"
+                            height="11"
+                            viewBox="0 0 24 24"
+                            fill="none"
+                            stroke="currentColor"
+                            stroke-width="2"
+                          >
+                            <circle cx="12" cy="12" r="9" />
+                            <circle cx="12" cy="12" r="3" />
+                          </svg>
+                        </button>
+                      }
                     </div>
                   }
                   <span
@@ -658,6 +704,16 @@ function persistCollapsedGroups(value: Record<string, boolean>): void {
                       >
                         Edit
                       </button>
+                      @if (canStartFocus(task)) {
+                        <button
+                          type="button"
+                          class="start-focus-task"
+                          (click)="startFocus(task, $event)"
+                          appTooltip="Start the focus timer on this task"
+                        >
+                          Start focus
+                        </button>
+                      }
                     </div>
                   </div>
                 }
@@ -695,16 +751,23 @@ function persistCollapsedGroups(value: Record<string, boolean>): void {
               </div>
 
               <div>
-                <input
-                  class="panel-search"
-                  type="text"
-                  placeholder="New task title…"
-                  [value]="newTitle()"
-                  [attr.maxlength]="titleMax"
-                  (input)="onNewTitle($event)"
-                  (keydown.enter)="createTask(target.startMin)"
-                  aria-label="New task title"
-                />
+                <div class="panel-new-field" [class.with-dictation]="speech.available">
+                  <input
+                    #newTitleInput
+                    class="panel-search"
+                    type="text"
+                    placeholder="New task title…"
+                    [value]="newTitle()"
+                    [attr.maxlength]="titleMax"
+                    (input)="onNewTitle($event)"
+                    (keydown.enter)="createTask(target.startMin)"
+                    aria-label="New task title"
+                  />
+                  <app-mic-button
+                    owner="calendar-new-title"
+                    (dictation)="insertIntoNewTitle($event)"
+                  />
+                </div>
                 <div class="panel-new-row">
                   <select
                     [value]="newPomodoros()"
@@ -1169,6 +1232,10 @@ function persistCollapsedGroups(value: Record<string, boolean>): void {
         border-color: rgba(139, 92, 246, 0.6);
         color: var(--color-text-primary);
       }
+      .rail-actions button.rail-focus:hover {
+        border-color: rgba(52, 211, 153, 0.6);
+        color: #6ee7b7;
+      }
       .rail-empty,
       .rail-note {
         font-size: 10px;
@@ -1369,6 +1436,26 @@ function persistCollapsedGroups(value: Record<string, boolean>): void {
       .ev-check:hover {
         border-color: var(--color-accent-primary);
         background: rgba(139, 92, 246, 0.25);
+      }
+      /* Starts the clock from the block the user is reading, without opening the
+         slot panel first. */
+      .ev-focus {
+        width: 16px;
+        height: 16px;
+        flex-shrink: 0;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 0;
+        border: none;
+        border-radius: 5px;
+        background: transparent;
+        color: var(--color-text-muted);
+        cursor: pointer;
+      }
+      .ev-focus:hover {
+        background: rgba(52, 211, 153, 0.18);
+        color: #6ee7b7;
       }
       .ev-resize {
         position: absolute;
@@ -1598,6 +1685,10 @@ function persistCollapsedGroups(value: Record<string, boolean>): void {
         border-color: rgba(139, 92, 246, 0.6);
         color: var(--color-text-primary);
       }
+      .panel-task-actions button.start-focus-task:hover {
+        border-color: rgba(52, 211, 153, 0.6);
+        color: #6ee7b7;
+      }
       .panel-note {
         padding: 10px 12px;
         font-size: 11px;
@@ -1632,6 +1723,24 @@ function persistCollapsedGroups(value: Record<string, boolean>): void {
         border-radius: 8px;
         color: var(--color-text-primary);
         font-size: 11px;
+      }
+      .panel-new-field {
+        position: relative;
+        display: flex;
+        margin-bottom: 6px;
+      }
+      .panel-new-field > .panel-search {
+        flex: 1;
+        margin-bottom: 0;
+      }
+      .panel-new-field.with-dictation > .panel-search {
+        padding-right: 40px;
+      }
+      .panel-new-field > app-mic-button {
+        position: absolute;
+        right: 5px;
+        top: 50%;
+        transform: translateY(-50%);
       }
       .panel-search::placeholder {
         color: var(--color-text-muted);
@@ -2221,6 +2330,8 @@ export class CalendarComponent implements OnInit, OnDestroy {
   protected readonly schedule = inject(ScheduleService);
   private readonly taskService = inject(TaskService);
   private readonly taskEditor = inject(TaskEditorService);
+  private readonly focusLauncher = inject(FocusLauncherService);
+  protected readonly speech = inject(SpeechService);
 
   protected readonly pomodoroChoices = [1, 2, 3, 4, 5, 6];
   protected readonly pxPerMinute = 1.8;
@@ -2228,6 +2339,7 @@ export class CalendarComponent implements OnInit, OnDestroy {
   protected readonly titleMax = TASK_TITLE_MAX_LENGTH;
 
   private readonly gridRef = viewChild<ElementRef<HTMLElement>>('grid');
+  private readonly newTitleInput = viewChild<ElementRef<HTMLInputElement>>('newTitleInput');
   private readonly clock = signal(new Date());
   private timerId: ReturnType<typeof setInterval> | null = null;
 
@@ -2483,6 +2595,7 @@ export class CalendarComponent implements OnInit, OnDestroy {
 
   ngOnDestroy(): void {
     if (this.timerId !== null) clearInterval(this.timerId);
+    this.speech.stopOwner('calendar-new-title');
   }
 
   // ── Formatting helpers used by the template ───────────────────────────────
@@ -2674,6 +2787,22 @@ export class CalendarComponent implements OnInit, OnDestroy {
     this.taskEditor.openEdit(task);
   }
 
+  /**
+   * The start control on a rail card, a timeline block or the slot panel.
+   *
+   * The calendar already knows where the task sits in the plan; the shared
+   * launcher knows how to begin it. Clicking starts a fresh focus block and
+   * opens the dashboard with the task selected under the clock.
+   */
+  protected canStartFocus(task: Task): boolean {
+    return this.focusLauncher.canStart(task);
+  }
+
+  protected startFocus(task: Task, event: Event): void {
+    event.stopPropagation();
+    void this.focusLauncher.start(task);
+  }
+
   // ── Slot panel ────────────────────────────────────────────────────────────
   protected openPanel(block: FocusBlock, event: Event): void {
     event.stopPropagation();
@@ -2686,9 +2815,11 @@ export class CalendarComponent implements OnInit, OnDestroy {
     this.panel.set(null);
     this.search.set('');
     this.newTitle.set('');
+    this.speech.stopOwner('calendar-new-title');
   }
 
   private resetPanelInputs(): void {
+    this.speech.stopOwner('calendar-new-title');
     this.search.set('');
     this.newTitle.set('');
     this.newPomodoros.set(1);
@@ -2700,6 +2831,12 @@ export class CalendarComponent implements OnInit, OnDestroy {
 
   protected onNewTitle(event: Event): void {
     this.newTitle.set((event.target as HTMLInputElement).value);
+  }
+
+  /** One finished phrase, placed where the caret was in the new-task title. */
+  protected insertIntoNewTitle(text: string): void {
+    const field = this.newTitleInput()?.nativeElement;
+    if (field) insertDictationIntoField(field, text, TASK_TITLE_MAX_LENGTH);
   }
 
   protected onNewPomodoros(event: Event): void {
@@ -2715,6 +2852,7 @@ export class CalendarComponent implements OnInit, OnDestroy {
   protected async createTask(startMin: MinuteOfDay): Promise<void> {
     const title = normalizeTaskTitle(this.newTitle());
     if (!title) return;
+    this.speech.stopOwner('calendar-new-title');
     const created = await this.taskService.createTask({
       title,
       quadrant: this.slotQuadrant(),
