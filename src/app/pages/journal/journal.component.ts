@@ -16,6 +16,7 @@ import { EditorConfig, RmNgEditor } from '@codewithrajat/rm-ng-editor';
 import { DbService } from '../../core/services/db.service';
 import { ThemeService } from '../../core/services/theme.service';
 import { SpeechService } from '../../core/services/speech.service';
+import { ConfirmDialogService } from '../../core/services/confirm-dialog.service';
 import { FormFieldWrapperComponent } from '../../shared/components/form-field/form-field-wrapper.component';
 import { MicButtonComponent } from '../../shared/components/mic-button/mic-button.component';
 import { JournalFormModel, createJournalFormDefaults } from '../../shared/models/form.models';
@@ -1434,6 +1435,7 @@ export class JournalComponent implements OnInit, OnDestroy {
   private theme = inject(ThemeService);
   private sanitizer = inject(DomSanitizer);
   private readonly speech = inject(SpeechService);
+  private readonly confirmDialog = inject(ConfirmDialogService);
   private saveTimeout: ReturnType<typeof setTimeout> | null = null;
 
   /** Fixed row height for the virtualised entry list. */
@@ -1806,8 +1808,14 @@ export class JournalComponent implements OnInit, OnDestroy {
 
   async confirmDelete(): Promise<void> {
     if (!this.hasContent()) return;
-    const ok = window.confirm('Delete this journal entry? This cannot be undone.');
-    if (!ok) return;
+    const confirmed = await this.confirmDialog.confirm({
+      tone: 'danger',
+      title: 'Delete this journal entry?',
+      message: 'The entry for this day is removed from this device. This cannot be undone.',
+      confirmLabel: 'Delete entry',
+      cancelLabel: 'Keep entry',
+    });
+    if (!confirmed) return;
     const date = this.selectedDate();
     await this.db.deleteJournalEntry(date);
     this.entries.set(this.entries().filter((e) => e.date !== date));

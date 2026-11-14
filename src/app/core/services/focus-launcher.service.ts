@@ -2,6 +2,7 @@ import { Injectable, inject } from '@angular/core';
 import { Router } from '@angular/router';
 import { Task } from '../models/task.model';
 import { saveFocusedTaskId } from '../utils/focus-task.util';
+import { ConfirmDialogService } from './confirm-dialog.service';
 import { TaskService } from './task.service';
 import { TimerService } from './timer.service';
 
@@ -19,6 +20,9 @@ import { TimerService } from './timer.service';
  * same Do First → Schedule → Delegate → Eliminate order.
  *
  * Starting is not silent when a session is already running: the running block
+ * would be interrupted, so the user is asked first in the app's own dialog.
+ * Cancelling leaves the clock, the task selection and the page exactly as they
+ * were.
  * would be interrupted, so the user is asked first. Cancelling leaves the clock,
  * the task selection and the page exactly as they were.
  */
@@ -27,6 +31,7 @@ export class FocusLauncherService {
   private readonly router = inject(Router);
   private readonly timer = inject(TimerService);
   private readonly tasks = inject(TaskService);
+  private readonly confirmDialog = inject(ConfirmDialogService);
 
   /** Whether this task is the kind of work the start control belongs on. */
   canStart(task: Task): boolean {
@@ -53,6 +58,18 @@ export class FocusLauncherService {
         ? this.tasks.tasks().find((candidate) => candidate.id === runningTaskId)
         : null;
       const runningLabel = runningTask ? `"${runningTask.title}"` : 'another session';
+      const isBreak = this.timer.timerType() !== 'work';
+
+      const confirmed = await this.confirmDialog.confirm({
+        icon: 'focus',
+        title: isBreak ? 'Start a focus session?' : 'Switch focus session?',
+        message: isBreak
+          ? `Your break is still running. Starting "${task.title}" ends the break and begins a new focus block.`
+          : `You're already focusing on ${runningLabel}. Starting "${task.title}" ends that block and begins a new one.`,
+        confirmLabel: isBreak ? 'Start session' : 'Start new session',
+        cancelLabel: isBreak ? 'Keep break' : 'Keep current session',
+      });
+      if (!confirmed) return false;
       const type = this.timer.timerType() === 'work' ? 'focus session' : 'break';
       const message =
         `A ${type} is already running (${runningLabel}). ` +
