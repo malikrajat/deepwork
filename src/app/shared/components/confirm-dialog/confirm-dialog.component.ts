@@ -160,11 +160,11 @@ import { ConfirmDialogService } from '../../../core/services/confirm-dialog.serv
         font-size: 19px;
         font-weight: 800;
         letter-spacing: -0.3px;
-        color: var(--color-text-primary, #f2f0ff);
+        color: var(--color-text-primary, #f7f5ff);
       }
       .confirm-message {
         margin: 8px 0 0;
-        font-size: 13px;
+        font-size: 14px;
         line-height: 1.55;
         color: var(--color-text-secondary, #d4d4d8);
       }
@@ -178,7 +178,7 @@ import { ConfirmDialogService } from '../../../core/services/confirm-dialog.serv
       .btn-primary {
         padding: 9px 18px;
         border-radius: 9px;
-        font-size: 13px;
+        font-size: 14px;
         font-weight: 600;
         cursor: pointer;
         transition:

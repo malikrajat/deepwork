@@ -834,7 +834,7 @@ function persistCollapsedGroups(value: Record<string, boolean>): void {
       .page-subtitle {
         color: var(--color-text-muted);
         margin-top: 4px;
-        font-size: 13px;
+        font-size: 14px;
       }
       .header-actions {
         display: flex;
@@ -848,7 +848,7 @@ function persistCollapsedGroups(value: Record<string, boolean>): void {
         gap: 6px;
         padding: 7px 12px;
         border-radius: 10px;
-        font-size: 12px;
+        font-size: 13px;
         font-weight: 600;
         border: 1px solid var(--glass-border);
         background: var(--glass-bg);
@@ -904,7 +904,7 @@ function persistCollapsedGroups(value: Record<string, boolean>): void {
         color: var(--color-text-primary);
       }
       .today-btn {
-        font-size: 12px;
+        font-size: 13px;
         font-weight: 700;
       }
       .today-btn.active {
@@ -917,7 +917,7 @@ function persistCollapsedGroups(value: Record<string, boolean>): void {
         color: var(--color-text-secondary);
         border-radius: 8px;
         padding: 5px 8px;
-        font-size: 12px;
+        font-size: 13px;
       }
       .day-title {
         font-size: 14px;
@@ -929,7 +929,7 @@ function persistCollapsedGroups(value: Record<string, boolean>): void {
         align-items: center;
         gap: 6px;
         margin-left: auto;
-        font-size: 11px;
+        font-size: 12px;
         color: var(--color-text-muted);
       }
       .day-window input[type='time'] {
@@ -938,12 +938,12 @@ function persistCollapsedGroups(value: Record<string, boolean>): void {
         color: var(--color-text-secondary);
         border-radius: 8px;
         padding: 4px 6px;
-        font-size: 12px;
+        font-size: 13px;
       }
       .window-label {
         text-transform: uppercase;
         letter-spacing: 0.08em;
-        font-size: 10px;
+        font-size: 12px;
       }
       .dash {
         opacity: 0.6;
@@ -981,7 +981,7 @@ function persistCollapsedGroups(value: Record<string, boolean>): void {
         color: var(--color-accent-primary);
       }
       .wd-name {
-        font-size: 10px;
+        font-size: 12px;
         text-transform: uppercase;
         letter-spacing: 0.08em;
         opacity: 0.75;
@@ -992,7 +992,7 @@ function persistCollapsedGroups(value: Record<string, boolean>): void {
       }
       .wd-meta,
       .wd-focus {
-        font-size: 10px;
+        font-size: 12px;
         opacity: 0.7;
       }
 
@@ -1027,7 +1027,7 @@ function persistCollapsedGroups(value: Record<string, boolean>): void {
         gap: 8px;
       }
       .rail-title {
-        font-size: 12px;
+        font-size: 13px;
         font-weight: 800;
         color: var(--color-text-primary);
       }
@@ -1036,7 +1036,7 @@ function persistCollapsedGroups(value: Record<string, boolean>): void {
         border: 1px solid var(--glass-border);
         border-radius: 6px;
         color: var(--color-text-muted);
-        font-size: 10px;
+        font-size: 12px;
         padding: 2px 7px;
         cursor: pointer;
         white-space: nowrap;
@@ -1048,7 +1048,7 @@ function persistCollapsedGroups(value: Record<string, boolean>): void {
       }
       .rail-hint {
         display: block;
-        font-size: 10px;
+        font-size: 12px;
         color: var(--color-text-muted);
         margin-top: 2px;
       }
@@ -1074,7 +1074,7 @@ function persistCollapsedGroups(value: Record<string, boolean>): void {
         cursor: pointer;
         background: rgba(255, 255, 255, 0.03);
         border: 1px solid var(--glass-border);
-        font-size: 11px;
+        font-size: 12px;
         font-weight: 700;
         color: var(--color-text-secondary);
         text-transform: uppercase;
@@ -1114,7 +1114,7 @@ function persistCollapsedGroups(value: Record<string, boolean>): void {
       }
       .group-summary {
         margin-left: auto;
-        font-size: 10px;
+        font-size: 12px;
         font-weight: 600;
         letter-spacing: 0;
         color: var(--color-text-muted);
@@ -1123,7 +1123,7 @@ function persistCollapsedGroups(value: Record<string, boolean>): void {
       }
       .group-count {
         margin-left: auto;
-        font-size: 10px;
+        font-size: 12px;
         padding: 1px 6px;
         border-radius: 999px;
         background: rgba(255, 255, 255, 0.06);
@@ -1164,7 +1164,7 @@ function persistCollapsedGroups(value: Record<string, boolean>): void {
         display: flex;
         align-items: center;
         justify-content: center;
-        font-size: 10px;
+        font-size: 12px;
         font-weight: 800;
         color: var(--color-text-primary);
         background: rgba(139, 92, 246, 0.2);
@@ -1179,7 +1179,7 @@ function persistCollapsedGroups(value: Record<string, boolean>): void {
       }
       .rail-task {
         display: block;
-        font-size: 12px;
+        font-size: 13px;
         font-weight: 600;
         color: var(--color-text-primary);
         overflow: hidden;
@@ -1189,7 +1189,7 @@ function persistCollapsedGroups(value: Record<string, boolean>): void {
       .rail-meta {
         display: flex;
         gap: 4px;
-        font-size: 10px;
+        font-size: 12px;
         color: var(--color-text-muted);
       }
       .rail-actions {
@@ -1207,7 +1207,7 @@ function persistCollapsedGroups(value: Record<string, boolean>): void {
         height: 20px;
         border-radius: 6px;
         cursor: pointer;
-        font-size: 10px;
+        font-size: 12px;
         background: rgba(255, 255, 255, 0.05);
         border: 1px solid var(--glass-border);
         color: var(--color-text-secondary);
@@ -1238,13 +1238,13 @@ function persistCollapsedGroups(value: Record<string, boolean>): void {
       }
       .rail-empty,
       .rail-note {
-        font-size: 10px;
+        font-size: 12px;
         color: var(--color-text-muted);
         padding: 2px 4px 6px;
       }
       .rail-warning {
         padding: 8px 10px;
-        font-size: 11px;
+        font-size: 12px;
         color: #fbbf24;
         border-top: 1px solid var(--glass-border);
         background: rgba(251, 191, 36, 0.08);
@@ -1256,7 +1256,7 @@ function persistCollapsedGroups(value: Record<string, boolean>): void {
         color: #fbbf24;
         text-decoration: underline;
         cursor: pointer;
-        font-size: 11px;
+        font-size: 12px;
       }
 
       /* ── Timeline ─────────────────────────────────────────────────────── */
@@ -1280,7 +1280,7 @@ function persistCollapsedGroups(value: Record<string, boolean>): void {
         flex-wrap: wrap;
       }
       .chip {
-        font-size: 10px;
+        font-size: 12px;
         padding: 3px 8px;
         border-radius: 999px;
         background: rgba(255, 255, 255, 0.05);
@@ -1313,7 +1313,7 @@ function persistCollapsedGroups(value: Record<string, boolean>): void {
       .hour-cell {
         position: relative;
         box-sizing: border-box;
-        font-size: 10px;
+        font-size: 12px;
         color: var(--color-text-muted);
         text-align: right;
         padding-right: 8px;
@@ -1383,7 +1383,7 @@ function persistCollapsedGroups(value: Record<string, boolean>): void {
         gap: 4px;
       }
       .ev-time {
-        font-size: 10px;
+        font-size: 12px;
         font-weight: 700;
         color: var(--color-text-primary);
         opacity: 0.9;
@@ -1393,7 +1393,7 @@ function persistCollapsedGroups(value: Record<string, boolean>): void {
         gap: 3px;
       }
       .badge {
-        font-size: 10px;
+        font-size: 12px;
         padding: 0 4px;
         border-radius: 999px;
         text-transform: uppercase;
@@ -1412,7 +1412,7 @@ function persistCollapsedGroups(value: Record<string, boolean>): void {
         min-width: 0;
       }
       .ev-title {
-        font-size: 11px;
+        font-size: 12px;
         font-weight: 600;
         color: var(--color-text-primary);
         flex: 1;
@@ -1493,7 +1493,7 @@ function persistCollapsedGroups(value: Record<string, boolean>): void {
         border-color: rgba(52, 211, 153, 0.4);
       }
       .rest-label {
-        font-size: 10px;
+        font-size: 12px;
         font-weight: 700;
         color: #67e8f9;
         text-transform: uppercase;
@@ -1503,7 +1503,7 @@ function persistCollapsedGroups(value: Record<string, boolean>): void {
         color: #6ee7b7;
       }
       .rest-time {
-        font-size: 10px;
+        font-size: 12px;
         color: var(--color-text-muted);
       }
 
@@ -1519,7 +1519,7 @@ function persistCollapsedGroups(value: Record<string, boolean>): void {
         position: absolute;
         right: 4px;
         top: -9px;
-        font-size: 10px;
+        font-size: 12px;
         font-weight: 700;
         background: rgba(139, 92, 246, 0.9);
         color: #fff;
@@ -1571,7 +1571,7 @@ function persistCollapsedGroups(value: Record<string, boolean>): void {
       }
       .panel-sub {
         display: block;
-        font-size: 10px;
+        font-size: 12px;
         color: var(--color-text-muted);
       }
       .panel-close {
@@ -1579,7 +1579,7 @@ function persistCollapsedGroups(value: Record<string, boolean>): void {
         border: none;
         color: var(--color-text-muted);
         cursor: pointer;
-        font-size: 13px;
+        font-size: 14px;
         flex-shrink: 0;
         padding: 0 2px;
         line-height: 1;
@@ -1622,7 +1622,7 @@ function persistCollapsedGroups(value: Record<string, boolean>): void {
       }
       /* Long titles are clamped to two lines; hover shows the whole task. */
       .panel-task-title {
-        font-size: 12px;
+        font-size: 13px;
         font-weight: 600;
         color: var(--color-text-primary);
         min-width: 0;
@@ -1639,11 +1639,11 @@ function persistCollapsedGroups(value: Record<string, boolean>): void {
         flex-wrap: wrap;
       }
       .meta-text {
-        font-size: 10px;
+        font-size: 12px;
         color: var(--color-text-muted);
       }
       .q-chip {
-        font-size: 10px;
+        font-size: 12px;
         font-weight: 700;
         padding: 1px 7px;
         border-radius: 999px;
@@ -1659,7 +1659,7 @@ function persistCollapsedGroups(value: Record<string, boolean>): void {
       .panel-task-actions button {
         padding: 3px 7px;
         border-radius: 6px;
-        font-size: 10px;
+        font-size: 12px;
         cursor: pointer;
         background: rgba(255, 255, 255, 0.05);
         border: 1px solid var(--glass-border);
@@ -1691,7 +1691,7 @@ function persistCollapsedGroups(value: Record<string, boolean>): void {
       }
       .panel-note {
         padding: 10px 12px;
-        font-size: 11px;
+        font-size: 12px;
         color: var(--color-text-muted);
         line-height: 1.5;
       }
@@ -1707,7 +1707,7 @@ function persistCollapsedGroups(value: Record<string, boolean>): void {
         scrollbar-color: rgba(139, 92, 246, 0.35) transparent;
       }
       .panel-add h4 {
-        font-size: 11px;
+        font-size: 12px;
         text-transform: uppercase;
         letter-spacing: 0.08em;
         color: var(--color-text-muted);
@@ -1722,7 +1722,7 @@ function persistCollapsedGroups(value: Record<string, boolean>): void {
         border: 1px solid var(--glass-border);
         border-radius: 8px;
         color: var(--color-text-primary);
-        font-size: 11px;
+        font-size: 12px;
       }
       .panel-new-field {
         position: relative;
@@ -1764,7 +1764,7 @@ function persistCollapsedGroups(value: Record<string, boolean>): void {
         background: rgba(255, 255, 255, 0.03);
         border: 1px solid transparent;
         color: var(--color-text-secondary);
-        font-size: 11px;
+        font-size: 12px;
       }
       .candidate:hover {
         border-color: rgba(139, 92, 246, 0.4);
@@ -1778,7 +1778,7 @@ function persistCollapsedGroups(value: Record<string, boolean>): void {
         white-space: nowrap;
       }
       .cand-meta {
-        font-size: 10px;
+        font-size: 12px;
         color: var(--color-text-muted);
         flex-shrink: 0;
       }
@@ -1792,7 +1792,7 @@ function persistCollapsedGroups(value: Record<string, boolean>): void {
         min-width: 0;
         padding: 5px;
         border-radius: 8px;
-        font-size: 10px;
+        font-size: 12px;
         background: rgba(255, 255, 255, 0.04);
         border: 1px solid var(--glass-border);
         color: var(--color-text-secondary);
@@ -1803,7 +1803,7 @@ function persistCollapsedGroups(value: Record<string, boolean>): void {
         flex-shrink: 0;
       }
       .panel-hint {
-        font-size: 10px;
+        font-size: 12px;
         color: var(--color-text-muted);
         line-height: 1.5;
       }
@@ -1814,7 +1814,7 @@ function persistCollapsedGroups(value: Record<string, boolean>): void {
         pointer-events: none;
         padding: 5px 9px;
         border-radius: 8px;
-        font-size: 11px;
+        font-size: 12px;
         font-weight: 600;
         background: rgba(139, 92, 246, 0.95);
         color: #fff;
@@ -1985,7 +1985,7 @@ function persistCollapsedGroups(value: Record<string, boolean>): void {
           font-size: 18px;
         }
         .today-btn {
-          font-size: 13px;
+          font-size: 14px;
         }
         .cal-btn {
           min-height: 44px;
@@ -2001,12 +2001,12 @@ function persistCollapsedGroups(value: Record<string, boolean>): void {
           max-width: 100%;
         }
         .date-input {
-          font-size: 13px;
+          font-size: 14px;
         }
         /* A full date wraps onto a second line rather than widening the
          toolbar. */
         .day-title {
-          font-size: 13px;
+          font-size: 14px;
           white-space: normal;
           overflow-wrap: anywhere;
         }
@@ -2049,7 +2049,7 @@ function persistCollapsedGroups(value: Record<string, boolean>): void {
           flex-wrap: wrap;
         }
         .ev-title {
-          font-size: 10px;
+          font-size: 12px;
         }
         /* A 6px strip is not a grabbable edge for a finger — it is one line of
          text tall. The extra height is the difference between retiming a
@@ -2092,7 +2092,7 @@ function persistCollapsedGroups(value: Record<string, boolean>): void {
         .rail-actions button {
           width: 44px;
           height: 44px;
-          font-size: 13px;
+          font-size: 14px;
         }
         /* An underlined word inline with the warning it belongs to: 11px of
          text with a thumb's worth of padding around the tap. */
@@ -2100,7 +2100,7 @@ function persistCollapsedGroups(value: Record<string, boolean>): void {
           display: inline-block;
           min-height: 44px;
           padding: 0 6px;
-          font-size: 12px;
+          font-size: 13px;
         }
         .chip {
           font-size: var(--text-2xs);
@@ -2175,7 +2175,7 @@ function persistCollapsedGroups(value: Record<string, boolean>): void {
        instead, and the secondary line is already allowed to ellipsise. */
       @media (max-width: 380px) {
         .page-subtitle {
-          font-size: 12px;
+          font-size: 13px;
         }
         .page-header {
           margin-bottom: 6px;

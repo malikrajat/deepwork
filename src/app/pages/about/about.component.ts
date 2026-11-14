@@ -660,7 +660,7 @@ interface DownloadRow extends DownloadTarget {
         border-radius: 8px;
         background: transparent;
         color: var(--color-text-secondary);
-        font-size: 13px;
+        font-size: 14px;
         font-weight: 600;
         cursor: pointer;
         transition: all 0.2s;
@@ -722,7 +722,7 @@ interface DownloadRow extends DownloadTarget {
         margin-bottom: var(--space-md);
       }
       .card-subtitle {
-        font-size: 12px;
+        font-size: 13px;
         line-height: 1.6;
         color: var(--color-text-muted);
         margin-top: 6px;
@@ -766,12 +766,12 @@ interface DownloadRow extends DownloadTarget {
         color: var(--color-text-primary);
       }
       .hero-role {
-        font-size: 13px;
+        font-size: 14px;
         color: var(--color-text-secondary);
         margin-top: 3px;
       }
       .hero-location {
-        font-size: 12px;
+        font-size: 13px;
         color: var(--color-text-muted);
         margin-top: 2px;
       }
@@ -781,7 +781,7 @@ interface DownloadRow extends DownloadTarget {
         gap: 6px;
         padding: 5px 12px;
         border-radius: 999px;
-        font-size: 11px;
+        font-size: 12px;
         font-weight: 600;
         color: var(--color-success);
         background: rgba(52, 211, 153, 0.1);
@@ -811,7 +811,7 @@ interface DownloadRow extends DownloadTarget {
         border: 1px solid rgba(139, 92, 246, 0.2);
         background: rgba(139, 92, 246, 0.06);
         color: var(--color-text-primary);
-        font-size: 12px;
+        font-size: 13px;
         font-weight: 600;
         text-decoration: none;
         cursor: pointer;
@@ -863,7 +863,7 @@ interface DownloadRow extends DownloadTarget {
         gap: 10px;
         padding: 9px 0;
         border-bottom: 1px solid var(--glass-border);
-        font-size: 13px;
+        font-size: 14px;
       }
       .option-list li:last-child {
         border-bottom: none;
@@ -911,13 +911,13 @@ interface DownloadRow extends DownloadTarget {
       }
       .contact-label {
         display: block;
-        font-size: 12px;
+        font-size: 13px;
         font-weight: 600;
         color: var(--color-text-secondary);
       }
       .contact-value {
         display: block;
-        font-size: 12px;
+        font-size: 13px;
         color: var(--color-text-primary);
         overflow: hidden;
         text-overflow: ellipsis;
@@ -960,13 +960,13 @@ interface DownloadRow extends DownloadTarget {
         display: flex;
         align-items: center;
         gap: 8px;
-        font-size: 13px;
+        font-size: 14px;
         font-weight: 600;
         color: var(--color-text-primary);
       }
       .download-detail {
         display: block;
-        font-size: 12px;
+        font-size: 13px;
         line-height: 1.6;
         color: var(--color-text-muted);
         margin-top: 2px;
@@ -974,7 +974,7 @@ interface DownloadRow extends DownloadTarget {
       .download-badge {
         padding: 1px 7px;
         border-radius: 999px;
-        font-size: 10px;
+        font-size: 12px;
         font-weight: 700;
         text-transform: uppercase;
         letter-spacing: 0.06em;
@@ -993,7 +993,7 @@ interface DownloadRow extends DownloadTarget {
         border-bottom: none;
       }
       .link-list li a {
-        font-size: 13px;
+        font-size: 14px;
         color: var(--color-accent-secondary);
         text-decoration: none;
       }
@@ -1007,12 +1007,12 @@ interface DownloadRow extends DownloadTarget {
         padding: 2px 0;
       }
       .policy-name {
-        font-size: 13px;
+        font-size: 14px;
         font-weight: 600;
         color: var(--color-accent-secondary);
       }
       .policy-note {
-        font-size: 11px;
+        font-size: 12px;
         line-height: 1.5;
         color: var(--color-text-muted);
       }
@@ -1073,7 +1073,7 @@ interface DownloadRow extends DownloadTarget {
       }
       .update-detail {
         display: block;
-        font-size: 12px;
+        font-size: 13px;
         line-height: 1.6;
         color: var(--color-text-muted);
         margin-top: 2px;
@@ -1085,7 +1085,7 @@ interface DownloadRow extends DownloadTarget {
         margin-top: var(--space-md);
       }
       .update-note {
-        font-size: 12px;
+        font-size: 13px;
         line-height: 1.6;
         color: var(--color-text-secondary);
         margin-top: var(--space-sm);
@@ -1120,13 +1120,13 @@ interface DownloadRow extends DownloadTarget {
       }
       .release-date,
       .asset-size {
-        font-size: 11px;
+        font-size: 12px;
         color: var(--color-text-muted);
       }
       .release-flag {
         padding: 2px 8px;
         border-radius: 999px;
-        font-size: 10px;
+        font-size: 12px;
         text-transform: uppercase;
         letter-spacing: 0.06em;
         color: var(--color-warning);
@@ -1134,7 +1134,7 @@ interface DownloadRow extends DownloadTarget {
         border: 1px solid rgba(251, 191, 36, 0.24);
       }
       .release-notes {
-        font-size: 12px;
+        font-size: 13px;
         line-height: 1.7;
         color: var(--color-text-secondary);
         white-space: pre-wrap;
@@ -1148,12 +1148,12 @@ interface DownloadRow extends DownloadTarget {
       }
       .release-link {
         display: inline-block;
-        font-size: 12px;
+        font-size: 13px;
         margin-top: 10px;
       }
       .other-assets {
         margin-top: 10px;
-        font-size: 12px;
+        font-size: 13px;
         color: var(--color-text-muted);
       }
       .other-assets summary {
@@ -1188,7 +1188,7 @@ interface DownloadRow extends DownloadTarget {
         gap: 16px;
         padding: 9px 0;
         border-bottom: 1px solid var(--glass-border);
-        font-size: 13px;
+        font-size: 14px;
       }
       .fact:last-child {
         border-bottom: none;
@@ -1202,7 +1202,7 @@ interface DownloadRow extends DownloadTarget {
         text-align: right;
       }
       .signature {
-        font-size: 11px;
+        font-size: 12px;
         color: var(--color-text-muted);
         text-align: center;
         line-height: 1.7;
@@ -1388,13 +1388,13 @@ interface DownloadRow extends DownloadTarget {
           font-size: 16px;
         }
         .status-pill {
-          font-size: 13px;
+          font-size: 14px;
         }
         .btn {
           font-size: 14px;
         }
         .signature {
-          font-size: 13px;
+          font-size: 14px;
         }
       }
 

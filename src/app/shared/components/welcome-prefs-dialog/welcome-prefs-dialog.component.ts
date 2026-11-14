@@ -132,7 +132,7 @@ import { MINI_WIDGET_HELP } from '../../../core/constants/desktop-prefs.constant
       }
       .dialog-subtitle {
         margin: 4px 0 0;
-        font-size: 13px;
+        font-size: 14px;
         line-height: 1.45;
         color: var(--color-text-muted, #a1a1aa);
       }
@@ -163,7 +163,7 @@ import { MINI_WIDGET_HELP } from '../../../core/constants/desktop-prefs.constant
         border-radius: 12px;
         background: rgba(139, 92, 246, 0.08);
         border: 1px solid rgba(139, 92, 246, 0.2);
-        font-size: 12px;
+        font-size: 13px;
         line-height: 1.45;
         color: var(--color-text-secondary, #d4d4d8);
       }
@@ -206,7 +206,7 @@ import { MINI_WIDGET_HELP } from '../../../core/constants/desktop-prefs.constant
       .btn-primary {
         padding: 8px 18px;
         border-radius: 8px;
-        font-size: 13px;
+        font-size: 14px;
         font-weight: 600;
         cursor: pointer;
         transition:

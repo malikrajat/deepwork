@@ -449,7 +449,7 @@ interface SparkBar {
       }
       .eyebrow {
         margin: 0 0 6px;
-        font-size: 10px;
+        font-size: 12px;
         font-weight: 700;
         text-transform: uppercase;
         letter-spacing: 0.14em;
@@ -466,7 +466,7 @@ interface SparkBar {
         /* A cap, even on a full-width page: a line of prose 1800px long is not
            read, it is scanned. */
         max-width: 760px;
-        font-size: 13px;
+        font-size: 14px;
         line-height: 1.5;
         color: var(--color-text-muted, #a1a1aa);
       }
@@ -493,7 +493,7 @@ interface SparkBar {
         align-items: baseline;
         gap: 6px;
         margin: 0 0 8px;
-        font-size: 11px;
+        font-size: 12px;
         font-weight: 700;
         text-transform: uppercase;
         letter-spacing: 0.08em;
@@ -501,13 +501,13 @@ interface SparkBar {
       }
       .block-text {
         margin: 0 0 8px;
-        font-size: 13px;
+        font-size: 14px;
         line-height: 1.55;
         color: var(--color-text-secondary, #d4d4d8);
       }
       .block-hint {
         margin: 8px 0 0;
-        font-size: 12px;
+        font-size: 13px;
         line-height: 1.55;
         color: var(--color-text-muted, #a1a1aa);
       }
@@ -516,7 +516,7 @@ interface SparkBar {
         margin: 10px 0 0;
         padding-top: 8px;
         border-top: 1px solid var(--glass-border, rgba(255, 255, 255, 0.08));
-        font-size: 11px;
+        font-size: 12px;
         line-height: 1.5;
         color: var(--color-text-muted, #a1a1aa);
       }
@@ -545,7 +545,7 @@ interface SparkBar {
         min-width: 0;
         padding: 7px 10px;
         border-radius: 8px;
-        font-size: 13px;
+        font-size: 14px;
         font-family: 'JetBrains Mono', monospace;
         border: 1px solid rgba(139, 92, 246, 0.25);
         background: var(--control-bg, rgba(255, 255, 255, 0.04));
@@ -572,7 +572,7 @@ interface SparkBar {
       .chip {
         padding: 4px 11px;
         border-radius: 999px;
-        font-size: 12px;
+        font-size: 13px;
         font-weight: 500;
         cursor: pointer;
         border: 1px solid rgba(139, 92, 246, 0.2);
@@ -617,7 +617,7 @@ interface SparkBar {
         border-left: 3px solid var(--color-accent-primary, #a78bfa);
       }
       .kpi-label {
-        font-size: 10px;
+        font-size: 12px;
         font-weight: 700;
         text-transform: uppercase;
         letter-spacing: 0.1em;
@@ -634,7 +634,7 @@ interface SparkBar {
         opacity: 0.5;
       }
       .kpi-note {
-        font-size: 11px;
+        font-size: 12px;
         line-height: 1.4;
         color: var(--color-text-muted, #a1a1aa);
       }
@@ -655,12 +655,12 @@ interface SparkBar {
         display: flex;
         flex-wrap: wrap;
         gap: 12px;
-        font-size: 11px;
+        font-size: 12px;
         color: var(--color-text-muted, #a1a1aa);
       }
       .total-caption {
         margin: 10px 0 0;
-        font-size: 11px;
+        font-size: 12px;
         line-height: 1.5;
         color: var(--color-text-muted, #a1a1aa);
       }
@@ -706,7 +706,7 @@ interface SparkBar {
         align-self: center;
         width: 100%;
         text-align: center;
-        font-size: 11px;
+        font-size: 12px;
         color: var(--color-text-muted, #a1a1aa);
       }
       .spark-bar {
@@ -723,7 +723,7 @@ interface SparkBar {
         display: flex;
         justify-content: space-between;
         margin-top: 4px;
-        font-size: 11px;
+        font-size: 12px;
         color: var(--color-text-muted, #a1a1aa);
       }
 
@@ -745,7 +745,7 @@ interface SparkBar {
         align-items: baseline;
         gap: 8px;
         padding-bottom: 6px;
-        font-size: 13px;
+        font-size: 14px;
       }
       .stat-body {
         display: grid;
@@ -762,7 +762,7 @@ interface SparkBar {
       .stat-name small {
         display: block;
         margin-top: 1px;
-        font-size: 11px;
+        font-size: 12px;
         line-height: 1.35;
         color: var(--color-text-muted, #a1a1aa);
       }
@@ -792,7 +792,7 @@ interface SparkBar {
         display: grid;
         grid-template-columns: 118px minmax(0, 1fr);
         gap: 10px;
-        font-size: 12px;
+        font-size: 13px;
       }
       .fact dt {
         color: var(--color-text-muted, #a1a1aa);
@@ -805,7 +805,7 @@ interface SparkBar {
       .fact dd small {
         display: block;
         margin-top: 2px;
-        font-size: 11px;
+        font-size: 12px;
         line-height: 1.45;
         color: var(--color-text-muted, #a1a1aa);
       }
@@ -816,7 +816,7 @@ interface SparkBar {
         justify-content: space-between;
         gap: 10px;
         margin-top: 14px;
-        font-size: 12px;
+        font-size: 13px;
         color: var(--color-text-muted, #a1a1aa);
       }
 
@@ -830,13 +830,13 @@ interface SparkBar {
         border-radius: 14px;
         background: rgba(139, 92, 246, 0.05);
         border: 1px solid rgba(139, 92, 246, 0.16);
-        font-size: 13px;
+        font-size: 14px;
         color: var(--color-text-secondary, #d4d4d8);
       }
       .count-row small {
         display: block;
         margin-top: 3px;
-        font-size: 11px;
+        font-size: 12px;
         line-height: 1.45;
         color: var(--color-text-muted, #a1a1aa);
       }
@@ -884,7 +884,7 @@ interface SparkBar {
         justify-content: space-between;
         flex-wrap: wrap;
         gap: 12px;
-        font-size: 12px;
+        font-size: 13px;
         line-height: 1.5;
         color: var(--color-text-muted, #a1a1aa);
       }
@@ -905,7 +905,7 @@ interface SparkBar {
       .is-warning,
       .is-note {
         margin: 10px 0 0;
-        font-size: 12px;
+        font-size: 13px;
         line-height: 1.5;
         border-radius: 10px;
         padding: 8px 10px;
@@ -933,7 +933,7 @@ interface SparkBar {
         gap: 6px;
         padding: 8px 16px;
         border-radius: 8px;
-        font-size: 13px;
+        font-size: 14px;
         font-weight: 600;
         cursor: pointer;
         text-decoration: none;
@@ -963,7 +963,7 @@ interface SparkBar {
       }
       .small {
         padding: 6px 11px;
-        font-size: 12px;
+        font-size: 13px;
       }
 
       @keyframes dialog-fade {

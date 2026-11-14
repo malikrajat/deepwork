@@ -141,7 +141,7 @@ const UPDATE_INTERVAL_MS = 1000;
       .hour-text {
         width: 36px;
         flex-shrink: 0;
-        font-size: 10px;
+        font-size: 12px;
         font-family: var(--font-mono);
         color: var(--color-text-muted);
         text-align: right;
@@ -267,7 +267,7 @@ const UPDATE_INTERVAL_MS = 1000;
       .block-label {
         flex: 1 1 auto;
         min-width: 0;
-        font-size: 10px;
+        font-size: 12px;
         font-weight: 500;
         color: var(--color-text-secondary);
         white-space: nowrap;
@@ -286,7 +286,7 @@ const UPDATE_INTERVAL_MS = 1000;
         padding-left: 6px;
         border-left: 1px solid var(--glass-border);
         font-family: var(--font-mono);
-        font-size: 10px;
+        font-size: 12px;
         font-weight: 600;
         font-variant-numeric: tabular-nums;
         color: var(--color-text-primary);

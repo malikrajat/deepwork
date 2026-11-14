@@ -101,7 +101,7 @@ import { formatClockTime, formatMillilitres } from '../../../core/utils/water.ut
 
       .eyebrow {
         display: block;
-        font-size: 10px;
+        font-size: 12px;
         font-weight: 700;
         letter-spacing: 0.08em;
         text-transform: uppercase;
@@ -118,7 +118,7 @@ import { formatClockTime, formatMillilitres } from '../../../core/utils/water.ut
       .water-percent {
         padding: 2px 10px;
         border-radius: 999px;
-        font-size: 11px;
+        font-size: 12px;
         font-weight: 700;
         color: var(--color-accent-secondary);
         background: rgba(6, 182, 212, 0.12);
@@ -146,7 +146,7 @@ import { formatClockTime, formatMillilitres } from '../../../core/utils/water.ut
         flex-wrap: wrap;
         gap: var(--space-md);
         margin-top: var(--space-sm);
-        font-size: 12px;
+        font-size: 13px;
         color: var(--color-text-muted);
       }
 
@@ -168,7 +168,7 @@ import { formatClockTime, formatMillilitres } from '../../../core/utils/water.ut
         border: 1px solid var(--glass-border);
         background: var(--glass-bg);
         color: var(--color-text-secondary);
-        font-size: 12px;
+        font-size: 13px;
         font-weight: 600;
         cursor: pointer;
         transition: all 0.2s;
@@ -195,7 +195,7 @@ import { formatClockTime, formatMillilitres } from '../../../core/utils/water.ut
       }
 
       .water-link {
-        font-size: 12px;
+        font-size: 13px;
         color: var(--color-text-muted);
         text-decoration: none;
       }

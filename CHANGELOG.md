@@ -44,10 +44,14 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - Space no longer starts the timer while a button, link or switch has focus —
   the control owns its own keys.
 
+---
+
+## [3.2.0] – 2026-11-14
+
 ### Changed
 
-- Version **3.3.0** in every file that spells it out, moved by
-  `npm run version:bump -- 3.3.0`.
+- Version **3.2.0** in every file that spells it out, moved by
+  `npm run version:bump -- 3.2.0`.
 - The dashboard's stale pre-redesign classes (old page-header, unused quadrant
   modifiers) are gone; the new markup only defines selectors it uses.
 - **Dead and test-only CSS is now a CI gate.** `npm run css:audit`
@@ -69,6 +73,7 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   upgrade keeps tasks, sessions, settings, habits, journal entries and reminders
   exactly as they were. The installer keeps the same application identifier and
   the same per-user data directory.
+
 
 ---
 

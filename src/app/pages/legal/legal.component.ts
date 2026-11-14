@@ -86,7 +86,7 @@ import { LEGAL_DOCUMENTS, type LegalDocumentId } from '../../core/constants/lega
         align-items: center;
         gap: 6px;
         margin-bottom: var(--space-md);
-        font-size: 12px;
+        font-size: 13px;
         font-weight: 600;
         color: var(--color-text-muted);
         text-decoration: none;
@@ -108,7 +108,7 @@ import { LEGAL_DOCUMENTS, type LegalDocumentId } from '../../core/constants/lega
       }
       .updated {
         margin-top: 10px;
-        font-size: 11px;
+        font-size: 12px;
         font-weight: 600;
         text-transform: uppercase;
         letter-spacing: 0.06em;
@@ -141,7 +141,7 @@ import { LEGAL_DOCUMENTS, type LegalDocumentId } from '../../core/constants/lega
       }
       .legal-section p {
         margin-top: 8px;
-        font-size: 13px;
+        font-size: 14px;
         line-height: 1.75;
         color: var(--color-text-secondary);
       }
@@ -152,7 +152,7 @@ import { LEGAL_DOCUMENTS, type LegalDocumentId } from '../../core/constants/lega
         flex-direction: column;
         gap: 7px;
         color: var(--color-text-secondary);
-        font-size: 13px;
+        font-size: 14px;
         line-height: 1.65;
       }
       .legal-section li::marker {
@@ -163,7 +163,7 @@ import { LEGAL_DOCUMENTS, type LegalDocumentId } from '../../core/constants/lega
         padding-top: var(--space-md);
       }
       .legal-footer p {
-        font-size: 13px;
+        font-size: 14px;
         line-height: 1.7;
         color: var(--color-text-secondary);
       }
@@ -189,7 +189,7 @@ import { LEGAL_DOCUMENTS, type LegalDocumentId } from '../../core/constants/lega
         border: 1px solid rgba(139, 92, 246, 0.18);
         background: rgba(139, 92, 246, 0.06);
         color: var(--color-text-secondary);
-        font-size: 12px;
+        font-size: 13px;
         font-weight: 600;
         text-decoration: none;
         transition:

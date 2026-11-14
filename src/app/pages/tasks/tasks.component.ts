@@ -337,7 +337,7 @@ type SortKey = 'updated' | 'priority' | 'deadline' | 'newest';
         letter-spacing: -0.5px;
       }
       .task-count {
-        font-size: 12px;
+        font-size: 13px;
         color: var(--color-text-muted);
       }
 
@@ -368,7 +368,7 @@ type SortKey = 'updated' | 'priority' | 'deadline' | 'newest';
         border: none;
         outline: none;
         color: var(--color-text-primary);
-        font-size: 13px;
+        font-size: 14px;
         width: 100%;
         height: 20px;
         min-height: 0;
@@ -397,7 +397,7 @@ type SortKey = 'updated' | 'priority' | 'deadline' | 'newest';
         align-items: center;
         gap: 6px;
         color: var(--color-text-muted);
-        font-size: 11px;
+        font-size: 12px;
       }
       .sort-control select {
         padding: 6px 8px;
@@ -412,12 +412,12 @@ type SortKey = 'updated' | 'priority' | 'deadline' | 'newest';
         margin-left: auto;
         flex: 1 1 0;
         min-width: 0;
-        font-size: 11px;
+        font-size: 12px;
         color: var(--color-text-muted);
       }
       .board-hint kbd {
         font-family: var(--font-mono);
-        font-size: 10px;
+        font-size: 12px;
         padding: 1px 5px;
         border: 1px solid rgba(139, 92, 246, 0.25);
         border-radius: 4px;
@@ -604,12 +604,12 @@ type SortKey = 'updated' | 'priority' | 'deadline' | 'newest';
         transform: rotate(90deg);
       }
       .group-label {
-        font-size: 12px;
+        font-size: 13px;
         font-weight: 700;
         letter-spacing: 0.01em;
       }
       .group-count {
-        font-size: 10px;
+        font-size: 12px;
         padding: 1px 8px;
         border-radius: 999px;
         background: rgba(255, 255, 255, 0.06);
@@ -618,7 +618,7 @@ type SortKey = 'updated' | 'priority' | 'deadline' | 'newest';
       }
       .group-done {
         margin-left: auto;
-        font-size: 10px;
+        font-size: 12px;
         color: #34d399;
       }
       /* Every open section gets a board of its own; the columns scroll inside it. */
@@ -699,7 +699,7 @@ type SortKey = 'updated' | 'priority' | 'deadline' | 'newest';
       .btn {
         padding: 8px 18px;
         border-radius: 10px;
-        font-size: 13px;
+        font-size: 14px;
         font-weight: 600;
         cursor: pointer;
         border: none;
@@ -729,7 +729,7 @@ type SortKey = 'updated' | 'priority' | 'deadline' | 'newest';
       }
       .btn-sm {
         padding: 6px 14px;
-        font-size: 12px;
+        font-size: 13px;
         display: flex;
         align-items: center;
         gap: 6px;

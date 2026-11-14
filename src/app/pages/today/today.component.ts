@@ -181,11 +181,11 @@ import { readFocusedTaskId } from '../../core/utils/focus-task.util';
         letter-spacing: -0.5px;
       }
       .date-label {
-        font-size: 12px;
+        font-size: 13px;
         color: var(--color-text-muted);
       }
       .stat {
-        font-size: 12px;
+        font-size: 13px;
         color: var(--color-text-muted);
         background: rgba(139, 92, 246, 0.08);
         padding: 4px 12px;
@@ -202,7 +202,7 @@ import { readFocusedTaskId } from '../../core/utils/focus-task.util';
         gap: 6px;
         padding: 7px 14px;
         font: inherit;
-        font-size: 12px;
+        font-size: 13px;
         font-weight: 600;
         border: none;
         border-radius: 10px;
@@ -250,7 +250,7 @@ import { readFocusedTaskId } from '../../core/utils/focus-task.util';
         border: none;
         outline: none;
         color: var(--color-text-primary);
-        font-size: 13px;
+        font-size: 14px;
       }
       .search-box input::placeholder {
         color: var(--color-text-muted);
@@ -270,7 +270,7 @@ import { readFocusedTaskId } from '../../core/utils/focus-task.util';
         color: var(--color-text-primary);
       }
       .search-count {
-        font-size: 11px;
+        font-size: 12px;
         color: var(--color-text-muted);
       }
 
@@ -289,7 +289,7 @@ import { readFocusedTaskId } from '../../core/utils/focus-task.util';
         color: var(--color-text-secondary);
       }
       .empty-state p {
-        font-size: 13px;
+        font-size: 14px;
         color: var(--color-text-muted);
       }
 

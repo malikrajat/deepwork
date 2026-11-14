@@ -522,7 +522,7 @@ import { VirtualWindowDirective } from '../../shared/directives/virtual-window.d
         letter-spacing: -0.5px;
       }
       .date-label {
-        font-size: 12px;
+        font-size: 13px;
         color: var(--color-text-muted);
       }
       .header-stats {
@@ -532,7 +532,7 @@ import { VirtualWindowDirective } from '../../shared/directives/virtual-window.d
         flex-shrink: 0;
       }
       .stat {
-        font-size: 12px;
+        font-size: 13px;
         color: var(--color-text-muted);
         background: rgba(139, 92, 246, 0.08);
         padding: 4px 12px;
@@ -549,7 +549,7 @@ import { VirtualWindowDirective } from '../../shared/directives/virtual-window.d
       }
       .period-tab {
         font: inherit;
-        font-size: 12px;
+        font-size: 13px;
         font-weight: 600;
         color: var(--color-text-secondary);
         background: var(--glass-bg);
@@ -573,7 +573,7 @@ import { VirtualWindowDirective } from '../../shared/directives/virtual-window.d
       }
       .period-range {
         margin-left: 4px;
-        font-size: 11px;
+        font-size: 12px;
         color: var(--color-text-muted);
       }
 
@@ -600,7 +600,7 @@ import { VirtualWindowDirective } from '../../shared/directives/virtual-window.d
         border: 1px solid transparent;
       }
       .summary-label {
-        font-size: 10px;
+        font-size: 12px;
         text-transform: uppercase;
         letter-spacing: 0.06em;
         color: var(--color-text-muted);
@@ -609,15 +609,12 @@ import { VirtualWindowDirective } from '../../shared/directives/virtual-window.d
         font-size: 24px;
         font-weight: 800;
         line-height: 1.15;
-        background: linear-gradient(135deg, #8b5cf6, #06b6d4);
-        -webkit-background-clip: text;
-        background-clip: text;
-        -webkit-text-fill-color: transparent;
+        color: var(--color-text-primary);
         overflow: hidden;
         text-overflow: ellipsis;
       }
       .summary-hint {
-        font-size: 11px;
+        font-size: 12px;
         color: var(--color-text-muted);
       }
 
@@ -645,7 +642,7 @@ import { VirtualWindowDirective } from '../../shared/directives/virtual-window.d
         margin-bottom: 10px;
       }
       .eyebrow {
-        font-size: 10px;
+        font-size: 12px;
         font-weight: 700;
         letter-spacing: 0.08em;
         text-transform: uppercase;
@@ -667,7 +664,7 @@ import { VirtualWindowDirective } from '../../shared/directives/virtual-window.d
       .insight-list li {
         position: relative;
         padding-left: 16px;
-        font-size: 13px;
+        font-size: 14px;
         line-height: 1.55;
         color: var(--color-text-secondary);
       }
@@ -715,7 +712,7 @@ import { VirtualWindowDirective } from '../../shared/directives/virtual-window.d
         border: none;
         outline: none;
         color: var(--color-text-primary);
-        font-size: 13px;
+        font-size: 14px;
       }
       .search-box input::placeholder {
         color: var(--color-text-muted);
@@ -735,7 +732,7 @@ import { VirtualWindowDirective } from '../../shared/directives/virtual-window.d
         color: var(--color-text-primary);
       }
       .result-count {
-        font-size: 11px;
+        font-size: 12px;
         color: var(--color-text-muted);
       }
 
@@ -754,7 +751,7 @@ import { VirtualWindowDirective } from '../../shared/directives/virtual-window.d
         display: flex;
         flex-direction: column;
         gap: 5px;
-        font-size: 10px;
+        font-size: 12px;
         text-transform: uppercase;
         letter-spacing: 0.06em;
         color: var(--color-text-muted);
@@ -766,7 +763,7 @@ import { VirtualWindowDirective } from '../../shared/directives/virtual-window.d
         background: var(--control-bg);
         color: var(--color-text-primary);
         font: inherit;
-        font-size: 12px;
+        font-size: 13px;
         letter-spacing: normal;
         text-transform: none;
       }
@@ -780,7 +777,7 @@ import { VirtualWindowDirective } from '../../shared/directives/virtual-window.d
       }
       .range-note {
         padding-bottom: 8px;
-        font-size: 10px;
+        font-size: 12px;
         color: var(--color-text-muted);
       }
 
@@ -791,7 +788,7 @@ import { VirtualWindowDirective } from '../../shared/directives/virtual-window.d
         gap: 14px;
         flex-wrap: wrap;
         padding: 0 2px;
-        font-size: 10px;
+        font-size: 12px;
         color: var(--color-text-muted);
       }
       .legend-item {
@@ -902,7 +899,7 @@ import { VirtualWindowDirective } from '../../shared/directives/virtual-window.d
       }
       .cadence,
       .meta {
-        font-size: 10px;
+        font-size: 12px;
         line-height: 1;
         padding: 4px 8px;
         border-radius: 999px;
@@ -951,7 +948,7 @@ import { VirtualWindowDirective } from '../../shared/directives/virtual-window.d
         color: var(--color-text-primary);
       }
       .totals span {
-        font-size: 11px;
+        font-size: 12px;
         color: var(--color-text-muted);
       }
       .timeframe {
@@ -964,11 +961,11 @@ import { VirtualWindowDirective } from '../../shared/directives/virtual-window.d
         display: flex;
         align-items: baseline;
         gap: 6px;
-        font-size: 11px;
+        font-size: 12px;
         color: var(--color-text-secondary);
       }
       .tf-label {
-        font-size: 10px;
+        font-size: 12px;
         text-transform: uppercase;
         letter-spacing: 0.06em;
         color: var(--color-text-muted);
@@ -1038,7 +1035,7 @@ import { VirtualWindowDirective } from '../../shared/directives/virtual-window.d
           0 0 10px rgba(139, 92, 246, 0.35);
       }
       .axis {
-        font-size: 10px;
+        font-size: 12px;
         line-height: 1;
         color: var(--color-text-muted);
         text-align: center;
@@ -1052,7 +1049,7 @@ import { VirtualWindowDirective } from '../../shared/directives/virtual-window.d
       }
       .chart-note {
         margin-top: 6px;
-        font-size: 10px;
+        font-size: 12px;
         color: var(--color-text-muted);
       }
 
@@ -1110,7 +1107,7 @@ import { VirtualWindowDirective } from '../../shared/directives/virtual-window.d
         overflow-wrap: anywhere;
       }
       .detail-sheet-title p {
-        font-size: 11px;
+        font-size: 12px;
         line-height: 1.5;
         color: var(--color-text-muted);
       }
@@ -1157,7 +1154,7 @@ import { VirtualWindowDirective } from '../../shared/directives/virtual-window.d
         min-width: 0;
       }
       .detail-label {
-        font-size: 10px;
+        font-size: 12px;
         text-transform: uppercase;
         letter-spacing: 0.06em;
         color: var(--color-text-muted);
@@ -1168,7 +1165,7 @@ import { VirtualWindowDirective } from '../../shared/directives/virtual-window.d
         color: var(--color-text-primary);
       }
       .detail-stat small {
-        font-size: 10px;
+        font-size: 12px;
         color: var(--color-text-muted);
       }
       .detail-column {
@@ -1180,12 +1177,12 @@ import { VirtualWindowDirective } from '../../shared/directives/virtual-window.d
         justify-content: space-between;
         gap: 8px;
         margin-bottom: 8px;
-        font-size: 12px;
+        font-size: 13px;
         font-weight: 700;
         color: var(--color-text-secondary);
       }
       .detail-column h3 span {
-        font-size: 10px;
+        font-size: 12px;
         font-weight: 500;
         color: var(--color-text-muted);
       }
@@ -1195,7 +1192,7 @@ import { VirtualWindowDirective } from '../../shared/directives/virtual-window.d
       .breakdown-table {
         width: 100%;
         border-collapse: collapse;
-        font-size: 11px;
+        font-size: 12px;
       }
       .breakdown-table th,
       .breakdown-table td {
@@ -1205,7 +1202,7 @@ import { VirtualWindowDirective } from '../../shared/directives/virtual-window.d
         border-bottom: 1px solid var(--glass-border);
       }
       .breakdown-table th {
-        font-size: 10px;
+        font-size: 12px;
         text-transform: uppercase;
         letter-spacing: 0.06em;
         color: var(--color-text-muted);
@@ -1234,7 +1231,7 @@ import { VirtualWindowDirective } from '../../shared/directives/virtual-window.d
         align-items: center;
         gap: 8px;
         padding: 6px 0;
-        font-size: 11px;
+        font-size: 12px;
         color: var(--color-text-secondary);
         border-bottom: 1px solid var(--glass-border);
       }
@@ -1253,12 +1250,12 @@ import { VirtualWindowDirective } from '../../shared/directives/virtual-window.d
         color: var(--color-text-primary);
       }
       .session-flag {
-        font-size: 10px;
+        font-size: 12px;
         color: #fbbf24;
       }
       .more-sessions {
         margin-top: 6px;
-        font-size: 10px;
+        font-size: 12px;
         color: var(--color-text-muted);
       }
 
@@ -1282,7 +1279,7 @@ import { VirtualWindowDirective } from '../../shared/directives/virtual-window.d
       }
       .empty-state p {
         max-width: 420px;
-        font-size: 13px;
+        font-size: 14px;
         line-height: 1.6;
         color: var(--color-text-muted);
       }
@@ -1292,7 +1289,7 @@ import { VirtualWindowDirective } from '../../shared/directives/virtual-window.d
         gap: 6px;
         padding: 8px 16px;
         font: inherit;
-        font-size: 12px;
+        font-size: 13px;
         font-weight: 600;
         border: none;
         border-radius: 10px;
@@ -1310,7 +1307,7 @@ import { VirtualWindowDirective } from '../../shared/directives/virtual-window.d
       }
       .method-note {
         max-width: 860px;
-        font-size: 11px;
+        font-size: 12px;
         line-height: 1.6;
         color: var(--color-text-muted);
       }
@@ -1414,7 +1411,7 @@ import { VirtualWindowDirective } from '../../shared/directives/virtual-window.d
           padding: 0 12px 12px;
         }
         .axis {
-          font-size: 10px;
+          font-size: 12px;
         }
         .time-list {
           height: 56vh;

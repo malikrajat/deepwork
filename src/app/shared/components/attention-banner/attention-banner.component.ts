@@ -95,7 +95,7 @@ import { AttentionService } from '../../../core/services/attention.service';
         flex: 0 0 auto;
       }
       .banner-text {
-        font-size: 12px;
+        font-size: 13px;
         line-height: 1.45;
         color: var(--color-text-secondary, #d4d4d8);
       }
@@ -104,7 +104,7 @@ import { AttentionService } from '../../../core/services/attention.service';
         padding: 4px 10px;
         border-radius: 7px;
         font: inherit;
-        font-size: 11px;
+        font-size: 12px;
         font-weight: 600;
         cursor: pointer;
         color: var(--color-text-primary, #fff);

@@ -107,7 +107,7 @@ import { movementWhyFor } from '../../../core/utils/movement.util';
 
       .eyebrow {
         display: block;
-        font-size: 10px;
+        font-size: 12px;
         font-weight: 700;
         letter-spacing: 0.08em;
         text-transform: uppercase;
@@ -122,7 +122,7 @@ import { movementWhyFor } from '../../../core/utils/movement.util';
       }
 
       .desk-link {
-        font-size: 12px;
+        font-size: 13px;
         color: var(--color-text-muted);
         text-decoration: none;
       }
@@ -140,7 +140,7 @@ import { movementWhyFor } from '../../../core/utils/movement.util';
         border-left: 2px solid rgba(251, 191, 36, 0.5);
         border-radius: 0 8px 8px 0;
         background: rgba(251, 191, 36, 0.07);
-        font-size: 12px;
+        font-size: 13px;
         font-style: italic;
         line-height: 1.5;
         color: var(--color-text-secondary);
@@ -168,13 +168,13 @@ import { movementWhyFor } from '../../../core/utils/movement.util';
       }
 
       .desk-label {
-        font-size: 13px;
+        font-size: 14px;
         font-weight: 600;
         color: var(--color-text-primary);
       }
 
       .desk-status {
-        font-size: 11px;
+        font-size: 12px;
         color: var(--color-text-muted);
       }
 

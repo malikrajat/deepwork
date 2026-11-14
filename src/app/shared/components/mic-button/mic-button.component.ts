@@ -89,7 +89,7 @@ import { SpeechService } from '../../../core/services/speech.service';
         color: var(--color-text-secondary, #d4d4d8);
         cursor: pointer;
         font: inherit;
-        font-size: 12px;
+        font-size: 13px;
         font-weight: 600;
         line-height: 1;
         transition:

@@ -288,7 +288,7 @@ const PRIORITY_LABELS: Record<string, string> = {
         gap: 6px;
       }
       .form-group label {
-        font-size: 12px;
+        font-size: 13px;
         font-weight: 600;
         color: var(--color-text-muted);
         text-transform: uppercase;
@@ -348,7 +348,7 @@ const PRIORITY_LABELS: Record<string, string> = {
       .btn {
         padding: 8px 18px;
         border-radius: 10px;
-        font-size: 13px;
+        font-size: 14px;
         font-weight: 600;
         cursor: pointer;
         border: none;
@@ -401,7 +401,7 @@ const PRIORITY_LABELS: Record<string, string> = {
         margin: -6px 0 0;
         padding: 9px 12px;
         border-radius: 10px;
-        font-size: 12px;
+        font-size: 13px;
         line-height: 1.5;
         color: var(--color-text-muted);
         background: rgba(139, 92, 246, 0.07);
@@ -425,7 +425,7 @@ const PRIORITY_LABELS: Record<string, string> = {
         background: transparent;
         color: var(--color-text-secondary);
         font: inherit;
-        font-size: 12px;
+        font-size: 13px;
         font-weight: 600;
         cursor: pointer;
       }
@@ -457,7 +457,7 @@ const PRIORITY_LABELS: Record<string, string> = {
         background: transparent;
         color: var(--color-text-muted);
         cursor: pointer;
-        font-size: 11px;
+        font-size: 12px;
         transition: all 0.2s;
       }
       .day-btn.active {

@@ -211,7 +211,7 @@ const WINDOW_DAYS = 30;
         color: var(--color-text-primary);
       }
       .stat-label {
-        font-size: 10px;
+        font-size: 12px;
         color: var(--color-text-muted);
         text-transform: uppercase;
         letter-spacing: 0.05em;
@@ -250,7 +250,7 @@ const WINDOW_DAYS = 30;
       .btn {
         padding: 9px 18px;
         border-radius: 10px;
-        font-size: 13px;
+        font-size: 14px;
         font-weight: 600;
         cursor: pointer;
         border: none;
@@ -265,7 +265,7 @@ const WINDOW_DAYS = 30;
       }
 
       .reading {
-        font-size: 12px;
+        font-size: 13px;
         line-height: 1.55;
         color: var(--color-text-secondary);
         padding: 10px 14px;
@@ -305,7 +305,7 @@ const WINDOW_DAYS = 30;
         font-size: 20px;
       }
       .consistency-badge {
-        font-size: 10px;
+        font-size: 12px;
         font-weight: 700;
         padding: 2px 8px;
         border-radius: 999px;
@@ -355,19 +355,19 @@ const WINDOW_DAYS = 30;
         color: var(--color-text-primary);
       }
       .streak-label {
-        font-size: 10px;
+        font-size: 12px;
         color: var(--color-text-muted);
       }
       .best-streak {
         margin-left: auto;
-        font-size: 10px;
+        font-size: 12px;
         color: var(--color-text-muted);
       }
       .check-btn {
         padding: 7px;
         border-radius: 10px;
         cursor: pointer;
-        font-size: 12px;
+        font-size: 13px;
         font-weight: 600;
         background: rgba(139, 92, 246, 0.14);
         border: 1px solid rgba(139, 92, 246, 0.3);
@@ -403,11 +403,11 @@ const WINDOW_DAYS = 30;
       .strip-labels {
         display: flex;
         justify-content: space-between;
-        font-size: 10px;
+        font-size: 12px;
         color: var(--color-text-muted);
       }
       .habit-total {
-        font-size: 10px;
+        font-size: 12px;
         color: var(--color-text-muted);
       }
 
@@ -570,7 +570,7 @@ const WINDOW_DAYS = 30;
           font-size: 18px;
         }
         .stat-label {
-          font-size: 11px;
+          font-size: 12px;
         }
         .stat-pill {
           padding: 8px 18px;
@@ -588,7 +588,7 @@ const WINDOW_DAYS = 30;
           font-size: 16px;
         }
         .consistency-badge {
-          font-size: 11px;
+          font-size: 12px;
         }
 
         /* Six tracks at 24px of gap: the same 306px card, with the air between

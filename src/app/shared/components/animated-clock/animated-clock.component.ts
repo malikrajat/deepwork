@@ -10,6 +10,10 @@ import { TIMER_TYPE_CONFIG } from '../../../core/constants/theme.constants';
  * colourful shape in the app into a soft, muddy ring with a haze around it, and
  * the filter's rectangular region could read as a faint box. A wide, faint
  * duplicate of the arc gives the same sense of glow while keeping hard edges.
+ *
+ * The face is now a ring first: the time sits in the middle where the eye lands,
+ * and a small lit dot rides the head of the arc. The old needle crossed the
+ * middle at an angle and left the numbers stranded at the bottom of the dial.
  */
 @Component({
   selector: 'app-animated-clock',
@@ -41,24 +45,46 @@ import { TIMER_TYPE_CONFIG } from '../../../core/constants/theme.constants';
           cy="100"
           r="96"
           fill="none"
-          stroke="rgba(139,92,246,0.14)"
+          stroke="currentColor"
+          stroke-opacity="0.1"
           stroke-width="1"
         />
 
         <!-- Background track -->
-        <circle cx="100" cy="100" r="88" fill="none" stroke="var(--clock-track)" stroke-width="8" />
+        <circle
+          class="clock-track"
+          cx="100"
+          cy="100"
+          r="86"
+          fill="none"
+          stroke="var(--clock-track)"
+          stroke-width="9"
+        />
 
-        <!-- Halo: the elapsed arc drawn 20 units wide and faint, so the glow has
+        <!-- A faint full ring in the session's own gradient, so the dial has a
+             colour even before the first second is elapsed. -->
+        <circle
+          class="clock-aura"
+          cx="100"
+          cy="100"
+          r="86"
+          fill="none"
+          [attr.stroke]="arcColor()"
+          stroke-width="9"
+          stroke-linecap="round"
+        />
+
+        <!-- Halo: the elapsed arc drawn 22 units wide and faint, so the glow has
              the same hard edge as the arc instead of a blur filter's haze. -->
         @if (progress() > 0) {
           <circle
             class="arc-halo"
             cx="100"
             cy="100"
-            r="88"
+            r="86"
             fill="none"
             [attr.stroke]="arcColor()"
-            stroke-width="20"
+            stroke-width="22"
             stroke-linecap="round"
             [attr.stroke-dasharray]="circumference"
             [attr.stroke-dashoffset]="elapsedOffset()"
@@ -70,10 +96,10 @@ import { TIMER_TYPE_CONFIG } from '../../../core/constants/theme.constants';
           class="elapsed-arc"
           cx="100"
           cy="100"
-          r="88"
+          r="86"
           fill="none"
           [attr.stroke]="arcColor()"
-          stroke-width="8"
+          stroke-width="9"
           stroke-linecap="round"
           [attr.stroke-dasharray]="circumference"
           [attr.stroke-dashoffset]="elapsedOffset()"
@@ -82,13 +108,13 @@ import { TIMER_TYPE_CONFIG } from '../../../core/constants/theme.constants';
         <!-- Minute tick marks -->
         @for (tick of tickMarks; track tick) {
           <line
-            [attr.x1]="100 + 76 * Math.cos((tick * Math.PI) / 30 - Math.PI / 2)"
-            [attr.y1]="100 + 76 * Math.sin((tick * Math.PI) / 30 - Math.PI / 2)"
+            [attr.x1]="100 + 74 * Math.cos((tick * Math.PI) / 30 - Math.PI / 2)"
+            [attr.y1]="100 + 74 * Math.sin((tick * Math.PI) / 30 - Math.PI / 2)"
             [attr.x2]="
-              100 + (tick % 5 === 0 ? 72 : 74) * Math.cos((tick * Math.PI) / 30 - Math.PI / 2)
+              100 + (tick % 5 === 0 ? 69 : 71) * Math.cos((tick * Math.PI) / 30 - Math.PI / 2)
             "
             [attr.y2]="
-              100 + (tick % 5 === 0 ? 72 : 74) * Math.sin((tick * Math.PI) / 30 - Math.PI / 2)
+              100 + (tick % 5 === 0 ? 69 : 71) * Math.sin((tick * Math.PI) / 30 - Math.PI / 2)
             "
             [class]="tick % 5 === 0 ? 'tick-major' : 'tick-minor'"
             [attr.stroke-width]="tick % 5 === 0 ? '2' : '1'"
@@ -96,27 +122,20 @@ import { TIMER_TYPE_CONFIG } from '../../../core/constants/theme.constants';
           />
         }
 
-        <!-- Needle (rotates based on elapsed progress) -->
-        <g [attr.transform]="'rotate(' + needleAngle() + ' 100 100)'">
-          <line
-            x1="100"
-            y1="100"
-            x2="100"
-            y2="28"
-            [attr.stroke]="needleColor()"
-            stroke-width="2"
-            stroke-linecap="round"
+        <!-- The head of the arc, a small light travelling with the timer. -->
+        @if (progress() > 0 && progress() < 1) {
+          <circle
+            class="arc-tip-glow"
+            [attr.cx]="tip().x"
+            [attr.cy]="tip().y"
+            r="8"
+            [attr.fill]="arcColor()"
           />
-          <!-- Needle tip -->
-          <circle cx="100" cy="30" r="3" [attr.fill]="needleColor()" />
-        </g>
-
-        <!-- Center dot -->
-        <circle cx="100" cy="100" r="5" fill="rgba(139,92,246,0.8)" />
-        <circle cx="100" cy="100" r="3" fill="var(--color-bg-primary)" />
+          <circle class="arc-tip" [attr.cx]="tip().x" [attr.cy]="tip().y" r="4.5" />
+        }
       </svg>
 
-      <!-- Digital time overlay -->
+      <!-- Digital time, centred in the ring -->
       <div class="digital-time" aria-hidden="true">
         <span class="time-value">{{ displayTime() }}</span>
         <span class="timer-label">{{ label() }}</span>
@@ -136,13 +155,14 @@ import { TIMER_TYPE_CONFIG } from '../../../core/constants/theme.constants';
         align-items: center;
         justify-content: center;
         flex-shrink: 0;
+        color: var(--color-text-primary);
       }
       .clock-container::before {
         content: '';
         position: absolute;
-        inset: -30px;
+        inset: -26px;
         border-radius: 50%;
-        background: radial-gradient(circle, rgba(139, 92, 246, 0.05) 0%, transparent 70%);
+        background: radial-gradient(circle, rgba(139, 92, 246, 0.14) 0%, transparent 68%);
         pointer-events: none;
         opacity: 0;
         transition: opacity 0.5s;
@@ -154,59 +174,84 @@ import { TIMER_TYPE_CONFIG } from '../../../core/constants/theme.constants';
       .clock-face {
         position: absolute;
         inset: 0;
+        overflow: visible;
       }
       .tick-major {
-        stroke: rgba(255, 255, 255, 0.25);
+        stroke: currentColor;
+        opacity: 0.3;
       }
       .tick-minor {
-        stroke: rgba(255, 255, 255, 0.08);
+        stroke: currentColor;
+        opacity: 0.12;
+      }
+      .clock-track {
+        stroke: var(--clock-track);
+      }
+      .clock-aura {
+        opacity: var(--clock-aura-opacity, 0.18);
       }
       .elapsed-arc {
         transform: rotate(-90deg);
         transform-origin: center;
         transition: stroke-dashoffset 1s cubic-bezier(0.4, 0, 0.2, 1);
       }
+      .clock-container.running .elapsed-arc {
+        filter: drop-shadow(0 0 6px var(--color-accent-glow));
+      }
       /* Drains with the arc; the pair reads as one glowing stroke with two hard
        edges rather than a blurred one. */
       .arc-halo {
-        opacity: 0.16;
+        opacity: 0.14;
         transform: rotate(-90deg);
         transform-origin: center;
         transition: stroke-dashoffset 1s cubic-bezier(0.4, 0, 0.2, 1);
       }
+      .arc-tip-glow {
+        opacity: 0.2;
+      }
+      .arc-tip {
+        fill: var(--color-text-primary);
+      }
       .digital-time {
         position: absolute;
-        bottom: 16%;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
         display: flex;
         flex-direction: column;
         align-items: center;
-        gap: 4px;
+        gap: 3px;
         z-index: 2;
+        pointer-events: none;
       }
       .time-value {
         font-family: var(--font-mono);
-        font-size: clamp(20px, 4vmin, 32px);
+        font-size: clamp(30px, 6.2vmin, 46px);
         font-weight: 700;
-        color: var(--color-text-primary);
-        letter-spacing: -1px;
+        letter-spacing: -0.05em;
+        line-height: 1;
         font-variant-numeric: tabular-nums;
+        /* Solid ink, not a clipped gradient: the timer is the one number the eye
+           lands on first, and a mask-painted fill softens its edges. */
+        color: var(--color-text-primary);
       }
       .timer-label {
-        font-size: clamp(10px, 1.5vmin, 12px);
+        font-size: clamp(12px, 1.6vmin, 13px);
         text-transform: uppercase;
-        letter-spacing: 0.15em;
+        letter-spacing: 0.16em;
         color: var(--color-text-muted);
-        font-weight: 500;
+        font-weight: 600;
+        white-space: nowrap;
       }
       @keyframes glow-breathe {
         0%,
         100% {
-          opacity: 0.4;
+          opacity: 0.45;
           transform: scale(1);
         }
         50% {
           opacity: 1;
-          transform: scale(1.01);
+          transform: scale(1.02);
         }
       }
       @media (prefers-reduced-motion: reduce) {
@@ -227,6 +272,16 @@ import { TIMER_TYPE_CONFIG } from '../../../core/constants/theme.constants';
         .elapsed-arc,
         .arc-halo {
           stroke: Highlight;
+          filter: none;
+        }
+        .arc-tip-glow,
+        .arc-tip {
+          fill: Highlight;
+        }
+        .time-value {
+          background: none;
+          color: CanvasText;
+          -webkit-text-fill-color: CanvasText;
         }
       }
     `,
@@ -239,14 +294,10 @@ export class AnimatedClockComponent {
 
   readonly Math = Math;
   readonly tickMarks = Array.from({ length: 60 }, (_, i) => i);
-  readonly circumference = 2 * Math.PI * 88;
+  readonly circumference = 2 * Math.PI * 86;
 
   readonly arcColor = computed(() => {
     return TIMER_TYPE_CONFIG[this.timerType()].gradient;
-  });
-
-  readonly needleColor = computed(() => {
-    return TIMER_TYPE_CONFIG[this.timerType()].color;
   });
 
   /** Elapsed offset: fills clockwise as time passes */
@@ -254,9 +305,13 @@ export class AnimatedClockComponent {
     return this.circumference * (1 - this.progress());
   });
 
-  /** Needle rotates 360° over the full duration */
-  readonly needleAngle = computed(() => {
-    return this.progress() * 360;
+  /** Where the head of the arc sits, in the 200×200 viewBox. */
+  readonly tip = computed(() => {
+    const angle = this.progress() * Math.PI * 2 - Math.PI / 2;
+    return {
+      x: 100 + 86 * Math.cos(angle),
+      y: 100 + 86 * Math.sin(angle),
+    };
   });
 
   readonly label = computed(() => {

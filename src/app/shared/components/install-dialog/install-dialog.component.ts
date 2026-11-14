@@ -229,12 +229,12 @@ import { FloatingTimerService } from '../../../core/services/floating-timer.serv
         border: none;
         border-radius: var(--radius-sm, 8px);
         background: transparent;
-        color: var(--color-text-muted, #8b87ab);
+        color: var(--color-text-muted, #aaa6c4);
         cursor: pointer;
       }
       .install-close:hover {
         background: rgba(255, 255, 255, 0.07);
-        color: var(--color-text-primary, #f2f0ff);
+        color: var(--color-text-primary, #f7f5ff);
       }
       .install-icon {
         display: inline-flex;
@@ -258,7 +258,7 @@ import { FloatingTimerService } from '../../../core/services/floating-timer.serv
         margin: 6px 0 0;
         font-size: var(--text-base, 13px);
         line-height: 1.55;
-        color: var(--color-text-muted, #8b87ab);
+        color: var(--color-text-muted, #aaa6c4);
       }
 
       .install-benefits {
@@ -275,7 +275,7 @@ import { FloatingTimerService } from '../../../core/services/floating-timer.serv
         gap: 9px;
         font-size: var(--text-base, 13px);
         line-height: 1.45;
-        color: var(--color-text-secondary, #b6b2d0);
+        color: var(--color-text-secondary, #cfcbe6);
       }
       .install-benefits svg {
         flex: 0 0 auto;
@@ -309,11 +309,11 @@ import { FloatingTimerService } from '../../../core/services/floating-timer.serv
       .install-secondary {
         background: transparent;
         border: 1px solid var(--glass-border, rgba(255, 255, 255, 0.12));
-        color: var(--color-text-secondary, #b6b2d0);
+        color: var(--color-text-secondary, #cfcbe6);
       }
       .install-secondary:hover {
         background: rgba(255, 255, 255, 0.06);
-        color: var(--color-text-primary, #f2f0ff);
+        color: var(--color-text-primary, #f7f5ff);
       }
       .install-hint {
         margin: 8px 0 0;
@@ -343,7 +343,7 @@ import { FloatingTimerService } from '../../../core/services/floating-timer.serv
         margin: 0;
         font-size: var(--text-base, 13px);
         line-height: 1.55;
-        color: var(--color-text-secondary, #b6b2d0);
+        color: var(--color-text-secondary, #cfcbe6);
       }
       .install-mobile-note {
         margin-top: 8px !important;
@@ -358,13 +358,13 @@ import { FloatingTimerService } from '../../../core/services/floating-timer.serv
         margin: 0 0 6px;
         font-size: var(--text-md, 14px);
         font-weight: 700;
-        color: var(--color-text-primary, #f2f0ff);
+        color: var(--color-text-primary, #f7f5ff);
       }
       .install-note {
         margin: 0 0 10px;
         font-size: var(--text-sm, 12px);
         line-height: 1.55;
-        color: var(--color-text-muted, #8b87ab);
+        color: var(--color-text-muted, #aaa6c4);
       }
       .install-steps-list {
         margin: 0 0 8px;
@@ -374,7 +374,7 @@ import { FloatingTimerService } from '../../../core/services/floating-timer.serv
         gap: 5px;
         font-size: var(--text-sm, 12px);
         line-height: 1.5;
-        color: var(--color-text-secondary, #b6b2d0);
+        color: var(--color-text-secondary, #cfcbe6);
       }
 
       .install-actions {

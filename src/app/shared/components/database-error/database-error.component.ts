@@ -141,7 +141,7 @@ import { DbService } from '../../../core/services/db.service';
 
       .db-error-lead {
         margin: 8px 0 0;
-        font-size: 13px;
+        font-size: 14px;
         line-height: 1.6;
         color: var(--color-text-secondary, #d4d4d8);
       }
@@ -152,11 +152,11 @@ import { DbService } from '../../../core/services/db.service';
         border-radius: 10px;
         background: rgba(239, 68, 68, 0.07);
         border: 1px solid rgba(239, 68, 68, 0.2);
-        font-size: 12px;
+        font-size: 13px;
         line-height: 1.5;
       }
       .db-error-facts dt {
-        font-size: 10px;
+        font-size: 12px;
         font-weight: 700;
         letter-spacing: 0.07em;
         text-transform: uppercase;
@@ -176,7 +176,7 @@ import { DbService } from '../../../core/services/db.service';
 
       .db-error-advice {
         margin: 12px 0 0;
-        font-size: 13px;
+        font-size: 14px;
         line-height: 1.6;
         color: var(--color-text-secondary, #d4d4d8);
       }

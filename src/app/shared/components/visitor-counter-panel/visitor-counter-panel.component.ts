@@ -83,7 +83,7 @@ import { VisitorStatsService } from '../../../core/services/visitor-stats.servic
         display: flex;
         align-items: center;
         gap: 8px;
-        font-size: 12px;
+        font-size: 13px;
         font-weight: 600;
         text-transform: uppercase;
         letter-spacing: 0.08em;
@@ -110,7 +110,7 @@ import { VisitorStatsService } from '../../../core/services/visitor-stats.servic
       }
       .setting-note {
         display: block;
-        font-size: 10px;
+        font-size: 12px;
         line-height: 1.45;
         color: var(--color-text-muted);
         margin-top: 2px;
@@ -131,7 +131,7 @@ import { VisitorStatsService } from '../../../core/services/visitor-stats.servic
       }
       .panel-error {
         margin: 10px 0 0;
-        font-size: 12px;
+        font-size: 13px;
         line-height: 1.5;
         color: #fca5a5;
       }
@@ -141,7 +141,7 @@ import { VisitorStatsService } from '../../../core/services/visitor-stats.servic
         border: 1px solid rgba(139, 92, 246, 0.2);
         background: rgba(139, 92, 246, 0.06);
         color: var(--color-text-primary);
-        font-size: 12px;
+        font-size: 13px;
         font-weight: 500;
         cursor: pointer;
         transition: all 0.2s;

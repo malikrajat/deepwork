@@ -232,7 +232,7 @@ const PREVIEW_ROWS = 8;
       }
       .export-header { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; }
       .export-header h2 { font-size: 18px; font-weight: 700; }
-      .export-header p { margin-top: 2px; font-size: 12px; color: var(--color-text-muted); }
+      .export-header p { margin-top: 2px; font-size: 13px; color: var(--color-text-muted); }
       .icon-btn {
         width: 30px; height: 30px; border-radius: 8px; border: none; background: transparent;
         display: flex; align-items: center; justify-content: center; flex-shrink: 0;
@@ -244,12 +244,12 @@ const PREVIEW_ROWS = 8;
          one is its own display utility. */
       .export-block { display: flex; flex-direction: column; gap: 8px; }
       .block-head { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; }
-      .block-title { font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; color: var(--color-text-muted); }
-      .block-hint { font-size: 11px; color: var(--color-text-muted); }
+      .block-title { font-size: 13px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; color: var(--color-text-muted); }
+      .block-hint { font-size: 12px; color: var(--color-text-muted); }
 
       .chips { display: flex; gap: 6px; flex-wrap: wrap; }
       .chip {
-        padding: 5px 12px; font-size: 11px; font-weight: 500;
+        padding: 5px 12px; font-size: 12px; font-weight: 500;
         background: var(--glass-bg); border: 1px solid rgba(139, 92, 246, 0.1);
         border-radius: 20px; color: var(--color-text-muted); cursor: pointer; transition: all 0.2s;
       }
@@ -260,29 +260,29 @@ const PREVIEW_ROWS = 8;
       }
 
       .custom-range { display: flex; align-items: flex-end; gap: 10px; }
-      .custom-range label { display: flex; flex-direction: column; gap: 4px; font-size: 11px; color: var(--color-text-muted); }
+      .custom-range label { display: flex; flex-direction: column; gap: 4px; font-size: 12px; color: var(--color-text-muted); }
       .custom-range input {
         background: var(--control-bg); border: 1px solid rgba(139, 92, 246, 0.12);
-        border-radius: 8px; padding: 7px 10px; color: var(--color-text-primary); font: inherit; font-size: 12px;
+        border-radius: 8px; padding: 7px 10px; color: var(--color-text-primary); font: inherit; font-size: 13px;
       }
       .range-dash { color: var(--color-text-muted); padding-bottom: 8px; }
 
       .field-row { display: flex; gap: 10px; flex-wrap: wrap; }
       .field { display: flex; flex-direction: column; gap: 4px; flex: 1; min-width: 170px; }
-      .field span { font-size: 11px; color: var(--color-text-muted); }
+      .field span { font-size: 12px; color: var(--color-text-muted); }
       .field select {
         background: var(--control-bg); border: 1px solid rgba(139, 92, 246, 0.12);
-        border-radius: 8px; padding: 7px 10px; color: var(--color-text-secondary); font: inherit; font-size: 12px; cursor: pointer;
+        border-radius: 8px; padding: 7px 10px; color: var(--color-text-secondary); font: inherit; font-size: 13px; cursor: pointer;
       }
       .options { display: flex; flex-direction: column; gap: 6px; }
-      .option { display: flex; align-items: center; gap: 8px; font-size: 12px; color: var(--color-text-secondary); cursor: pointer; }
+      .option { display: flex; align-items: center; gap: 8px; font-size: 13px; color: var(--color-text-secondary); cursor: pointer; }
 
       .preview { border-top: 1px solid var(--glass-border); padding-top: 12px; }
       .table-wrap { max-height: 240px; overflow: auto; border: 1px solid var(--glass-border); border-radius: 10px; background: var(--control-bg); }
-      table { width: 100%; min-width: 700px; border-collapse: collapse; font-size: 11px; }
+      table { width: 100%; min-width: 700px; border-collapse: collapse; font-size: 12px; }
       thead th {
         position: sticky; top: 0; z-index: 1; text-align: left; padding: 7px 9px;
-        font-size: 10px; font-weight: 700; letter-spacing: 0.05em; text-transform: uppercase;
+        font-size: 12px; font-weight: 700; letter-spacing: 0.05em; text-transform: uppercase;
         color: var(--color-text-muted); background: var(--color-bg-tertiary);
         border-bottom: 1px solid var(--glass-border); white-space: nowrap;
       }
@@ -291,13 +291,13 @@ const PREVIEW_ROWS = 8;
         color: var(--color-text-secondary); white-space: nowrap;
         max-width: 220px; overflow: hidden; text-overflow: ellipsis;
       }
-      .more-note, .empty-note { font-size: 11px; color: var(--color-text-muted); line-height: 1.6; }
-      .status-line { font-size: 12px; color: var(--timer-long-break-color); }
+      .more-note, .empty-note { font-size: 12px; color: var(--color-text-muted); line-height: 1.6; }
+      .status-line { font-size: 13px; color: var(--timer-long-break-color); }
 
       .export-footer { display: flex; align-items: center; justify-content: flex-end; gap: 10px; }
       .btn {
         display: inline-flex; align-items: center; gap: 6px;
-        padding: 8px 18px; border-radius: 10px; font-size: 12px; font-weight: 600;
+        padding: 8px 18px; border-radius: 10px; font-size: 13px; font-weight: 600;
         cursor: pointer; border: none; transition: all 0.2s;
       }
       .btn-primary { background: linear-gradient(135deg, #8b5cf6, #7c3aed); color: white; }

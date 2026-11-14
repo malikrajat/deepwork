@@ -279,7 +279,7 @@ import {
         display: flex;
         align-items: center;
         gap: 8px;
-        font-size: 12px;
+        font-size: 13px;
         font-weight: 600;
         text-transform: uppercase;
         letter-spacing: 0.08em;
@@ -368,7 +368,7 @@ import {
         background: rgba(139, 92, 246, 0.08);
         color: var(--color-text-primary);
         font: inherit;
-        font-size: 12px;
+        font-size: 13px;
         font-weight: 600;
         cursor: pointer;
         white-space: nowrap;
@@ -380,7 +380,7 @@ import {
         flex: 0 0 auto;
         padding: 5px 14px;
         border-radius: 999px;
-        font-size: 12px;
+        font-size: 13px;
         font-weight: 600;
         font-family: inherit;
         cursor: pointer;
@@ -405,7 +405,7 @@ import {
       }
       .pref-unavailable {
         flex: 0 0 auto;
-        font-size: 11px;
+        font-size: 12px;
         font-style: italic;
         color: var(--color-text-muted);
       }
@@ -423,14 +423,14 @@ import {
       }
       .pref-state {
         flex: 0 0 auto;
-        font-size: 12px;
+        font-size: 13px;
         font-weight: 600;
         color: var(--color-text-muted, #a1a1aa);
       }
 
       .pref-error {
         margin: 10px 0 0;
-        font-size: 12px;
+        font-size: 13px;
         line-height: 1.45;
         color: #fca5a5;
       }
@@ -439,13 +439,13 @@ import {
         align-items: center;
         gap: 7px;
         margin: 12px 0 0;
-        font-size: 12px;
+        font-size: 13px;
         line-height: 1.45;
         color: var(--color-text-muted, #a1a1aa);
       }
       .pref-note {
         margin: 10px 0 0;
-        font-size: 12px;
+        font-size: 13px;
         line-height: 1.5;
         color: var(--color-text-muted, #a1a1aa);
       }
@@ -456,7 +456,7 @@ import {
         display: flex;
         flex-direction: column;
         gap: 5px;
-        font-size: 12px;
+        font-size: 13px;
         color: var(--color-text-muted, #a1a1aa);
       }
       .pref-list li::before {
@@ -465,7 +465,7 @@ import {
         color: var(--color-accent-primary, #a78bfa);
       }
       .pref-list-name {
-        color: var(--color-text-secondary, #b6b2d0);
+        color: var(--color-text-secondary, #cfcbe6);
         font-weight: 600;
       }
       .pref-link {
@@ -473,7 +473,7 @@ import {
         border: none;
         background: none;
         font: inherit;
-        font-size: 12px;
+        font-size: 13px;
         color: var(--color-accent-primary, #a78bfa);
         text-decoration: underline;
         text-underline-offset: 2px;

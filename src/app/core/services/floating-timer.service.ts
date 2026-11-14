@@ -105,7 +105,7 @@ export class FloatingTimerService implements OnDestroy {
       * { box-sizing: border-box; }
       body {
         margin: 0; height: 100vh; display: flex; align-items: center; justify-content: center;
-        background: #0b0818; color: #f2f0ff; font-family: system-ui, -apple-system, sans-serif;
+        background: #0b0818; color: #f7f5ff; font-family: system-ui, -apple-system, sans-serif;
         user-select: none; -webkit-user-select: none;
       }
       .card {
@@ -122,10 +122,10 @@ export class FloatingTimerService implements OnDestroy {
         font-size: 15px; font-weight: 700; font-variant-numeric: tabular-nums; letter-spacing: -.3px;
       }
       .info { min-width: 0; display: flex; flex-direction: column; gap: 6px; }
-      .kind { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: .08em; color: #8b87ab; }
+      .kind { font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: .08em; color: #aaa6c4; }
       button {
         border: 1px solid rgba(139,92,246,.45); background: rgba(139,92,246,.18);
-        color: #f2f0ff; border-radius: 8px; padding: 7px 10px; font-size: 11px; font-weight: 600;
+        color: #f7f5ff; border-radius: 8px; padding: 7px 10px; font-size: 12px; font-weight: 600;
         cursor: pointer; font-family: inherit;
       }
       button:hover { background: rgba(139,92,246,.32); }

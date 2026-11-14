@@ -105,12 +105,12 @@ import { AttentionService } from '../../../core/services/attention.service';
         background: var(--glass-bg, rgba(255, 255, 255, 0.05));
         border: 1px solid var(--glass-border, rgba(255, 255, 255, 0.09));
         font-size: var(--text-sm, 12px);
-        color: var(--color-text-muted, #8b87ab);
+        color: var(--color-text-muted, #aaa6c4);
       }
       .quiet-state.on {
         border-color: rgba(139, 92, 246, 0.45);
         background: rgba(139, 92, 246, 0.12);
-        color: var(--color-text-secondary, #b6b2d0);
+        color: var(--color-text-secondary, #cfcbe6);
       }
 
       .quiet-block {
@@ -133,14 +133,14 @@ import { AttentionService } from '../../../core/services/attention.service';
         display: block;
         font-size: var(--text-md, 14px);
         font-weight: 600;
-        color: var(--color-text-primary, #f2f0ff);
+        color: var(--color-text-primary, #f7f5ff);
       }
       .quiet-note {
         display: block;
         margin-top: 3px;
         font-size: var(--text-sm, 12px);
         line-height: 1.45;
-        color: var(--color-text-muted, #8b87ab);
+        color: var(--color-text-muted, #aaa6c4);
       }
 
       .quiet-action {
@@ -150,7 +150,7 @@ import { AttentionService } from '../../../core/services/attention.service';
         border-radius: var(--radius-md, 10px);
         border: 1px solid rgba(139, 92, 246, 0.35);
         background: rgba(139, 92, 246, 0.08);
-        color: var(--color-text-primary, #f2f0ff);
+        color: var(--color-text-primary, #f7f5ff);
         font: inherit;
         font-size: var(--text-sm, 12px);
         font-weight: 600;
@@ -186,7 +186,7 @@ import { AttentionService } from '../../../core/services/attention.service';
         border-radius: var(--radius-sm, 8px);
         border: 1px solid var(--glass-border, rgba(255, 255, 255, 0.09));
         background: var(--glass-bg, rgba(255, 255, 255, 0.05));
-        color: var(--color-text-secondary, #b6b2d0);
+        color: var(--color-text-secondary, #cfcbe6);
         font: inherit;
         font-size: var(--text-sm, 12px);
         font-weight: 600;
@@ -200,14 +200,14 @@ import { AttentionService } from '../../../core/services/attention.service';
       .quiet-chip:hover {
         background: var(--glass-bg-hover, rgba(255, 255, 255, 0.075));
         border-color: rgba(139, 92, 246, 0.45);
-        color: var(--color-text-primary, #f2f0ff);
+        color: var(--color-text-primary, #f7f5ff);
       }
 
       .quiet-footnote {
         margin: 14px 0 0;
         font-size: var(--text-xs, 11px);
         line-height: 1.5;
-        color: var(--color-text-muted, #8b87ab);
+        color: var(--color-text-muted, #aaa6c4);
       }
 
       /* ===== Phone layout =====
