@@ -23,6 +23,8 @@ import { TimerService } from './timer.service';
  * would be interrupted, so the user is asked first in the app's own dialog.
  * Cancelling leaves the clock, the task selection and the page exactly as they
  * were.
+ * would be interrupted, so the user is asked first. Cancelling leaves the clock,
+ * the task selection and the page exactly as they were.
  */
 @Injectable({ providedIn: 'root' })
 export class FocusLauncherService {
@@ -68,6 +70,11 @@ export class FocusLauncherService {
         cancelLabel: isBreak ? 'Keep break' : 'Keep current session',
       });
       if (!confirmed) return false;
+      const type = this.timer.timerType() === 'work' ? 'focus session' : 'break';
+      const message =
+        `A ${type} is already running (${runningLabel}). ` +
+        `Stop it and start a new focus session on "${task.title}"?`;
+      if (typeof window !== 'undefined' && !window.confirm(message)) return false;
     }
 
     saveFocusedTaskId(task.id);
