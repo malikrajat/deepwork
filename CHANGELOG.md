@@ -5,6 +5,73 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ---
 
+## [3.3.0] – 2026-11-13
+
+### Added
+
+- **The Dashboard is rebuilt around the timer as a focus workspace.** A proper
+  page header, a calmer glass surface, a live activity rail, a session-cycle
+  card, a three-card insight row, a full-width day timeline and a wellbeing row
+  replace the old stack of panels. The clock remains the centre of the page and
+  every existing control still does what it did (`dashboard.component.ts`).
+
+- **A command palette on Ctrl+K (⌘K on macOS).** It searches the session
+  actions, the pages and the task form, with arrow-key navigation, Enter to run
+  and Escape to close. It is a real ARIA combobox/listbox pair and returns focus
+  to whatever opened it (`dashboard.component.ts`).
+
+- **A keyboard shortcut panel on `?`.** Space starts or pauses, `S` skips, `R`
+  resets the cycle, `F` opens fullscreen, `N` focuses the next task, `E` edits
+  the linked task and `M` opens the mini widget. The panel itself is reached
+  from the header and closes on Escape.
+
+- **Live activity rail and onboarding empty states.** Today's sessions are shown
+  newest-first with their task, type, duration and an explicit "Interrupted"
+  label. A day with no sessions, or no task linked to the clock, now offers the
+  next useful action instead of a blank panel.
+
+### Accessibility
+
+- Every status is carried by a word, a glyph or a shape as well as a colour, so
+  the session mode, the quadrant badge and an interrupted session remain
+  readable with any colour-vision deficiency.
+- The timer exposes an accessible `role="timer"` name; the status line is a
+  polite live region that changes on state, not on every tick.
+- OS preferences are honoured: `prefers-reduced-motion`, `prefers-contrast` and
+  `forced-colors` each have a dashboard treatment.
+- Icon-only controls have names, all interactive targets are at least 44px on a
+  phone, and a skip link now takes keyboard users straight to page content.
+- Space no longer starts the timer while a button, link or switch has focus —
+  the control owns its own keys.
+
+### Changed
+
+- Version **3.3.0** in every file that spells it out, moved by
+  `npm run version:bump -- 3.3.0`.
+- The dashboard's stale pre-redesign classes (old page-header, unused quadrant
+  modifiers) are gone; the new markup only defines selectors it uses.
+- **Dead and test-only CSS is now a CI gate.** `npm run css:audit`
+  (`scripts/audit-css.mjs`) reads the global and every inline component
+  stylesheet, exempts the families that are genuinely built at runtime, and
+  fails when a selector renders nothing in the application — including a class
+  that only a Playwright test uses. The old `.dead-css-report.md` (generated from
+  another checkout and counting Playwright's own report assets) is removed.
+- **Production build budgets now have headroom:** the initial bundle warns at
+  700 kB instead of 620 kB, and a component stylesheet warns at 26 kB and errors
+  at 30 kB. The current build (642 kB initial, 23.9 kB dashboard styles) is
+  warning-free, and a normal feature no longer trips a threshold that was set
+  below the app it already ships.
+
+### Compatibility
+
+- **No database migration is added or changed in this release.** The schema,
+  the migration list and every existing row are untouched, so an in-place
+  upgrade keeps tasks, sessions, settings, habits, journal entries and reminders
+  exactly as they were. The installer keeps the same application identifier and
+  the same per-user data directory.
+
+---
+
 ## [3.1.0] – 2026-11-16
 
 ### Added

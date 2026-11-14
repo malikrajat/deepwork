@@ -1,3 +1,33 @@
+/* Keyboard users get one Tab to the page content, without walking every
+   navigation row first. Hidden until it has focus, then it sits above the
+   shell's own z-index stack so nothing can cover it. */
+.skip-link {
+  position: fixed;
+  top: 8px;
+  left: 8px;
+  z-index: 2000;
+  padding: 10px 14px;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--glass-border-accent);
+  background: var(--surface-float);
+  color: var(--color-text-primary);
+  font-size: var(--text-sm);
+  font-weight: 700;
+  text-decoration: none;
+  transform: translateY(-150%);
+  transition: transform 0.15s ease;
+}
+.skip-link:focus-visible {
+  transform: translateY(0);
+  outline: 2px solid var(--color-accent-primary);
+  outline-offset: 2px;
+}
+@media (prefers-reduced-motion: reduce) {
+  .skip-link {
+    transition: none;
+  }
+}
+
 /* App shell: flex-column so titlebar sits above the content */
 .app-shell {
   display: flex;
@@ -11,6 +41,12 @@
   height: 100vh;
   height: 100dvh;
   overflow: hidden;
+}
+
+/* The skip link's destination is focused programmatically; the page itself is
+   not a control and should not grow a ring around the whole viewport. */
+.main-content:focus {
+  outline: none;
 }
 
 /* The install banner owns the top of the window while it is shown, so the shell

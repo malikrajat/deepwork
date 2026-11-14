@@ -120,7 +120,7 @@ import { journalText } from '../../core/utils/journal-content.util';
       </h3>
       <div class="heatmap-wrap">
         <div class="heat-weekdays">
-          @for (name of weekdayNames; track name) {
+          @for (name of weekdayNames; track $index) {
             <span>{{ name }}</span>
           }
         </div>

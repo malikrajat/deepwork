@@ -73,7 +73,9 @@ test.describe('the mini widget', () => {
     expect(await offset()).toBeLessThan(justStarted);
 
     await page.getByRole('button', { name: 'Skip to the next session' }).click();
-    await expect(page.getByRole('button', { name: 'Start timer' })).toBeVisible();
+    // Skip advances and starts the next block, so the widget is immediately
+    // running the break and its control reads Pause.
+    await expect(page.getByRole('button', { name: 'Pause timer' })).toBeVisible();
   });
 
   test('comes back to the full window when asked', async ({ page }) => {

@@ -63,3 +63,6 @@ src-tauri/target/
 /playwright-report
 /test-results
 .conflict-backup
+# Generated CSS reports: the CI gate is `npm run css:audit`, so nothing should
+# be built from a stale report.
+/.dead-css-report.md

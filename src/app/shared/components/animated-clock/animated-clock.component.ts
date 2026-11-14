@@ -15,32 +15,47 @@ import { TIMER_TYPE_CONFIG } from '../../../core/constants/theme.constants';
   selector: 'app-animated-clock',
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
-    <div class="clock-container" [class.running]="progress() > 0 && progress() < 1">
-      <svg class="clock-face" viewBox="0 0 200 200">
+    <div
+      class="clock-container"
+      [class.running]="progress() > 0 && progress() < 1"
+      role="timer"
+      aria-live="off"
+      [attr.aria-label]="ariaLabel()"
+    >
+      <svg class="clock-face" viewBox="0 0 200 200" aria-hidden="true" focusable="false">
         <defs>
           <linearGradient id="grad-work" x1="0%" y1="0%" x2="100%" y2="100%">
-            <stop offset="0%" stop-color="#8b5cf6"/>
-            <stop offset="50%" stop-color="#7c3aed"/>
-            <stop offset="100%" stop-color="#06b6d4"/>
+            <stop offset="0%" stop-color="#8b5cf6" />
+            <stop offset="50%" stop-color="#7c3aed" />
+            <stop offset="100%" stop-color="#06b6d4" />
           </linearGradient>
           <linearGradient id="grad-break" x1="0%" y1="0%" x2="100%" y2="100%">
-            <stop offset="0%" stop-color="#06b6d4"/>
-            <stop offset="100%" stop-color="#34d399"/>
+            <stop offset="0%" stop-color="#06b6d4" />
+            <stop offset="100%" stop-color="#34d399" />
           </linearGradient>
         </defs>
 
         <!-- Outer ring -->
-        <circle cx="100" cy="100" r="96" fill="none" stroke="rgba(139,92,246,0.14)" stroke-width="1"/>
+        <circle
+          cx="100"
+          cy="100"
+          r="96"
+          fill="none"
+          stroke="rgba(139,92,246,0.14)"
+          stroke-width="1"
+        />
 
         <!-- Background track -->
-        <circle cx="100" cy="100" r="88" fill="none" stroke="var(--clock-track)" stroke-width="8"/>
+        <circle cx="100" cy="100" r="88" fill="none" stroke="var(--clock-track)" stroke-width="8" />
 
         <!-- Halo: the elapsed arc drawn 20 units wide and faint, so the glow has
              the same hard edge as the arc instead of a blur filter's haze. -->
         @if (progress() > 0) {
           <circle
             class="arc-halo"
-            cx="100" cy="100" r="88"
+            cx="100"
+            cy="100"
+            r="88"
             fill="none"
             [attr.stroke]="arcColor()"
             stroke-width="20"
@@ -53,7 +68,9 @@ import { TIMER_TYPE_CONFIG } from '../../../core/constants/theme.constants';
         <!-- Filled arc (elapsed time) -->
         <circle
           class="elapsed-arc"
-          cx="100" cy="100" r="88"
+          cx="100"
+          cy="100"
+          r="88"
           fill="none"
           [attr.stroke]="arcColor()"
           stroke-width="8"
@@ -65,10 +82,14 @@ import { TIMER_TYPE_CONFIG } from '../../../core/constants/theme.constants';
         <!-- Minute tick marks -->
         @for (tick of tickMarks; track tick) {
           <line
-            [attr.x1]="100 + 76 * Math.cos(tick * Math.PI / 30 - Math.PI / 2)"
-            [attr.y1]="100 + 76 * Math.sin(tick * Math.PI / 30 - Math.PI / 2)"
-            [attr.x2]="100 + (tick % 5 === 0 ? 72 : 74) * Math.cos(tick * Math.PI / 30 - Math.PI / 2)"
-            [attr.y2]="100 + (tick % 5 === 0 ? 72 : 74) * Math.sin(tick * Math.PI / 30 - Math.PI / 2)"
+            [attr.x1]="100 + 76 * Math.cos((tick * Math.PI) / 30 - Math.PI / 2)"
+            [attr.y1]="100 + 76 * Math.sin((tick * Math.PI) / 30 - Math.PI / 2)"
+            [attr.x2]="
+              100 + (tick % 5 === 0 ? 72 : 74) * Math.cos((tick * Math.PI) / 30 - Math.PI / 2)
+            "
+            [attr.y2]="
+              100 + (tick % 5 === 0 ? 72 : 74) * Math.sin((tick * Math.PI) / 30 - Math.PI / 2)
+            "
             [class]="tick % 5 === 0 ? 'tick-major' : 'tick-minor'"
             [attr.stroke-width]="tick % 5 === 0 ? '2' : '1'"
             stroke-linecap="round"
@@ -77,106 +98,139 @@ import { TIMER_TYPE_CONFIG } from '../../../core/constants/theme.constants';
 
         <!-- Needle (rotates based on elapsed progress) -->
         <g [attr.transform]="'rotate(' + needleAngle() + ' 100 100)'">
-          <line x1="100" y1="100" x2="100" y2="28"
+          <line
+            x1="100"
+            y1="100"
+            x2="100"
+            y2="28"
             [attr.stroke]="needleColor()"
             stroke-width="2"
             stroke-linecap="round"
           />
           <!-- Needle tip -->
-          <circle cx="100" cy="30" r="3" [attr.fill]="needleColor()"/>
+          <circle cx="100" cy="30" r="3" [attr.fill]="needleColor()" />
         </g>
 
         <!-- Center dot -->
-        <circle cx="100" cy="100" r="5" fill="rgba(139,92,246,0.8)"/>
-        <circle cx="100" cy="100" r="3" fill="var(--color-bg-primary)"/>
+        <circle cx="100" cy="100" r="5" fill="rgba(139,92,246,0.8)" />
+        <circle cx="100" cy="100" r="3" fill="var(--color-bg-primary)" />
       </svg>
 
       <!-- Digital time overlay -->
-      <div class="digital-time">
+      <div class="digital-time" aria-hidden="true">
         <span class="time-value">{{ displayTime() }}</span>
         <span class="timer-label">{{ label() }}</span>
       </div>
     </div>
   `,
-  styles: [`
-    .clock-container {
-      position: relative;
-      width: 100%;
-      height: 100%;
-      max-width: var(--clock-size, clamp(180px, 40vmin, 360px));
-      max-height: var(--clock-size, clamp(180px, 40vmin, 360px));
-      aspect-ratio: 1;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      flex-shrink: 0;
-    }
-    .clock-container::before {
-      content: '';
-      position: absolute;
-      inset: -30px;
-      border-radius: 50%;
-      background: radial-gradient(circle, rgba(139, 92, 246, 0.05) 0%, transparent 70%);
-      pointer-events: none;
-      opacity: 0;
-      transition: opacity 0.5s;
-    }
-    .clock-container.running::before {
-      opacity: 1;
-      animation: glow-breathe 4s ease-in-out infinite;
-    }
-    .clock-face {
-      position: absolute;
-      inset: 0;
-    }
-    .tick-major {
-      stroke: rgba(255, 255, 255, 0.25);
-    }
-    .tick-minor {
-      stroke: rgba(255, 255, 255, 0.08);
-    }
-    .elapsed-arc {
-      transform: rotate(-90deg);
-      transform-origin: center;
-      transition: stroke-dashoffset 1s cubic-bezier(0.4, 0, 0.2, 1);
-    }
-    /* Drains with the arc; the pair reads as one glowing stroke with two hard
+  styles: [
+    `
+      .clock-container {
+        position: relative;
+        width: 100%;
+        height: 100%;
+        max-width: var(--clock-size, clamp(180px, 40vmin, 360px));
+        max-height: var(--clock-size, clamp(180px, 40vmin, 360px));
+        aspect-ratio: 1;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        flex-shrink: 0;
+      }
+      .clock-container::before {
+        content: '';
+        position: absolute;
+        inset: -30px;
+        border-radius: 50%;
+        background: radial-gradient(circle, rgba(139, 92, 246, 0.05) 0%, transparent 70%);
+        pointer-events: none;
+        opacity: 0;
+        transition: opacity 0.5s;
+      }
+      .clock-container.running::before {
+        opacity: 1;
+        animation: glow-breathe 4s ease-in-out infinite;
+      }
+      .clock-face {
+        position: absolute;
+        inset: 0;
+      }
+      .tick-major {
+        stroke: rgba(255, 255, 255, 0.25);
+      }
+      .tick-minor {
+        stroke: rgba(255, 255, 255, 0.08);
+      }
+      .elapsed-arc {
+        transform: rotate(-90deg);
+        transform-origin: center;
+        transition: stroke-dashoffset 1s cubic-bezier(0.4, 0, 0.2, 1);
+      }
+      /* Drains with the arc; the pair reads as one glowing stroke with two hard
        edges rather than a blurred one. */
-    .arc-halo {
-      opacity: 0.16;
-      transform: rotate(-90deg);
-      transform-origin: center;
-      transition: stroke-dashoffset 1s cubic-bezier(0.4, 0, 0.2, 1);
-    }
-    .digital-time {
-      position: absolute;
-      bottom: 16%;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      gap: 4px;
-      z-index: 2;
-    }
-    .time-value {
-      font-family: var(--font-mono);
-      font-size: clamp(20px, 4vmin, 32px);
-      font-weight: 700;
-      color: var(--color-text-primary);
-      letter-spacing: -1px;
-      font-variant-numeric: tabular-nums;
-    }
-    .timer-label {
-      font-size: clamp(10px, 1.5vmin, 12px);
-      text-transform: uppercase;
-      letter-spacing: 0.15em;
-      color: var(--color-text-muted);
-      font-weight: 500;
-    }
-    @keyframes glow-breathe {
-      0%, 100% { opacity: 0.4; transform: scale(1); }
-      50% { opacity: 1; transform: scale(1.01); }
-    }
-  `]
+      .arc-halo {
+        opacity: 0.16;
+        transform: rotate(-90deg);
+        transform-origin: center;
+        transition: stroke-dashoffset 1s cubic-bezier(0.4, 0, 0.2, 1);
+      }
+      .digital-time {
+        position: absolute;
+        bottom: 16%;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 4px;
+        z-index: 2;
+      }
+      .time-value {
+        font-family: var(--font-mono);
+        font-size: clamp(20px, 4vmin, 32px);
+        font-weight: 700;
+        color: var(--color-text-primary);
+        letter-spacing: -1px;
+        font-variant-numeric: tabular-nums;
+      }
+      .timer-label {
+        font-size: clamp(10px, 1.5vmin, 12px);
+        text-transform: uppercase;
+        letter-spacing: 0.15em;
+        color: var(--color-text-muted);
+        font-weight: 500;
+      }
+      @keyframes glow-breathe {
+        0%,
+        100% {
+          opacity: 0.4;
+          transform: scale(1);
+        }
+        50% {
+          opacity: 1;
+          transform: scale(1.01);
+        }
+      }
+      @media (prefers-reduced-motion: reduce) {
+        .clock-container.running::before {
+          animation: none;
+          opacity: 0.6;
+        }
+        .elapsed-arc,
+        .arc-halo {
+          transition: none;
+        }
+      }
+      @media (forced-colors: active) {
+        .tick-major,
+        .tick-minor {
+          stroke: CanvasText;
+        }
+        .elapsed-arc,
+        .arc-halo {
+          stroke: Highlight;
+        }
+      }
+    `,
+  ],
 })
 export class AnimatedClockComponent {
   displayTime = input.required<string>();
@@ -208,4 +262,14 @@ export class AnimatedClockComponent {
   readonly label = computed(() => {
     return TIMER_TYPE_CONFIG[this.timerType()].label;
   });
+
+  /**
+   * What a screen reader hears for the dial.
+   *
+   * The SVG and the digital face are decorative *to assistive technology*: this
+   * one label says the same thing once. It changes with the clock, but `timer`
+   * is not a live region, so a tick does not interrupt whatever else is being
+   * read — the dashboard's status line is the thing that announces state.
+   */
+  readonly ariaLabel = computed(() => `${this.label()}: ${this.displayTime()}`);
 }

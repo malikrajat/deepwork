@@ -257,6 +257,9 @@ export class App implements OnInit {
   }
 
   handleKeyboard(event: KeyboardEvent) {
+    // Another surface (the dashboard's command palette, a page's own shortcut)
+    // has already answered this key: it does not also mean "start the timer".
+    if (event.defaultPrevented) return;
     if (this.handleEscape(event)) return;
     if (this.handleQuietToggle(event)) return;
     if (this.handleFocusToggle(event)) return;
@@ -348,9 +351,21 @@ export class App implements OnInit {
     }
   }
 
+  /**
+   * True while the key belongs to the control the user is standing on.
+   *
+   * Space is both the timer shortcut and the way a keyboard activates a button,
+   * a link, a switch or a checkbox. Letting the timer take it from a focused
+   * button made Space press two things at once — the button and the clock — so
+   * every interactive element is treated as owning its own keys here.
+   */
   private isInputFocused(event: KeyboardEvent): boolean {
-    const target = event.target as HTMLElement;
-    const tag = target.tagName.toLowerCase();
-    return tag === 'input' || tag === 'textarea' || target.isContentEditable;
+    const target = event.target;
+    if (!(target instanceof Element)) return false;
+    return (
+      target.closest(
+        'button, a, input, textarea, select, [role="button"], [role="switch"], [role="checkbox"], [role="radio"], [role="tab"], [role="menuitem"], [contenteditable="true"]',
+      ) !== null
+    );
   }
 }

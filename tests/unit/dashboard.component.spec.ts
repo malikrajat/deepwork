@@ -53,6 +53,27 @@ describe('DashboardComponent (start button label logic)', () => {
   });
 });
 
+describe('DashboardComponent (text encoding)', () => {
+  const src = readFileSync(
+    resolve(__dirname, '../../src/app/pages/dashboard/dashboard.component.ts'),
+    'utf8',
+  );
+
+  /**
+   * The dashboard is UTF-8 like every other source file. A checkout or a script
+   * that decodes it as Windows-1252 turns a middle dot into `Â·`, an em dash into
+   * `â€”` and a curly quote into `â€™` — characters that are then rendered in the
+   * UI. This is the guard against that class of encoding accident.
+   */
+  it('does not contain double-encoded UTF-8', () => {
+    expect(src).not.toMatch(/Ã[\u0080-\u00BF]/);
+    expect(src).not.toMatch(/Â[\u0080-\u00BF]/);
+    expect(src).not.toMatch(/â€/);
+    expect(src).not.toMatch(/ðŸ/);
+    expect(src).not.toContain('\uFFFD');
+  });
+});
+
 /**
  * The clock card used to grow a scrollbar. Its contents were sized from the
  * window while the card itself is a fixed shape, so a linked task (which adds

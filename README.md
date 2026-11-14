@@ -210,7 +210,7 @@ Tauri does **not** cross-compile: build each platform on that platform, or let C
 
 | Platform         | Command                   | Where the artefacts land                                                                                                                                                                                                         |
 | ---------------- | ------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Windows (64-bit) | `npm run build:windows`   | `src-tauri/target/x86_64-pc-windows-msvc/release/bundle/msi/DeepWork_3.1.0_x64_en-US.msi` and `bundle/nsis/DeepWork_3.1.0_x64-setup.exe`; the bare binary is at `src-tauri/target/x86_64-pc-windows-msvc/release/deepwork.exe` |
+| Windows (64-bit) | `npm run build:windows`   | `src-tauri/target/x86_64-pc-windows-msvc/release/bundle/msi/DeepWork_3.3.0_x64_en-US.msi` and `bundle/nsis/DeepWork_3.3.0_x64-setup.exe`; the bare binary is at `src-tauri/target/x86_64-pc-windows-msvc/release/deepwork.exe` |
 | Windows (32-bit) | `npm run build:windows32` | `src-tauri/target/i686-pc-windows-msvc/release/bundle/` — the same two installers, named `…_x86` (run `rustup target add i686-pc-windows-msvc` once)                                                                               |
 | macOS (Intel)    | `npm run build:mac`       | `src-tauri/target/x86_64-apple-darwin/release/bundle/` — `macos/DeepWork.app` and a `.dmg` whose name carries the version                                                                                                        |
 | macOS (ARM)      | `npm run build:mac-arm`   | `src-tauri/target/aarch64-apple-darwin/release/bundle/` (run `rustup target add aarch64-apple-darwin` once)                                                                                                                      |
@@ -222,17 +222,20 @@ Because the build names the target triple, artefacts sit under `target/<triple>/
 
 Two things are true of every build: **the fonts ship inside it**, and **the packaged app has no web inspector** — the `devtools` cargo feature is deliberately absent from [`src-tauri/Cargo.toml`](src-tauri/Cargo.toml), so a release build has no `F12`, no `Ctrl+Shift+I` and no inspect entry in the context menu. Debug builds get one either way.
 
+**Upgrading keeps the user's work.** An installer replaces the application files; the SQLite database lives in the per-user application-data directory, outside the bundle, and keeps the same identifier (`com.deepwork.app`) and the same path. Migrations are additive and numbered, so a newer build applies only what an older database is missing. 3.3.0 adds no migration at all — it is a front-end and version release — and `tests/unit/migrations-upgrade.spec.ts` applies the real SQL to an older schema and checks that tasks, sessions, habits, journal entries and settings survive.
+
 ## Tests, coverage and CI
 
 ```bash
 npm run lint            # ESLint
+npm run css:audit       # fails on dead or test-only CSS
 npm run format:check    # Prettier, check only (npm run format writes)
 npm test                # Vitest unit suite
 npm run test:coverage   # + coverage; fails if the gate in vitest.config.ts is not met
 npm run coverage:summary # prints today's percentages and the distance to the 90% goal
 npm run e2e             # Playwright, starts its own dev server on 4202 (e2e:headed to watch)
 npm run build           # Angular production build
-npm run verify          # lint + tests + build in one go
+npm run verify          # lint + CSS audit + tests + build in one go
 ```
 
 **The coverage gate** is two rules, both in [`vitest.config.ts`](vitest.config.ts), and either one fails the run:
@@ -246,7 +249,7 @@ Coverage is measured over **every** file in `src/app`, whether or not a test imp
 
 | Job                                     | Runs                                                                                                                                                                                                                            |
 | --------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **Lint (ESLint)**                       | `npm run lint`, plus `npm run version:check` so a release that updated eight files of nine fails here                                                                                                                           |
+| **Lint (ESLint)**                       | `npm run lint`, `npm run css:audit` (dead CSS fails the run) and `npm run version:check` so a release that updated one file of a dozen fails here                                                                                |
 | **Format (Prettier)**                   | `prettier --check` over the files the change touches only — the app predates Prettier, and a repo-wide gate would fail on code nobody edited                                                                                    |
 | **Unit tests (Vitest)**                 | `npm run test:coverage` + `npm run coverage:summary`                                                                                                                                                                            |
 | **Build (ng build)**                    | `npm run build`                                                                                                                                                                                                                 |

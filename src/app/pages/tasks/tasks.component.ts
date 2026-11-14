@@ -355,7 +355,8 @@ type SortKey = 'updated' | 'priority' | 'deadline' | 'newest';
         border-radius: 8px;
         min-height: 36px;
         padding: 0 12px;
-        flex: 1;
+        flex: 1 1 320px;
+        min-width: 200px;
         max-width: 320px;
       }
       .search-box svg {
@@ -409,6 +410,8 @@ type SortKey = 'updated' | 'priority' | 'deadline' | 'newest';
       }
       .board-hint {
         margin-left: auto;
+        flex: 1 1 0;
+        min-width: 0;
         font-size: 11px;
         color: var(--color-text-muted);
       }
