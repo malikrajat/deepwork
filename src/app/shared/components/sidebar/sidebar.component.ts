@@ -5,6 +5,7 @@ import { filter, map, startWith } from 'rxjs';
 import { SafeHtmlPipe } from '../../pipes/safe-html.pipe';
 import { UpdateService } from '../../../core/services/update.service';
 import { QuietService } from '../../../core/services/quiet.service';
+import { CommandPaletteService } from '../../../core/services/command-palette.service';
 import { APP_VERSION } from '../../../core/constants/app-info.constants';
 import { formatVersion } from '../../../core/utils/version.util';
 
@@ -12,6 +13,8 @@ interface NavItem {
   path: string;
   label: string;
   icon: string;
+  /** The section the row belongs to, printed once above its first row. */
+  group: string;
 }
 
 /**
@@ -104,8 +107,41 @@ const ABOUT_SECTION_PATHS = new Set(['/contact', '/privacy', '/terms']);
         </button>
       </div>
 
+      <button
+        type="button"
+        class="jump-btn"
+        [class.collapsed]="collapsed()"
+        (click)="openPalette()"
+        aria-label="Jump to anything — pages, actions and tasks"
+        title="Jump to anything (Ctrl+K)"
+      >
+        <span class="jump-icon" aria-hidden="true">
+          <svg
+            width="17"
+            height="17"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+            stroke-linecap="round"
+          >
+            <circle cx="11" cy="11" r="7" />
+            <path d="m20 20-3.5-3.5" />
+          </svg>
+        </span>
+        @if (!collapsed()) {
+          <span class="jump-copy">
+            <span class="jump-title">Jump to anything</span>
+            <span class="jump-hint">Ctrl K · pages &amp; tasks</span>
+          </span>
+        }
+      </button>
+
       <ul class="nav-list">
-        @for (item of navItems; track item.path) {
+        @for (item of navItems; track item.path; let i = $index) {
+          @if (i === 0 || navItems[i - 1].group !== item.group) {
+            <li class="nav-group" aria-hidden="true">{{ item.group }}</li>
+          }
           <li>
             <a
               [routerLink]="'/' + item.path"
@@ -288,6 +324,91 @@ const ABOUT_SECTION_PATHS = new Set(['/contact', '/privacy', '/terms']);
         overflow-y: auto;
         overscroll-behavior-y: contain;
         -webkit-overflow-scrolling: touch;
+      }
+      /* Quick jump: the one control that reaches every page and action without
+         the user remembering where it lives. It reads as a search field, because
+         that is what it is, and it sits above the list so it is the first thing
+         found when the eye lands in the navigation. */
+      .jump-btn {
+        display: flex;
+        align-items: center;
+        gap: 9px;
+        width: 100%;
+        min-height: 42px;
+        margin-bottom: 14px;
+        padding: 8px 10px;
+        border-radius: var(--radius-md);
+        border: 1px solid var(--glass-border);
+        background: var(--glass-bg);
+        color: var(--color-text-secondary);
+        font: inherit;
+        text-align: left;
+        cursor: pointer;
+        transition:
+          background 0.18s ease,
+          border-color 0.18s ease,
+          color 0.18s ease;
+      }
+      .jump-btn:hover {
+        background: var(--glass-bg-hover);
+        border-color: var(--glass-border-accent);
+        color: var(--color-text-primary);
+      }
+      .jump-btn.collapsed {
+        justify-content: center;
+        padding: 8px;
+      }
+      .jump-icon {
+        display: inline-flex;
+        flex: 0 0 auto;
+        color: var(--color-accent-secondary);
+      }
+      .jump-copy {
+        display: flex;
+        flex-direction: column;
+        min-width: 0;
+        flex: 1;
+        line-height: 1.2;
+      }
+      .jump-title {
+        font-size: var(--text-sm);
+        font-weight: 650;
+        color: inherit;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+      }
+      .jump-hint {
+        font-size: var(--text-2xs);
+        color: var(--color-text-muted);
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+      }
+      .jump-btn kbd {
+        flex: 0 0 auto;
+        padding: 2px 5px;
+        border: 1px solid var(--glass-border);
+        border-radius: var(--radius-xs);
+        background: var(--glass-bg);
+        color: var(--color-text-muted);
+        font-family: var(--font-mono);
+        font-size: var(--text-2xs);
+      }
+      .nav-group {
+        padding: 12px 12px 4px;
+        color: var(--color-text-muted);
+        font-size: var(--text-2xs);
+        font-weight: 800;
+        letter-spacing: 0.12em;
+        text-transform: uppercase;
+      }
+      .collapsed .nav-group {
+        padding: 10px 0 2px;
+        text-align: center;
+        font-size: var(--text-2xs);
+        letter-spacing: 0.04em;
+        opacity: 0.7;
       }
       .nav-item {
         position: relative;
@@ -483,6 +604,10 @@ const ABOUT_SECTION_PATHS = new Set(['/contact', '/privacy', '/terms']);
           height: 100%;
           pointer-events: none;
         }
+        .jump-btn {
+          min-height: 46px;
+          margin-bottom: 10px;
+        }
         .sidebar,
         .sidebar.collapsed {
           position: absolute;
@@ -590,6 +715,13 @@ export class SidebarComponent {
   private readonly router = inject(Router);
   protected readonly updates = inject(UpdateService);
   protected readonly quiet = inject(QuietService);
+  private readonly palette = inject(CommandPaletteService);
+
+  /** Opens quick jump and closes the drawer underneath it. */
+  openPalette(): void {
+    this.closeMobile.emit();
+    this.palette.show();
+  }
 
   /**
    * Opens the quiet panel, closing the drawer underneath it.
@@ -644,61 +776,73 @@ export class SidebarComponent {
     {
       path: '',
       label: 'Dashboard',
+      group: 'Overview',
       icon: '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>',
     },
     {
       path: 'today',
       label: 'Today',
+      group: 'Plan',
       icon: '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12,6 12,12 16,14"/></svg>',
     },
     {
       path: 'matrix',
       label: 'Matrix',
+      group: 'Plan',
       icon: '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="2" x2="12" y2="22"/><line x1="2" y1="12" x2="22" y2="12"/></svg>',
     },
     {
       path: 'calendar',
       label: 'Calendar',
+      group: 'Plan',
       icon: '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/><line x1="8" y1="14" x2="10" y2="14"/><line x1="14" y1="14" x2="16" y2="14"/><line x1="8" y1="18" x2="10" y2="18"/></svg>',
     },
     {
       path: 'tasks',
       label: 'Tasks',
+      group: 'Plan',
       icon: '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11"/></svg>',
     },
     {
       path: 'analytics',
       label: 'Analytics',
+      group: 'Review',
       icon: '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>',
     },
     {
       path: 'time',
       label: 'Time by Task',
+      group: 'Review',
       icon: '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 3v18h18"/><rect x="7" y="12" width="3" height="6" rx="0.5"/><rect x="12" y="8" width="3" height="10" rx="0.5"/><rect x="17" y="5" width="3" height="13" rx="0.5"/></svg>',
     },
     {
       path: 'reminders',
       label: 'Reminders',
+      group: 'Rituals',
       icon: '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8A6 6 0 006 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.7 21a2 2 0 01-3.4 0"/></svg>',
     },
     {
       path: 'habits',
       label: 'Habits',
+      group: 'Rituals',
       icon: '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 11.08V12a10 10 0 11-5.93-9.14"/><polyline points="22,4 12,14.01 9,11.01"/></svg>',
     },
     {
       path: 'journal',
       label: 'Journal',
+      group: 'Rituals',
       icon: '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 19.5A2.5 2.5 0 016.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 014 19.5v-15A2.5 2.5 0 016.5 2z"/></svg>',
     },
     {
       path: 'settings',
       label: 'Settings',
+      group: 'App',
       icon: '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-2 2 2 2 0 01-2-2v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83 0 2 2 0 010-2.83l.06-.06A1.65 1.65 0 004.68 15a1.65 1.65 0 00-1.51-1H3a2 2 0 01-2-2 2 2 0 012-2h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 010-2.83 2 2 0 012.83 0l.06.06A1.65 1.65 0 009 4.68a1.65 1.65 0 001-1.51V3a2 2 0 012-2 2 2 0 012 2v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 0 2 2 0 010 2.83l-.06.06A1.65 1.65 0 0019.4 9a1.65 1.65 0 001.51 1H21a2 2 0 012 2 2 2 0 01-2 2h-.09a1.65 1.65 0 00-1.51 1z"/></svg>',
     },
     {
       path: 'about',
       label: 'About',
+      group: 'App',
       icon: '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><line x1="12" y1="16" x2="12" y2="11"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>',
     },
   ];

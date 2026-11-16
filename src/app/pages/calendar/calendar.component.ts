@@ -41,6 +41,7 @@ import { TaskEditorService } from '../../core/services/task-editor.service';
 import { FocusLauncherService } from '../../core/services/focus-launcher.service';
 import { SpeechService } from '../../core/services/speech.service';
 import { MicButtonComponent } from '../../shared/components/mic-button/mic-button.component';
+import { PageHeaderComponent } from '../../shared/components/page-header/page-header.component';
 import { insertDictationIntoField } from '../../core/utils/dictation.util';
 
 interface BlockLayout {
@@ -132,7 +133,7 @@ function persistCollapsedGroups(value: Record<string, boolean>): void {
  */
 @Component({
   selector: 'app-calendar',
-  imports: [TooltipDirective, MicButtonComponent],
+  imports: [TooltipDirective, MicButtonComponent, PageHeaderComponent],
   changeDetection: ChangeDetectionStrategy.OnPush,
   host: {
     '(window:pointermove)': 'onPointerMove($event)',
@@ -141,16 +142,39 @@ function persistCollapsedGroups(value: Record<string, boolean>): void {
     '(window:keydown.escape)': 'onEscape()',
   },
   template: `
-    <div class="page-header">
-      <div>
-        <h1 class="gradient-text page-title">Calendar</h1>
-        <p class="page-subtitle">
-          Your quadrants, scheduled into {{ focusMinutes() }}-minute focus blocks with
-          {{ pomodorosBeforeLongBreak() }}
-          pomodoros per long break
-        </p>
-      </div>
+    <app-page-header
+      eyebrow="The day, mapped"
+      title="Calendar"
+      [subtitle]="
+        longDate() +
+        ' · ' +
+        totals().tasks +
+        ' task' +
+        (totals().tasks === 1 ? '' : 's') +
+        ' · ' +
+        totals().pomodoros +
+        ' focus blocks of ' +
+        focusMinutes() +
+        ' min'
+      "
+    >
       <div class="header-actions">
+        <span class="cal-stat">{{ totals().focusMinutes }} focus min</span>
+        <span class="cal-stat">{{ hasPins() ? 'Hand-placed' : 'Auto flow' }}</span>
+        <button
+          class="cal-btn"
+          type="button"
+          (click)="focusFirst()"
+          [disabled]="!nextFocusTask()"
+          appTooltip="Start focus on the first task in the queue"
+        >
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+            <path
+              d="M7 4.6v14.8a1 1 0 0 0 1.54.84l11.2-7.4a1 1 0 0 0 0-1.68L8.54 3.76A1 1 0 0 0 7 4.6Z"
+            />
+          </svg>
+          Focus first
+        </button>
         <button
           class="cal-btn ghost"
           type="button"
@@ -169,7 +193,7 @@ function persistCollapsedGroups(value: Record<string, boolean>): void {
           Fit day
         </button>
       </div>
-    </div>
+    </app-page-header>
 
     <div class="cal-toolbar">
       <div class="date-nav">
@@ -841,6 +865,19 @@ function persistCollapsedGroups(value: Record<string, boolean>): void {
         align-items: center;
         gap: 8px;
       }
+      .cal-stat {
+        display: inline-flex;
+        align-items: center;
+        min-height: 30px;
+        padding: 0 10px;
+        border: 1px solid var(--glass-border);
+        border-radius: var(--radius-pill);
+        background: var(--glass-bg);
+        color: var(--color-text-muted);
+        font-size: var(--text-2xs);
+        font-weight: 650;
+        white-space: nowrap;
+      }
 
       .cal-btn {
         display: inline-flex;
@@ -854,6 +891,7 @@ function persistCollapsedGroups(value: Record<string, boolean>): void {
         background: var(--glass-bg);
         color: var(--color-text-secondary);
         cursor: pointer;
+        white-space: nowrap;
         transition: all 0.2s;
       }
       .cal-btn:hover:not(:disabled) {
@@ -1947,6 +1985,14 @@ function persistCollapsedGroups(value: Record<string, boolean>): void {
         }
         .header-actions {
           width: 100%;
+          flex-wrap: wrap;
+        }
+        .cal-stat {
+          min-height: 34px;
+        }
+        .cal-btn {
+          min-height: 44px;
+          white-space: nowrap;
         }
         .day-window {
           /* The auto margin pushes the window to the right end of the toolbar
@@ -2367,6 +2413,14 @@ export class CalendarComponent implements OnInit, OnDestroy {
   protected readonly overflow = computed(() => this.daySchedule().unscheduled);
   protected readonly hasPins = computed(() =>
     this.daySchedule().placements.some((placement) => placement.pinned),
+  );
+
+  /** The first task in queue order that today's focus quadrant allows. */
+  protected readonly nextFocusTask = computed(
+    () =>
+      this.queueGroups()
+        .flatMap((group) => group.items)
+        .find((item) => this.focusLauncher.canStart(item.task))?.task ?? null,
   );
 
   protected readonly startTime = computed(() => formatMinute(this.schedule.prefs().dayStart));
@@ -2801,6 +2855,12 @@ export class CalendarComponent implements OnInit, OnDestroy {
   protected startFocus(task: Task, event: Event): void {
     event.stopPropagation();
     void this.focusLauncher.start(task);
+  }
+
+  /** The header's one-click "begin the queue" control. */
+  protected focusFirst(): void {
+    const task = this.nextFocusTask();
+    if (task) void this.focusLauncher.start(task);
   }
 
   // ── Slot panel ────────────────────────────────────────────────────────────

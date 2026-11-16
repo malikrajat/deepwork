@@ -19,6 +19,7 @@ import { TooltipDirective } from '../../shared/directives/tooltip.directive';
 import { TaskEditorService } from '../../core/services/task-editor.service';
 import { FocusLauncherService } from '../../core/services/focus-launcher.service';
 import { readFocusedTaskId } from '../../core/utils/focus-task.util';
+import { PageHeaderComponent } from '../../shared/components/page-header/page-header.component';
 
 /**
  * Today is the same status board as the Tasks page, scoped to the day's list:
@@ -31,17 +32,31 @@ import { readFocusedTaskId } from '../../core/utils/focus-task.util';
  */
 @Component({
   selector: 'app-today',
-  imports: [TaskBoardComponent, TooltipDirective],
+  imports: [TaskBoardComponent, TooltipDirective, PageHeaderComponent],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <div class="today-layout">
-      <div class="page-header">
-        <div class="header-left">
-          <h1 class="gradient-text page-title">Today</h1>
-          <span class="date-label">{{ todayLabel }}</span>
-        </div>
+      <app-page-header
+        eyebrow="Plan the day"
+        title="Today"
+        [subtitle]="todayLabel + ' · ' + openCount() + ' open, ' + completedCount() + ' done'"
+      >
         <div class="header-stats">
           <span class="stat">{{ completedCount() }}/{{ boardTasks().length }} done</span>
+          <button
+            class="btn-focus"
+            type="button"
+            (click)="focusNext()"
+            [disabled]="!nextFocusTask()"
+            appTooltip="Start the next piece of work in today’s focus order"
+          >
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+              <path
+                d="M7 4.6v14.8a1 1 0 0 0 1.54.84l11.2-7.4a1 1 0 0 0 0-1.68L8.54 3.76A1 1 0 0 0 7 4.6Z"
+              />
+            </svg>
+            Focus next
+          </button>
           <button
             class="btn-add"
             type="button"
@@ -62,9 +77,38 @@ import { readFocusedTaskId } from '../../core/utils/focus-task.util';
             Add task
           </button>
         </div>
-      </div>
+      </app-page-header>
 
       <div class="filters-bar">
+        <div class="status-filter" role="group" aria-label="Filter today's tasks">
+          <button
+            type="button"
+            class="chip-link"
+            [class.active]="statusFilter() === 'all'"
+            [attr.aria-pressed]="statusFilter() === 'all'"
+            (click)="statusFilter.set('all')"
+          >
+            All {{ boardTasks().length }}
+          </button>
+          <button
+            type="button"
+            class="chip-link"
+            [class.active]="statusFilter() === 'open'"
+            [attr.aria-pressed]="statusFilter() === 'open'"
+            (click)="statusFilter.set('open')"
+          >
+            Open {{ openCount() }}
+          </button>
+          <button
+            type="button"
+            class="chip-link"
+            [class.active]="statusFilter() === 'done'"
+            [attr.aria-pressed]="statusFilter() === 'done'"
+            (click)="statusFilter.set('done')"
+          >
+            Done {{ completedCount() }}
+          </button>
+        </div>
         <div class="search-box">
           <svg
             width="14"
@@ -130,8 +174,25 @@ import { readFocusedTaskId } from '../../core/utils/focus-task.util';
         </div>
       } @else if (filteredBoardTasks().length === 0) {
         <div class="empty-state">
-          <h3>No tasks match this search</h3>
-          <p>Try a different word, or clear the search.</p>
+          <h3>
+            {{ searchQuery() ? 'No tasks match this search' : 'Nothing in this filter' }}
+          </h3>
+          <p>
+            {{
+              searchQuery()
+                ? 'Try a different word, or clear the search.'
+                : statusFilter() === 'done'
+                  ? 'Nothing has been finished yet today.'
+                  : 'Every task is finished — a good place to stop.'
+            }}
+          </p>
+          @if (searchQuery()) {
+            <button class="btn-add" type="button" (click)="clearSearch()">Clear search</button>
+          } @else if (statusFilter() !== 'all') {
+            <button class="btn-add" type="button" (click)="statusFilter.set('all')">
+              Show all tasks
+            </button>
+          }
         </div>
       } @else {
         <app-task-board
@@ -195,6 +256,35 @@ import { readFocusedTaskId } from '../../core/utils/focus-task.util';
         display: flex;
         align-items: center;
         gap: 10px;
+      }
+      .btn-focus {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        padding: 7px 14px;
+        font: inherit;
+        font-size: 13px;
+        font-weight: 700;
+        border-radius: 10px;
+        border: 1px solid rgba(139, 92, 246, 0.34);
+        background: rgba(139, 92, 246, 0.14);
+        color: var(--color-text-primary);
+        cursor: pointer;
+        transition: all 0.2s;
+      }
+      .btn-focus:hover:not(:disabled) {
+        background: rgba(139, 92, 246, 0.24);
+        border-color: rgba(139, 92, 246, 0.5);
+      }
+      .btn-focus:disabled {
+        opacity: 0.45;
+        cursor: not-allowed;
+      }
+      .status-filter {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        flex-shrink: 0;
       }
       .btn-add {
         display: inline-flex;
@@ -327,15 +417,28 @@ import { readFocusedTaskId } from '../../core/utils/focus-task.util';
           row-gap: 4px;
         }
 
-        /* The 320px cap on the search field is there so it cannot sprawl across
-           a wide window. A phone column is narrower than the cap, so at this
-           width it only ever took away width the field could have used. */
         .filters-bar {
           flex-wrap: wrap;
+          align-items: stretch;
+          flex-direction: column;
+          gap: 8px;
+        }
+        .status-filter {
+          width: 100%;
         }
         .search-box {
           max-width: 100%;
           min-height: 44px;
+          flex: 0 0 auto;
+          width: 100%;
+        }
+        .header-stats {
+          flex-wrap: wrap;
+          width: 100%;
+        }
+        .btn-add,
+        .btn-focus {
+          white-space: nowrap;
         }
         /* The field's text is 16px on a phone instead of the 13px this 20px box
            was drawn for (see the input rule in styles.css), so the box has to
@@ -447,14 +550,25 @@ export class TodayComponent implements OnInit {
   readonly completedCount = computed(
     () => this.boardTasks().filter((t) => t.status === 'done').length,
   );
+  readonly openCount = computed(() => this.boardTasks().length - this.completedCount());
+  /** The next task the day's focus order allows the clock to start on. */
+  readonly nextFocusTask = computed(
+    () => this.taskService.todayTasks().find((task) => this.focusLauncher.canStart(task)) ?? null,
+  );
   readonly searchQuery = signal('');
+  /** All, only work left, or only what is finished. */
+  readonly statusFilter = signal<'all' | 'open' | 'done'>('all');
   readonly filteredBoardTasks = computed(() => {
     const query = this.searchQuery().trim().toLowerCase();
-    if (!query) return this.boardTasks();
-    return this.boardTasks().filter(
-      (task) =>
-        task.title.toLowerCase().includes(query) || task.description.toLowerCase().includes(query),
-    );
+    const filter = this.statusFilter();
+    return this.boardTasks().filter((task) => {
+      if (filter === 'open' && task.status === 'done') return false;
+      if (filter === 'done' && task.status !== 'done') return false;
+      if (!query) return true;
+      return (
+        task.title.toLowerCase().includes(query) || task.description.toLowerCase().includes(query)
+      );
+    });
   });
 
   private readonly focusedId = signal<string | null>(null);
@@ -471,6 +585,18 @@ export class TodayComponent implements OnInit {
 
   clearSearch(): void {
     this.searchQuery.set('');
+  }
+
+  /**
+   * Start the highest-priority open task without hunting for its card.
+   *
+   * The focus launcher walks to the dashboard and links the task to the clock;
+   * if the first open task belongs to a later quadrant it declines, and the
+   * button simply does nothing rather than silently switching the queue.
+   */
+  async focusNext(): Promise<void> {
+    const next = this.nextFocusTask();
+    if (next) await this.focusLauncher.start(next);
   }
 
   private async initAsync(): Promise<void> {

@@ -86,3 +86,47 @@ test('the clock card fits its contents at every window size', async ({ page }) =
     expect(card!.dial, `the dial is unreadably small at ${where}`).toBeGreaterThan(180);
   }
 });
+
+test('the live activity rail lists the whole day and scrolls inside the card', async ({ page }) => {
+  await page.goto('/dashboard');
+  await page.evaluate(() => {
+    const dayStart = new Date();
+    dayStart.setHours(0, 0, 0, 0);
+    const sessions = Array.from({ length: 20 }, (_, index) => {
+      const startedAt = new Date(dayStart.getTime() + (8 * 60 + index * 20) * 60_000);
+      const work = index % 5 !== 4;
+      return {
+        id: `e2e-live-${index}`,
+        taskId: null,
+        taskTitle: work ? `Deep work block ${index + 1}` : null,
+        type: work ? 'work' : 'short-break',
+        durationPlanned: work ? 1500 : 300,
+        durationActual: work ? 1500 : 300,
+        startedAt: startedAt.toISOString(),
+        completedAt: new Date(startedAt.getTime() + (work ? 1500 : 300) * 1000).toISOString(),
+        interrupted: false,
+      };
+    });
+    localStorage.setItem('deepwork_sessions', JSON.stringify(sessions));
+  });
+  await page.reload();
+  await expect(page.locator('.page-title')).toBeVisible();
+
+  const rows = page.locator('.activity-item');
+  await expect(rows).toHaveCount(20);
+  await expect(page.locator('.rail-count')).toContainText('20');
+
+  const list = page.locator('.activity-list');
+  const metrics = await list.evaluate((element) => ({
+    clientHeight: element.clientHeight,
+    scrollHeight: element.scrollHeight,
+    overflowY: getComputedStyle(element).overflowY,
+  }));
+  expect(metrics.overflowY).toBe('auto');
+  expect(metrics.scrollHeight).toBeGreaterThan(metrics.clientHeight + 1);
+
+  await list.evaluate((element) => {
+    element.scrollTop = element.scrollHeight;
+  });
+  await expect(rows.last()).toBeInViewport();
+});

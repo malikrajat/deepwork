@@ -48,6 +48,8 @@ describe('TimelineBarComponent focus cards', () => {
     it('draws the span a running session was booked for behind its elapsed bar', () => {
       expect(src).toContain('planned-span');
       expect(src).toContain('ab.plannedHeightPx');
+      // Breaks are drawn too, so the booked span takes the session's colour.
+      expect(src).toContain('[attr.data-type]="ab.type"');
     });
 
     it('keeps the times outside the label that can be ellipsised away', () => {

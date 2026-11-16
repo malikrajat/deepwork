@@ -251,4 +251,13 @@
   @defer (on idle) {
     <app-task-editor-panel />
   }
+
+  <!-- Quick jump from any page: pages, actions and today's open tasks behind
+       one shortcut (Ctrl/Cmd+K) and one sidebar row. The dashboard keeps its
+       own palette on the same shortcut because it also knows about the timer. -->
+  @if (!ui.isNativeWidget()) {
+    @defer (on idle) {
+      <app-command-palette />
+    }
+  }
 </div>

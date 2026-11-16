@@ -26,6 +26,7 @@ import { UpdateService } from '../../core/services/update.service';
 import { UpdatePromptService } from '../../core/services/update-prompt.service';
 import { ExternalLinkDirective } from '../../shared/directives/external-link.directive';
 import { formatBytes, formatReleaseDate } from '../../core/utils/release.util';
+import { PageHeaderComponent } from '../../shared/components/page-header/page-header.component';
 
 /** The two things the page answers: who made this, and is there a newer build. */
 type Tab = 'developer' | 'app';
@@ -49,13 +50,29 @@ interface DownloadRow extends DownloadTarget {
  */
 @Component({
   selector: 'app-about',
-  imports: [ExternalLinkDirective, RouterLink],
+  imports: [ExternalLinkDirective, RouterLink, PageHeaderComponent],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
-    <div class="page-header animate-fade-in">
-      <h1 class="gradient-text page-title">About</h1>
-      <p class="page-subtitle">Who builds {{ appName }}, and what you are running</p>
-    </div>
+    <app-page-header
+      eyebrow="The app and its maker"
+      title="About"
+      [subtitle]="'Who builds ' + appName + ', and what you are running'"
+    >
+      <div class="header-pills">
+        <span class="version-pill">{{ currentVersionLabel }}</span>
+        @if (updates.hasUpdate()) {
+          <span class="update-pill">Update available</span>
+        }
+        <button
+          class="page-action"
+          type="button"
+          (click)="checkForUpdates()"
+          [disabled]="updates.checking()"
+        >
+          {{ updates.checking() ? 'Checking…' : 'Check for updates' }}
+        </button>
+      </div>
+    </app-page-header>
 
     <div class="tabs animate-fade-in-delay-1" role="tablist" aria-label="About sections">
       <button
@@ -639,6 +656,34 @@ interface DownloadRow extends DownloadTarget {
         color: var(--color-text-muted);
         margin-top: 4px;
         font-size: 14px;
+      }
+      .header-pills {
+        display: flex;
+        align-items: center;
+        flex-wrap: wrap;
+        gap: 8px;
+      }
+      .version-pill,
+      .update-pill {
+        display: inline-flex;
+        align-items: center;
+        min-height: 32px;
+        padding: 0 12px;
+        border-radius: var(--radius-pill);
+        font-size: var(--text-2xs);
+        font-weight: 750;
+        letter-spacing: 0.03em;
+      }
+      .version-pill {
+        border: 1px solid var(--glass-border);
+        background: var(--glass-bg);
+        color: var(--color-text-secondary);
+        font-family: var(--font-mono);
+      }
+      .update-pill {
+        border: 1px solid rgba(52, 211, 153, 0.4);
+        background: rgba(52, 211, 153, 0.12);
+        color: var(--color-success);
       }
 
       /* ── Tabs ───────────────────────────────────────────────────────── */

@@ -434,9 +434,15 @@ interface DashboardCommand {
               </div>
               <span
                 class="rail-count"
-                [attr.aria-label]="todaySessions().length + ' sessions today'"
-                >{{ todaySessions().length }}</span
+                [attr.aria-label]="
+                  todaySessions().length + ' sessions today; scroll the list to see them all'
+                "
               >
+                {{ todaySessions().length }}
+                @if (todaySessions().length > 3) {
+                  <app-icon class="rail-count-cue" name="chevron-down" [size]="11" />
+                }
+              </span>
             </div>
 
             @if (sessionsLoading()) {
@@ -444,7 +450,7 @@ interface DashboardCommand {
                 Loading today’s sessions…
               </div>
             } @else if (recentSessions().length > 0) {
-              <ul class="activity-list" aria-label="Recent sessions">
+              <ul class="activity-list" aria-label="Today's sessions, newest first" tabindex="0">
                 @for (session of recentSessions(); track session.id) {
                   <li class="activity-item">
                     <span class="activity-glyph" [attr.data-type]="session.type" aria-hidden="true">
@@ -1668,6 +1674,7 @@ interface DashboardCommand {
         display: inline-flex;
         align-items: center;
         justify-content: center;
+        gap: 2px;
         min-width: 26px;
         height: 24px;
         padding: 0 8px;
@@ -1678,15 +1685,37 @@ interface DashboardCommand {
         font-size: var(--text-xs);
         font-weight: 700;
       }
+      .rail-count-cue {
+        opacity: 0.65;
+      }
       .activity-list {
         list-style: none;
         margin: 8px 0 0;
-        padding: 0;
+        padding: 0 4px 0 0;
         display: flex;
         flex-direction: column;
         gap: 4px;
         overflow-y: auto;
         min-height: 0;
+        /* The rail shows what fits and scrolls the rest; the cap keeps twenty
+           sessions from stretching the hero row to the height of the whole day. */
+        max-height: clamp(150px, 20vh, 240px);
+        overscroll-behavior: contain;
+        scrollbar-gutter: stable;
+        scrollbar-width: thin;
+        scrollbar-color: rgba(139, 92, 246, 0.45) transparent;
+      }
+      .activity-list::-webkit-scrollbar {
+        width: 6px;
+      }
+      .activity-list::-webkit-scrollbar-thumb {
+        border-radius: var(--radius-pill);
+        background: rgba(139, 92, 246, 0.4);
+      }
+      .activity-list:focus-visible {
+        outline: 2px solid rgba(139, 92, 246, 0.7);
+        outline-offset: 3px;
+        border-radius: var(--radius-sm);
       }
       .activity-item {
         display: flex;
@@ -1820,7 +1849,9 @@ interface DashboardCommand {
       /* ===== Focus plan ===== */
       .focus-plan {
         display: grid;
-        grid-template-columns: minmax(0, 1.55fr) minmax(0, 1fr);
+        /* The same tracks as the hero row, so the vertical edge between the
+           focus card and the quick panel lines up with the rail above it. */
+        grid-template-columns: minmax(0, 1.9fr) minmax(320px, 1fr);
         gap: var(--space-md);
         margin-top: var(--space-md);
       }
@@ -2439,7 +2470,8 @@ interface DashboardCommand {
       }
 
       @media (max-width: 1280px) {
-        .main-row {
+        .main-row,
+        .focus-plan {
           grid-template-columns: minmax(0, 1.6fr) minmax(300px, 1fr);
         }
       }
@@ -2574,6 +2606,12 @@ interface DashboardCommand {
           margin-inline: auto;
         }
         .main-row {
+          max-width: 1360px;
+          margin-inline: auto;
+          grid-template-columns: minmax(0, 900px) minmax(0, 440px);
+          justify-content: center;
+        }
+        .focus-plan {
           max-width: 1360px;
           margin-inline: auto;
           grid-template-columns: minmax(0, 900px) minmax(0, 440px);
@@ -2982,11 +3020,11 @@ export class DashboardComponent implements OnInit, OnDestroy {
     return 'Good evening';
   });
 
-  /** Newest first, four at most: the rail is a glance, not the timeline. */
+  /** Newest first. The card scrolls, so the badge and the list always agree. */
   readonly recentSessions = computed(() =>
-    [...this.todaySessions()]
-      .sort((a, b) => new Date(b.startedAt).getTime() - new Date(a.startedAt).getTime())
-      .slice(0, 4),
+    [...this.todaySessions()].sort(
+      (a, b) => new Date(b.startedAt).getTime() - new Date(a.startedAt).getTime(),
+    ),
   );
 
   readonly commands = computed<DashboardCommand[]>(() => {

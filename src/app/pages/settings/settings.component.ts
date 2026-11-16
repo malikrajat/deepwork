@@ -1,4 +1,11 @@
-import { Component, inject, OnInit, ChangeDetectionStrategy, signal } from '@angular/core';
+import {
+  Component,
+  inject,
+  OnInit,
+  ChangeDetectionStrategy,
+  ElementRef,
+  signal,
+} from '@angular/core';
 import { form, FormField, min, max } from '@angular/forms/signals';
 import {
   WATER_AMOUNT_OPTIONS,
@@ -26,6 +33,7 @@ import { QuietPanelComponent } from '../../shared/components/quiet-panel/quiet-p
 import { LogsPanelComponent } from '../../shared/components/logs-panel/logs-panel.component';
 import { VisitorCounterPanelComponent } from '../../shared/components/visitor-counter-panel/visitor-counter-panel.component';
 import { SettingsFormModel, createSettingsFormDefaults } from '../../shared/models/form.models';
+import { PageHeaderComponent } from '../../shared/components/page-header/page-header.component';
 
 @Component({
   selector: 'app-settings',
@@ -35,13 +43,73 @@ import { SettingsFormModel, createSettingsFormDefaults } from '../../shared/mode
     QuietPanelComponent,
     LogsPanelComponent,
     VisitorCounterPanelComponent,
+    PageHeaderComponent,
   ],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
-    <div class="page-header animate-fade-in">
-      <h1 class="gradient-text page-title">Settings</h1>
-      <p class="page-subtitle">Configure your experience</p>
-    </div>
+    <app-page-header
+      eyebrow="Tune it"
+      title="Settings"
+      subtitle="Timer, reminders, wellbeing and everything stored on this device"
+    >
+      <div class="settings-search">
+        <svg
+          width="15"
+          height="15"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+          aria-hidden="true"
+        >
+          <circle cx="11" cy="11" r="7" />
+          <path d="m20 20-3.5-3.5" />
+        </svg>
+        <input
+          type="search"
+          placeholder="Search settings…"
+          aria-label="Search settings"
+          [value]="searchQuery()"
+          (input)="searchSettings($event)"
+        />
+        @if (searchQuery()) {
+          <button
+            type="button"
+            class="search-clear"
+            (click)="clearSettingsSearch()"
+            aria-label="Clear settings search"
+          >
+            ×
+          </button>
+        }
+      </div>
+    </app-page-header>
+
+    <nav class="chip-row animate-fade-in" aria-label="Jump to a settings group">
+      <button class="chip-link" type="button" (click)="jumpToGroup('Timer')">Timer</button>
+      <button class="chip-link" type="button" (click)="jumpToGroup('Tasks')">Tasks</button>
+      <button class="chip-link" type="button" (click)="jumpToGroup('Notifications')">
+        Notifications
+      </button>
+      <button class="chip-link" type="button" (click)="jumpToGroup('Water')">Water</button>
+      <button class="chip-link" type="button" (click)="jumpToGroup('Stand')">Movement</button>
+      <button class="chip-link" type="button" (click)="jumpToGroup('Appearance')">
+        Appearance
+      </button>
+      <button class="chip-link" type="button" (click)="jumpToGroup('Quiet')">Quiet</button>
+      <button class="chip-link" type="button" (click)="jumpToGroup('Data')">Data</button>
+      <button class="chip-link" type="button" (click)="jumpToGroup('Keyboard')">Shortcuts</button>
+    </nav>
+
+    @if (searchQuery() && noResults()) {
+      <div class="settings-empty" role="status">
+        <strong>No setting matches “{{ searchQuery() }}”.</strong>
+        <span>Try a shorter word — “timer”, “water”, “sound” or “data”.</span>
+        <button class="page-action ghost" type="button" (click)="clearSettingsSearch()">
+          Clear search
+        </button>
+      </div>
+    }
     <div class="settings-grid animate-fade-in-delay-1">
       <!-- Timer -->
       <div class="setting-group">
@@ -672,6 +740,67 @@ import { SettingsFormModel, createSettingsFormDefaults } from '../../shared/mode
         margin-top: 4px;
         font-size: 14px;
       }
+      .settings-search {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        min-height: 40px;
+        min-width: min(300px, 60vw);
+        padding: 0 10px;
+        border: 1px solid var(--glass-border);
+        border-radius: var(--radius-pill);
+        background: var(--glass-bg);
+        color: var(--color-text-muted);
+        transition: border-color 0.18s ease;
+      }
+      .settings-search:focus-within {
+        border-color: var(--glass-border-accent);
+      }
+      .settings-search input {
+        flex: 1;
+        min-width: 0;
+        min-height: 0;
+        padding: 0;
+        border: 0;
+        outline: none;
+        background: transparent;
+        color: var(--color-text-primary);
+        font-size: var(--text-sm);
+      }
+      .settings-search input::placeholder {
+        color: var(--color-text-muted);
+      }
+      .search-clear {
+        border: 0;
+        background: transparent;
+        color: var(--color-text-muted);
+        font-size: 18px;
+        line-height: 1;
+        padding: 2px 6px;
+        cursor: pointer;
+      }
+      .search-clear:hover {
+        color: var(--color-text-primary);
+      }
+      .filtered-out {
+        display: none !important;
+      }
+      .settings-empty {
+        display: flex;
+        align-items: center;
+        flex-wrap: wrap;
+        gap: 10px;
+        margin-bottom: var(--space-md);
+        padding: 14px 16px;
+        border: 1px dashed var(--glass-border-accent);
+        border-radius: var(--radius-lg);
+        background: var(--glass-bg);
+        color: var(--color-text-muted);
+        font-size: var(--text-sm);
+      }
+      .settings-empty strong {
+        color: var(--color-text-primary);
+      }
       /* ===== The page is a wall of cards, not a column =====
 
          Settings used to be one 560px column pinned to the left of whatever
@@ -1022,6 +1151,7 @@ import { SettingsFormModel, createSettingsFormDefaults } from '../../shared/mode
 })
 export class SettingsComponent implements OnInit {
   settingsService = inject(SettingsService);
+  private readonly host = inject<ElementRef<HTMLElement> | null>(ElementRef, { optional: true });
   private readonly db = inject(DbService);
   private readonly theme = inject(ThemeService);
   private readonly notifications = inject(NotificationService);
@@ -1065,6 +1195,75 @@ export class SettingsComponent implements OnInit {
 
   ngOnInit(): void {
     this.initAsync();
+  }
+
+  /** The settings search: a query, kept so the clear button can know it exists. */
+  readonly searchQuery = signal('');
+
+  /** True when the query removed every card — a state worth explaining. */
+  readonly noResults = signal(false);
+
+  searchSettings(event: Event): void {
+    const query = (event.target as HTMLInputElement).value;
+    this.searchQuery.set(query);
+    this.applySettingsFilter(query);
+  }
+
+  clearSettingsSearch(): void {
+    this.searchQuery.set('');
+    this.applySettingsFilter('');
+  }
+
+  /**
+   * Narrow the wall of cards to the rows whose own words match.
+   *
+   * The cards are static markup — dozens of rows across ten groups — so the
+   * filter works on the rendered rows rather than duplicating every label into
+   * a data model that could drift from the markup. A group with nothing left to
+   * show is hidden as a whole, which is what keeps the result from reading as a
+   * wall of empty glass.
+   */
+  private applySettingsFilter(query: string): void {
+    const root = this.host?.nativeElement;
+    if (!root) return;
+    const needle = query.trim().toLowerCase();
+    const groups = root.querySelectorAll<HTMLElement>('.setting-group');
+    for (const group of Array.from(groups)) {
+      const heading = (group.querySelector('.group-header')?.textContent ?? '').toLowerCase();
+      const groupMatches = needle !== '' && heading.includes(needle);
+      const rows = group.querySelectorAll<HTMLElement>('.setting-item');
+      let visible = 0;
+      for (const row of Array.from(rows)) {
+        const match =
+          !needle || groupMatches || (row.textContent ?? '').toLowerCase().includes(needle);
+        row.classList.toggle('filtered-out', !match);
+        if (match) visible++;
+      }
+      group.classList.toggle('filtered-out', needle !== '' && visible === 0);
+    }
+    this.noResults.set(
+      needle !== '' &&
+        !Array.from(groups).some((group) => !group.classList.contains('filtered-out')),
+    );
+  }
+
+  /** Put one settings group under the user's eye, without a scroll hunt. */
+  jumpToGroup(label: string): void {
+    const root = this.host?.nativeElement;
+    if (!root) return;
+    const needle = label.toLowerCase();
+    const groups = root.querySelectorAll<HTMLElement>('.setting-group');
+    for (const group of Array.from(groups)) {
+      const heading = (group.querySelector('.group-header')?.textContent ?? '').toLowerCase();
+      if (!heading.includes(needle)) continue;
+      group.scrollIntoView({
+        behavior: window.matchMedia?.('(prefers-reduced-motion: reduce)').matches
+          ? 'auto'
+          : 'smooth',
+        block: 'start',
+      });
+      return;
+    }
   }
 
   private async initAsync(): Promise<void> {

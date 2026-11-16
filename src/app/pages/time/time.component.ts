@@ -25,6 +25,7 @@ import {
 } from '../../core/utils/time-report.util';
 import { TooltipDirective } from '../../shared/directives/tooltip.directive';
 import { VirtualWindowDirective } from '../../shared/directives/virtual-window.directive';
+import { PageHeaderComponent } from '../../shared/components/page-header/page-header.component';
 
 /**
  * Time, grouped by the work it paid for.
@@ -41,22 +42,26 @@ import { VirtualWindowDirective } from '../../shared/directives/virtual-window.d
  */
 @Component({
   selector: 'app-time',
-  imports: [RouterLink, TooltipDirective, VirtualWindowDirective],
+  imports: [RouterLink, TooltipDirective, VirtualWindowDirective, PageHeaderComponent],
   changeDetection: ChangeDetectionStrategy.OnPush,
   host: {
     '(window:keydown.escape)': 'onEscape($event)',
   },
   template: `
     <div class="time-layout">
-      <div class="page-header">
-        <div class="header-left">
-          <h1 class="gradient-text page-title">Time by Task</h1>
-          <span class="date-label">{{ currentPeriod().label }} · where your focus went</span>
-        </div>
+      <app-page-header
+        eyebrow="Task by task"
+        title="Time by Task"
+        [subtitle]="
+          currentPeriod().label + ' · where your focus went, grouped by the work it paid for'
+        "
+      >
         <div class="header-stats">
           <span class="stat">{{ duration(totals().allTimeSeconds) }} tracked all time</span>
+          <a class="page-action ghost" routerLink="/analytics">Read analytics</a>
+          <a class="page-action primary" routerLink="/">Start a session</a>
         </div>
-      </div>
+      </app-page-header>
 
       <div class="period-bar" role="tablist" aria-label="Time period">
         @for (option of periodOptions; track option.key) {
@@ -145,6 +150,41 @@ import { VirtualWindowDirective } from '../../shared/directives/virtual-window.d
             <span class="summary-hint">grouped by title</span>
           </article>
         </section>
+
+        @if (allocation().parts.length > 0) {
+          <section class="allocation-card" aria-label="Where this period's focus went">
+            <div class="allocation-head">
+              <span class="eyebrow">Share of focus</span>
+              <span class="allocation-total">{{ duration(totals().seconds) }} this period</span>
+            </div>
+            <div class="allocation-bar" role="img" [attr.aria-label]="allocationLabel()">
+              @for (part of allocation().parts; track part.key) {
+                <span
+                  class="allocation-seg"
+                  [attr.data-tone]="part.tone"
+                  [style.width.%]="part.percent"
+                  [appTooltip]="part.title + ' · ' + part.percent + '% · ' + duration(part.seconds)"
+                ></span>
+              }
+              @if (allocation().restPercent > 0) {
+                <span
+                  class="allocation-seg rest"
+                  [style.width.%]="allocation().restPercent"
+                  [appTooltip]="'Everything else · ' + allocation().restPercent + '%'"
+                ></span>
+              }
+            </div>
+            <ul class="allocation-legend">
+              @for (part of allocation().parts; track part.key) {
+                <li>
+                  <i [attr.data-tone]="part.tone" aria-hidden="true"></i>
+                  <span class="allocation-name">{{ part.title }}</span>
+                  <span class="allocation-pct">{{ part.percent }}%</span>
+                </li>
+              }
+            </ul>
+          </section>
+        }
 
         @if (insights().length > 0) {
           <section class="insight-card" aria-label="What this period says">
@@ -616,6 +656,101 @@ import { VirtualWindowDirective } from '../../shared/directives/virtual-window.d
       .summary-hint {
         font-size: 12px;
         color: var(--color-text-muted);
+      }
+
+      /* ── Share of focus ──────────────────────────────────────────────── */
+      .allocation-card {
+        padding: 16px 18px;
+        border-radius: 16px;
+        border: 1px solid var(--glass-border);
+        background: var(--glass-bg);
+      }
+      .allocation-head {
+        display: flex;
+        align-items: baseline;
+        justify-content: space-between;
+        gap: 10px;
+        margin-bottom: 12px;
+      }
+      .allocation-total {
+        color: var(--color-text-muted);
+        font-size: var(--text-2xs);
+        font-weight: 650;
+      }
+      .allocation-bar {
+        display: flex;
+        gap: 3px;
+        height: 14px;
+        overflow: hidden;
+        border-radius: var(--radius-pill);
+        background: rgba(255, 255, 255, 0.06);
+      }
+      .allocation-seg {
+        height: 100%;
+        min-width: 4px;
+        border-radius: var(--radius-pill);
+        background: #8b5cf6;
+      }
+      .allocation-seg[data-tone='1'] {
+        background: #06b6d4;
+      }
+      .allocation-seg[data-tone='2'] {
+        background: #ec4899;
+      }
+      .allocation-seg[data-tone='3'] {
+        background: #34d399;
+      }
+      .allocation-seg[data-tone='4'] {
+        background: #fbbf24;
+      }
+      .allocation-seg[data-tone='5'],
+      .allocation-seg.rest {
+        background: rgba(255, 255, 255, 0.18);
+      }
+      .allocation-legend {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 6px 16px;
+        list-style: none;
+        margin: 12px 0 0;
+        padding: 0;
+      }
+      .allocation-legend li {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        min-width: 0;
+        color: var(--color-text-secondary);
+        font-size: var(--text-2xs);
+      }
+      .allocation-legend i {
+        width: 8px;
+        height: 8px;
+        border-radius: 50%;
+        flex-shrink: 0;
+        background: #8b5cf6;
+      }
+      .allocation-legend i[data-tone='1'] {
+        background: #06b6d4;
+      }
+      .allocation-legend i[data-tone='2'] {
+        background: #ec4899;
+      }
+      .allocation-legend i[data-tone='3'] {
+        background: #34d399;
+      }
+      .allocation-legend i[data-tone='4'] {
+        background: #fbbf24;
+      }
+      .allocation-name {
+        max-width: 220px;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+      .allocation-pct {
+        color: var(--color-text-muted);
+        font-weight: 700;
       }
 
       /* ── The reading ─────────────────────────────────────────────────── */
@@ -1548,6 +1683,29 @@ export class TimeComponent implements OnInit {
     return this.groups().filter((group) => group.title.toLowerCase().includes(query));
   });
 
+  /**
+   * The whole period as one bar: the five largest pieces of work and how much of
+   * the tracked time each took. The list below answers "how much", this answers
+   * "how much of the total" without a single click.
+   */
+  protected readonly allocation = computed(() => {
+    const total = Math.max(1, this.totals().seconds);
+    const sorted = [...this.groups()].sort((a, b) => b.periodSeconds - a.periodSeconds);
+    const top = sorted.slice(0, 5);
+    const topSeconds = top.reduce((sum, group) => sum + group.periodSeconds, 0);
+    return {
+      parts: top.map((group, index) => ({
+        key: group.key,
+        title: group.title,
+        seconds: group.periodSeconds,
+        percent: Math.max(1, Math.round((group.periodSeconds / total) * 100)),
+        tone: index,
+      })),
+      rest: Math.max(0, total - topSeconds),
+      restPercent: Math.max(0, Math.round(((total - topSeconds) / total) * 100)),
+    };
+  });
+
   protected readonly periodRange = computed(() => {
     const period = this.currentPeriod();
     if (!period.from) return '';
@@ -1557,6 +1715,13 @@ export class TimeComponent implements OnInit {
   });
 
   protected readonly duration = formatDuration;
+
+  /** The allocation bar, read aloud as words rather than as five widths. */
+  protected allocationLabel(): string {
+    const parts = this.allocation().parts;
+    if (!parts.length) return 'No focus time in this period';
+    return parts.map((part) => `${part.title} ${part.percent}%`).join(', ');
+  }
   protected readonly dayLabel = formatDayLabel;
   protected readonly timeLabel = formatTimeOfDay;
 

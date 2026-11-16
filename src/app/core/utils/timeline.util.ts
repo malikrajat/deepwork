@@ -85,7 +85,9 @@ export function labelForType(type: string): string {
  *
  * One block per session and no merging: every session the database holds is
  * drawn independently, so task names survive a user switching tasks mid-flow.
- * Breaks are left off — the timeline is read as the stretches of work in a day.
+ * Focus sessions, short breaks and long breaks are all drawn: the timeline is a
+ * picture of the whole day, and a break is part of the rhythm it records. The
+ * gaps between blocks are the time no session covered.
  */
 export function buildSessionBlocks(
   sessions: PomodoroSession[],
@@ -94,7 +96,6 @@ export function buildSessionBlocks(
   const blocks: TimelineBlock[] = [];
 
   for (const session of sessions) {
-    if (session.type !== 'work') continue;
     const durationSec = session.durationActual;
     if (durationSec <= 0) continue;
 
@@ -130,8 +131,6 @@ export function buildActiveBlock(
   now: Date,
 ): TimelineBlock | null {
   if (!running.startedAt || running.elapsedSec <= 0) return null;
-  // Only focus sessions are drawn; a break is not a block on this timeline.
-  if (running.type !== 'work') return null;
 
   const start = new Date(running.startedAt);
   const task = running.taskId ? tasks.find((t) => t.id === running.taskId) : null;

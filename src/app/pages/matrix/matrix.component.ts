@@ -20,6 +20,7 @@ import { QUADRANT_CONFIG, STATUS_CONFIG, STATUS_CYCLE } from '../../core/constan
 import { TooltipDirective } from '../../shared/directives/tooltip.directive';
 import { TaskEditorService } from '../../core/services/task-editor.service';
 import { FocusLauncherService } from '../../core/services/focus-launcher.service';
+import { PageHeaderComponent } from '../../shared/components/page-header/page-header.component';
 import { buildBoardLayout, sharesFor, splitShares } from '../../core/utils/quadrant-layout.util';
 import type { BoardPlacement } from '../../core/utils/quadrant-layout.util';
 
@@ -67,7 +68,7 @@ interface MatrixContextMenu {
  */
 @Component({
   selector: 'app-matrix',
-  imports: [DragDropModule, RouterLink, TooltipDirective],
+  imports: [DragDropModule, RouterLink, TooltipDirective, PageHeaderComponent],
   changeDetection: ChangeDetectionStrategy.OnPush,
   host: {
     '(window:resize)': 'onWindowResize()',
@@ -77,13 +78,11 @@ interface MatrixContextMenu {
     '(window:blur)': 'closeContextMenu()',
   },
   template: `
-    <div class="page-header">
-      <div>
-        <h1 class="gradient-text page-title">Eisenhower Matrix</h1>
-        <p class="page-subtitle">
-          Sort today's tasks by urgency and importance to know what to do first
-        </p>
-      </div>
+    <app-page-header
+      eyebrow="Decide what matters"
+      title="Eisenhower Matrix"
+      subtitle="Sort today's tasks by urgency and importance to know what to do first"
+    >
       <div class="header-actions">
         @if (totalTodayTasks() > 0) {
           <div
@@ -94,6 +93,40 @@ interface MatrixContextMenu {
             <span class="progress-label">prioritized</span>
           </div>
         }
+        <button
+          class="guide-toggle"
+          type="button"
+          (click)="focusFirst()"
+          [disabled]="!nextFocusTask()"
+          appTooltip="Start focus on the first task in the Do First quadrant"
+        >
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+            <path
+              d="M7 4.6v14.8a1 1 0 0 0 1.54.84l11.2-7.4a1 1 0 0 0 0-1.68L8.54 3.76A1 1 0 0 0 7 4.6Z"
+            />
+          </svg>
+          Focus first
+        </button>
+        <button
+          class="guide-toggle"
+          type="button"
+          (click)="addTask('urgent-important')"
+          appTooltip="Add a task already sorted as Do First"
+        >
+          <svg
+            width="12"
+            height="12"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2.5"
+            aria-hidden="true"
+          >
+            <line x1="12" y1="5" x2="12" y2="19" />
+            <line x1="5" y1="12" x2="19" y2="12" />
+          </svg>
+          Add task
+        </button>
         <button
           class="guide-toggle"
           type="button"
@@ -110,7 +143,7 @@ interface MatrixContextMenu {
           Open calendar
         </a>
       </div>
-    </div>
+    </app-page-header>
 
     @if (guideOpen()) {
       <div class="guide-panel animate-fade-in">
@@ -832,6 +865,10 @@ interface MatrixContextMenu {
         background: var(--control-bg);
         border: 1px solid rgba(139, 92, 246, 0.15);
         color: var(--color-text-secondary);
+      }
+      .guide-toggle:disabled {
+        opacity: 0.45;
+        cursor: not-allowed;
       }
 
       .guide-panel {
@@ -1905,6 +1942,17 @@ export class MatrixComponent implements OnInit {
 
   totalOverallTasks = computed(() => this.totalTodayTasks());
 
+  /**
+   * The first task in quadrant order that the focus launcher can start —
+   * Do First first, and only the quadrant today is working through.
+   */
+  readonly nextFocusTask = computed(
+    () =>
+      QUADRANT_IDS.flatMap((quadrant) =>
+        this.getQuadrantTasks(quadrant).filter((task) => this.focusLauncher.canStart(task)),
+      )[0] ?? null,
+  );
+
   /** Width actually applied — the panel becomes a slim rail when collapsed. */
   readonly effectivePaneWidth = computed(() => (this.paneCollapsed() ? 58 : this.paneWidth()));
 
@@ -1982,6 +2030,12 @@ export class MatrixComponent implements OnInit {
   /** A quadrant's "+" (or the unassigned list's) opens the form already sorted. */
   addTask(quadrant: TaskQuadrant | null): void {
     this.taskEditor.openAdd({ quadrant, deadline: dayKey() });
+  }
+
+  /** Begin the first piece of work the sorted board offers. */
+  focusFirst(): void {
+    const task = this.nextFocusTask();
+    if (task) void this.focusLauncher.start(task);
   }
 
   /** Drop, the 1–4 / 0 shortcuts, or the right-click menu re-prioritise a card. */
