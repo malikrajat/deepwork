@@ -169,6 +169,13 @@ jobs:
       - name: ng build (production)
         run: npm run build
 
+      # The headers in `public/_headers` are what stop a browser from framing
+      # the app, running a script from an unlisted origin, or loading it over
+      # plain HTTP. Nothing else in the build notices when one of them is
+      # removed, so the artefact is checked here rather than in production.
+      - name: Check the security headers
+        run: npm run check:headers
+
   e2e:
     name: E2E (Playwright)
     runs-on: ubuntu-latest
