@@ -81,7 +81,7 @@ import { SettingsService } from '../../../core/services/settings.service';
 
       .why {
         margin: 0 0 2px;
-        font-size: 12px;
+        font-size: 13px;
         line-height: 1.45;
         color: var(--color-text-muted, #a1a1aa);
       }
@@ -107,13 +107,13 @@ import { SettingsService } from '../../../core/services/settings.service';
       }
 
       .label {
-        font-size: 13px;
+        font-size: 14px;
         font-weight: 600;
         color: var(--color-text-secondary, #d4d4d8);
       }
 
       .detail {
-        font-size: 11px;
+        font-size: 12px;
         line-height: 1.45;
         color: var(--color-text-muted, #a1a1aa);
       }

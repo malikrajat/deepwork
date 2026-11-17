@@ -737,7 +737,7 @@ import { SettingsFormModel, createSettingsFormDefaults } from '../../shared/mode
         display: flex;
         align-items: center;
         gap: 8px;
-        font-size: 12px;
+        font-size: 13px;
         font-weight: 600;
         text-transform: uppercase;
         letter-spacing: 0.08em;
@@ -779,7 +779,7 @@ import { SettingsFormModel, createSettingsFormDefaults } from '../../shared/mode
       }
       .setting-note {
         display: block;
-        font-size: 10px;
+        font-size: 12px;
         color: var(--color-text-muted);
         margin-top: 2px;
       }
@@ -828,7 +828,7 @@ import { SettingsFormModel, createSettingsFormDefaults } from '../../shared/mode
         padding: 4px 10px;
         background: rgba(139, 92, 246, 0.08);
         border-radius: 6px;
-        font-size: 13px;
+        font-size: 14px;
       }
       input[type='range'] {
         width: 120px;
@@ -841,7 +841,7 @@ import { SettingsFormModel, createSettingsFormDefaults } from '../../shared/mode
         border: 1px solid rgba(139, 92, 246, 0.2);
         background: var(--control-bg);
         color: var(--color-text-primary);
-        font-size: 13px;
+        font-size: 14px;
       }
       select:focus {
         outline: none;
@@ -853,7 +853,7 @@ import { SettingsFormModel, createSettingsFormDefaults } from '../../shared/mode
         border: 1px solid rgba(139, 92, 246, 0.2);
         background: rgba(139, 92, 246, 0.06);
         color: var(--color-text-primary);
-        font-size: 12px;
+        font-size: 13px;
         font-weight: 500;
         cursor: pointer;
         transition: all 0.2s;
@@ -865,7 +865,7 @@ import { SettingsFormModel, createSettingsFormDefaults } from '../../shared/mode
       kbd {
         padding: 3px 8px;
         border-radius: 4px;
-        font-size: 11px;
+        font-size: 12px;
         font-weight: 600;
         background: var(--glass-bg);
         border: 1px solid var(--glass-border);
@@ -987,7 +987,7 @@ import { SettingsFormModel, createSettingsFormDefaults } from '../../shared/mode
           font-size: 16px;
         }
         .setting-note {
-          font-size: 12px;
+          font-size: 13px;
         }
         /* Only the control whose desktop size is under the ladder's new floor:
            an action button already draws at 14px, so naming it here would be
@@ -996,7 +996,7 @@ import { SettingsFormModel, createSettingsFormDefaults } from '../../shared/mode
           font-size: 14px;
         }
         kbd {
-          font-size: 13px;
+          font-size: 14px;
         }
         input[type='range'] {
           width: 160px;

@@ -56,7 +56,14 @@ jobs:
       - name: Lint
         run: npm run lint
 
-      # The version is written down in nine files, and nothing reads any of the
+      # A class the app no longer renders is still bytes in every user's bundle:
+      # Angular keeps component styles whether or not a selector matches. This
+      # also fails when a Playwright-only hook has leaked into a production
+      # stylesheet, which is the other way unused CSS arrives.
+      - name: Audit the stylesheets for dead and test-only CSS
+        run: npm run css:audit
+
+      # The version is written down in a dozen files, and nothing reads any of the
       # others, so a release that updated all but one slips through unless it is
       # checked here.
       - name: Check that every version agrees

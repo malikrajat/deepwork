@@ -796,7 +796,7 @@ interface MatrixContextMenu {
       .page-subtitle {
         color: var(--color-text-muted);
         margin-top: 4px;
-        font-size: 13px;
+        font-size: 14px;
       }
 
       .header-actions {
@@ -819,12 +819,12 @@ interface MatrixContextMenu {
         color: var(--color-text-primary);
       }
       .progress-label {
-        font-size: 10px;
+        font-size: 12px;
         color: var(--color-text-muted);
         text-transform: uppercase;
       }
       .guide-toggle {
-        font-size: 12px;
+        font-size: 13px;
         font-weight: 600;
         padding: 7px 12px;
         border-radius: 10px;
@@ -843,7 +843,7 @@ interface MatrixContextMenu {
         display: grid;
         grid-template-columns: 1fr 1fr;
         gap: 8px 20px;
-        font-size: 12px;
+        font-size: 13px;
       }
       .guide-item {
         display: flex;
@@ -865,7 +865,7 @@ interface MatrixContextMenu {
       .guide-hint {
         grid-column: 1 / -1;
         color: var(--color-text-muted);
-        font-size: 11px;
+        font-size: 12px;
         margin: 4px 0 0;
         line-height: 1.6;
       }
@@ -891,10 +891,10 @@ interface MatrixContextMenu {
       }
       .empty-state p {
         color: var(--color-text-muted);
-        font-size: 13px;
+        font-size: 14px;
       }
       .empty-cta {
-        font-size: 12px;
+        font-size: 13px;
         font-weight: 700;
         padding: 8px 16px;
         border-radius: 10px;
@@ -971,7 +971,7 @@ interface MatrixContextMenu {
       .strip-hint {
         flex: 1 1 auto;
         min-width: 0;
-        font-size: 10px;
+        font-size: 12px;
         color: var(--color-text-muted);
         white-space: nowrap;
         overflow: hidden;
@@ -984,12 +984,12 @@ interface MatrixContextMenu {
         margin-bottom: 2px;
       }
       .quadrant-header h3 {
-        font-size: 13px;
+        font-size: 14px;
         font-weight: 700;
       }
       .quadrant-count {
         margin-left: auto;
-        font-size: 10px;
+        font-size: 12px;
         background: rgba(139, 92, 246, 0.1);
         padding: 2px 7px;
         border-radius: 10px;
@@ -1001,7 +1001,7 @@ interface MatrixContextMenu {
         border-radius: 50%;
       }
       .quadrant-desc {
-        font-size: 10px;
+        font-size: 12px;
         color: var(--color-text-muted);
         margin-bottom: 10px;
       }
@@ -1142,7 +1142,7 @@ interface MatrixContextMenu {
         line-height: 1;
         padding: 3px 5px;
         border-radius: 6px;
-        font-size: 10px;
+        font-size: 12px;
         font-weight: 700;
         color: var(--color-text-muted);
         transition:
@@ -1213,7 +1213,7 @@ interface MatrixContextMenu {
       }
       /* Titles wrap onto two lines so they stay readable in a narrow list. */
       .card-title {
-        font-size: 12px;
+        font-size: 13px;
         color: var(--color-text-primary);
         line-height: 1.25;
         display: -webkit-box;
@@ -1223,7 +1223,7 @@ interface MatrixContextMenu {
         overflow-wrap: anywhere;
       }
       .card-deadline {
-        font-size: 10px;
+        font-size: 12px;
         color: var(--color-text-muted);
       }
 
@@ -1235,7 +1235,7 @@ interface MatrixContextMenu {
         border: 1px dashed var(--glass-border);
         border-radius: 10px;
         color: var(--color-text-muted);
-        font-size: 11px;
+        font-size: 12px;
       }
 
       /* Right-click menu: quadrant moves and status changes in one panel. */
@@ -1282,14 +1282,14 @@ interface MatrixContextMenu {
         -webkit-box-orient: vertical;
         overflow: hidden;
         overflow-wrap: anywhere;
-        font-size: 12px;
+        font-size: 13px;
         font-weight: 700;
         color: var(--color-text-primary);
       }
       .menu-subtitle {
         display: block;
         margin-top: 3px;
-        font-size: 10px;
+        font-size: 12px;
         color: var(--color-text-muted);
       }
       .menu-section {
@@ -1303,7 +1303,7 @@ interface MatrixContextMenu {
       .menu-section-title {
         display: block;
         padding: 2px 10px 6px;
-        font-size: 10px;
+        font-size: 12px;
         font-weight: 700;
         text-transform: uppercase;
         letter-spacing: 0.08em;
@@ -1350,14 +1350,14 @@ interface MatrixContextMenu {
         background: #34d399;
       }
       .menu-option-label {
-        font-size: 12px;
+        font-size: 13px;
         font-weight: 600;
         color: var(--color-text-primary);
         white-space: nowrap;
       }
       .menu-option-desc {
         margin-left: auto;
-        font-size: 10px;
+        font-size: 12px;
         color: var(--color-text-muted);
         text-align: right;
         white-space: nowrap;
@@ -1468,7 +1468,7 @@ interface MatrixContextMenu {
         display: flex;
         align-items: center;
         gap: 8px;
-        font-size: 12px;
+        font-size: 13px;
         font-weight: 700;
         margin-bottom: 12px;
         color: var(--color-text-secondary);
@@ -1479,7 +1479,7 @@ interface MatrixContextMenu {
       }
       .unassigned-count {
         margin-left: auto;
-        font-size: 10px;
+        font-size: 12px;
         background: rgba(139, 92, 246, 0.1);
         padding: 2px 7px;
         border-radius: 10px;
@@ -1500,7 +1500,7 @@ interface MatrixContextMenu {
         overflow: hidden;
       }
       .rail-count {
-        font-size: 13px;
+        font-size: 14px;
         font-weight: 800;
         color: var(--color-text-primary);
         background: rgba(139, 92, 246, 0.12);
@@ -1508,13 +1508,13 @@ interface MatrixContextMenu {
         padding: 4px 9px;
       }
       .rail-label {
-        font-size: 10px;
+        font-size: 12px;
         color: var(--color-text-muted);
         writing-mode: vertical-rl;
         text-transform: uppercase;
       }
       .empty-text {
-        font-size: 11px;
+        font-size: 12px;
         color: var(--color-text-muted);
         text-align: center;
         padding: 20px 0;

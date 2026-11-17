@@ -32,25 +32,25 @@ test.describe('Settings', () => {
     const reminderSwitch = reminder.getByRole('switch');
     const workingHours = waterGroup.locator('input[type="time"]');
 
-    // Reminders are on out of the box, so the working hours they run in are
-    // editable from the first load …
-    await expect(reminderSwitch).toHaveAttribute('aria-checked', 'true');
+    // Reminders are opt-in, so the working hours they would run in are present
+    // but closed until the switch is turned on.
+    await expect(reminderSwitch).toHaveAttribute('aria-checked', 'false');
     await expect(workingHours).toHaveCount(2);
-    await expect(workingHours.first()).toBeEnabled();
+    await expect(workingHours.first()).toBeDisabled();
 
-    // … and the nudge can be fired on demand without waiting for the clock.
+    // The nudge can be fired on demand without waiting for the clock.
     await expect(reminder.getByRole('button', { name: 'Test' })).toBeVisible();
 
-    // Turning it off is what closes the working hours down …
+    // Turning it on is what opens the working hours …
+    await reminderSwitch.click();
+    await expect(reminderSwitch).toHaveAttribute('aria-checked', 'true');
+    await expect(workingHours.first()).toBeEnabled();
+
+    // … and turning it off closes them again: the group follows the switch
+    // rather than the page it was rendered on.
     await reminderSwitch.click();
     await expect(reminderSwitch).toHaveAttribute('aria-checked', 'false');
     await expect(workingHours.first()).toBeDisabled();
-
-    // … and turning it back on is what opens them again: the group follows the
-    // switch rather than the page it was rendered on.
-    await reminderSwitch.click();
-    await expect(reminderSwitch).toHaveAttribute('aria-checked', 'true');
-    await expect(workingHours.first()).toBeEnabled();
   });
 
   test('focus duration slider shows value in minutes', async ({ page }) => {

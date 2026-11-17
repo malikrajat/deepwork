@@ -41,16 +41,16 @@ import { FieldState } from '@angular/forms/signals';
     .form-field-wrapper { display: flex; flex-direction: column; gap: 4px; }
     .form-field-wrapper.is-hidden { display: none; }
     .field-label {
-      font-size: 12px; font-weight: 600; color: var(--color-text-muted);
+      font-size: 13px; font-weight: 600; color: var(--color-text-muted);
       text-transform: uppercase; letter-spacing: 0.05em;
     }
     .field-input { display: flex; flex-direction: column; }
     .field-errors { display: flex; flex-direction: column; gap: 2px; }
     .error-message {
-      font-size: 11px; color: #f87171; font-weight: 500;
+      font-size: 12px; color: #f87171; font-weight: 500;
       animation: shake 0.3s ease-in-out;
     }
-    .field-hint { font-size: 10px; color: var(--color-text-muted); }
+    .field-hint { font-size: 12px; color: var(--color-text-muted); }
     .has-error ::ng-deep input,
     .has-error ::ng-deep textarea,
     .has-error ::ng-deep select {

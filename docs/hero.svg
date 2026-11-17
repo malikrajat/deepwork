@@ -1,0 +1,66 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1280" height="420" viewBox="0 0 1280 420" role="img" aria-label="DeepWork — an offline focus timer, task manager and day planner">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#080613"/>
+      <stop offset="0.55" stop-color="#120c24"/>
+      <stop offset="1" stop-color="#1b1036"/>
+    </linearGradient>
+    <linearGradient id="ring" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#8b5cf6"/>
+      <stop offset="1" stop-color="#06b6d4"/>
+    </linearGradient>
+    <linearGradient id="word" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#ffffff"/>
+      <stop offset="1" stop-color="#c4b5fd"/>
+    </linearGradient>
+    <radialGradient id="halo" cx="0.5" cy="0.5" r="0.5">
+      <stop offset="0" stop-color="#8b5cf6" stop-opacity="0.35"/>
+      <stop offset="1" stop-color="#8b5cf6" stop-opacity="0"/>
+    </radialGradient>
+  </defs>
+
+  <rect width="1280" height="420" rx="28" fill="url(#bg)"/>
+  <rect x="0.5" y="0.5" width="1279" height="419" rx="27.5" fill="none" stroke="#2a2145"/>
+
+  <circle cx="1090" cy="150" r="260" fill="url(#halo)"/>
+  <circle cx="120" cy="400" r="190" fill="url(#halo)" opacity="0.5"/>
+
+  <text x="80" y="112" font-family="Segoe UI, Inter, Helvetica, Arial, sans-serif" font-size="18" font-weight="600" letter-spacing="6" fill="#8b87ab">FOCUS · PLAN · PROVE</text>
+
+  <text x="78" y="212" font-family="Segoe UI, Inter, Helvetica, Arial, sans-serif" font-size="84" font-weight="700" fill="url(#word)">DeepWork</text>
+
+  <text x="82" y="262" font-family="Segoe UI, Inter, Helvetica, Arial, sans-serif" font-size="24" fill="#b6b2d0">A focus timer, task manager and day planner</text>
+  <text x="82" y="296" font-family="Segoe UI, Inter, Helvetica, Arial, sans-serif" font-size="24" fill="#b6b2d0">that keeps every byte on your machine.</text>
+
+  <g font-family="Segoe UI, Inter, Helvetica, Arial, sans-serif" font-size="15" font-weight="600">
+    <rect x="80" y="330" width="112" height="36" rx="18" fill="#1c1535" stroke="#3a2f5c"/>
+    <text x="136" y="353" text-anchor="middle" fill="#d9d4f2">Windows</text>
+
+    <rect x="202" y="330" width="96" height="36" rx="18" fill="#1c1535" stroke="#3a2f5c"/>
+    <text x="250" y="353" text-anchor="middle" fill="#d9d4f2">macOS</text>
+
+    <rect x="308" y="330" width="86" height="36" rx="18" fill="#1c1535" stroke="#3a2f5c"/>
+    <text x="351" y="353" text-anchor="middle" fill="#d9d4f2">Linux</text>
+
+    <rect x="404" y="330" width="120" height="36" rx="18" fill="#1c1535" stroke="#3a2f5c"/>
+    <text x="464" y="353" text-anchor="middle" fill="#d9d4f2">Web / PWA</text>
+
+    <rect x="534" y="330" width="142" height="36" rx="18" fill="#1c1535" stroke="#3a2f5c"/>
+    <text x="605" y="353" text-anchor="middle" fill="#d9d4f2">MIT licensed</text>
+  </g>
+
+  <circle cx="1030" cy="205" r="118" fill="none" stroke="#2a2145" stroke-width="18"/>
+  <circle cx="1030" cy="205" r="118" fill="none" stroke="url(#ring)" stroke-width="18" stroke-linecap="round"
+          stroke-dasharray="556 741" transform="rotate(-90 1030 205)"/>
+
+  <text x="1030" y="203" text-anchor="middle" font-family="Segoe UI, Inter, Helvetica, Arial, sans-serif" font-size="54" font-weight="600" fill="#f2f0ff">25:00</text>
+  <text x="1030" y="238" text-anchor="middle" font-family="Segoe UI, Inter, Helvetica, Arial, sans-serif" font-size="14" font-weight="600" letter-spacing="5" fill="#8b87ab">FOCUS</text>
+
+  <g fill="#8b5cf6">
+    <circle cx="930" cy="352" r="4"/>
+    <circle cx="960" cy="352" r="4" fill="#06b6d4"/>
+    <circle cx="990" cy="352" r="4" fill="#3a2f5c"/>
+    <circle cx="1020" cy="352" r="4" fill="#3a2f5c"/>
+  </g>
+  <text x="1080" y="357" text-anchor="middle" font-family="Segoe UI, Inter, Helvetica, Arial, sans-serif" font-size="14" fill="#8b87ab">2 of 4</text>
+</svg>

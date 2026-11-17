@@ -53,13 +53,14 @@ test.describe('Pomodoro Timer', () => {
     await startBtn.click();
     await expect(controls.getByRole('button', { name: /Pause/i })).toBeVisible({ timeout: 3000 });
 
-    // Skip (last .btn-ghost in .timer-controls)
+    // Skip (last .btn-ghost in .timer-controls). Skip is not a pause: the next
+    // block is already under way, which is why the phase changes and the clock
+    // keeps running.
     await controls.locator('.btn-ghost').last().click();
 
-    // After skipping a work session the timer offers a break
-    const nextBtn = controls.locator('.btn-primary');
-    await expect(nextBtn).toBeVisible({ timeout: 5000 });
-    await expect(nextBtn).toContainText(/Start Break/i);
+    // After skipping a work session the timer is on the break that follows it.
+    await expect(page.locator('.mode-chip')).toContainText('Short Break', { timeout: 5000 });
+    await expect(controls.getByRole('button', { name: /Pause/i })).toBeVisible();
   });
 
   test('session indicator reflects progress after skip', async ({ page }) => {
@@ -78,15 +79,14 @@ test.describe('Pomodoro Timer', () => {
     await controls.locator('.btn-ghost').last().click();
 
     // Skipping takes the timer to the break that follows the session …
-    await expect(controls.locator('.btn-primary')).toContainText(/Start Break/i, { timeout: 5000 });
+    await expect(page.locator('.mode-chip')).toContainText('Short Break', { timeout: 5000 });
     await expect(cycleCard.locator('p')).toContainText('Short break is ready');
 
     // … and the session counted towards the cycle: once the break is behind us,
-    // the card has one fewer focus session to go.
-    await controls.locator('.btn-primary').click();
-    await expect(controls.getByRole('button', { name: /Pause/i })).toBeVisible({ timeout: 3000 });
+    // the card has one fewer focus session to go. Skip again to leave the break.
     await controls.locator('.btn-ghost').last().click();
     await expect(cycleCard.locator('p')).toContainText('3 more focus sessions', { timeout: 5000 });
+    await expect(page.locator('.mode-chip')).toContainText('Focus Session');
   });
 
   test('session dots render in the indicator row', async ({ page }) => {

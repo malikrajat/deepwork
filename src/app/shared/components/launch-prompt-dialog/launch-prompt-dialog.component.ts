@@ -137,7 +137,7 @@ import { LAUNCH_DIALOG_COPY } from '../../../core/constants/nudge.constants';
       }
       .dialog-subtitle {
         margin: 6px 0 0;
-        font-size: 13px;
+        font-size: 14px;
         line-height: 1.5;
         color: var(--color-text-muted, #a1a1aa);
       }
@@ -154,7 +154,7 @@ import { LAUNCH_DIALOG_COPY } from '../../../core/constants/nudge.constants';
         display: flex;
         align-items: flex-start;
         gap: 9px;
-        font-size: 13px;
+        font-size: 14px;
         line-height: 1.45;
         color: var(--color-text-secondary, #d4d4d8);
       }
@@ -168,7 +168,7 @@ import { LAUNCH_DIALOG_COPY } from '../../../core/constants/nudge.constants';
         margin: 12px 0 0;
         padding: 8px 10px;
         border-radius: 8px;
-        font-size: 12px;
+        font-size: 13px;
         line-height: 1.4;
         color: #fca5a5;
         background: rgba(239, 68, 68, 0.1);
@@ -185,7 +185,7 @@ import { LAUNCH_DIALOG_COPY } from '../../../core/constants/nudge.constants';
       .btn-primary {
         padding: 9px 18px;
         border-radius: 9px;
-        font-size: 13px;
+        font-size: 14px;
         font-weight: 600;
         cursor: pointer;
         transition:
@@ -227,7 +227,7 @@ import { LAUNCH_DIALOG_COPY } from '../../../core/constants/nudge.constants';
       }
       .dialog-footnote {
         margin: 0;
-        font-size: 11px;
+        font-size: 12px;
         line-height: 1.5;
         color: var(--color-text-muted, #a1a1aa);
       }
@@ -236,7 +236,7 @@ import { LAUNCH_DIALOG_COPY } from '../../../core/constants/nudge.constants';
         border: none;
         background: none;
         font: inherit;
-        font-size: 11px;
+        font-size: 12px;
         font-weight: 600;
         color: var(--color-accent-primary, #a78bfa);
         cursor: pointer;

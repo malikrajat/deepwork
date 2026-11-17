@@ -59,7 +59,7 @@ describe('Shapes are drawn, not blurred', () => {
   });
 
   it('keeps the widget text a whole pixel with tabular figures', () => {
-    expect(widget).toContain('font-size: 12px');
+    expect(widget).toContain('font-size: 13px');
     expect(widget).toContain('font-variant-numeric: tabular-nums');
   });
 
@@ -229,18 +229,18 @@ describe('Whole-pixel type scale', () => {
     expect(offenders).toEqual([]);
   });
 
-  it('keeps every font size a whole pixel of at least 10px', () => {
+  it('keeps every font size a whole pixel of at least 12px', () => {
     for (const file of sourceFiles()) {
       for (const match of read(file).matchAll(/font-size:\s*(\d+(?:\.\d+)?)px/g)) {
         const size = Number(match[1]);
         expect(Number.isInteger(size), `${file} uses ${match[1]}px`).toBe(true);
-        expect(size, `${file} uses a ${match[1]}px label`).toBeGreaterThanOrEqual(10);
+        expect(size, `${file} uses a ${match[1]}px label`).toBeGreaterThanOrEqual(12);
       }
     }
   });
 
   it('publishes the scale and the radius ladder as design tokens', () => {
-    for (const token of ['--text-2xs: 10px', '--text-base: 13px', '--text-5xl: 24px']) {
+    for (const token of ['--text-2xs: 12px', '--text-base: 14px', '--text-5xl: 25px']) {
       expect(styles).toContain(token);
     }
     for (const token of ['--radius-sm: 8px', '--radius-lg: 12px', '--radius-2xl: 20px']) {
@@ -251,9 +251,10 @@ describe('Whole-pixel type scale', () => {
 
 describe('Edges and text are legible on the dark surfaces', () => {
   it('keeps the muted text above the contrast floor for small type', () => {
-    // 5.5:1 against #080613, where the old #5c5878 managed about 3.4:1.
-    expect(styles).toContain('--color-text-muted: #8b87ab');
-    expect(styles).toContain('--color-text-secondary: #b6b2d0');
+    // About 8:1 against #080613, where the old #5c5878 managed about 3.4:1 and
+    // the previous #8b87ab managed 5.5:1.
+    expect(styles).toContain('--color-text-muted: #aaa6c4');
+    expect(styles).toContain('--color-text-secondary: #cfcbe6');
   });
 
   it('defines the widget edge with a hairline that follows its radius', () => {

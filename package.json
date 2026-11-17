@@ -1,6 +1,6 @@
 {
   "name": "deepwork-app",
-  "version": "3.1.0",
+  "version": "3.3.0",
   "scripts": {
     "ng": "ng",
     "start": "ng serve --port 4999",
@@ -14,9 +14,10 @@
     "version:check": "node scripts/bump-version.mjs --check",
     "lint": "eslint .",
     "lint:fix": "eslint . --fix",
+    "css:audit": "node scripts/audit-css.mjs",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
-    "verify": "npm run lint && npm run test && npm run build",
+    "verify": "npm run lint && npm run css:audit && npm run test && npm run build",
     "tauri": "tauri",
     "tauri:dev": "tauri dev",
     "tauri:build": "tauri build",

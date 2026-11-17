@@ -116,7 +116,7 @@ import { QuietPanelComponent } from '../quiet-panel/quiet-panel.component';
         margin: 0;
         font-size: var(--text-xl, 16px);
         font-weight: 700;
-        color: var(--color-text-primary, #f2f0ff);
+        color: var(--color-text-primary, #f7f5ff);
       }
       .quiet-close {
         display: inline-flex;
@@ -128,12 +128,12 @@ import { QuietPanelComponent } from '../quiet-panel/quiet-panel.component';
         border: none;
         border-radius: var(--radius-sm, 8px);
         background: transparent;
-        color: var(--color-text-muted, #8b87ab);
+        color: var(--color-text-muted, #aaa6c4);
         cursor: pointer;
       }
       .quiet-close:hover {
         background: rgba(255, 255, 255, 0.07);
-        color: var(--color-text-primary, #f2f0ff);
+        color: var(--color-text-primary, #f7f5ff);
       }
 
       @keyframes quiet-fade {

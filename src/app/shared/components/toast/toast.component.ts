@@ -198,7 +198,7 @@ import { alertTheme } from '../../../core/constants/alert.constants';
         animation: text-fade 0.4s ease 0.2s both;
       }
       .toast-body {
-        font-size: 11px;
+        font-size: 12px;
         color: var(--color-text-secondary, #aaa);
         animation: text-fade 0.4s ease 0.35s both;
       }
@@ -213,7 +213,7 @@ import { alertTheme } from '../../../core/constants/alert.constants';
         border-left: 2px solid rgba(139, 92, 246, 0.5);
         border-radius: 0 8px 8px 0;
         background: rgba(139, 92, 246, 0.08);
-        font-size: 11px;
+        font-size: 12px;
         font-style: italic;
         line-height: 1.45;
         color: var(--color-text-primary, #fff);
@@ -244,7 +244,7 @@ import { alertTheme } from '../../../core/constants/alert.constants';
         padding: 5px 11px;
         border-radius: 8px;
         font: inherit;
-        font-size: 11px;
+        font-size: 12px;
         font-weight: 600;
         cursor: pointer;
         color: var(--color-text-secondary, #d4d4d8);

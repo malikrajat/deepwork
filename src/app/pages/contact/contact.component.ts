@@ -231,7 +231,7 @@ const MESSAGE_MAX_LENGTH = 2000;
       }
       .card-subtitle {
         margin-top: 6px;
-        font-size: 12px;
+        font-size: 13px;
         line-height: 1.6;
         color: var(--color-text-muted);
       }
@@ -267,7 +267,7 @@ const MESSAGE_MAX_LENGTH = 2000;
         background: rgba(139, 92, 246, 0.16);
         color: var(--color-text-primary);
         font: inherit;
-        font-size: 13px;
+        font-size: 14px;
         font-weight: 700;
         cursor: pointer;
         transition:
@@ -289,7 +289,7 @@ const MESSAGE_MAX_LENGTH = 2000;
         outline-offset: 2px;
       }
       .submit-note {
-        font-size: 11px;
+        font-size: 12px;
         line-height: 1.5;
         color: var(--color-text-muted);
       }
@@ -312,7 +312,7 @@ const MESSAGE_MAX_LENGTH = 2000;
       }
       .captcha-error,
       .submit-error {
-        font-size: 12px;
+        font-size: 13px;
         line-height: 1.5;
         color: #f87171;
       }
@@ -354,7 +354,7 @@ const MESSAGE_MAX_LENGTH = 2000;
       .sent-note {
         margin-top: 6px;
         max-width: 46ch;
-        font-size: 12px;
+        font-size: 13px;
         line-height: 1.6;
         color: var(--color-text-muted);
       }
@@ -370,7 +370,7 @@ const MESSAGE_MAX_LENGTH = 2000;
         background: rgba(139, 92, 246, 0.06);
         color: var(--color-text-primary);
         font: inherit;
-        font-size: 12px;
+        font-size: 13px;
         font-weight: 600;
         cursor: pointer;
         transition:
@@ -402,7 +402,7 @@ const MESSAGE_MAX_LENGTH = 2000;
         text-decoration: underline;
       }
       .email-note {
-        font-size: 11px;
+        font-size: 12px;
         line-height: 1.55;
         color: var(--color-text-muted);
       }
@@ -433,7 +433,7 @@ const MESSAGE_MAX_LENGTH = 2000;
         background: rgba(139, 92, 246, 0.06);
       }
       .channel-label {
-        font-size: 11px;
+        font-size: 12px;
         font-weight: 600;
         text-transform: uppercase;
         letter-spacing: 0.05em;
@@ -442,14 +442,14 @@ const MESSAGE_MAX_LENGTH = 2000;
       .channel-value {
         min-width: 0;
         text-align: right;
-        font-size: 12px;
+        font-size: 13px;
         color: var(--color-text-secondary);
         overflow-wrap: anywhere;
       }
 
       .policy-note {
         margin-top: var(--space-md);
-        font-size: 12px;
+        font-size: 13px;
         line-height: 1.6;
         color: var(--color-text-muted);
       }

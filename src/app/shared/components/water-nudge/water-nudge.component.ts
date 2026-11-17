@@ -134,7 +134,7 @@ import { WaterReminderService } from '../../../core/services/water-reminder.serv
       }
 
       .nudge-eyebrow {
-        font-size: 10px;
+        font-size: 12px;
         font-weight: 700;
         letter-spacing: 0.08em;
         text-transform: uppercase;
@@ -151,7 +151,7 @@ import { WaterReminderService } from '../../../core/services/water-reminder.serv
 
       .nudge-body {
         margin: 0;
-        font-size: 12px;
+        font-size: 13px;
         line-height: 1.45;
         color: var(--color-text-secondary);
       }
@@ -162,7 +162,7 @@ import { WaterReminderService } from '../../../core/services/water-reminder.serv
         border-left: 2px solid rgba(6, 182, 212, 0.5);
         border-radius: 0 8px 8px 0;
         background: rgba(6, 182, 212, 0.08);
-        font-size: 12px;
+        font-size: 13px;
         font-style: italic;
         line-height: 1.5;
         color: var(--color-text-primary);
@@ -181,7 +181,7 @@ import { WaterReminderService } from '../../../core/services/water-reminder.serv
         border: 1px solid var(--glass-border);
         background: var(--glass-bg);
         color: var(--color-text-secondary);
-        font-size: 12px;
+        font-size: 13px;
         font-weight: 600;
         cursor: pointer;
         transition: background 0.2s, color 0.2s;

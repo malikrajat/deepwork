@@ -301,7 +301,7 @@ import { MicButtonComponent } from '../mic-button/mic-button.component';
         font-weight: 700;
       }
       .qa-sub {
-        font-size: 12px;
+        font-size: 13px;
         color: var(--color-text-muted);
         margin-top: 3px;
       }
@@ -349,7 +349,7 @@ import { MicButtonComponent } from '../mic-button/mic-button.component';
       .qa-info-line {
         display: flex;
         gap: 10px;
-        font-size: 12px;
+        font-size: 13px;
         line-height: 1.45;
         color: var(--color-text-secondary);
       }
@@ -359,7 +359,7 @@ import { MicButtonComponent } from '../mic-button/mic-button.component';
       .qa-tag {
         flex-shrink: 0;
         width: 68px;
-        font-size: 11px;
+        font-size: 12px;
         font-weight: 700;
         letter-spacing: 0.04em;
         text-transform: uppercase;
@@ -379,7 +379,7 @@ import { MicButtonComponent } from '../mic-button/mic-button.component';
         flex-wrap: wrap;
       }
       .qa-preview-head h3 {
-        font-size: 13px;
+        font-size: 14px;
         font-weight: 700;
       }
 
@@ -393,7 +393,7 @@ import { MicButtonComponent } from '../mic-button/mic-button.component';
         display: flex;
         align-items: center;
         gap: 6px;
-        font-size: 11px;
+        font-size: 12px;
         font-weight: 600;
         color: var(--color-text-muted);
       }
@@ -404,7 +404,7 @@ import { MicButtonComponent } from '../mic-button/mic-button.component';
       }
       .qa-count {
         margin-left: auto;
-        font-size: 10px;
+        font-size: 12px;
         font-variant-numeric: tabular-nums;
       }
 
@@ -445,7 +445,7 @@ import { MicButtonComponent } from '../mic-button/mic-button.component';
         padding: 9px 12px;
         color: var(--color-text-primary);
         font: inherit;
-        font-size: 13px;
+        font-size: 14px;
         outline: none;
         resize: vertical;
       }
@@ -467,7 +467,7 @@ import { MicButtonComponent } from '../mic-button/mic-button.component';
         background: transparent;
         color: var(--color-text-secondary);
         font: inherit;
-        font-size: 12px;
+        font-size: 13px;
         font-weight: 600;
         cursor: pointer;
         padding: 2px 0;
@@ -492,7 +492,7 @@ import { MicButtonComponent } from '../mic-button/mic-button.component';
         width: 100%;
       }
       .qa-note {
-        font-size: 11px;
+        font-size: 12px;
         color: var(--color-text-muted);
       }
       .qa-note strong {
@@ -511,7 +511,7 @@ import { MicButtonComponent } from '../mic-button/mic-button.component';
         border-radius: 10px;
         border: none;
         font: inherit;
-        font-size: 13px;
+        font-size: 14px;
         font-weight: 600;
         cursor: pointer;
       }

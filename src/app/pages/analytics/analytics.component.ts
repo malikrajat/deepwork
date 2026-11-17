@@ -120,7 +120,7 @@ import { journalText } from '../../core/utils/journal-content.util';
       </h3>
       <div class="heatmap-wrap">
         <div class="heat-weekdays">
-          @for (name of weekdayNames; track name) {
+          @for (name of weekdayNames; track $index) {
             <span>{{ name }}</span>
           }
         </div>
@@ -391,7 +391,7 @@ import { journalText } from '../../core/utils/journal-content.util';
         flex-wrap: wrap;
       }
       .pill {
-        font-size: 10px;
+        font-size: 12px;
         padding: 4px 10px;
         border-radius: 999px;
         background: var(--glass-bg);
@@ -426,7 +426,7 @@ import { journalText } from '../../core/utils/journal-content.util';
         border-radius: 14px;
       }
       .kpi-label {
-        font-size: 10px;
+        font-size: 12px;
         text-transform: uppercase;
         letter-spacing: 0.06em;
         color: var(--color-text-muted);
@@ -439,13 +439,10 @@ import { journalText } from '../../core/utils/journal-content.util';
       .kpi-value {
         font-size: 22px;
         font-weight: 800;
-        background: linear-gradient(135deg, #8b5cf6, #06b6d4);
-        -webkit-background-clip: text;
-        background-clip: text;
-        -webkit-text-fill-color: transparent;
+        color: var(--color-text-primary);
       }
       .kpi-delta {
-        font-size: 11px;
+        font-size: 12px;
         font-weight: 700;
         padding: 1px 6px;
         border-radius: 999px;
@@ -469,7 +466,7 @@ import { journalText } from '../../core/utils/journal-content.util';
         vector-effect: non-scaling-stroke;
       }
       .kpi-hint {
-        font-size: 10px;
+        font-size: 12px;
         color: var(--color-text-muted);
       }
 
@@ -493,12 +490,12 @@ import { journalText } from '../../core/utils/journal-content.util';
         flex-wrap: wrap;
       }
       .title-note {
-        font-size: 10px;
+        font-size: 12px;
         font-weight: 500;
         color: var(--color-text-muted);
       }
       .empty-note {
-        font-size: 12px;
+        font-size: 13px;
         color: var(--color-text-muted);
         line-height: 1.6;
       }
@@ -527,7 +524,7 @@ import { journalText } from '../../core/utils/journal-content.util';
       .insight-list li {
         position: relative;
         padding-left: 18px;
-        font-size: 12px;
+        font-size: 13px;
         line-height: 1.55;
         color: var(--color-text-secondary);
       }
@@ -551,7 +548,7 @@ import { journalText } from '../../core/utils/journal-content.util';
         display: grid;
         grid-template-rows: repeat(7, 12px);
         gap: 3px;
-        font-size: 10px;
+        font-size: 12px;
         color: var(--color-text-muted);
         align-items: center;
       }
@@ -594,11 +591,11 @@ import { journalText } from '../../core/utils/journal-content.util';
         margin-top: 10px;
       }
       .legend-label {
-        font-size: 10px;
+        font-size: 12px;
         color: var(--color-text-muted);
       }
       .legend-scale {
-        font-size: 10px;
+        font-size: 12px;
         color: var(--color-text-muted);
         margin-left: 8px;
       }
@@ -644,12 +641,12 @@ import { journalText } from '../../core/utils/journal-content.util';
         border-color: rgba(236, 72, 153, 0.3);
       }
       .bar-value {
-        font-size: 10px;
+        font-size: 12px;
         color: var(--color-text-muted);
         white-space: nowrap;
       }
       .bar-label {
-        font-size: 10px;
+        font-size: 12px;
         color: var(--color-text-muted);
       }
       .flow-pair {
@@ -674,7 +671,7 @@ import { journalText } from '../../core/utils/journal-content.util';
         align-items: center;
         gap: 6px;
         margin-top: 10px;
-        font-size: 10px;
+        font-size: 12px;
         color: var(--color-text-muted);
       }
       .legend-dot {
@@ -699,7 +696,7 @@ import { journalText } from '../../core/utils/journal-content.util';
         margin-bottom: 10px;
       }
       .quad-name {
-        font-size: 11px;
+        font-size: 12px;
         color: var(--color-text-secondary);
         width: 112px;
         flex-shrink: 0;
@@ -718,7 +715,7 @@ import { journalText } from '../../core/utils/journal-content.util';
         transition: width 0.4s ease;
       }
       .quad-numbers {
-        font-size: 10px;
+        font-size: 12px;
         color: var(--color-text-muted);
         width: 92px;
         text-align: right;
@@ -736,7 +733,7 @@ import { journalText } from '../../core/utils/journal-content.util';
         font-size: 15px;
       }
       .habit-name {
-        font-size: 12px;
+        font-size: 13px;
         font-weight: 600;
         color: var(--color-text-primary);
         width: 92px;
@@ -768,11 +765,11 @@ import { journalText } from '../../core/utils/journal-content.util';
         flex-shrink: 0;
       }
       .habit-stats strong {
-        font-size: 12px;
+        font-size: 13px;
         color: var(--color-text-primary);
       }
       .habit-stats small {
-        font-size: 10px;
+        font-size: 12px;
         color: var(--color-text-muted);
       }
 
@@ -794,14 +791,14 @@ import { journalText } from '../../core/utils/journal-content.util';
         color: var(--color-text-primary);
       }
       .js-label {
-        font-size: 10px;
+        font-size: 12px;
         color: var(--color-text-muted);
         text-transform: uppercase;
         letter-spacing: 0.05em;
       }
       .journal-note {
         margin-top: 12px;
-        font-size: 11px;
+        font-size: 12px;
         line-height: 1.55;
         color: var(--color-text-secondary);
       }
@@ -836,19 +833,19 @@ import { journalText } from '../../core/utils/journal-content.util';
         min-width: 0;
       }
       .session-task {
-        font-size: 12px;
+        font-size: 13px;
         font-weight: 500;
         overflow: hidden;
         text-overflow: ellipsis;
         white-space: nowrap;
       }
       .session-time {
-        font-size: 11px;
+        font-size: 12px;
         color: var(--color-text-muted);
         margin-top: 2px;
       }
       .interrupted-badge {
-        font-size: 10px;
+        font-size: 12px;
         padding: 2px 8px;
         border-radius: 10px;
         flex-shrink: 0;
@@ -992,10 +989,10 @@ import { journalText } from '../../core/utils/journal-content.util';
           font-size: 28px;
         }
         .kpi-label {
-          font-size: 12px;
+          font-size: 13px;
         }
         .kpi-delta {
-          font-size: 13px;
+          font-size: 14px;
         }
 
         /* The card headings, the readings that follow them and the per-bar
@@ -1004,7 +1001,7 @@ import { journalText } from '../../core/utils/journal-content.util';
           font-size: 17px;
         }
         .title-note {
-          font-size: 12px;
+          font-size: 13px;
         }
         .insight-list li,
         .empty-note {
@@ -1012,7 +1009,7 @@ import { journalText } from '../../core/utils/journal-content.util';
         }
         .bar-label,
         .bar-value {
-          font-size: 12px;
+          font-size: 13px;
         }
 
         /* The heatmap is the one figure on the page built from fixed-size parts:

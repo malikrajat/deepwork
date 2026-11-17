@@ -412,7 +412,7 @@ function todayIso(): string {
         color: var(--color-text-primary);
       }
       .journal-stats .stat-label {
-        font-size: 10px;
+        font-size: 12px;
         color: var(--color-text-muted);
         text-transform: uppercase;
         letter-spacing: 0.05em;
@@ -432,7 +432,7 @@ function todayIso(): string {
         background: linear-gradient(to top, rgba(236, 72, 153, 0.35), rgba(236, 72, 153, 0.75));
       }
       .journal-reading {
-        font-size: 12px;
+        font-size: 13px;
         line-height: 1.55;
         color: var(--color-text-secondary);
         margin-bottom: 12px;
@@ -453,7 +453,7 @@ function todayIso(): string {
         color: var(--color-text-primary);
       }
       .stat-label {
-        font-size: 10px;
+        font-size: 12px;
         color: var(--color-text-muted);
         text-transform: uppercase;
         letter-spacing: 0.04em;
@@ -540,7 +540,7 @@ function todayIso(): string {
         background: none;
         border: none;
         color: rgb(236, 72, 153);
-        font-size: 10px;
+        font-size: 12px;
         cursor: pointer;
         padding: 0;
       }
@@ -575,7 +575,7 @@ function todayIso(): string {
         flex-wrap: wrap;
       }
       .save-indicator {
-        font-size: 11px;
+        font-size: 12px;
         color: var(--color-text-muted);
       }
       .save-indicator.saved {
@@ -585,7 +585,7 @@ function todayIso(): string {
         background: none;
         border: 1px solid rgba(239, 68, 68, 0.25);
         color: rgb(239, 68, 68);
-        font-size: 11px;
+        font-size: 12px;
         padding: 3px 8px;
         border-radius: 8px;
         cursor: pointer;
@@ -611,7 +611,7 @@ function todayIso(): string {
         cursor: pointer;
         border-radius: 999px;
         padding: 3px 10px;
-        font-size: 11px;
+        font-size: 12px;
         font-weight: 600;
         color: var(--color-text-muted);
         transition:
@@ -646,7 +646,7 @@ function todayIso(): string {
       }
       .read-empty {
         color: var(--color-text-muted);
-        font-size: 13px;
+        font-size: 14px;
         line-height: 1.7;
         padding: 8px 0;
         max-width: 60ch;
@@ -657,7 +657,7 @@ function todayIso(): string {
         justify-content: space-between;
         align-items: center;
         margin-top: 8px;
-        font-size: 11px;
+        font-size: 12px;
         color: var(--color-text-muted);
         gap: 10px;
       }
@@ -671,7 +671,7 @@ function todayIso(): string {
         background: none;
         border: none;
         color: rgb(236, 72, 153);
-        font-size: 11px;
+        font-size: 12px;
         cursor: pointer;
         padding: 0;
       }
@@ -715,14 +715,14 @@ function todayIso(): string {
         margin-bottom: 10px;
       }
       .preview-title {
-        font-size: 12px;
+        font-size: 13px;
         font-weight: 600;
         text-transform: uppercase;
         letter-spacing: 0.05em;
         color: var(--color-text-secondary);
       }
       .read-badge {
-        font-size: 10px;
+        font-size: 12px;
         font-weight: 700;
         letter-spacing: 0.04em;
         text-transform: uppercase;
@@ -733,7 +733,7 @@ function todayIso(): string {
       }
       .preview-date {
         margin-left: auto;
-        font-size: 11px;
+        font-size: 12px;
         color: var(--color-text-muted);
         white-space: nowrap;
       }
@@ -748,7 +748,7 @@ function todayIso(): string {
         flex-direction: column;
       }
       .sidebar-title {
-        font-size: 13px;
+        font-size: 14px;
         font-weight: 600;
         margin-bottom: 12px;
         color: var(--color-text-secondary);
@@ -764,7 +764,7 @@ function todayIso(): string {
         width: 100%;
         padding: 8px 28px 8px 10px;
         border-radius: 10px;
-        font-size: 12px;
+        font-size: 13px;
         border: 1px solid rgba(236, 72, 153, 0.1);
         background: var(--control-bg);
         color: var(--color-text-primary);
@@ -824,7 +824,7 @@ function todayIso(): string {
         gap: 8px;
       }
       .sidebar-count {
-        font-size: 10px;
+        font-size: 12px;
         padding: 1px 7px;
         border-radius: 999px;
         background: rgba(255, 255, 255, 0.06);
@@ -839,14 +839,14 @@ function todayIso(): string {
         border-color: rgba(236, 72, 153, 0.2);
       }
       .entry-date {
-        font-size: 12px;
+        font-size: 13px;
         font-weight: 600;
         display: flex;
         align-items: center;
         gap: 6px;
       }
       .today-badge {
-        font-size: 10px;
+        font-size: 12px;
         font-weight: 700;
         color: rgb(236, 72, 153);
         background: rgba(236, 72, 153, 0.1);
@@ -854,7 +854,7 @@ function todayIso(): string {
         border-radius: 6px;
       }
       .entry-preview {
-        font-size: 11px;
+        font-size: 12px;
         color: var(--color-text-muted);
         overflow: hidden;
         text-overflow: ellipsis;
@@ -864,7 +864,7 @@ function todayIso(): string {
       .no-entries {
         text-align: center;
         color: var(--color-text-muted);
-        font-size: 13px;
+        font-size: 14px;
         padding: 16px 0;
       }
 
@@ -1012,7 +1012,7 @@ function todayIso(): string {
         .journal-stats .stat-label,
         .journal-reading,
         .entry-preview {
-          font-size: 13px;
+          font-size: 14px;
         }
         .editor-date {
           font-size: 17px;
@@ -1029,13 +1029,13 @@ function todayIso(): string {
         .editor-footer,
         .save-indicator,
         .delete-btn {
-          font-size: 13px;
+          font-size: 14px;
         }
         .today-link {
-          font-size: 12px;
+          font-size: 13px;
         }
         .word-count {
-          font-size: 13px;
+          font-size: 14px;
         }
       }
 
@@ -1117,7 +1117,7 @@ function todayIso(): string {
         height: 24px;
         border-radius: 7px;
         color: var(--color-text-secondary);
-        font-size: 12px;
+        font-size: 13px;
       }
 
       /* A fingertip is bigger than a toolbar button, and this row is the one
@@ -1130,7 +1130,7 @@ function todayIso(): string {
         }
         .journal-editor ::ng-deep .ng-rm-editor-wrapper .toolbar-select {
           height: 36px;
-          font-size: 12px;
+          font-size: 13px;
         }
       }
 
@@ -1155,7 +1155,7 @@ function todayIso(): string {
         border: 1px solid rgba(236, 72, 153, 0.14);
         background: var(--control-bg);
         color: var(--color-text-primary);
-        font-size: 11px;
+        font-size: 12px;
         font-family: var(--font-sans);
       }
 
@@ -1370,7 +1370,7 @@ function todayIso(): string {
 
       .preview-surface ::ng-deep code {
         font-family: var(--font-mono);
-        font-size: 13px;
+        font-size: 14px;
         background: var(--control-bg);
         padding: 0.1em 0.35em;
         border-radius: 4px;
@@ -1398,7 +1398,7 @@ function todayIso(): string {
         width: 100%;
         margin: 0 0 1em;
         border-collapse: collapse;
-        font-size: 13px;
+        font-size: 14px;
       }
 
       .preview-surface ::ng-deep th,

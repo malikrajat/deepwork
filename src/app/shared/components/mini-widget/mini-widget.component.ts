@@ -412,7 +412,7 @@ const RING_GRADIENT: Record<TimerType, string> = {
     .mini-time {
       position: relative;
       font-family: var(--font-mono);
-      font-size: 12px;
+      font-size: 13px;
       font-weight: 700;
       font-variant-numeric: tabular-nums;
       letter-spacing: 0;

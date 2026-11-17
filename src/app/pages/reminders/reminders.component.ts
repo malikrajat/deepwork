@@ -394,7 +394,7 @@ const RHYTHMS: readonly ReminderRhythm[] = ['gentle', 'steady', 'insistent'];
 
       .page-subtitle {
         margin: 6px 0 0;
-        font-size: 13px;
+        font-size: 14px;
         color: var(--color-text-secondary);
       }
 
@@ -424,7 +424,7 @@ const RHYTHMS: readonly ReminderRhythm[] = ['gentle', 'steady', 'insistent'];
       }
 
       .stat-label {
-        font-size: 10px;
+        font-size: 12px;
         font-weight: 600;
         letter-spacing: 0.04em;
         text-transform: uppercase;
@@ -434,7 +434,7 @@ const RHYTHMS: readonly ReminderRhythm[] = ['gentle', 'steady', 'insistent'];
       .reading {
         margin: 0 0 var(--space-lg);
         max-width: 78ch;
-        font-size: 13px;
+        font-size: 14px;
         line-height: 1.55;
         color: var(--color-text-secondary);
       }
@@ -472,7 +472,7 @@ const RHYTHMS: readonly ReminderRhythm[] = ['gentle', 'steady', 'insistent'];
       }
 
       .panel-note {
-        font-size: 11px;
+        font-size: 12px;
         color: var(--color-text-muted);
       }
 
@@ -484,7 +484,7 @@ const RHYTHMS: readonly ReminderRhythm[] = ['gentle', 'steady', 'insistent'];
       }
 
       .field-label {
-        font-size: 11px;
+        font-size: 12px;
         font-weight: 600;
         letter-spacing: 0.02em;
         color: var(--color-text-secondary);
@@ -504,7 +504,7 @@ const RHYTHMS: readonly ReminderRhythm[] = ['gentle', 'steady', 'insistent'];
         background: rgba(255, 255, 255, 0.035);
         color: var(--color-text-primary);
         font: inherit;
-        font-size: 13px;
+        font-size: 14px;
         outline: none;
         transition:
           border-color 0.2s,
@@ -522,7 +522,7 @@ const RHYTHMS: readonly ReminderRhythm[] = ['gentle', 'steady', 'insistent'];
 
       .mono {
         font-family: var(--font-mono, monospace);
-        font-size: 12px;
+        font-size: 13px;
       }
 
       .when-row {
@@ -551,7 +551,7 @@ const RHYTHMS: readonly ReminderRhythm[] = ['gentle', 'steady', 'insistent'];
         background: var(--glass-bg);
         color: var(--color-text-secondary);
         font: inherit;
-        font-size: 12px;
+        font-size: 13px;
         font-weight: 600;
         cursor: pointer;
         transition:
@@ -573,7 +573,7 @@ const RHYTHMS: readonly ReminderRhythm[] = ['gentle', 'steady', 'insistent'];
 
       .rhythm-hint {
         margin: 7px 0 0;
-        font-size: 11px;
+        font-size: 12px;
         line-height: 1.45;
         color: var(--color-text-muted);
       }
@@ -584,7 +584,7 @@ const RHYTHMS: readonly ReminderRhythm[] = ['gentle', 'steady', 'insistent'];
         border-radius: 8px;
         background: rgba(139, 92, 246, 0.08);
         border: 1px solid rgba(139, 92, 246, 0.18);
-        font-size: 11px;
+        font-size: 12px;
         line-height: 1.45;
         color: var(--color-text-secondary);
       }
@@ -596,7 +596,7 @@ const RHYTHMS: readonly ReminderRhythm[] = ['gentle', 'steady', 'insistent'];
 
       .form-error {
         margin: 10px 0 0;
-        font-size: 12px;
+        font-size: 13px;
         font-weight: 600;
         color: #fca5a5;
       }
@@ -614,7 +614,7 @@ const RHYTHMS: readonly ReminderRhythm[] = ['gentle', 'steady', 'insistent'];
         background: var(--glass-bg);
         color: var(--color-text-secondary);
         font: inherit;
-        font-size: 12px;
+        font-size: 13px;
         font-weight: 600;
         cursor: pointer;
         transition:
@@ -653,7 +653,7 @@ const RHYTHMS: readonly ReminderRhythm[] = ['gentle', 'steady', 'insistent'];
         background: transparent;
         color: var(--color-text-muted);
         font: inherit;
-        font-size: 10px;
+        font-size: 12px;
         cursor: pointer;
         transition:
           color 0.2s,
@@ -685,7 +685,7 @@ const RHYTHMS: readonly ReminderRhythm[] = ['gentle', 'steady', 'insistent'];
 
       .promise-lead {
         margin: 8px 0 14px;
-        font-size: 12px;
+        font-size: 13px;
         line-height: 1.55;
         color: var(--color-text-secondary);
       }
@@ -703,7 +703,7 @@ const RHYTHMS: readonly ReminderRhythm[] = ['gentle', 'steady', 'insistent'];
         display: flex;
         align-items: flex-start;
         gap: 9px;
-        font-size: 12px;
+        font-size: 13px;
         line-height: 1.5;
         color: var(--color-text-secondary);
       }
@@ -726,7 +726,7 @@ const RHYTHMS: readonly ReminderRhythm[] = ['gentle', 'steady', 'insistent'];
         margin: 16px 0 0;
         padding-top: 12px;
         border-top: 1px solid var(--glass-border);
-        font-size: 11px;
+        font-size: 12px;
         font-style: italic;
         line-height: 1.55;
         color: var(--color-text-muted);
@@ -759,7 +759,7 @@ const RHYTHMS: readonly ReminderRhythm[] = ['gentle', 'steady', 'insistent'];
       .empty p {
         margin: 0;
         max-width: 54ch;
-        font-size: 12px;
+        font-size: 13px;
         line-height: 1.6;
         color: var(--color-text-secondary);
       }
@@ -791,13 +791,13 @@ const RHYTHMS: readonly ReminderRhythm[] = ['gentle', 'steady', 'insistent'];
         border-radius: 999px;
         background: var(--glass-bg);
         border: 1px solid var(--glass-border);
-        font-size: 10px;
+        font-size: 12px;
         font-weight: 700;
         color: var(--color-text-muted);
       }
 
       .list-note {
-        font-size: 11px;
+        font-size: 12px;
         color: var(--color-text-muted);
       }
 
@@ -806,7 +806,7 @@ const RHYTHMS: readonly ReminderRhythm[] = ['gentle', 'steady', 'insistent'];
         background: none;
         padding: 0;
         font: inherit;
-        font-size: 11px;
+        font-size: 12px;
         color: var(--color-text-muted);
         cursor: pointer;
         text-decoration: underline;
@@ -870,7 +870,7 @@ const RHYTHMS: readonly ReminderRhythm[] = ['gentle', 'steady', 'insistent'];
         border-radius: 7px;
         background: var(--glass-bg);
         color: var(--color-text-muted);
-        font-size: 13px;
+        font-size: 14px;
         font-weight: 700;
       }
 
@@ -889,7 +889,7 @@ const RHYTHMS: readonly ReminderRhythm[] = ['gentle', 'steady', 'insistent'];
 
       .row-title {
         margin: 0;
-        font-size: 13px;
+        font-size: 14px;
         font-weight: 650;
         line-height: 1.35;
         color: var(--color-text-primary);
@@ -898,7 +898,7 @@ const RHYTHMS: readonly ReminderRhythm[] = ['gentle', 'steady', 'insistent'];
 
       .row-note {
         margin: 2px 0 0;
-        font-size: 11px;
+        font-size: 12px;
         line-height: 1.4;
         color: var(--color-text-secondary);
         overflow-wrap: anywhere;
@@ -906,7 +906,7 @@ const RHYTHMS: readonly ReminderRhythm[] = ['gentle', 'steady', 'insistent'];
 
       .row-meta {
         margin: 3px 0 0;
-        font-size: 10px;
+        font-size: 12px;
         color: var(--color-text-muted);
       }
 
@@ -924,7 +924,7 @@ const RHYTHMS: readonly ReminderRhythm[] = ['gentle', 'steady', 'insistent'];
         background: var(--glass-bg);
         color: var(--color-text-secondary);
         font: inherit;
-        font-size: 11px;
+        font-size: 12px;
         font-weight: 600;
         cursor: pointer;
         transition:
@@ -952,7 +952,7 @@ const RHYTHMS: readonly ReminderRhythm[] = ['gentle', 'steady', 'insistent'];
         padding: 3px 9px;
         border-radius: 999px;
         border: 1px dashed var(--glass-border);
-        font-size: 10px;
+        font-size: 12px;
         color: var(--color-text-muted);
       }
 

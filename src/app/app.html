@@ -1,3 +1,7 @@
+<!-- Keyboard users land here first: one Tab reaches the page content without
+     walking through every navigation row. It is invisible until focused. -->
+<a class="skip-link" href="#main-content">Skip to content</a>
+
 <!-- The database could not be read: the app is not shown at all. This sits above
      everything, including the mini widget, because an app with no database has
      nothing to be small about. -->
@@ -210,7 +214,7 @@
         [attr.aria-hidden]="drawerIsInert() ? 'true' : null"
       />
     }
-    <main class="main-content">
+    <main class="main-content" id="main-content" tabindex="-1">
       @if (ui.focusMode()) {
         <button class="exit-focus-btn" (click)="ui.exitFocusMode()">
           <svg

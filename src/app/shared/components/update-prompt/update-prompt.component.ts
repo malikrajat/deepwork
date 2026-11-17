@@ -209,13 +209,13 @@ import { ExternalLinkDirective } from '../../directives/external-link.directive'
       }
 
       .prompt-detail {
-        font-size: 12px;
+        font-size: 13px;
         line-height: 1.55;
         color: var(--color-text-secondary);
       }
 
       .prompt-error {
-        font-size: 12px;
+        font-size: 13px;
         line-height: 1.55;
         color: var(--color-danger);
       }
@@ -280,7 +280,7 @@ import { ExternalLinkDirective } from '../../directives/external-link.directive'
         border: 1px solid var(--glass-border);
         background: var(--glass-bg);
         color: var(--color-text-secondary);
-        font-size: 12px;
+        font-size: 13px;
         font-weight: 600;
         text-decoration: none;
         text-align: center;

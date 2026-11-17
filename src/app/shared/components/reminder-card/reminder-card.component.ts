@@ -172,7 +172,7 @@ import {
       }
 
       .reminder-eyebrow {
-        font-size: 10px;
+        font-size: 12px;
         font-weight: 700;
         letter-spacing: 0.08em;
         text-transform: uppercase;
@@ -190,7 +190,7 @@ import {
 
       .reminder-body {
         margin: 0;
-        font-size: 12px;
+        font-size: 13px;
         line-height: 1.45;
         color: var(--color-text-secondary);
         overflow-wrap: anywhere;
@@ -198,7 +198,7 @@ import {
 
       .reminder-meta {
         margin: 2px 0 0;
-        font-size: 10px;
+        font-size: 12px;
         font-weight: 600;
         letter-spacing: 0.02em;
         color: var(--color-text-muted);
@@ -214,7 +214,7 @@ import {
         border-left: 2px solid rgba(251, 191, 36, 0.5);
         border-radius: 0 8px 8px 0;
         background: rgba(251, 191, 36, 0.07);
-        font-size: 12px;
+        font-size: 13px;
         font-style: italic;
         line-height: 1.5;
         color: var(--color-text-primary);
@@ -236,7 +236,7 @@ import {
         background: var(--glass-bg);
         color: var(--color-text-secondary);
         font: inherit;
-        font-size: 12px;
+        font-size: 13px;
         font-weight: 600;
         cursor: pointer;
         transition:
@@ -268,7 +268,7 @@ import {
 
       .reminder-foot {
         margin: 0;
-        font-size: 10px;
+        font-size: 12px;
         line-height: 1.4;
         color: var(--color-text-muted);
       }

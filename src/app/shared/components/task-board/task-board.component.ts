@@ -518,13 +518,13 @@ interface BoardContextMenu {
         flex-shrink: 0;
       }
       .column-title {
-        font-size: 12px;
+        font-size: 13px;
         font-weight: 700;
         letter-spacing: 0.02em;
       }
       .column-count {
         margin-left: auto;
-        font-size: 10px;
+        font-size: 12px;
         padding: 1px 8px;
         border-radius: 999px;
         background: rgba(255, 255, 255, 0.06);
@@ -549,7 +549,7 @@ interface BoardContextMenu {
         border-radius: 4px;
       }
       .column-empty {
-        font-size: 12px;
+        font-size: 13px;
         color: var(--color-text-muted);
         text-align: center;
         padding: 18px 8px;
@@ -606,7 +606,7 @@ interface BoardContextMenu {
         opacity: 0.85;
       }
       .order-num {
-        font-size: 10px;
+        font-size: 12px;
         font-weight: 700;
         font-family: var(--font-mono);
         color: var(--color-text-muted);
@@ -625,7 +625,7 @@ interface BoardContextMenu {
       .card-title {
         display: block;
         min-width: 0;
-        font-size: 13px;
+        font-size: 14px;
         font-weight: 500;
         line-height: 1.3;
         color: var(--color-text-primary);
@@ -644,7 +644,7 @@ interface BoardContextMenu {
         display: inline-flex;
         align-items: center;
         gap: 3px;
-        font-size: 10px;
+        font-size: 12px;
         padding: 0 5px;
         border-radius: 6px;
         white-space: nowrap;
@@ -678,7 +678,7 @@ interface BoardContextMenu {
         flex-shrink: 0;
       }
       .priority-badge {
-        font-size: 10px;
+        font-size: 12px;
         font-weight: 700;
         font-family: var(--font-mono);
         padding: 1px 5px;
@@ -891,14 +891,14 @@ interface BoardContextMenu {
         -webkit-box-orient: vertical;
         overflow: hidden;
         overflow-wrap: anywhere;
-        font-size: 12px;
+        font-size: 13px;
         font-weight: 700;
         color: var(--color-text-primary);
       }
       .menu-subtitle {
         display: block;
         margin-top: 3px;
-        font-size: 10px;
+        font-size: 12px;
         color: var(--color-text-muted);
       }
       .menu-section {
@@ -912,7 +912,7 @@ interface BoardContextMenu {
       .menu-section-title {
         display: block;
         padding: 2px 10px 6px;
-        font-size: 10px;
+        font-size: 12px;
         font-weight: 700;
         text-transform: uppercase;
         letter-spacing: 0.08em;
@@ -962,14 +962,14 @@ interface BoardContextMenu {
         background: var(--priority-p2-color);
       }
       .menu-option-label {
-        font-size: 12px;
+        font-size: 13px;
         font-weight: 600;
         color: var(--color-text-primary);
         white-space: nowrap;
       }
       .menu-option-desc {
         margin-left: auto;
-        font-size: 10px;
+        font-size: 12px;
         color: var(--color-text-muted);
         text-align: right;
         white-space: nowrap;

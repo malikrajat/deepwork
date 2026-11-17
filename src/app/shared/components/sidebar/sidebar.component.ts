@@ -269,10 +269,8 @@ const ABOUT_SECTION_PATHS = new Set(['/contact', '/privacy', '/terms']);
         font-size: 18px;
         font-weight: 700;
         white-space: nowrap;
-        background: var(--color-accent-gradient);
-        -webkit-background-clip: text;
-        -webkit-text-fill-color: transparent;
-        background-clip: text;
+        color: var(--color-accent-primary);
+        -webkit-text-fill-color: currentColor;
       }
       .nav-list {
         list-style: none;
@@ -416,7 +414,7 @@ const ABOUT_SECTION_PATHS = new Set(['/contact', '/privacy', '/terms']);
         line-height: 1.25;
       }
       .quiet-name {
-        font-size: 12px;
+        font-size: 13px;
         font-weight: 600;
         color: inherit;
         overflow: hidden;
@@ -424,7 +422,7 @@ const ABOUT_SECTION_PATHS = new Set(['/contact', '/privacy', '/terms']);
         white-space: nowrap;
       }
       .quiet-hint {
-        font-size: 10px;
+        font-size: 12px;
         color: var(--color-text-muted);
       }
       .version-badge {
@@ -432,7 +430,7 @@ const ABOUT_SECTION_PATHS = new Set(['/contact', '/privacy', '/terms']);
         align-items: center;
         justify-content: center;
         gap: 6px;
-        font-size: 11px;
+        font-size: 12px;
         color: var(--color-text-muted);
         padding: 4px 10px;
         background: var(--glass-bg);
@@ -448,7 +446,7 @@ const ABOUT_SECTION_PATHS = new Set(['/contact', '/privacy', '/terms']);
       .update-pill {
         padding: 1px 7px;
         border-radius: 999px;
-        font-size: 10px;
+        font-size: 12px;
         font-weight: 700;
         color: #0b1020;
         background: var(--color-accent-secondary);

@@ -82,7 +82,7 @@
             "applicationCategory": "ProductivityApplication",
             "applicationSubCategory": "Pomodoro timer, task manager, habit tracker",
             "operatingSystem": "Windows, macOS, Linux, Web browser",
-            "softwareVersion": "3.1.0",
+            "softwareVersion": "3.3.0",
             "isAccessibleForFree": true,
             "browserRequirements": "Requires JavaScript. Installable as a PWA.",
             "description": "A free, local-first focus timer and task manager. Pomodoro sessions, a task board, an Eisenhower matrix, Time by Task reporting, habits, journalling and standing reminders, stored in the visitor's own browser or in a local SQLite database on the desktop.",
@@ -125,6 +125,20 @@
     </script>
     <link rel="icon" type="image/svg+xml" href="favicon.svg" />
     <link rel="alternate icon" type="image/x-icon" href="favicon.ico" />
+    <!-- The primary face is bundled, so ask for it before the stylesheet does.
+         Without this the first paint uses the fallback system font and swaps to
+         Inter a frame later; the swap is what makes the app look like it is
+         still settling. Relative URL, like the manifest below, so it survives a
+         sub-path deployment. -->
+    <link rel="preload" href="fonts/inter-latin.woff2" as="font" type="font/woff2" crossorigin />
+    <!-- The timer's digits are the other face the first screen needs. -->
+    <link
+      rel="preload"
+      href="fonts/jetbrains-mono-latin.woff2"
+      as="font"
+      type="font/woff2"
+      crossorigin
+    />
     <!-- Relative, not `/…`: the web build has been served from a sub-path in the
        past, where a root-absolute URL is a 404 on somebody else's site — which
        is exactly what stopped this app being installable. Relative URLs resolve
@@ -164,11 +178,11 @@
     <script async src="https://www.googletagmanager.com/gtm.js?id=GTM-PNJRG4WR"></script>
     <script>
       window.dataLayer = window.dataLayer || [];
-      function gtag(){dataLayer.push(arguments);}
+      function gtag() {
+        dataLayer.push(arguments);
+      }
       gtag('js', new Date());
     </script>
-
-
   </head>
   <body>
     <app-root></app-root>

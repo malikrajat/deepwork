@@ -122,7 +122,7 @@ interface LogFile {
         display: flex;
         align-items: center;
         gap: 8px;
-        font-size: 12px;
+        font-size: 13px;
         font-weight: 600;
         text-transform: uppercase;
         letter-spacing: 0.08em;
@@ -150,7 +150,7 @@ interface LogFile {
       .log-path {
         max-width: 320px;
         font-family: 'JetBrains Mono', monospace;
-        font-size: 11px;
+        font-size: 12px;
         line-height: 1.5;
         text-align: right;
         overflow-wrap: anywhere;
@@ -171,7 +171,7 @@ interface LogFile {
         border: 1px solid rgba(139, 92, 246, 0.2);
         background: rgba(139, 92, 246, 0.06);
         color: var(--color-text-primary);
-        font-size: 12px;
+        font-size: 13px;
         font-weight: 500;
         cursor: pointer;
         transition: all 0.2s;
@@ -198,7 +198,7 @@ interface LogFile {
       }
       .log-status {
         margin: 8px 0 0;
-        font-size: 12px;
+        font-size: 13px;
         line-height: 1.5;
         color: var(--color-text-muted);
         min-height: 1.1em;
@@ -218,14 +218,14 @@ interface LogFile {
         display: flex;
         align-items: baseline;
         gap: 10px;
-        font-size: 12px;
+        font-size: 13px;
         line-height: 1.5;
         color: var(--color-text-muted);
       }
       .log-file code {
         flex: 0 0 108px;
         font-family: 'JetBrains Mono', monospace;
-        font-size: 11px;
+        font-size: 12px;
         color: var(--color-text-primary);
       }
       .log-hint {
@@ -233,7 +233,7 @@ interface LogFile {
         flex-direction: column;
         gap: 6px;
         margin: 12px 0 0;
-        font-size: 12px;
+        font-size: 13px;
         line-height: 1.5;
         color: var(--color-text-muted);
       }
