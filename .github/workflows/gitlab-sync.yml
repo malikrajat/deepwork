@@ -1,0 +1,669 @@
+name: GitLab Mirror
+
+# ─────────────────────────────────────────────────────────────────────────────
+# GitHub → GitLab mirror for this repository, and only this repository.
+#
+# This is a mirror, not a fork: GitHub is the source of truth and GitLab is a
+# read-only copy. Branches, tags, deletions and force pushes travel one way.
+# Nothing is ever pushed back to GitHub.
+#
+# WHY IT IS A SEPARATE WORKFLOW
+# It has no `needs`, no `workflow_run`, no `if:` on another job's result and no
+# dependency on `ci.yml`. A failing format check, a failing browser audit or a
+# cancelled deploy cannot stop the mirror, because GitHub schedules this file on
+# the push event itself, independently of every other workflow.
+#
+# WHAT IT NEEDS
+#   Secret   GITLAB_TOKEN          personal access token, scopes `api` + `write_repository`
+#   Variable GITLAB_HOST           default `gitlab.com`
+#   Variable GITLAB_NAMESPACE      default: the GitHub account name (`malikrajat`)
+#   Variable GITLAB_PROJECT_PATH   default: the repository name (`deepwork-site`)
+#   Variable GITLAB_AUTO_CREATE    default `true` — create the project if missing
+#
+# WHAT IT DOES NOT DO
+# It never deletes a GitLab project, never overwrites a GitLab repository that it
+# cannot prove is its own mirror, and never runs `git push --mirror` (which would
+# publish `refs/pull/*` and other internal GitHub references).
+# ─────────────────────────────────────────────────────────────────────────────
+
+on:
+  push:
+    branches:
+      - '**'
+    tags:
+      - '**'
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: 'Report the refs that would change without writing to GitLab'
+        type: boolean
+        default: false
+  schedule:
+    # 02:00 Asia/Kolkata. Catches everything that produces no push event:
+    # a visibility flip, an edited description, a tag deleted while the
+    # repository was quiet, or a mirror that fell behind while Actions was
+    # unavailable.
+    - cron: '30 20 * * *'
+
+# The only GitHub data this job reads is its own repository.
+permissions:
+  contents: read
+
+# Every run in this repository is serialised. Two concurrent mirrors of one
+# destination would race: one run's pruning could delete a branch the other run
+# had just pushed. `cancel-in-progress: false` matters too — cancelling a push
+# mid-flight is how a mirror ends up half-updated.
+concurrency:
+  group: gitlab-mirror-${{ github.repository }}
+  cancel-in-progress: false
+
+jobs:
+  mirror:
+    name: Mirror to GitLab
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    env:
+      GITLAB_HOST: ${{ vars.GITLAB_HOST || 'gitlab.com' }}
+      GITLAB_NAMESPACE: ${{ vars.GITLAB_NAMESPACE }}
+      GITLAB_PROJECT_PATH: ${{ vars.GITLAB_PROJECT_PATH }}
+      GITLAB_AUTO_CREATE: ${{ vars.GITLAB_AUTO_CREATE || 'true' }}
+      GITLAB_TOKEN: ${{ secrets.GITLAB_TOKEN }}
+      GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      DRY_RUN: ${{ inputs.dry_run || 'false' }}
+
+    steps:
+      - name: Preflight
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          # Fail before touching anything, with a message that says exactly what
+          # is missing. A missing secret must never look like a successful sync.
+          missing=()
+          [ -n "${GITLAB_TOKEN}" ] || missing+=("GITLAB_TOKEN (secret: Settings → Secrets and variables → Actions)")
+          if [ ${#missing[@]} -gt 0 ]; then
+            echo "::error::Missing configuration: ${missing[*]}"
+            echo "::error::This run belongs to ${GITHUB_REPOSITORY}. Add the token at https://github.com/${GITHUB_REPOSITORY}/settings/secrets/actions — under 'Repository secrets', named exactly GITLAB_TOKEN. A secret on another repository, a repository *variable*, an environment secret, or a Dependabot secret is not visible here."
+            exit 1
+          fi
+
+          # Credentials reach git through an askpass helper, never through a
+          # remote URL: a token in a URL is a token in `git remote -v`, in an
+          # error message, and in this log.
+          mkdir -p "$RUNNER_TEMP/bin"
+          printf '#!/bin/sh\nprintf "%%s\\n" "$GITLAB_TOKEN"\n' > "$RUNNER_TEMP/bin/askpass-gitlab"
+          printf '#!/bin/sh\nprintf "%%s\\n" "$GITHUB_TOKEN"\n' > "$RUNNER_TEMP/bin/askpass-github"
+          chmod 700 "$RUNNER_TEMP/bin/askpass-gitlab" "$RUNNER_TEMP/bin/askpass-github"
+
+          # Resolve the destination once, so every later step agrees on it.
+          {
+            echo "API=https://${GITLAB_HOST}/api/v4"
+            echo "PROJECT_PATH=${GITLAB_PROJECT_PATH:-${GITHUB_REPOSITORY#*/}}"
+            echo "NAMESPACE=${GITLAB_NAMESPACE:-${GITHUB_REPOSITORY_OWNER}}"
+          } >> "$GITHUB_ENV"
+
+          # A token that cannot read its own identity cannot mirror anything.
+          code=$(curl -sS --retry 3 --retry-delay 2 --max-time 30 \
+            -H "PRIVATE-TOKEN: ${GITLAB_TOKEN}" \
+            -o "$RUNNER_TEMP/me.json" -w '%{http_code}' \
+            "https://${GITLAB_HOST}/api/v4/user" || true)
+          case "$code" in
+            200) echo "GitLab identity: $(jq -r '.username' "$RUNNER_TEMP/me.json")" ;;
+            401) echo "::error::GITLAB_TOKEN was rejected by ${GITLAB_HOST} (401). It is expired or revoked."; exit 1 ;;
+            403) echo "::error::GITLAB_TOKEN cannot read its own profile (403). Check the token scopes."; exit 1 ;;
+            *)   echo "::error::Cannot reach ${GITLAB_HOST} API (HTTP ${code:-no response})."; exit 1 ;;
+          esac
+
+          # Git push needs `write_repository`; project creation, metadata,
+          # visibility and releases need `api`. Checking here turns a 403 in the
+          # middle of a mirror into one sentence before anything is written.
+          scopes_code=$(curl -sS --retry 3 --retry-delay 2 --max-time 30 \
+            -H "PRIVATE-TOKEN: ${GITLAB_TOKEN}" \
+            -o "$RUNNER_TEMP/token.json" -w '%{http_code}' \
+            "https://${GITLAB_HOST}/api/v4/personal_access_tokens/self" || true)
+          if [ "$scopes_code" = "200" ]; then
+            scopes=$(jq -r '[(.scopes // [])[]] | join(",")' "$RUNNER_TEMP/token.json")
+            echo "Token scopes: ${scopes:-none}"
+            case ",${scopes}," in
+              *,api,*) : ;;
+              *)
+                echo "::error::GITLAB_TOKEN is missing the 'api' scope (it has: ${scopes:-none}). 'write_repository' allows git push; 'api' is what allows creating a project and syncing metadata, visibility and releases. Create a token with both scopes."
+                exit 1 ;;
+            esac
+          else
+            echo "::warning::Could not read the token's scopes (HTTP ${scopes_code}); continuing, but a later 403 will mean a missing 'api' scope."
+          fi
+
+      # A bare repository is the only honest way to mirror: there is no working
+      # tree to corrupt, no checkout to leave behind, and no `refs/pull/*`.
+      - name: Fetch every ref from GitHub
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          M="$RUNNER_TEMP/mirror.git"
+          git init --bare --quiet "$M"
+          # The username is in the URL; the password (the token) only ever comes
+          # from the askpass helper, so no credential is written to the config.
+          git -C "$M" remote add origin "https://x-access-token@github.com/${GITHUB_REPOSITORY}.git"
+
+          # Explicit refspecs. `--prune` keeps the local mirror free of stale
+          # branches when a run follows a deletion on GitHub.
+          GIT_ASKPASS="$RUNNER_TEMP/bin/askpass-github" GIT_TERMINAL_PROMPT=0 \
+            git -C "$M" fetch --quiet --prune --no-recurse-submodules origin \
+              '+refs/heads/*:refs/heads/*' \
+              '+refs/tags/*:refs/tags/*'
+
+          heads=$(git -C "$M" for-each-ref --format='%(refname)' refs/heads | wc -l)
+          tags=$(git -C "$M" for-each-ref --format='%(refname)' refs/tags | wc -l)
+          echo "GitHub refs: ${heads} branch(es), ${tags} tag(s)"
+
+          {
+            echo "MIRROR_DIR=$M"
+            echo "GH_HEADS=$heads"
+            echo "GH_TAGS=$tags"
+          } >> "$GITHUB_ENV"
+
+          if [ "$heads" -eq 0 ]; then
+            echo "::notice::This repository has no commits yet. Nothing to mirror."
+            echo "EMPTY_REPO=true" >> "$GITHUB_ENV"
+          fi
+
+      - name: Ensure the GitLab project
+        if: env.EMPTY_REPO != 'true'
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [ "${EMPTY_REPO:-false}" = "true" ]; then echo "Empty repository; skipping."; exit 0; fi
+
+          api() {
+            curl -sS --retry 3 --retry-delay 2 --retry-connrefused --max-time 30 \
+              -H "PRIVATE-TOKEN: ${GITLAB_TOKEN}" -H 'Content-Type: application/json' "$@"
+          }
+          gh_api() {
+            curl -sS --retry 3 --retry-delay 2 --max-time 30 \
+              -H "Authorization: Bearer ${GITHUB_TOKEN}" \
+              -H 'Accept: application/vnd.github+json' "https://api.github.com$1"
+          }
+
+          FULL_PATH="${NAMESPACE}/${PROJECT_PATH}"
+          ENCODED=$(jq -rn --arg v "$FULL_PATH" '$v|@uri')
+          echo "Destination: ${GITLAB_HOST}/${FULL_PATH}"
+
+          code=$(api -o "$RUNNER_TEMP/project.json" -w '%{http_code}' "$API/projects/$ENCODED" || true)
+
+          case "$code" in
+            200)
+              echo "Project exists (id $(jq -r '.id' "$RUNNER_TEMP/project.json"))."
+              ;;
+            404)
+              if [ "${GITLAB_AUTO_CREATE}" != "true" ]; then
+                echo "::error::GitLab project ${FULL_PATH} does not exist and GITLAB_AUTO_CREATE is not 'true'."
+                exit 1
+              fi
+              if [ "${DRY_RUN}" = "true" ]; then
+                echo "::notice::[dry run] Would create ${FULL_PATH}."
+                echo "DRY_RUN_ABORT=true" >> "$GITHUB_ENV"
+                exit 0
+              fi
+
+              # Resolve the namespace by exact full path — `search` alone can
+              # return a near-match, and creating the project in the wrong
+              # namespace is unrecoverable without deleting it.
+              NS_JSON=$(api "https://${GITLAB_HOST}/api/v4/namespaces?search=$(jq -rn --arg v "${NAMESPACE}" '$v|@uri')")
+              NS_ID=$(echo "$NS_JSON" | jq -r --arg p "${NAMESPACE}" '[.[] | select(.full_path == $p)][0].id // empty')
+              if [ -z "$NS_ID" ]; then
+                echo "::error::GitLab namespace '${NAMESPACE}' was not found, or GITLAB_TOKEN cannot see it. Set the GITLAB_NAMESPACE variable to a namespace you own."
+                exit 1
+              fi
+
+              gh_api "/repos/${GITHUB_REPOSITORY}" > "$RUNNER_TEMP/gh-repo.json"
+              GH_VIS=$(jq -r '.visibility' "$RUNNER_TEMP/gh-repo.json")
+              case "$GH_VIS" in
+                public) VIS=public ;;
+                private) VIS=private ;;
+                *) echo "::error::Unsupported GitHub visibility '${GH_VIS}'. No automatic mapping exists."; exit 1 ;;
+              esac
+
+              echo "Creating ${FULL_PATH} (visibility: ${VIS})."
+              payload=$(jq -cn \
+                --arg name "$PROJECT_PATH" --arg path "$PROJECT_PATH" --argjson ns "$NS_ID" \
+                --arg desc "$(jq -r '.description // ""' "$RUNNER_TEMP/gh-repo.json")" \
+                --arg vis "$VIS" \
+                '{name:$name, path:$path, namespace_id:$ns, description:$desc, visibility:$vis, initialize_with_readme:false}')
+              api -X POST "https://${GITLAB_HOST}/api/v4/projects" -d "$payload" > "$RUNNER_TEMP/project.json"
+
+              if ! jq -e '.id' "$RUNNER_TEMP/project.json" > /dev/null 2>&1; then
+                echo "::error::GitLab refused to create ${FULL_PATH}: $(jq -r '.message // .error // "unknown error"' "$RUNNER_TEMP/project.json" 2>/dev/null || echo 'see the log above')"
+                exit 1
+              fi
+              ;;
+            401|403)
+              echo "::error::GITLAB_TOKEN cannot read ${FULL_PATH} (HTTP ${code}). The token needs the 'api' scope and at least Developer access to the namespace."
+              exit 1
+              ;;
+            *)
+              echo "::error::Unexpected response from GitLab (HTTP ${code:-no response})."
+              cat "$RUNNER_TEMP/project.json" 2>/dev/null || true
+              exit 1
+              ;;
+          esac
+
+          {
+            echo "PROJECT_ID=$(jq -r '.id' "$RUNNER_TEMP/project.json")"
+            echo "PROJECT_FULL_PATH=$(jq -r '.path_with_namespace' "$RUNNER_TEMP/project.json")"
+          } >> "$GITHUB_ENV"
+
+      # Before the first force push, prove this project is a mirror and not
+      # somebody's work. A name match is not evidence: `deepwork-site` could
+      # already exist on GitLab with a history that GitHub has never seen.
+      - name: Verify the destination is safe to overwrite
+        if: env.EMPTY_REPO != 'true' && env.DRY_RUN_ABORT != 'true'
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [ "${EMPTY_REPO:-false}" = "true" ] || [ "${DRY_RUN_ABORT:-false}" = "true" ]; then
+            echo "Skipping (empty repository or dry run)."; exit 0
+          fi
+
+          api() {
+            curl -sS --retry 3 --retry-delay 2 --max-time 30 \
+              -H "PRIVATE-TOKEN: ${GITLAB_TOKEN}" "$@"
+          }
+
+          branches=$(api "$API/projects/${PROJECT_ID}/repository/branches?per_page=100")
+          count=$(echo "$branches" | jq 'length')
+          if [ "$count" -eq 0 ]; then
+            echo "Destination is empty. Safe to mirror."
+            exit 0
+          fi
+
+          marker=$(api "$API/projects/${PROJECT_ID}/custom_attributes" \
+            | jq -r 'if type=="array" then ([.[]|select(.key=="managed_by")][0].value // "") else "" end' 2>/dev/null || echo "")
+          if [ "$marker" = "github-actions-gitlab-mirror" ]; then
+            echo "Destination is marked as a mirror of this repository."
+            exit 0
+          fi
+
+          # No marker (first run after a token change, or a project made by
+          # hand). A mirror that has been force-pushed leaves branches pointing
+          # at commits GitHub no longer advertises, so "every tip must exist in
+          # GitHub" is too strict — it would refuse forever after one rewrite.
+          # The question that actually matters is whether this project shares
+          # history with GitHub at all. If any branch tip is a commit we just
+          # fetched, it is the same repository and the leftovers are stale
+          # mirror branches, which the push step prunes anyway.
+          shared=0
+          matches=0
+          while read -r sha; do
+            [ -n "$sha" ] || continue
+            matches=$((matches + 1))
+            if git -C "$MIRROR_DIR" cat-file -e "${sha}^{commit}" 2>/dev/null; then
+              shared=1
+            fi
+          done < <(echo "$branches" | jq -r '.[].commit.id')
+
+          if [ "$shared" -eq 0 ]; then
+            echo "::error::GitLab project ${PROJECT_FULL_PATH} shares no commit with GitHub (${matches} branch(es) checked). Refusing to overwrite it: this is somebody else's work, not a mirror. Resolve manually by renaming the GitLab project, or point GITLAB_PROJECT_PATH at a free path."
+            exit 1
+          fi
+
+          echo "Destination shares history with GitHub. Any ref it holds that GitHub does not will be pruned as a stale mirror branch."
+
+      # Visibility is the requirement that cannot be deferred to a push, because
+      # a visibility change produces no push event. It is checked on every run.
+      - name: Sync visibility and metadata
+        if: env.EMPTY_REPO != 'true' && env.DRY_RUN_ABORT != 'true'
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [ "${EMPTY_REPO:-false}" = "true" ] || [ "${DRY_RUN_ABORT:-false}" = "true" ]; then
+            echo "Skipping (empty repository or dry run)."; exit 0
+          fi
+
+          gh_api() {
+            curl -sS --retry 3 --retry-delay 2 --max-time 30 \
+              -H "Authorization: Bearer ${GITHUB_TOKEN}" \
+              -H 'Accept: application/vnd.github+json' "https://api.github.com$1"
+          }
+          api() {
+            curl -sS --retry 3 --retry-delay 2 --max-time 30 \
+              -H "PRIVATE-TOKEN: ${GITLAB_TOKEN}" "$@"
+          }
+
+          gh_api "/repos/${GITHUB_REPOSITORY}" > "$RUNNER_TEMP/gh-repo.json"
+          GH_VIS=$(jq -r '.visibility' "$RUNNER_TEMP/gh-repo.json")
+          case "$GH_VIS" in
+            public)  TARGET_VIS=public ;;
+            private) TARGET_VIS=private ;;
+            internal)
+              echo "::error::GitHub reports visibility 'internal', which has no safe GitLab equivalent. Set an explicit policy before enabling this repository."
+              exit 1 ;;
+            *) echo "::error::Unknown GitHub visibility '${GH_VIS}'."; exit 1 ;;
+          esac
+
+          current=$(api "$API/projects/${PROJECT_ID}" | jq -r '.visibility')
+          echo "GitHub: ${GH_VIS} · GitLab: ${current} → ${TARGET_VIS}"
+
+          # Publishing is only ever allowed because GitHub itself reports
+          # `public` in this same run. Nothing else can make the mirror public.
+          if [ "$TARGET_VIS" = "public" ] && [ "$GH_VIS" != "public" ]; then
+            echo "::error::Refusing to publish ${PROJECT_FULL_PATH}: GitHub does not report it as public."
+            exit 1
+          fi
+
+          NAME=$(jq -r '.name' "$RUNNER_TEMP/gh-repo.json")
+          DESC=$(jq -r '.description // ""' "$RUNNER_TEMP/gh-repo.json")
+          TOPICS=$(jq -r '[(.topics // [])[]] | join(",")' "$RUNNER_TEMP/gh-repo.json")
+          HOMEPAGE=$(jq -r '.homepage // ""' "$RUNNER_TEMP/gh-repo.json")
+          DEF=$(jq -r '.default_branch' "$RUNNER_TEMP/gh-repo.json")
+          echo "GH_DEFAULT_BRANCH=${DEF}" >> "$GITHUB_ENV"
+
+          # A dry run stops before writing, but it is only useful if it still
+          # says what it would do — so the ref comparison keeps running below.
+          if [ "${DRY_RUN}" = "true" ]; then
+            echo "::notice::[dry run] Would set visibility=${TARGET_VIS} (currently ${current}), name=${NAME}, description=${DESC:0:80}, topics=${TOPICS:0:120}"
+            exit 0
+          fi
+
+          # Only the fields below are sent. GitLab settings that have nothing to
+          # do with mirroring (merge methods, CI settings, issue trackers,
+          # integrations) are left exactly as they are.
+          status=$(api -X PUT "$API/projects/${PROJECT_ID}" \
+            --data-urlencode "name=${NAME}" \
+            --data-urlencode "visibility=${TARGET_VIS}" \
+            --data-urlencode "description=${DESC}" \
+            --data-urlencode "topics=${TOPICS}" \
+            -o "$RUNNER_TEMP/put.json" -w '%{http_code}')
+          if [ "$status" != "200" ]; then
+            if [ "$status" = "403" ]; then
+              echo "::error::GitLab refused the metadata update (403 insufficient_scope). GITLAB_TOKEN needs the 'api' scope in addition to 'write_repository'."
+            else
+              echo "::error::GitLab rejected the metadata update (HTTP ${status}): $(jq -r '.message // .error // "unknown"' "$RUNNER_TEMP/put.json" 2>/dev/null || echo 'see log')"
+            fi
+            exit 1
+          fi
+
+          # Verify the result instead of trusting the request: read the project
+          # back and compare every field this workflow owns.
+          after=$(api "$API/projects/${PROJECT_ID}")
+          actual_vis=$(echo "$after" | jq -r '.visibility')
+          actual_name=$(echo "$after" | jq -r '.name')
+          actual_desc=$(echo "$after" | jq -r '.description // ""' | tr -s '[:space:]' ' ' | sed 's/^ //; s/ $//')
+          want_desc=$(printf '%s' "$DESC" | tr -s '[:space:]' ' ' | sed 's/^ //; s/ $//')
+          got_topics=$(echo "$after" | jq -r '[(.topics // [])[]] | sort | join(",")')
+          want_topics=$(printf '%s' "$TOPICS" | tr ',' '\n' | grep -v '^$' | sort | paste -sd, -)
+
+          problems=()
+          [ "$actual_vis" = "$TARGET_VIS" ] || problems+=("visibility: want ${TARGET_VIS}, got ${actual_vis}")
+          [ "$actual_name" = "$NAME" ] || problems+=("name: want '${NAME}', got '${actual_name}'")
+          [ "$actual_desc" = "$want_desc" ] || problems+=("description differs from GitHub")
+          [ "$got_topics" = "$want_topics" ] || problems+=("topics: want '${want_topics}', got '${got_topics}'")
+
+          if [ ${#problems[@]} -gt 0 ]; then
+            for p in "${problems[@]}"; do echo "::error::GitLab did not apply: ${p}"; done
+            echo "::error::If visibility is the only mismatch, the namespace may forbid public projects."
+            exit 1
+          fi
+
+          echo "Verified: visibility=${actual_vis} · name=${actual_name} · topics=${got_topics:-none} · description matches GitHub"
+
+          # GitHub's `homepage` has no GitLab field. Say so, every run, rather
+          # than dropping it silently.
+          if [ -n "$HOMEPAGE" ]; then
+            echo "::warning::GitHub homepage '${HOMEPAGE}' has no GitLab project equivalent and is not mirrored."
+          fi
+
+          # Archived state is a separate endpoint on GitLab.
+          GH_ARCHIVED=$(jq -r '.archived' "$RUNNER_TEMP/gh-repo.json")
+          GL_ARCHIVED=$(api "$API/projects/${PROJECT_ID}" | jq -r '.archived')
+          if [ "$GH_ARCHIVED" = "true" ] && [ "$GL_ARCHIVED" != "true" ]; then
+            api -X POST "$API/projects/${PROJECT_ID}/archive" -o /dev/null
+            echo "Archived the GitLab project to match GitHub."
+          elif [ "$GH_ARCHIVED" != "true" ] && [ "$GL_ARCHIVED" = "true" ]; then
+            api -X POST "$API/projects/${PROJECT_ID}/unarchive" -o /dev/null
+            echo "Unarchived the GitLab project to match GitHub."
+          fi
+
+          # A back-reference, so a later run recognises its own work even if this
+          # repository is renamed. Failure here is a warning: the marker is an
+          # optimisation, and the commit-compatibility check above is the real
+          # guard.
+          marker_status=$(api -X PUT "$API/projects/${PROJECT_ID}/custom_attributes" \
+            --data-urlencode "managed_by=github-actions-gitlab-mirror" \
+            --data-urlencode "github_repo_id=$(jq -r '.id' "$RUNNER_TEMP/gh-repo.json")" \
+            --data-urlencode "github_full_name=${GITHUB_REPOSITORY}" \
+            -o /dev/null -w '%{http_code}')
+          if [ "$marker_status" != "200" ]; then
+            echo "::warning::Could not write the mirror marker to GitLab (HTTP ${marker_status}; custom attributes are not available on every GitLab instance or plan). Mapping is still verified by commit compatibility, which is the real guard."
+          fi
+
+          # GitLab protects the default branch on new projects, and a protected
+          # branch rejects a force push — which is exactly what a mirror needs.
+          enc_def=$(jq -rn --arg v "$DEF" '$v|@uri')
+          if [ "$(api -o /dev/null -w '%{http_code}' "$API/projects/${PROJECT_ID}/protected_branches/${enc_def}")" = "200" ]; then
+            api -X PATCH "$API/projects/${PROJECT_ID}/protected_branches/${enc_def}" \
+              --data-urlencode "allow_force_push=true" -o /dev/null \
+              && echo "Allowed force pushes to protected branch '${DEF}' (required by a mirror)."
+          fi
+
+      - name: Mirror branches and tags
+        if: env.EMPTY_REPO != 'true' && env.DRY_RUN_ABORT != 'true'
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [ "${EMPTY_REPO:-false}" = "true" ] || [ "${DRY_RUN_ABORT:-false}" = "true" ]; then
+            echo "Skipping (empty repository or dry run)."; exit 0
+          fi
+
+          M="$MIRROR_DIR"
+          git -C "$M" remote add gitlab "https://oauth2@${GITLAB_HOST}/${PROJECT_FULL_PATH}.git"
+
+          export GIT_ASKPASS="$RUNNER_TEMP/bin/askpass-gitlab"
+          export GIT_TERMINAL_PROMPT=0
+
+          # Listing the destination must fail loudly: an empty list caused by a
+          # rejected token would look like "nothing to delete" and hide the
+          # problem behind a green run.
+          if ! remote_heads=$(git -C "$M" ls-remote --heads gitlab); then
+            echo "::error::Cannot list refs on ${PROJECT_FULL_PATH}. Check GITLAB_TOKEN's write_repository scope."
+            exit 1
+          fi
+          if ! remote_tags=$(git -C "$M" ls-remote --tags --refs gitlab); then
+            echo "::error::Cannot list tags on ${PROJECT_FULL_PATH}."
+            exit 1
+          fi
+
+          # Deletions are computed explicitly, because `git push --prune` only
+          # prunes branches — a tag deleted on GitHub would otherwise live on
+          # GitLab forever.
+          deleted=()
+          while read -r ref; do
+            [ -n "$ref" ] || continue
+            git -C "$M" show-ref --verify --quiet "$ref" || deleted+=(":$ref")
+          done < <(printf '%s\n' "$remote_heads" "$remote_tags" | awk 'NF{print $2}')
+
+          if [ ${#deleted[@]} -gt 0 ]; then
+            echo "Stale refs on GitLab (${#deleted[@]}):"
+            printf '  %s\n' "${deleted[@]}"
+            if [ "${DRY_RUN}" = "true" ]; then
+              echo "::notice::[dry run] Would delete the refs listed above."
+            else
+
+              # Point the default branch at a branch that survives, otherwise
+              # GitLab refuses to delete the branch it considers primary.
+              if [ -n "${GH_DEFAULT_BRANCH:-}" ] && git -C "$M" show-ref --verify --quiet "refs/heads/${GH_DEFAULT_BRANCH}"; then
+                curl -sS --retry 3 -X PUT -H "PRIVATE-TOKEN: ${GITLAB_TOKEN}" \
+                  --data-urlencode "default_branch=${GH_DEFAULT_BRANCH}" \
+                  -o /dev/null "$API/projects/${PROJECT_ID}" || true
+              fi
+
+              if ! git -C "$M" push --quiet gitlab "${deleted[@]}" 2> "$RUNNER_TEMP/push-delete.err"; then
+                cat "$RUNNER_TEMP/push-delete.err" >&2
+                echo "::error::Could not delete stale refs. A protected branch cannot be deleted through a mirror; unprotect it in GitLab or delete it by hand."
+                exit 1
+              fi
+            fi
+          else
+            echo "No stale refs to delete."
+          fi
+
+          if [ "${DRY_RUN}" = "true" ]; then
+            echo "::notice::[dry run] Would force-push ${GH_HEADS} branch(es) and ${GH_TAGS} tag(s)."
+            exit 0
+          fi
+
+          # Explicit, force, branch-pruning push. `+` makes a rewritten history
+          # land instead of being rejected as non-fast-forward; `--prune` removes
+          # branches that were deleted on GitHub. `refs/pull/*` and friends are
+          # never named here, so they cannot leak.
+          if ! git -C "$M" push --quiet --prune --force gitlab \
+              '+refs/heads/*:refs/heads/*' \
+              '+refs/tags/*:refs/tags/*' 2> "$RUNNER_TEMP/push.err"; then
+            cat "$RUNNER_TEMP/push.err" >&2
+            if grep -qi 'protected branch' "$RUNNER_TEMP/push.err"; then
+              echo "::error::GitLab rejected the push because a branch is protected. Each mirrored branch must accept force pushes from the token's user."
+            else
+              echo "::error::Git push to GitLab failed. See the output above."
+            fi
+            exit 1
+          fi
+
+          # Set the default branch last, once it is certain to exist.
+          if [ -n "${GH_DEFAULT_BRANCH:-}" ]; then
+            current_default=$(curl -sS -H "PRIVATE-TOKEN: ${GITLAB_TOKEN}" \
+              "$API/projects/${PROJECT_ID}" | jq -r '.default_branch // ""')
+            if [ "$current_default" != "$GH_DEFAULT_BRANCH" ]; then
+              curl -sS --retry 3 -X PUT -H "PRIVATE-TOKEN: ${GITLAB_TOKEN}" \
+                --data-urlencode "default_branch=${GH_DEFAULT_BRANCH}" \
+                -o /dev/null "$API/projects/${PROJECT_ID}"
+              echo "Set the GitLab default branch to '${GH_DEFAULT_BRANCH}'."
+            fi
+          fi
+
+          echo "Mirrored ${GH_HEADS} branch(es) and ${GH_TAGS} tag(s)."
+
+      # A tag is not a release. GitHub keeps them as separate records, and so
+      # does GitLab; this mirrors the records, not the refs (the refs are already
+      # above). Binary assets are linked, not uploaded — see the README.
+      - name: Sync releases
+        if: env.EMPTY_REPO != 'true' && env.DRY_RUN_ABORT != 'true' && env.DRY_RUN != 'true'
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [ "${EMPTY_REPO:-false}" = "true" ] || [ "${DRY_RUN_ABORT:-false}" = "true" ]; then
+            echo "Skipping (empty repository or dry run)."; exit 0
+          fi
+
+          gh_api() {
+            curl -sS --retry 3 --retry-delay 2 --max-time 30 \
+              -H "Authorization: Bearer ${GITHUB_TOKEN}" \
+              -H 'Accept: application/vnd.github+json' "https://api.github.com$1"
+          }
+
+          releases=$(gh_api "/repos/${GITHUB_REPOSITORY}/releases?per_page=100")
+          total=$(echo "$releases" | jq 'length')
+          if [ "$total" -eq 0 ]; then
+            echo "GitHub has no releases. Nothing to mirror."
+            exit 0
+          fi
+
+          mirrored=0
+          failed=0
+          while IFS= read -r rel; do
+            tag=$(echo "$rel" | jq -r '.tag_name')
+            enc=$(jq -rn --arg v "$tag" '$v|@uri')
+            status=$(curl -sS --retry 3 -H "PRIVATE-TOKEN: ${GITLAB_TOKEN}" \
+              -o /dev/null -w '%{http_code}' "$API/projects/${PROJECT_ID}/releases/${enc}")
+
+            if [ "$status" = "404" ]; then
+              # Asset files stay where they are: GitLab release links point at
+              # the GitHub download URL instead of duplicating binaries.
+              body=$(echo "$rel" | jq -c '{
+                name: (.name // .tag_name),
+                tag_name: .tag_name,
+                description: (.body // ""),
+                assets: { links: [ (.assets[]? | {name: .name, url: .browser_download_url}) ] }
+              }')
+              out=$(curl -sS --retry 3 -X POST -H "PRIVATE-TOKEN: ${GITLAB_TOKEN}" \
+                -H 'Content-Type: application/json' -d "$body" \
+                -w '\n%{http_code}' "$API/projects/${PROJECT_ID}/releases")
+              created=$(echo "$out" | tail -n1)
+              if [ "$created" = "201" ]; then
+                mirrored=$((mirrored + 1))
+                echo "Created GitLab release '${tag}'."
+              else
+                failed=$((failed + 1))
+                echo "::error::Could not create GitLab release '${tag}' (HTTP ${created}): $(echo "$out" | sed '$d' | jq -r '.message // "unknown"' 2>/dev/null || true)"
+              fi
+            elif [ "$status" = "200" ]; then
+              echo "Release '${tag}' already exists on GitLab."
+            else
+              failed=$((failed + 1))
+              echo "::error::Cannot read release '${tag}' on GitLab (HTTP ${status}). Check GITLAB_TOKEN's api scope."
+            fi
+          done < <(echo "$releases" | jq -c '.[]')
+
+          echo "Releases created: ${mirrored}. Failures: ${failed}."
+          [ "$failed" -eq 0 ] || exit 1
+
+      # LFS is only worth paying for when pointers actually exist. This
+      # repository has none; the branch exists so a future `git lfs track` does
+      # not silently produce a mirror full of pointer files.
+      - name: Sync Git LFS objects
+        if: env.EMPTY_REPO != 'true' && env.DRY_RUN_ABORT != 'true' && env.DRY_RUN != 'true'
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [ "${EMPTY_REPO:-false}" = "true" ] || [ "${DRY_RUN_ABORT:-false}" = "true" ]; then
+            echo "Skipping (empty repository or dry run)."; exit 0
+          fi
+          M="$MIRROR_DIR"
+
+          has_lfs=0
+          while read -r ref; do
+            [ -n "$ref" ] || continue
+            if git -C "$M" cat-file -e "${ref}:.gitattributes" 2>/dev/null; then
+              if git -C "$M" show "${ref}:.gitattributes" | grep -q 'filter=lfs'; then
+                has_lfs=1
+                break
+              fi
+            fi
+          done < <(git -C "$M" for-each-ref --format='%(refname)' refs/heads refs/tags)
+
+          if [ "$has_lfs" -eq 0 ]; then
+            echo "No Git LFS pointers in any ref. Nothing to sync."
+            exit 0
+          fi
+
+          if ! command -v git-lfs > /dev/null; then
+            echo "::error::This repository tracks files with Git LFS but git-lfs is unavailable on the runner. Refusing to report a successful sync."
+            exit 1
+          fi
+
+          export GIT_ASKPASS="$RUNNER_TEMP/bin/askpass-gitlab"
+          export GIT_TERMINAL_PROMPT=0
+          GIT_ASKPASS="$RUNNER_TEMP/bin/askpass-github" git -C "$M" lfs fetch --all origin
+          git -C "$M" lfs push --all gitlab
+          echo "Git LFS objects mirrored."
+
+      - name: Summary
+        if: always()
+        shell: bash
+        env:
+          RESULT: ${{ job.status }}
+        run: |
+          set -euo pipefail
+          {
+            echo "## GitLab mirror"
+            echo
+            echo "| Field | Value |"
+            echo "|---|---|"
+            echo "| Repository | \`${GITHUB_REPOSITORY}\` |"
+            echo "| Destination | \`${GITLAB_HOST}/${NAMESPACE:-?}/${PROJECT_PATH:-?}\` |"
+            echo "| Trigger | \`${GITHUB_EVENT_NAME}\` |"
+            echo "| Mode | $([ "${DRY_RUN}" = "true" ] && echo 'dry run (nothing written)' || echo 'live') |"
+            echo "| Ref counts | ${GH_HEADS:-0} branch(es), ${GH_TAGS:-0} tag(s) |"
+            echo "| Result | ${RESULT} |"
+          } >> "$GITHUB_STEP_SUMMARY"
