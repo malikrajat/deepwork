@@ -252,6 +252,28 @@ interface DownloadRow extends DownloadTarget {
               </a>
             </li>
             <li>
+              <a
+                appExternalLink
+                href="https://app.deepwork.rajatmalik.dev/guides/"
+                target="_blank"
+                rel="noopener"
+              >
+                <span class="policy-name">Guides</span>
+                <span class="policy-note">Practical writing on focus, planning and habits</span>
+              </a>
+            </li>
+            <li>
+              <a
+                appExternalLink
+                href="https://app.deepwork.rajatmalik.dev/advertising-policy/"
+                target="_blank"
+                rel="noopener"
+              >
+                <span class="policy-name">Advertising policy</span>
+                <span class="policy-note">Where ads appear, and the rules the site follows</span>
+              </a>
+            </li>
+            <li>
               <a routerLink="/privacy">
                 <span class="policy-name">Privacy policy</span>
                 <span class="policy-note">What stays on your machine, and what does not</span>
@@ -621,7 +643,8 @@ interface DownloadRow extends DownloadTarget {
               target="_blank"
               rel="noopener noreferrer"
               >{{ developer.name }}</a
-            >. It stores everything locally, has no accounts and no telemetry.
+            >. It stores everything locally, has no accounts and sends no telemetry about your
+            tasks, sessions or notes.
           </p>
         </section>
 

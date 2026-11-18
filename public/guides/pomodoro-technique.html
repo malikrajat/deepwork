@@ -1,0 +1,522 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>The Pomodoro Technique, without the mythology — DeepWork</title>
+    <meta
+      name="description"
+      content="What the Pomodoro Technique actually is, why 25 minutes is a default rather than a rule, how to handle interruptions, and the mistakes that make people quit."
+    />
+    <link
+      rel="canonical"
+      href="https://app.deepwork.rajatmalik.dev/guides/pomodoro-technique.html"
+    />
+    <meta
+      name="robots"
+      content="index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1"
+    />
+    <meta name="google-adsense-account" content="ca-pub-4991682021863699" />
+    <meta name="author" content="Rajat Malik" />
+    <meta property="og:type" content="article" />
+    <meta property="og:site_name" content="DeepWork" />
+    <meta property="og:locale" content="en" />
+    <meta property="og:title" content="The Pomodoro Technique, without the mythology" />
+    <meta
+      property="og:description"
+      content="What a Pomodoro is, why 25 minutes is a default rather than a law, and how to run a session that survives interruptions."
+    />
+    <meta
+      property="og:url"
+      content="https://app.deepwork.rajatmalik.dev/guides/pomodoro-technique.html"
+    />
+    <meta property="og:image" content="https://deepwork.rajatmalik.dev/og-image.png" />
+    <meta property="og:image:type" content="image/png" />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta property="article:published_time" content="2026-11-17" />
+    <meta property="article:modified_time" content="2026-11-17" />
+    <meta property="article:author" content="https://rajatmalik.dev/" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="The Pomodoro Technique, without the mythology" />
+    <meta
+      name="twitter:description"
+      content="What a Pomodoro is, why 25 minutes is a default rather than a law, and how to run a session that survives interruptions."
+    />
+    <meta name="twitter:image" content="https://deepwork.rajatmalik.dev/og-image.png" />
+    <meta name="theme-color" content="#8b5cf6" />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <link rel="alternate icon" type="image/x-icon" href="/favicon.ico" />
+    <link rel="stylesheet" href="/guides/guides.css" />
+    <script
+      async
+      src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-4991682021863699"
+      crossorigin="anonymous"
+    ></script>
+    <script type="application/ld+json">
+      {
+        "@context": "https://schema.org",
+        "@graph": [
+          {
+            "@type": "WebSite",
+            "@id": "https://app.deepwork.rajatmalik.dev/#website",
+            "url": "https://app.deepwork.rajatmalik.dev/",
+            "name": "DeepWork",
+            "inLanguage": "en",
+            "publisher": { "@id": "https://rajatmalik.dev/#person" }
+          },
+          {
+            "@type": "Person",
+            "@id": "https://rajatmalik.dev/#person",
+            "name": "Rajat Malik",
+            "url": "https://rajatmalik.dev/",
+            "jobTitle": "Senior Lead Software Engineer",
+            "sameAs": [
+              "https://rajatmalik.dev/",
+              "https://www.linkedin.com/in/errajatmalik",
+              "https://github.com/malikrajat"
+            ]
+          },
+          {
+            "@type": "Article",
+            "@id": "https://app.deepwork.rajatmalik.dev/guides/pomodoro-technique.html#article",
+            "headline": "The Pomodoro Technique, without the mythology",
+            "description": "What the Pomodoro Technique actually is, why 25 minutes is a default rather than a rule, how to handle interruptions, and the mistakes that make people quit.",
+            "datePublished": "2026-11-17",
+            "dateModified": "2026-11-17",
+            "inLanguage": "en",
+            "author": { "@id": "https://rajatmalik.dev/#person" },
+            "publisher": {
+              "@type": "Organization",
+              "name": "DeepWork",
+              "url": "https://app.deepwork.rajatmalik.dev/",
+              "logo": {
+                "@type": "ImageObject",
+                "url": "https://app.deepwork.rajatmalik.dev/icons/icon.png"
+              }
+            },
+            "mainEntityOfPage": "https://app.deepwork.rajatmalik.dev/guides/pomodoro-technique.html",
+            "image": "https://deepwork.rajatmalik.dev/og-image.png",
+            "isPartOf": { "@id": "https://app.deepwork.rajatmalik.dev/#website" },
+            "about": ["Pomodoro Technique", "time management", "focus"]
+          },
+          {
+            "@type": "BreadcrumbList",
+            "@id": "https://app.deepwork.rajatmalik.dev/guides/pomodoro-technique.html#breadcrumb",
+            "itemListElement": [
+              {
+                "@type": "ListItem",
+                "position": 1,
+                "name": "DeepWork",
+                "item": "https://app.deepwork.rajatmalik.dev/"
+              },
+              {
+                "@type": "ListItem",
+                "position": 2,
+                "name": "Guides",
+                "item": "https://app.deepwork.rajatmalik.dev/guides/"
+              },
+              {
+                "@type": "ListItem",
+                "position": 3,
+                "name": "The Pomodoro Technique"
+              }
+            ]
+          },
+          {
+            "@type": "FAQPage",
+            "mainEntity": [
+              {
+                "@type": "Question",
+                "name": "Does a Pomodoro have to be 25 minutes?",
+                "acceptedAnswer": {
+                  "@type": "Answer",
+                  "text": "No. Twenty-five minutes of work and five minutes of rest is the default Francesco Cirillo used, not a finding from research. The useful property is a fixed, short commitment followed by a real break. Writers often prefer 45 or 50 minutes; people returning after a long gap often start with 15."
+                }
+              },
+              {
+                "@type": "Question",
+                "name": "What should I do if I get interrupted during a Pomodoro?",
+                "acceptedAnswer": {
+                  "@type": "Answer",
+                  "text": "Write the interruption down and return to the task; do not switch to it. If the interruption genuinely cannot wait, stop the session and start a fresh one afterwards rather than pretending the interrupted block was complete. A record of honest sessions is more useful than a perfect streak."
+                }
+              },
+              {
+                "@type": "Question",
+                "name": "Is the Pomodoro Technique scientifically proven?",
+                "acceptedAnswer": {
+                  "@type": "Answer",
+                  "text": "There is no large body of evidence establishing 25 minutes as an optimal interval. What the technique does is make single-tasking, a defined finish line and regular breaks explicit. Those habits are supported by common sense and by attention research, but the specific numbers are a system, not a proven prescription."
+                }
+              },
+              {
+                "@type": "Question",
+                "name": "Does the Pomodoro Technique work for programming and writing?",
+                "acceptedAnswer": {
+                  "@type": "Answer",
+                  "text": "It works best when a session has a defined unit of progress. For programming, define the unit before starting, such as one failing test fixed or one function written. For writing, one section or 500 words. If you are still assembling the mental model when the timer rings, a longer block is the better fit."
+                }
+              },
+              {
+                "@type": "Question",
+                "name": "How is the timer implemented in DeepWork?",
+                "acceptedAnswer": {
+                  "@type": "Answer",
+                  "text": "DeepWork defaults to 25-minute focus sessions with short and long breaks, and every length is configurable. A finished session alerts until it is answered, can be attached to the task being worked on, and is recorded locally so the Time by Task report can group sessions by the work they paid for."
+                }
+              }
+            ]
+          }
+        ]
+      }
+    </script>
+  </head>
+  <body>
+    <a class="skip-link" href="#main">Skip to content</a>
+
+    <header class="site-header">
+      <div class="site-header__inner">
+        <a class="brand" href="/">
+          <span class="brand__mark" aria-hidden="true">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
+              <circle cx="12" cy="12" r="9" stroke="url(#mark-grad)" stroke-width="2" />
+              <path
+                d="M12 6.5V12l3.5 2"
+                stroke="url(#mark-grad)"
+                stroke-width="2"
+                stroke-linecap="round"
+              />
+              <defs>
+                <linearGradient id="mark-grad" x1="0" y1="0" x2="24" y2="24">
+                  <stop offset="0" stop-color="#8b5cf6" />
+                  <stop offset="1" stop-color="#06b6d4" />
+                </linearGradient>
+              </defs>
+            </svg>
+          </span>
+          DeepWork
+        </a>
+        <nav class="site-nav" aria-label="Site">
+          <a href="/guides/" aria-current="page">Guides</a>
+          <a href="/about-deepwork/">About</a>
+          <a href="/contact-us/">Contact</a>
+          <a class="nav-cta" href="/">Open the app</a>
+        </nav>
+      </div>
+    </header>
+
+    <main id="main">
+      <nav class="breadcrumb" aria-label="Breadcrumb">
+        <a href="/">DeepWork</a>
+        <span aria-hidden="true">/</span>
+        <a href="/guides/">Guides</a>
+        <span aria-hidden="true">/</span>
+        <span aria-current="page">The Pomodoro Technique</span>
+      </nav>
+
+      <article>
+        <header class="article-header">
+          <p class="eyebrow">Focus · 10 min read</p>
+          <h1>The Pomodoro Technique, without the mythology</h1>
+          <p class="lede">
+            A Pomodoro is a short, fixed commitment to one task followed by a real break. Everything
+            else — the tomato, the 25 minutes, the tally marks — is scaffolding. Here is what the
+            method is, where it came from, and how to use it without turning the timer into another
+            thing to manage.
+          </p>
+          <p class="byline">
+            <span>By <a href="https://rajatmalik.dev/">Rajat Malik</a></span>
+            <span>Published 17 November 2026</span>
+            <span>Updated 17 November 2026</span>
+          </p>
+        </header>
+
+        <div class="article-body">
+          <p>
+            Most people meet the Pomodoro Technique as a number: twenty-five minutes of work, five
+            minutes of rest. That is the part that fits on a sticker, and it is the least important
+            part. The useful idea underneath is smaller and more durable: decide what one session is
+            for, give it a boundary, and then stop.
+          </p>
+
+          <h2>Where it came from</h2>
+          <p>
+            Francesco Cirillo developed the technique in the late 1980s while he was a university
+            student in Italy. He used a tomato-shaped kitchen timer — <em>pomodoro</em> is Italian
+            for tomato — to commit to short stretches of study. The method he later published has
+            more parts than the internet usually repeats: planning the day's tasks, estimating how
+            many sessions each will take, recording what was completed, and reviewing the estimate
+            afterwards.
+          </p>
+          <p>
+            The tomato is a good story. The estimate-and-review loop is the actual engine. A timer
+            tells you when to stop; a record tells you whether your plan was honest.
+          </p>
+
+          <h2>The loop, in plain terms</h2>
+          <ol>
+            <li>
+              <strong>Choose one task and define its finish line.</strong> "Work on the report" is
+              not a unit. "Draft the findings section" is.
+            </li>
+            <li>
+              <strong>Set a timer for one session.</strong> Start at 25 minutes if you have no
+              reason to choose otherwise.
+            </li>
+            <li>
+              <strong>Work on that one thing until the timer ends.</strong> Not the inbox, not the
+              Slack thread that just lit up, not the tab you opened "just to check".
+            </li>
+            <li>
+              <strong>Take a short break.</strong> Five minutes, away from the screen if you can.
+              The break is part of the method, not a reward you earn by finishing early.
+            </li>
+            <li>
+              <strong>After four sessions, take a longer break.</strong> Fifteen to thirty minutes.
+              Eat something, walk, look at something further away than a monitor.
+            </li>
+            <li>
+              <strong>Record the session.</strong> One line is enough: what you worked on, whether
+              the finish line moved. This is what makes tomorrow's estimate less fictional.
+            </li>
+          </ol>
+
+          <div class="callout">
+            <p>
+              <strong>The break is not optional.</strong> A focus block that runs into the next one
+              is just a longer block with extra steps. The pause is where the attention you spent
+              gets a chance to come back.
+            </p>
+          </div>
+
+          <h2>Why the numbers are a default, not a law</h2>
+          <p>
+            Twenty-five and five are reasonable starting values. They are short enough that starting
+            feels cheap, and long enough to get past the first few minutes of resistance. They are
+            not a finding from research, and no serious account of the method claims they are.
+          </p>
+          <p>
+            The right length depends on the work and on the person. Programming often needs longer
+            to load the problem into your head; a writer mid-sentence may need forty-five minutes;
+            someone returning to focused work after months of fragmented days may need fifteen to
+            begin with. What matters is that the block is fixed in advance, short enough to protect,
+            and followed by a break that actually happens.
+          </p>
+
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>Session</th>
+                  <th>Break</th>
+                  <th>Reasonable for</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td>15 minutes</td>
+                  <td>3 minutes</td>
+                  <td>Restarting after a long gap; admin, email, small edits.</td>
+                </tr>
+                <tr>
+                  <td>25 minutes</td>
+                  <td>5 minutes</td>
+                  <td>The default: most reading, writing, planning and routine coding.</td>
+                </tr>
+                <tr>
+                  <td>45–50 minutes</td>
+                  <td>10 minutes</td>
+                  <td>Work with a costly warm-up, such as debugging or long-form writing.</td>
+                </tr>
+                <tr>
+                  <td>90 minutes</td>
+                  <td>20 minutes</td>
+                  <td>One deep problem, at most twice a day. Not a daily default.</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+
+          <h2>How to handle interruption</h2>
+          <p>
+            Interruptions come in two kinds, and they need different answers. An
+            <em>internal</em> interruption is your own thought — reply to that message, check that
+            number, remember to buy coffee. An <em>external</em> interruption is another person or a
+            notification. Both break the session in the same place: your attention leaves before you
+            decide it should.
+          </p>
+          <p>
+            For internal interruptions, keep a scrap of paper beside you and write the thought down.
+            That is not a productivity ritual; it is a way to stop rehearsing the thought so you can
+            return to the task. For external interruptions, answer only if the thing genuinely
+            cannot wait, and accept that the session is now over. Starting a fresh block afterwards
+            is honest. Calling an interrupted block complete is not.
+          </p>
+          <p>
+            If interruptions arrive every few minutes, the timer is not the problem. The problem is
+            the environment. Close the client, silence the phone, move the meeting, or choose a task
+            small enough to fit between the interruptions you cannot remove.
+          </p>
+
+          <h2>The mistakes that make people quit</h2>
+          <h3>Planning more sessions than the day contains</h3>
+          <p>
+            Eight sessions sounds modest until you count the meetings, the commute and the fact that
+            a session requires a clear head. A first week of four to six is usually more truthful.
+            Overplanning turns the record into evidence of failure, and people stop recording.
+          </p>
+          <h3>Using the break for chores</h3>
+          <p>
+            A five-minute break spent unloading the dishwasher is not rest; it is a second task with
+            a different posture. Stand up, look out of a window, walk to the kitchen and back. The
+            point is to change state, not to optimise the pause.
+          </p>
+          <h3>Making the timer the manager</h3>
+          <p>
+            When the timer rings in the middle of a useful sentence, you are allowed to finish the
+            sentence. The method is a boundary, not a supervisor. The failure mode is the opposite:
+            treating every ring as negotiable, so the boundary stops existing.
+          </p>
+          <h3>Tracking for the sake of tracking</h3>
+          <p>
+            A tally is useful when it changes a decision: this task took six sessions rather than
+            two, this afternoon is consistently worse than this morning, this project is consuming
+            the week. A tally that is only collected and never read is a hobby.
+          </p>
+
+          <h2>How DeepWork implements it</h2>
+          <p>
+            DeepWork is the app this guide belongs to, so it is fair to be specific. A focus session
+            defaults to 25 minutes with a 5-minute short break and a longer break after a set number
+            of sessions; every length and count is configurable. The alert at the end of a session
+            does not disappear after one chime — it repeats until you answer it, because the moment
+            a block ends is exactly when you are least likely to be looking at the screen. A session
+            can be attached to the task you are working on, and the app records it locally.
+          </p>
+          <p>
+            The record is what the <strong>Time by Task</strong> page turns into something useful:
+            sessions grouped by the work they paid for, with an all-time total, the first and last
+            session, and a rhythm. That is the estimate-and-review loop from the original method,
+            done by the software rather than by hand.
+          </p>
+          <p>
+            None of this requires an account. The database is a SQLite file on the desktop and
+            browser storage in the web build, and both can be exported. If you would rather use a
+            kitchen timer and a notebook, the method works exactly as well. The app is a
+            convenience, not a prerequisite.
+          </p>
+
+          <h2>Questions people actually ask</h2>
+          <div class="faq">
+            <details>
+              <summary>Does a Pomodoro have to be 25 minutes?</summary>
+              <p>
+                No. Twenty-five minutes of work and five minutes of rest is the default Francesco
+                Cirillo used, not a finding from research. The useful property is a fixed, short
+                commitment followed by a real break. Writers often prefer 45 or 50 minutes; people
+                returning after a long gap often start with 15.
+              </p>
+            </details>
+            <details>
+              <summary>What should I do if I get interrupted during a Pomodoro?</summary>
+              <p>
+                Write the interruption down and return to the task; do not switch to it. If the
+                interruption genuinely cannot wait, stop the session and start a fresh one
+                afterwards rather than pretending the interrupted block was complete. A record of
+                honest sessions is more useful than a perfect streak.
+              </p>
+            </details>
+            <details>
+              <summary>Is the Pomodoro Technique scientifically proven?</summary>
+              <p>
+                There is no large body of evidence establishing 25 minutes as an optimal interval.
+                What the technique does is make single-tasking, a defined finish line and regular
+                breaks explicit. Those habits are supported by common sense and by attention
+                research, but the specific numbers are a system, not a proven prescription.
+              </p>
+            </details>
+            <details>
+              <summary>Does the Pomodoro Technique work for programming and writing?</summary>
+              <p>
+                It works best when a session has a defined unit of progress. For programming, define
+                the unit before starting, such as one failing test fixed or one function written.
+                For writing, one section or 500 words. If you are still assembling the mental model
+                when the timer rings, a longer block is the better fit.
+              </p>
+            </details>
+            <details>
+              <summary>How is the timer implemented in DeepWork?</summary>
+              <p>
+                DeepWork defaults to 25-minute focus sessions with short and long breaks, and every
+                length is configurable. A finished session alerts until it is answered, can be
+                attached to the task being worked on, and is recorded locally so the Time by Task
+                report can group sessions by the work they paid for.
+              </p>
+            </details>
+          </div>
+
+          <div class="cta-band">
+            <h2>Try one session now</h2>
+            <p>
+              Open DeepWork, pick one task, and run a single 25-minute block. No account, no email
+              field, no subscription. The record stays on your machine.
+            </p>
+            <div class="button-row">
+              <a class="button" href="/">Open the web app</a>
+              <a class="button button--ghost" href="/guides/time-blocking.html"
+                >Next: plan the day</a
+              >
+            </div>
+          </div>
+        </div>
+      </article>
+
+      <aside class="author-card" aria-label="About the author">
+        <div class="author-card__avatar" aria-hidden="true">RM</div>
+        <div>
+          <h2>Rajat Malik</h2>
+          <p>
+            Rajat is a senior lead software engineer and the developer of DeepWork. He writes about
+            focus, frontend architecture and local-first software at
+            <a href="https://rajatmalik.dev/">rajatmalik.dev</a> and
+            <a href="https://medium.com/@codewithrajat">Medium</a>. Corrections and questions are
+            welcome at <a href="mailto:contact@rajatmalik.dev">contact@rajatmalik.dev</a>.
+          </p>
+        </div>
+      </aside>
+
+      <nav class="next-read" aria-label="Next guide">
+        <p>Next in the guides</p>
+        <a href="/guides/time-blocking.html"
+          >Time blocking: plan the day in the unit you work in →</a
+        >
+      </nav>
+    </main>
+
+    <footer class="site-footer">
+      <div class="site-footer__inner">
+        <nav aria-label="Footer">
+          <a href="/guides/">Guides</a>
+          <a href="/about-deepwork/">About DeepWork</a>
+          <a href="/editorial-policy/">Editorial policy</a>
+          <a href="/advertising-policy/">Advertising policy</a>
+          <a href="/contact-us/">Contact</a>
+          <a href="/privacy-policy/">Privacy policy</a>
+          <a href="/terms-of-use/">Terms of use</a>
+          <a href="https://github.com/malikrajat/deepwork">GitHub</a>
+        </nav>
+        <p>
+          DeepWork is a free, local-first focus timer, task manager and habit tracker for Windows,
+          macOS, Linux and the browser. Your tasks, sessions and notes stay on your own machine.
+        </p>
+        <p class="fine">
+          © 2026 Rajat Malik. The DeepWork application is MIT licensed. The six guide articles carry
+          advertising served by Google AdSense; the application interface, guide index and policy
+          pages do not. See the
+          <a href="/privacy-policy/">privacy policy</a> for cookies and choices.
+        </p>
+      </div>
+    </footer>
+  </body>
+</html>

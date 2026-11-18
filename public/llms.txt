@@ -6,8 +6,9 @@
 > sync, no telemetry on the user's work and no subscription. The web build at
 > https://app.deepwork.rajatmalik.dev/ is the same application, installable as a PWA.
 
-This file describes the web app. The product page, with screenshots and the full
-marketing copy, is https://deepwork.rajatmalik.dev/ (its own guide is
+This file describes the web app and the written guides on the same domain. The
+product page, with screenshots and the full marketing copy, is
+https://deepwork.rajatmalik.dev/ (its own guide is
 https://deepwork.rajatmalik.dev/llms.txt).
 
 ## Key facts
@@ -20,14 +21,14 @@ https://deepwork.rajatmalik.dev/llms.txt).
 - **Storage:** a local SQLite file (`deepwork.db`) in the desktop app; browser
   `localStorage` in the web build. Clearing site data in a browser erases it, so
   the app offers a JSON backup export and import.
-- **Network:** the desktop app contacts the public GitHub releases API to check
-  for updates, downloads an installer only when the user presses Update, and
-  opens links the user clicks. The web build additionally uses an opt-out
-  GoatCounter visit counter that sends the page path and title, never a task, a
-  journal entry or an identifier.
 - **Licence:** MIT - https://github.com/malikrajat/deepwork/blob/main/LICENSE
 - **Repository:** https://github.com/malikrajat/deepwork
 - **Downloads:** https://github.com/malikrajat/deepwork/releases/latest
+- **Advertising:** the six written articles under `/guides/` load Google
+  AdSense, using manual in-article units rather than Auto ads. The application
+  interface, the guide index and every policy page do not load ad code, and no
+  task, session, habit or journal entry is sent to an advertiser. Publisher ID:
+  `pub-4991682021863699`.
 
 ## What it does
 
@@ -51,7 +52,23 @@ https://deepwork.rajatmalik.dev/llms.txt).
 - **Desktop behaviour:** system tray, start with system, always on top, and a
   small always-on-top timer widget.
 
+## Network calls and data
+
+- **Desktop app:** checks the public GitHub releases API for updates, downloads
+  an installer only when the user presses Update, and opens links the user
+  clicks. No task, session or journal content is uploaded.
+- **Web app:** loads Google Tag Manager container `GTM-PNJRG4WR`, which loads
+  Google Analytics 4 property `G-L6WB5FHKPQ` for page views and interaction
+  events. It also uses an opt-out GoatCounter visit counter that sends the page
+  path and title, never a task, a journal entry or an identifier. Cloudflare Web
+  Analytics is injected by the host and is cookie-less.
+- **Guides:** load Google AdSense and Google advertising cookies. Consent is
+  requested where required. The app does not.
+
 ## Pages
+
+Application routes (client-rendered; GitHub Pages answers deep routes with the
+app shell under a 404 status):
 
 - `/` - dashboard: the focus timer, today's tasks, the session cycle.
 - `/tasks` - the task board and list.
@@ -66,7 +83,30 @@ https://deepwork.rajatmalik.dev/llms.txt).
 - `/settings` - timer, notifications, backup and diagnostics.
 - `/about` - who builds it, version, update check, downloads.
 - `/contact` - how to reach the developer.
-- `/privacy` and `/terms` - the policies.
+- `/privacy` and `/terms` - the policies inside the app.
+
+Static pages (real 200 responses, readable without JavaScript):
+
+- `/guides/` - the guide index.
+- `/guides/pomodoro-technique.html` - what the Pomodoro Technique is, where the
+  25/5 default comes from, interruptions and mistakes.
+- `/guides/time-blocking.html` - planning a day in focus blocks, sizing blocks,
+  buffers and a realistic sample day.
+- `/guides/eisenhower-matrix.html` - urgency versus importance, all four
+  quadrants, sorting a real backlog and the trap in each quadrant.
+- `/guides/deep-work-routine.html` - a day built around two protected blocks, a
+  ten-minute plan and a shutdown.
+- `/guides/habit-streaks.html` - habit formation, the smallest version, planned
+  misses and recovering from a break.
+- `/guides/focus-timer-without-account.html` - where a timer keeps its data,
+  local-first in practice, seven tests before committing, and browser limits.
+- `/about-deepwork/` - the app, the developer, data location and limits.
+- `/editorial-policy/` - how the guides are written and funded.
+- `/advertising-policy/` - where ads appear, manual placement rules, invalid
+  traffic, content standards, consent and reporting.
+- `/contact-us/` - support, corrections and privacy requests.
+- `/privacy-policy/` - what is stored locally, analytics, cookies and AdSense.
+- `/terms-of-use/` - the MIT licence, advertising, data and liability.
 
 The workspace pages are rendered from the visitor's own local data, so a crawler
 sees the application shell rather than any personal content.
@@ -86,3 +126,4 @@ data in browser storage.
 - No native mobile app.
 - The desktop installers are unsigned, so Windows SmartScreen and macOS
   Gatekeeper warn on first launch.
+- The guides contain advertising; the application does not.

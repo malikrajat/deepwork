@@ -1,0 +1,498 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Choose a focus timer that needs no account — DeepWork</title>
+    <meta
+      name="description"
+      content="Where a focus timer keeps your sessions, what happens when the tab closes, what local-first actually means, and the honest limits of a browser timer."
+    />
+    <link
+      rel="canonical"
+      href="https://app.deepwork.rajatmalik.dev/guides/focus-timer-without-account.html"
+    />
+    <meta
+      name="robots"
+      content="index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1"
+    />
+    <meta name="google-adsense-account" content="ca-pub-4991682021863699" />
+    <meta name="author" content="Rajat Malik" />
+    <meta property="og:type" content="article" />
+    <meta property="og:site_name" content="DeepWork" />
+    <meta property="og:locale" content="en" />
+    <meta property="og:title" content="Choose a focus timer that needs no account" />
+    <meta
+      property="og:description"
+      content="Where your sessions live, what happens when the tab closes, and the honest limits of a browser timer."
+    />
+    <meta
+      property="og:url"
+      content="https://app.deepwork.rajatmalik.dev/guides/focus-timer-without-account.html"
+    />
+    <meta property="og:image" content="https://deepwork.rajatmalik.dev/og-image.png" />
+    <meta property="og:image:type" content="image/png" />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta property="article:published_time" content="2026-11-17" />
+    <meta property="article:modified_time" content="2026-11-17" />
+    <meta property="article:author" content="https://rajatmalik.dev/" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="Choose a focus timer that needs no account" />
+    <meta
+      name="twitter:description"
+      content="Where your sessions live, what happens when the tab closes, and the honest limits of a browser timer."
+    />
+    <meta name="twitter:image" content="https://deepwork.rajatmalik.dev/og-image.png" />
+    <meta name="theme-color" content="#8b5cf6" />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <link rel="alternate icon" type="image/x-icon" href="/favicon.ico" />
+    <link rel="stylesheet" href="/guides/guides.css" />
+    <script
+      async
+      src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-4991682021863699"
+      crossorigin="anonymous"
+    ></script>
+    <script type="application/ld+json">
+      {
+        "@context": "https://schema.org",
+        "@graph": [
+          {
+            "@type": "WebSite",
+            "@id": "https://app.deepwork.rajatmalik.dev/#website",
+            "url": "https://app.deepwork.rajatmalik.dev/",
+            "name": "DeepWork",
+            "inLanguage": "en",
+            "publisher": { "@id": "https://rajatmalik.dev/#person" }
+          },
+          {
+            "@type": "Person",
+            "@id": "https://rajatmalik.dev/#person",
+            "name": "Rajat Malik",
+            "url": "https://rajatmalik.dev/",
+            "jobTitle": "Senior Lead Software Engineer",
+            "sameAs": [
+              "https://rajatmalik.dev/",
+              "https://www.linkedin.com/in/errajatmalik",
+              "https://github.com/malikrajat"
+            ]
+          },
+          {
+            "@type": "Article",
+            "@id": "https://app.deepwork.rajatmalik.dev/guides/focus-timer-without-account.html#article",
+            "headline": "How to choose a focus timer that does not need an account",
+            "description": "Where a focus timer keeps your sessions, what happens when the tab closes, what local-first actually means, and the honest limits of a browser timer.",
+            "datePublished": "2026-11-17",
+            "dateModified": "2026-11-17",
+            "inLanguage": "en",
+            "author": { "@id": "https://rajatmalik.dev/#person" },
+            "publisher": {
+              "@type": "Organization",
+              "name": "DeepWork",
+              "url": "https://app.deepwork.rajatmalik.dev/",
+              "logo": {
+                "@type": "ImageObject",
+                "url": "https://app.deepwork.rajatmalik.dev/icons/icon.png"
+              }
+            },
+            "mainEntityOfPage": "https://app.deepwork.rajatmalik.dev/guides/focus-timer-without-account.html",
+            "image": "https://deepwork.rajatmalik.dev/og-image.png",
+            "isPartOf": { "@id": "https://app.deepwork.rajatmalik.dev/#website" },
+            "about": ["focus timer", "local-first software", "privacy"]
+          },
+          {
+            "@type": "BreadcrumbList",
+            "@id": "https://app.deepwork.rajatmalik.dev/guides/focus-timer-without-account.html#breadcrumb",
+            "itemListElement": [
+              {
+                "@type": "ListItem",
+                "position": 1,
+                "name": "DeepWork",
+                "item": "https://app.deepwork.rajatmalik.dev/"
+              },
+              {
+                "@type": "ListItem",
+                "position": 2,
+                "name": "Guides",
+                "item": "https://app.deepwork.rajatmalik.dev/guides/"
+              },
+              {
+                "@type": "ListItem",
+                "position": 3,
+                "name": "Choosing a focus timer"
+              }
+            ]
+          },
+          {
+            "@type": "FAQPage",
+            "mainEntity": [
+              {
+                "@type": "Question",
+                "name": "Is a browser focus timer reliable enough to use every day?",
+                "acceptedAnswer": {
+                  "@type": "Answer",
+                  "text": "It can be, with two caveats. A background tab may be throttled by the browser, so the timer can drift or its notification can be delayed; and browser storage can be cleared by the visitor or evicted under storage pressure. A desktop build avoids both, and a backup export is the sane safeguard in either case."
+                }
+              },
+              {
+                "@type": "Question",
+                "name": "What does local-first actually mean?",
+                "acceptedAnswer": {
+                  "@type": "Answer",
+                  "text": "In this context it means the primary copy of your data lives on your device and the app works without a network connection. It does not automatically mean the data never leaves: a product can be local-first and still offer optional sync. The useful question is where the copy lives by default and what leaves the machine without an explicit action."
+                }
+              },
+              {
+                "@type": "Question",
+                "name": "What happens to my data if I clear my browser?",
+                "acceptedAnswer": {
+                  "@type": "Answer",
+                  "text": "Browser storage belongs to the origin and the browser profile. Clearing site data, using a private window, or switching browsers will not carry the data across. Export a backup before clearing anything you care about. A desktop build keeps a database file you can copy."
+                }
+              },
+              {
+                "@type": "Question",
+                "name": "Does DeepWork sync between devices?",
+                "acceptedAnswer": {
+                  "@type": "Answer",
+                  "text": "No. Each machine has its own database, and there is no account or cloud service. A JSON backup can be exported from one copy and imported into another, but that is a manual transfer, not sync."
+                }
+              }
+            ]
+          }
+        ]
+      }
+    </script>
+  </head>
+  <body>
+    <a class="skip-link" href="#main">Skip to content</a>
+
+    <header class="site-header">
+      <div class="site-header__inner">
+        <a class="brand" href="/">
+          <span class="brand__mark" aria-hidden="true">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
+              <circle cx="12" cy="12" r="9" stroke="url(#mark-grad)" stroke-width="2" />
+              <path
+                d="M12 6.5V12l3.5 2"
+                stroke="url(#mark-grad)"
+                stroke-width="2"
+                stroke-linecap="round"
+              />
+              <defs>
+                <linearGradient id="mark-grad" x1="0" y1="0" x2="24" y2="24">
+                  <stop offset="0" stop-color="#8b5cf6" />
+                  <stop offset="1" stop-color="#06b6d4" />
+                </linearGradient>
+              </defs>
+            </svg>
+          </span>
+          DeepWork
+        </a>
+        <nav class="site-nav" aria-label="Site">
+          <a href="/guides/" aria-current="page">Guides</a>
+          <a href="/about-deepwork/">About</a>
+          <a href="/contact-us/">Contact</a>
+          <a class="nav-cta" href="/">Open the app</a>
+        </nav>
+      </div>
+    </header>
+
+    <main id="main">
+      <nav class="breadcrumb" aria-label="Breadcrumb">
+        <a href="/">DeepWork</a>
+        <span aria-hidden="true">/</span>
+        <a href="/guides/">Guides</a>
+        <span aria-hidden="true">/</span>
+        <span aria-current="page">Choosing a focus timer</span>
+      </nav>
+
+      <article>
+        <header class="article-header">
+          <p class="eyebrow">Tools · 9 min read</p>
+          <h1>How to choose a focus timer that does not need an account</h1>
+          <p class="lede">
+            A timer is one of the few pieces of software where an account adds almost nothing and
+            costs quite a lot. Here is what to check before you put a year of focus history into
+            someone else's database.
+          </p>
+          <p class="byline">
+            <span>By <a href="https://rajatmalik.dev/">Rajat Malik</a></span>
+            <span>Published 17 November 2026</span>
+            <span>Updated 17 November 2026</span>
+          </p>
+        </header>
+
+        <div class="article-body">
+          <p>
+            Most focus timers begin the same way: a pleasant landing page, a timer that works
+            immediately, and then a prompt to create an account "to save your progress". The prompt
+            is not usually malicious. Sync is expensive to build, and an account is how a product
+            knows whose sessions are whose. But it changes the thing you are using. A timer becomes
+            a service with a login, a data policy, a pricing page and a lifetime measured in someone
+            else's roadmap.
+          </p>
+          <p>
+            None of that is necessary for a timer. This guide is about how to tell whether a product
+            keeps its promise to stay out of the way, and where the genuine trade-offs are.
+          </p>
+
+          <h2>What an account actually buys you</h2>
+          <p>
+            An account is a trade, not a scam. In exchange for an email address and a session
+            cookie, you usually get some combination of: sync between devices, recovery if a device
+            is lost, sharing or collaboration, and a subscription business that keeps the servers
+            running. For a team task manager, that trade can be excellent. For a personal focus
+            timer, it is often a poor deal, because the most valuable data — a record of where your
+            attention went — is also the data you would least like to lose access to when a company
+            changes its pricing.
+          </p>
+          <p>
+            The question is not "does this product have an account?" but "what stops working if I
+            stop paying, and who holds the copy?" If the answer is "the timer stops and they do",
+            the product is a rental. That may still be fine. It should at least be a choice.
+          </p>
+
+          <h2>Local-first, precisely</h2>
+          <p>
+            "Local-first" gets used loosely. A useful definition has two parts: the primary copy of
+            your data lives on your device, and the app is fully usable without a network
+            connection. Optional sync can exist on top, but the local copy is not a cache — it is
+            the thing the app reads and writes.
+          </p>
+          <p>
+            A product can be local-first and still send data somewhere. The honest test is what
+            leaves the machine without an explicit action from you. A once-a-day update check that
+            sends a version number is not the same as uploading your task titles. Read the privacy
+            page and look for specifics: which requests, to which hosts, carrying what.
+          </p>
+
+          <div class="callout">
+            <p>
+              <strong>Local-first is not the same as encrypted.</strong> A local database is only as
+              private as the device it sits on. If the device is shared, use the operating system's
+              own account protection, and keep backups somewhere you trust.
+            </p>
+          </div>
+
+          <h2>Where the data lives, and what that means</h2>
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>Storage</th>
+                  <th>What it is good at</th>
+                  <th>What can go wrong</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td>Browser <code>localStorage</code></td>
+                  <td>Zero setup; works in any modern browser; survives a refresh.</td>
+                  <td>
+                    Bound to one origin and profile; cleared with site data; may be evicted under
+                    storage pressure; not shared between browsers.
+                  </td>
+                </tr>
+                <tr>
+                  <td>Desktop database (SQLite)</td>
+                  <td>A real file you can copy, back up and inspect; survives browser changes.</td>
+                  <td>
+                    Bound to one machine; needs an installer; the file is only as safe as the disk.
+                  </td>
+                </tr>
+                <tr>
+                  <td>Cloud account</td>
+                  <td>Sync, recovery, access from any device.</td>
+                  <td>
+                    Requires a login and a network; subject to the provider's pricing, policy and
+                    continued existence.
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+          <p>
+            The table is not an argument that local storage is always better. It is an argument for
+            knowing which row you are in. A browser timer that quietly keeps a year of sessions in
+            <code>localStorage</code> is a fine tool until the day someone clears site data to fix
+            an unrelated problem.
+          </p>
+
+          <h2>Seven things to test before committing</h2>
+          <ol>
+            <li>
+              <strong>Turn off the network.</strong> Does the timer still start, run and record? If
+              not, it is a web service wearing a timer's clothes.
+            </li>
+            <li>
+              <strong>Close the tab mid-session.</strong> Does the session survive, resume, or
+              vanish? A timer that loses the session when the tab closes is a tab, not a timer.
+            </li>
+            <li>
+              <strong>Find the export.</strong> Is there a plain, documented way to get your data
+              out? CSV, JSON, a database file — any of them is better than a screenshot.
+            </li>
+            <li>
+              <strong>Read the privacy page for specifics.</strong> Which third parties receive
+              what? "We value your privacy" is not a data-flow description.
+            </li>
+            <li>
+              <strong>Check the price model.</strong> Free, one-time, subscription, or
+              free-until-it- is-not. Look for the sentence about what happens to your data if you
+              stop paying.
+            </li>
+            <li>
+              <strong>Check the licence.</strong> Open source means you can inspect the claims and,
+              if the project stops, keep using the version you have. It is not a guarantee of
+              support, but it is a guarantee of access.
+            </li>
+            <li>
+              <strong>Test the alert.</strong> A timer that ends with one quiet chime is a timer you
+              will ignore. You want an alert that is hard to miss and easy to answer.
+            </li>
+          </ol>
+
+          <h2>The honest limits of a browser timer</h2>
+          <p>
+            A browser is a hostile place for a long-running timer, and it is worth saying so
+            plainly. Background tabs are throttled to save battery, which can make a countdown drift
+            or delay a notification. Notification permission is a separate grant and can be revoked.
+            Mobile browsers are more aggressive still, and an installed web app on iOS has its own
+            restrictions. Browser storage can be cleared by the visitor or evicted when the device
+            is short of space.
+          </p>
+          <p>
+            A desktop build avoids most of this because it is a real application with a real
+            process, a tray icon and a database file. It also has its own costs: an installer, an
+            update process and, for an unsigned project, a warning from the operating system on
+            first launch. Neither option is universally better. The web build is the one you can try
+            in ten seconds; the desktop build is the one that keeps a session running when the
+            browser is closed.
+          </p>
+
+          <h2>Where DeepWork fits</h2>
+          <p>
+            DeepWork is the app this guide belongs to, so here is the disclosure. It is free, MIT
+            licensed and local-first. The desktop build keeps a SQLite database on your machine; the
+            web build keeps the same records in browser storage. There is no account, no sync and no
+            backend. A JSON backup can be exported and imported, and the desktop app can run in the
+            tray with a small always-on-top timer, so a session survives the window being closed.
+          </p>
+          <p>
+            Its limits are equally plain: no multi-device sync, no native mobile app, and unsigned
+            installers that trigger a SmartScreen or Gatekeeper warning on first launch. The guides
+            pages you are reading carry Google AdSense advertising; the application interface does
+            not, and no task, session or journal entry is sent to an ad network.
+          </p>
+          <p>
+            If those trade-offs fit, the app is here to use. If they do not, the seven tests above
+            will help you choose something else honestly.
+          </p>
+
+          <h2>Questions people actually ask</h2>
+          <div class="faq">
+            <details>
+              <summary>Is a browser focus timer reliable enough to use every day?</summary>
+              <p>
+                It can be, with two caveats. A background tab may be throttled by the browser, so
+                the timer can drift or its notification can be delayed; and browser storage can be
+                cleared by the visitor or evicted under storage pressure. A desktop build avoids
+                both, and a backup export is the sane safeguard in either case.
+              </p>
+            </details>
+            <details>
+              <summary>What does local-first actually mean?</summary>
+              <p>
+                In this context it means the primary copy of your data lives on your device and the
+                app works without a network connection. It does not automatically mean the data
+                never leaves: a product can be local-first and still offer optional sync. The useful
+                question is where the copy lives by default and what leaves the machine without an
+                explicit action.
+              </p>
+            </details>
+            <details>
+              <summary>What happens to my data if I clear my browser?</summary>
+              <p>
+                Browser storage belongs to the origin and the browser profile. Clearing site data,
+                using a private window, or switching browsers will not carry the data across. Export
+                a backup before clearing anything you care about. A desktop build keeps a database
+                file you can copy.
+              </p>
+            </details>
+            <details>
+              <summary>Does DeepWork sync between devices?</summary>
+              <p>
+                No. Each machine has its own database, and there is no account or cloud service. A
+                JSON backup can be exported from one copy and imported into another, but that is a
+                manual transfer, not sync.
+              </p>
+            </details>
+          </div>
+
+          <div class="cta-band">
+            <h2>Try the trade for yourself</h2>
+            <p>
+              Open DeepWork in the browser, or take the desktop build if you want a session to
+              survive a closed window. Both keep the record on your machine.
+            </p>
+            <div class="button-row">
+              <a class="button" href="/">Open the web app</a>
+              <a
+                class="button button--ghost"
+                href="https://github.com/malikrajat/deepwork/releases/latest"
+                >Download a desktop build</a
+              >
+            </div>
+          </div>
+        </div>
+      </article>
+
+      <aside class="author-card" aria-label="About the author">
+        <div class="author-card__avatar" aria-hidden="true">RM</div>
+        <div>
+          <h2>Rajat Malik</h2>
+          <p>
+            Rajat is a senior lead software engineer and the developer of DeepWork. He writes about
+            focus, frontend architecture and local-first software at
+            <a href="https://rajatmalik.dev/">rajatmalik.dev</a> and
+            <a href="https://medium.com/@codewithrajat">Medium</a>. Corrections and questions are
+            welcome at <a href="mailto:contact@rajatmalik.dev">contact@rajatmalik.dev</a>.
+          </p>
+        </div>
+      </aside>
+
+      <nav class="next-read" aria-label="Next guide">
+        <p>Next in the guides</p>
+        <a href="/guides/deep-work-routine.html"
+          >A daily routine for two real blocks of deep work →</a
+        >
+      </nav>
+    </main>
+
+    <footer class="site-footer">
+      <div class="site-footer__inner">
+        <nav aria-label="Footer">
+          <a href="/guides/">Guides</a>
+          <a href="/about-deepwork/">About DeepWork</a>
+          <a href="/editorial-policy/">Editorial policy</a>
+          <a href="/advertising-policy/">Advertising policy</a>
+          <a href="/contact-us/">Contact</a>
+          <a href="/privacy-policy/">Privacy policy</a>
+          <a href="/terms-of-use/">Terms of use</a>
+          <a href="https://github.com/malikrajat/deepwork">GitHub</a>
+        </nav>
+        <p>
+          DeepWork is a free, local-first focus timer, task manager and habit tracker for Windows,
+          macOS, Linux and the browser. Your tasks, sessions and notes stay on your own machine.
+        </p>
+        <p class="fine">
+          © 2026 Rajat Malik. The DeepWork application is MIT licensed. The six guide articles carry
+          advertising served by Google AdSense; the application interface, guide index and policy
+          pages do not. See the
+          <a href="/privacy-policy/">privacy policy</a> for cookies and choices.
+        </p>
+      </div>
+    </footer>
+  </body>
+</html>

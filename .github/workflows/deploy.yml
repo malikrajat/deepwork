@@ -39,6 +39,13 @@ jobs:
       - name: Build DeepWork for the custom domain
         run: npm run build:github
 
+      # The guides and the AdSense files are static assets. A build that loses
+      # them publishes a site that looks fine and has no ads.txt, no sitemap
+      # entries and no content pages, which is exactly the review failure this
+      # work exists to prevent.
+      - name: Check the SEO and AdSense files
+        run: npm run check:seo
+
       # A deployment that silently carries the old `/deepwork/` base href serves
       # a blank page at the custom domain. Fail here rather than in production.
       - name: Verify the Pages artifact
@@ -47,9 +54,11 @@ jobs:
           test -f dist/deepwork/browser/index.html
           test -f dist/deepwork/browser/404.html
           test -f dist/deepwork/browser/CNAME
+          test -f dist/deepwork/browser/ads.txt
+          test -f dist/deepwork/browser/guides/index.html
           test "$(tr -d '[:space:]' < dist/deepwork/browser/CNAME)" = "app.deepwork.rajatmalik.dev"
           grep -q '<base href="/"' dist/deepwork/browser/index.html
-          echo "artifact: base href=/, 404.html and CNAME present"
+          echo "artifact: base href=/, 404.html, CNAME, ads.txt and guides present"
 
       - name: Configure GitHub Pages
         uses: actions/configure-pages@v6
