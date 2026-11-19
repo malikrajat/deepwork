@@ -1,0 +1,9 @@
+# ads.txt for app.deepwork.rajatmalik.dev
+#
+# Google AdSense. The publisher ID below is the account that owns this domain;
+# it is the same value as the `google-adsense-account` meta tag in the pages and
+# the `client` parameter of the AdSense tag on /guides/.
+#
+# Format: <exchange domain>, <publisher account>, <relationship>, <certification authority ID>
+# Google's certification authority ID is f08c47fec0942fa0.
+google.com, pub-4991682021863699, DIRECT, f08c47fec0942fa0

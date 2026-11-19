@@ -5,6 +5,51 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ---
 
+## [3.4.0] – 2026-11-14
+
+### Added
+
+- **Every page now opens with the Dashboard's header language.** Today, Tasks,
+  Analytics, Calendar, the Eisenhower Matrix, Time by Task, Reminders, Habits,
+  Journal, Settings and About share one header: an eyebrow naming the page's
+  job, the large gradient title, a live line of context and room for the page's
+  own actions (`shared/components/page-header`).
+
+- **Quick jump on every page.** Ctrl/Cmd+K, or the sidebar's new “Jump to
+  anything” row, opens one searchable list of destinations, actions (add a task,
+  start or pause focus, enter focus mode, open the quiet panel) and today's open
+  tasks. It is deferred on idle, keyboard-driven and works alongside the
+  Dashboard's richer palette (`shared/components/command-palette`).
+
+- **Fewer clicks on each surface.** Tasks and Today gained a one-press “Focus
+  next”; Calendar and Matrix gained “Focus first”; Habits gained “Check in all”
+  plus All / Still to do / At risk filters; Reminders gained one-tap times (15
+  minutes, 30 minutes, an hour, tonight, tomorrow morning); Settings gained a
+  live settings search and group jump chips; Time by Task gained a share-of-focus
+  allocation bar; Journal gained “Write today”; About gained a version/update
+  pill and an inline update check.
+
+- **A grouped sidebar.** The eleven destinations are now divided into Overview,
+  Plan, Review, Rituals and App, so the navigation is scanned by section instead
+  of read top to bottom.
+
+### Changed
+
+- Today shows its task counts as filter chips (All / Open / Done) and offers a
+  filter-aware empty state.
+- The shared page actions, metric tiles and in-page chips moved into the global
+  design tokens in `styles.css`, so both themes and the large-screen type ladder
+  apply without a second copy of each rule.
+
+### Fixed
+
+- The Tasks page's mobile search field no longer takes its 320px desktop flex
+  basis as a height, which had pushed the board below the fold on a phone.
+- Phone headers wrap their actions as whole buttons rather than breaking labels
+  such as “Focus next” across two lines.
+
+---
+
 ## [3.3.0] – 2026-11-13
 
 ### Added

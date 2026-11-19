@@ -72,6 +72,7 @@ const UPDATE_INTERVAL_MS = 1000;
           @if (ab.plannedHeightPx; as plannedHeight) {
             <div
               class="session-block planned-span"
+              [attr.data-type]="ab.type"
               [style.top.px]="ab.topPx"
               [style.height.px]="plannedHeight"
             ></div>
@@ -247,19 +248,42 @@ const UPDATE_INTERVAL_MS = 1000;
       }
 
       /* The time the running session is booked for, drawn behind the elapsed bar
-       so "now" has somewhere to be inside of. Breaks never reach the timeline
-       today (sessionBlocks skips them), so this stays the work colour. */
+       so "now" has somewhere to be inside of. It takes the colour of the session
+       it belongs to, so a break in progress is not drawn as pending focus. */
       .session-block.planned-span {
-        background: rgba(139, 92, 246, 0.07);
-        border-left: 3px solid rgba(139, 92, 246, 0.22);
+        border-left: 3px solid transparent;
         border-right: none;
         border-top: none;
-        border-bottom: 1px solid rgba(139, 92, 246, 0.28);
+        border-bottom: 1px solid transparent;
         padding: 0;
         min-height: 0;
         z-index: 0;
         pointer-events: none;
         animation: none;
+      }
+      .session-block.planned-span[data-type='work'] {
+        background: rgba(139, 92, 246, 0.07);
+        border-left-color: rgba(139, 92, 246, 0.22);
+        border-bottom-color: rgba(139, 92, 246, 0.28);
+      }
+      .session-block.planned-span[data-type='short-break'] {
+        background: rgba(6, 182, 212, 0.07);
+        border-left-color: rgba(6, 182, 212, 0.24);
+        border-bottom-color: rgba(6, 182, 212, 0.3);
+      }
+      .session-block.planned-span[data-type='long-break'] {
+        background: rgba(52, 211, 153, 0.07);
+        border-left-color: rgba(52, 211, 153, 0.24);
+        border-bottom-color: rgba(52, 211, 153, 0.3);
+      }
+
+      /* A break's label is the whole point of drawing a short block, so it gets
+         the full height of its row: 15 minutes of long break is exactly one
+         line, and the 2px padding would have clipped it. */
+      .session-block.type-short-break,
+      .session-block.type-long-break {
+        padding-top: 0;
+        padding-bottom: 0;
       }
 
       /* The title steps back so the session's times can step forward: at equal

@@ -11,6 +11,12 @@
 # npm maintains the lockfile's formatting itself.
 package-lock.json
 
+# `_headers` is a Cloudflare Pages config file, not code: a colon-separated
+# `Name: value` list indented under a path pattern. Prettier has no parser for
+# it and says so loudly, and the indentation is the format — reformatting it by
+# hand would change which rule a header belongs to.
+/public/_headers
+
 # Separate checkouts kept inside the project folder by the Kilo Code tool.
 /.kilo
 

@@ -2,12 +2,16 @@
 #
 # The app has no login, no admin area and no user-generated content on the
 # server: every task, session and note lives in the visitor's own browser
-# storage. There is therefore nothing here to hide from a crawler, which is why
-# the rules below are permissions rather than restrictions.
+# storage or in a local SQLite file. There is therefore nothing here to hide
+# from a crawler, which is why the rules below are permissions rather than
+# restrictions.
+#
+# The written guides under /guides/ are the crawlable, content-bearing part of
+# the site. They are static HTML, and they are the pages advertising appears on.
 #
 # Machine-readable alternatives to the HTML:
 #   /llms.txt     - a short, curated guide for assistants and answer engines
-#   /sitemap.xml  - every public page of the app
+#   /sitemap.xml  - every public page of the site
 #   https://deepwork.rajatmalik.dev/llms-full.txt - the full product page as Markdown
 
 User-agent: *
@@ -36,6 +40,18 @@ User-agent: Baiduspider
 Allow: /
 
 User-agent: YandexBot
+Allow: /
+
+# Google's advertising crawlers. Mediapartners-Google reads pages to place
+# AdSense ads; AdsBot-Google checks the landing pages advertisers pay for.
+# Neither follows a wildcard group reliably, so each is named.
+User-agent: Mediapartners-Google
+Allow: /
+
+User-agent: AdsBot-Google
+Allow: /
+
+User-agent: AdsBot-Google-Mobile
 Allow: /
 
 # AI assistants and answer engines. Explicit groups because some crawlers only

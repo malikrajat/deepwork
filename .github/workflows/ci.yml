@@ -169,6 +169,19 @@ jobs:
       - name: ng build (production)
         run: npm run build
 
+      # The headers in `public/_headers` are what stop a browser from framing
+      # the app, running a script from an unlisted origin, or loading it over
+      # plain HTTP. Nothing else in the build notices when one of them is
+      # removed, so the artefact is checked here rather than in production.
+      - name: Check the security headers
+        run: npm run check:headers
+
+      # ads.txt, the sitemap, the metadata on every static page, the structured
+      # data, the policy disclosures and the CSP's AdSense origins are all
+      # invisible to `ng build`; this is the step that notices when one is lost.
+      - name: Check the SEO and AdSense files
+        run: npm run check:seo
+
   e2e:
     name: E2E (Playwright)
     runs-on: ubuntu-latest

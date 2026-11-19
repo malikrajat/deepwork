@@ -28,6 +28,8 @@ import { VisitorStatsDialogComponent } from './shared/components/visitor-stats-d
 import { QuietDialogComponent } from './shared/components/quiet-dialog/quiet-dialog.component';
 import { ConfirmDialogComponent } from './shared/components/confirm-dialog/confirm-dialog.component';
 import { InstallDialogComponent } from './shared/components/install-dialog/install-dialog.component';
+import { CommandPaletteComponent } from './shared/components/command-palette/command-palette.component';
+import { CommandPaletteService } from './core/services/command-palette.service';
 import { TimerService } from './core/services/timer.service';
 import { UiService } from './core/services/ui.service';
 import { InstallService } from './core/services/install.service';
@@ -94,6 +96,7 @@ const COMPACT_LAYOUT_QUERY = '(max-width: 900px)';
     QuietDialogComponent,
     ConfirmDialogComponent,
     InstallDialogComponent,
+    CommandPaletteComponent,
   ],
   templateUrl: './app.html',
   styleUrl: './app.css',
@@ -122,6 +125,11 @@ export class App implements OnInit {
    * and the dialog it opens is the same component the sidebar and Settings use.
    */
   readonly quiet = inject(QuietService);
+  /**
+   * The shell's quick-jump, opened with Ctrl/Cmd+K from every page except the
+   * dashboard, which has a richer palette of its own on the same shortcut.
+   */
+  private readonly palette = inject(CommandPaletteService);
   private readonly install = inject(InstallService);
   private readonly destroyRef = inject(DestroyRef);
 
@@ -261,6 +269,7 @@ export class App implements OnInit {
     // has already answered this key: it does not also mean "start the timer".
     if (event.defaultPrevented) return;
     if (this.handleEscape(event)) return;
+    if (this.handleCommandPalette(event)) return;
     if (this.handleQuietToggle(event)) return;
     if (this.handleFocusToggle(event)) return;
     if (this.handlePageNavigation(event)) return;
@@ -269,6 +278,13 @@ export class App implements OnInit {
 
   private handleEscape(event: KeyboardEvent): boolean {
     if (event.key !== 'Escape') return false;
+    // Quick jump is a modal over the page, so it is the first thing Escape
+    // should dismiss even if focus has wandered off its input.
+    if (this.palette.open()) {
+      event.preventDefault();
+      this.palette.hide();
+      return true;
+    }
     // The quiet panel is the topmost layer — it is a modal over whatever page is
     // open — so Escape closes it before it reaches the drawer or Focus Mode
     // underneath. Without this, dismissing the panel would also leave a focus
@@ -298,6 +314,25 @@ export class App implements OnInit {
       return true;
     }
     return false;
+  }
+
+  /**
+   * Ctrl/Cmd+K, everywhere but the dashboard.
+   *
+   * The dashboard already owns this shortcut for its own palette, which knows
+   * about the timer and shortcuts; on every other page the shell's jump list is
+   * the equivalent. Escape is handled above, so a palette opened here can always
+   * be dismissed by the same key.
+   */
+  private handleCommandPalette(event: KeyboardEvent): boolean {
+    if (!(event.ctrlKey || event.metaKey) || event.shiftKey || event.key.toLowerCase() !== 'k') {
+      return false;
+    }
+    const path = this.router.url.split(/[?#]/)[0];
+    if (path === '/' || path === '/dashboard') return false;
+    event.preventDefault();
+    this.palette.toggle();
+    return true;
   }
 
   private handleFocusToggle(event: KeyboardEvent): boolean {

@@ -18,6 +18,7 @@ import {
   localDay,
 } from '../../core/utils/insights.util';
 import { journalText } from '../../core/utils/journal-content.util';
+import { PageHeaderComponent } from '../../shared/components/page-header/page-header.component';
 
 /**
  * Analytics.
@@ -29,14 +30,14 @@ import { journalText } from '../../core/utils/journal-content.util';
  */
 @Component({
   selector: 'app-analytics',
-  imports: [TooltipDirective, DecimalPipe],
+  imports: [TooltipDirective, DecimalPipe, PageHeaderComponent],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
-    <div class="page-header animate-fade-in">
-      <div>
-        <h1 class="gradient-text page-title">Analytics</h1>
-        <p class="page-subtitle">What your data says — and what to do about it</p>
-      </div>
+    <app-page-header
+      eyebrow="Metrics"
+      title="Analytics"
+      subtitle="What your data says — and what to do about it"
+    >
       <div class="header-pills">
         <span class="pill">{{ totals().focusMinutes | number: '1.0-0' }} min focused all-time</span>
         <span class="pill">{{ totals().sessions }} focus sessions</span>
@@ -64,10 +65,22 @@ import { journalText } from '../../core/utils/journal-content.util';
           Offline AI
         </span>
       </div>
-    </div>
+    </app-page-header>
+
+    <nav class="chip-row animate-fade-in" aria-label="Jump to a reading">
+      <button class="chip-link" type="button" (click)="jumpTo('analytics-numbers')">Numbers</button>
+      <button class="chip-link" type="button" (click)="jumpTo('analytics-readings')">
+        What it means
+      </button>
+      <button class="chip-link" type="button" (click)="jumpTo('analytics-heatmap')">
+        Consistency
+      </button>
+      <button class="chip-link" type="button" (click)="jumpTo('analytics-rhythm')">Rhythm</button>
+      <button class="chip-link" type="button" (click)="jumpTo('analytics-flow')">Task flow</button>
+    </nav>
 
     <!-- ── Numbers ──────────────────────────────────────────────────────── -->
-    <section class="kpi-grid" aria-label="Key numbers">
+    <section id="analytics-numbers" class="kpi-grid" aria-label="Key numbers">
       @for (kpi of report().kpis; track kpi.key) {
         <article class="kpi-card">
           <span class="kpi-label">{{ kpi.label }}</span>
@@ -96,7 +109,7 @@ import { journalText } from '../../core/utils/journal-content.util';
     </section>
 
     <!-- ── Readings ─────────────────────────────────────────────────────── -->
-    <section class="chart-card insights-card">
+    <section id="analytics-readings" class="chart-card insights-card">
       <h3 class="chart-title">What the numbers say</h3>
       @if (report().insights.length) {
         <ul class="insight-list">
@@ -113,7 +126,7 @@ import { journalText } from '../../core/utils/journal-content.util';
     </section>
 
     <!-- ── Consistency heatmap ──────────────────────────────────────────── -->
-    <section class="chart-card">
+    <section id="analytics-heatmap" class="chart-card">
       <h3 class="chart-title">
         Focus consistency · last 12 weeks
         <span class="title-note">each square is one day · darker = more focus</span>
@@ -148,8 +161,7 @@ import { journalText } from '../../core/utils/journal-content.util';
       </div>
     </section>
 
-    <div class="two-col">
-      <!-- ── Peak hours ─────────────────────────────────────────────────── -->
+    <div id="analytics-rhythm" class="two-col">
       <section class="chart-card">
         <h3 class="chart-title">
           When you focus
@@ -197,8 +209,7 @@ import { journalText } from '../../core/utils/journal-content.util';
       </section>
     </div>
 
-    <div class="two-col">
-      <!-- ── Task flow ──────────────────────────────────────────────────── -->
+    <div id="analytics-flow" class="two-col">
       <section class="chart-card">
         <h3 class="chart-title">
           Task flow <span class="title-note">created vs closed, last 8 weeks</span>
@@ -1065,6 +1076,17 @@ export class AnalyticsComponent implements OnInit {
   );
 
   protected readonly totals = computed(() => this.report().totals);
+
+  /**
+   * Put one reading under the user's eye without making them scroll a page of
+   * charts to find it. The chips are the page's chapter list.
+   */
+  jumpTo(id: string): void {
+    const target = document.getElementById(id);
+    if (!target) return;
+    const reduced = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches ?? false;
+    target.scrollIntoView({ behavior: reduced ? 'auto' : 'smooth', block: 'start' });
+  }
 
   private readonly heatByDate = computed(() => {
     const map = new Map<string, { level: number; label: string }>();

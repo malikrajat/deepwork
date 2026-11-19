@@ -26,6 +26,8 @@ import {
 } from '../../shared/components/task-board/task-board.component';
 import { SearchFormModel, createSearchFormDefaults } from '../../shared/models/form.models';
 import { isPinnedToToday } from '../../core/utils/task-day.util';
+import { localDayKey } from '../../core/utils/nudge-schedule.util';
+import { PageHeaderComponent } from '../../shared/components/page-header/page-header.component';
 import {
   TaskDateGroup,
   groupAddDate,
@@ -44,17 +46,39 @@ type SortKey = 'updated' | 'priority' | 'deadline' | 'newest';
     TaskImportPanelComponent,
     TaskExportPanelComponent,
     TaskBoardComponent,
+    PageHeaderComponent,
   ],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <div class="tasks-layout">
       <!-- Header -->
-      <div class="page-header">
-        <div class="header-left">
-          <h1 class="gradient-text page-title">Tasks</h1>
-          <span class="task-count">{{ filteredTasks().length }} tasks</span>
-        </div>
+      <app-page-header
+        eyebrow="The whole board"
+        title="Tasks"
+        [subtitle]="
+          filteredTasks().length +
+          ' tasks · ' +
+          openCount() +
+          ' open · ' +
+          overdueCount() +
+          ' overdue'
+        "
+      >
         <div class="header-actions">
+          <button
+            class="btn btn-outline btn-sm"
+            type="button"
+            (click)="focusNext()"
+            [disabled]="!nextFocusTask()"
+            appTooltip="Start the highest-priority open task on the dashboard clock"
+          >
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+              <path
+                d="M7 4.6v14.8a1 1 0 0 0 1.54.84l11.2-7.4a1 1 0 0 0 0-1.68L8.54 3.76A1 1 0 0 0 7 4.6Z"
+              />
+            </svg>
+            Focus next
+          </button>
           <button
             class="btn btn-outline btn-sm"
             type="button"
@@ -110,7 +134,7 @@ type SortKey = 'updated' | 'priority' | 'deadline' | 'newest';
             Add Task
           </button>
         </div>
-      </div>
+      </app-page-header>
 
       <!-- Search & sort. The columns are the status filter now: every task is on
            the board, so there are no filter pills to click. -->
@@ -465,6 +489,12 @@ type SortKey = 'updated' | 'priority' | 'deadline' | 'newest';
         .search-box {
           max-width: none;
           min-height: 44px;
+          /* The row's 320px basis is a width on the toolbar above; in this
+             column it would become a 320px-tall search field and push the
+             board off the phone. Here the field takes the width it is given
+             and exactly the one line it needs. */
+          flex: 0 0 auto;
+          width: 100%;
         }
         .clear-search {
           min-width: 44px;
@@ -718,6 +748,11 @@ type SortKey = 'updated' | 'priority' | 'deadline' | 'newest';
         cursor: not-allowed;
         transform: none;
       }
+      .btn:disabled {
+        opacity: 0.4;
+        cursor: not-allowed;
+        transform: none;
+      }
       .btn-outline {
         background: transparent;
         color: var(--color-text-secondary);
@@ -940,6 +975,38 @@ export class TasksComponent implements OnInit {
     }
     return [...tasks].sort((a, b) => this.compareTasks(a, b, this.sortBy()));
   });
+
+  /** The counts the header and the Focus next button read. */
+  readonly openCount = computed(
+    () => this.taskService.tasks().filter((task) => task.status !== 'done').length,
+  );
+  readonly overdueCount = computed(() => {
+    const today = localDayKey(new Date());
+    return this.taskService
+      .tasks()
+      .filter(
+        (task) =>
+          task.status !== 'done' &&
+          task.deadline !== null &&
+          task.deadline !== '' &&
+          task.deadline < today,
+      ).length;
+  });
+
+  /** The next open task today's focus order allows the clock to start on. */
+  readonly nextFocusTask = computed(
+    () =>
+      this.taskService
+        .tasks()
+        .filter((task) => task.status !== 'done')
+        .find((task) => this.focusLauncher.canStart(task)) ?? null,
+  );
+
+  /** Start the first open task today's focus quadrant allows, without hunting. */
+  async focusNext(): Promise<void> {
+    const next = this.nextFocusTask();
+    if (next) await this.focusLauncher.start(next);
+  }
 
   // ── Date sections ──────────────────────────────────────────────────────────
   /** The tasks, filed by their own date — today first, then back through time. */

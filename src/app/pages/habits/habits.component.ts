@@ -13,6 +13,7 @@ import { TooltipDirective } from '../../shared/directives/tooltip.directive';
 import { HabitFormModel, createHabitFormDefaults } from '../../shared/models/form.models';
 import { noXss, trimmedRequired } from '../../shared/validators/form-validators';
 import { buildHabitStats, dayOfIso, localDay } from '../../core/utils/insights.util';
+import { PageHeaderComponent } from '../../shared/components/page-header/page-header.component';
 
 interface Habit {
   id: string;
@@ -37,14 +38,23 @@ const WINDOW_DAYS = 30;
  */
 @Component({
   selector: 'app-habits',
-  imports: [FormField, FormFieldWrapperComponent, TooltipDirective],
+  imports: [FormField, FormFieldWrapperComponent, TooltipDirective, PageHeaderComponent],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
-    <div class="page-header animate-fade-in">
-      <div>
-        <h1 class="gradient-text page-title">Habits</h1>
-        <p class="page-subtitle">Build consistency, one day at a time</p>
-      </div>
+    <app-page-header
+      eyebrow="Rituals"
+      title="Habits"
+      [subtitle]="
+        summary().tracked
+          ? doneTodayCount() +
+            ' of ' +
+            cards().length +
+            ' checked in today · ' +
+            summary().average +
+            '% over 30 days'
+          : 'Build consistency, one day at a time'
+      "
+    >
       @if (summary().tracked) {
         <div class="header-stats">
           <div
@@ -65,9 +75,51 @@ const WINDOW_DAYS = 30;
             <span class="stat-value">{{ summary().checkIns }}</span>
             <span class="stat-label">check-ins · 30d</span>
           </div>
+          @if (doneTodayCount() < cards().length) {
+            <button
+              class="btn btn-primary btn-sm"
+              type="button"
+              (click)="checkInAll()"
+              appTooltip="Check in every habit you have not marked today"
+            >
+              Check in all
+            </button>
+          }
         </div>
       }
-    </div>
+    </app-page-header>
+
+    @if (cards().length > 1) {
+      <nav class="chip-row animate-fade-in" aria-label="Filter habits">
+        <button
+          class="chip-link"
+          type="button"
+          [class.active]="filter() === 'all'"
+          [attr.aria-pressed]="filter() === 'all'"
+          (click)="filter.set('all')"
+        >
+          All {{ cards().length }}
+        </button>
+        <button
+          class="chip-link"
+          type="button"
+          [class.active]="filter() === 'open'"
+          [attr.aria-pressed]="filter() === 'open'"
+          (click)="filter.set('open')"
+        >
+          Still to do {{ cards().length - doneTodayCount() }}
+        </button>
+        <button
+          class="chip-link"
+          type="button"
+          [class.active]="filter() === 'risk'"
+          [attr.aria-pressed]="filter() === 'risk'"
+          (click)="filter.set('risk')"
+        >
+          At risk {{ atRiskCount() }}
+        </button>
+      </nav>
+    }
 
     <!-- Add Habit Form -->
     <div class="add-form animate-fade-in-delay-1">
@@ -96,9 +148,9 @@ const WINDOW_DAYS = 30;
     }
 
     <!-- Habits Grid -->
-    @if (cards().length > 0) {
+    @if (visibleCards().length > 0) {
       <div class="habits-grid animate-fade-in-delay-1">
-        @for (habit of cards(); track habit.id) {
+        @for (habit of visibleCards(); track habit.id) {
           <div
             class="habit-card"
             [class.done-today]="habit.doneToday"
@@ -161,10 +213,18 @@ const WINDOW_DAYS = 30;
           </div>
         }
       </div>
-    } @else {
+    } @else if (cards().length === 0) {
       <div class="empty-state animate-fade-in-delay-1">
         <h2 class="empty-title">No habits yet</h2>
         <p class="empty-desc">Add your first habit above to start tracking streaks.</p>
+      </div>
+    } @else {
+      <div class="empty-state animate-fade-in-delay-1">
+        <h2 class="empty-title">Nothing in this filter</h2>
+        <p class="empty-desc">Every habit is outside the view you picked.</p>
+        <button class="btn btn-primary btn-sm" type="button" (click)="filter.set('all')">
+          Show all habits
+        </button>
       </div>
     }
   `,
@@ -482,6 +542,28 @@ const WINDOW_DAYS = 30;
         .habits-grid {
           grid-template-columns: repeat(auto-fill, minmax(min(268px, 100%), 1fr));
         }
+        /* The three numbers are one band, not three rows of glass. On a phone
+           each tile gets a third of the width, and the one action that belongs
+           with them takes the row underneath. */
+        .header-stats {
+          display: grid;
+          grid-template-columns: repeat(3, minmax(0, 1fr));
+          width: 100%;
+          gap: 6px;
+        }
+        .stat-pill {
+          padding: 8px 6px;
+          min-width: 0;
+        }
+        .stat-label {
+          text-align: center;
+          line-height: 1.25;
+        }
+        .header-stats .btn {
+          grid-column: 1 / -1;
+          justify-content: center;
+          margin-top: 2px;
+        }
         /* A grid item is min-width: auto by default, which is what would
            otherwise let a long habit name hold the card wider than its track. */
         .habit-card {
@@ -669,6 +751,21 @@ export class HabitsComponent implements OnInit {
     }));
   });
 
+  /** All, still to do, or the habits that need attention first. */
+  readonly filter = signal<'all' | 'open' | 'risk'>('all');
+
+  readonly visibleCards = computed(() => {
+    const cards = this.cards();
+    if (this.filter() === 'open') return cards.filter((card) => !card.doneToday);
+    if (this.filter() === 'risk') return cards.filter((card) => card.stat.completionPercent < 40);
+    return cards;
+  });
+
+  readonly doneTodayCount = computed(() => this.cards().filter((card) => card.doneToday).length);
+  readonly atRiskCount = computed(
+    () => this.cards().filter((card) => card.stat.completionPercent < 40).length,
+  );
+
   readonly summary = computed(() => {
     const stats = this.stats();
     if (!stats.length) {
@@ -751,6 +848,27 @@ export class HabitsComponent implements OnInit {
         id: crypto.randomUUID(),
         habitId: habit.id,
         completedAt: new Date().toISOString(),
+      });
+    }
+    await this.loadData();
+  }
+
+  /**
+   * Mark every habit that is still open as done for today.
+   *
+   * Deliberately additive: a habit already checked in is left alone, and a
+   * second tap on a card can still undo its own check-in. This is the "I did my
+   * routine, record it" path, not a toggle of all.
+   */
+  async checkInAll(): Promise<void> {
+    const missing = this.cards().filter((habit) => !habit.doneToday);
+    if (!missing.length) return;
+    const completedAt = new Date().toISOString();
+    for (const habit of missing) {
+      await this.db.addHabitEntry({
+        id: crypto.randomUUID(),
+        habitId: habit.id,
+        completedAt,
       });
     }
     await this.loadData();

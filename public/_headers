@@ -1,0 +1,53 @@
+# Response headers for the web build, as Cloudflare Pages reads them.
+#
+# Pages looks for this file at the root of the deployed output and applies the
+# headers below to every response matching the path pattern. `ng build` copies
+# everything in `public/` to `dist/deepwork/browser`, so this file ships with the
+# build without any extra step; `scripts/check-headers.mjs` reads it back and
+# fails if one of the four security headers goes missing.
+#
+# GitHub Pages cannot send custom headers at all, which is why this file only
+# means anything on the Pages project. The desktop build (Tauri) does not read it
+# either — it loads the same folder from disk, where there is no HTTP layer.
+#
+# The CSP below is an allowlist of what this app actually loads, not a copy of a
+# generic policy. Every entry has a reason:
+#
+#   googletagmanager.com / google-analytics.com  Google Tag Manager, and the GA4
+#       property it loads. GA4 also posts to www.google.com/g/collect, which is
+#       why that origin is in connect-src. GTM injects its own inline <script>,
+#       which is why 'unsafe-inline' is present in script-src: a static host
+#       cannot mint a per-response nonce, and GTM's injected code cannot carry a
+#       build-time hash. The origin list still blocks a third-party script from
+#       anywhere else, which is the part that matters for XSS.
+#   pagead2.googlesyndication.com and the ad origins below  Google AdSense,
+#       which is loaded only by the six static guide articles under /guides/
+#       (the guide index and the policy pages are ad-free). It pulls
+#       script, images and frames from googlesyndication.com, doubleclick.net,
+#       googleadservices.com, adservice.google.com and adtrafficquality.google.
+#       fundingchoicesmessages.google.com is the certified consent message. The
+#       app itself does not load AdSense, but the CSP is site-wide, so the
+#       origins have to be listed for the guide pages to work.
+#   static.cloudflareinsights.com / cloudflareinsights.com  Cloudflare Web
+#       Analytics, which the host injects into HTML responses. Cookie-less, but
+#       it is still a script and a request, so it belongs in the allowlist.
+#   gc.zgo.at / *.goatcounter.com                The visitor counter: a pinned,
+#       integrity-checked script, and the site that receives pageviews.
+#   js.hcaptcha.com / *.hcaptcha.com             The contact form's captcha:
+#       script, widget iframe, assets, and its own inline styles.
+#   api.web3forms.com                            Where the contact form posts.
+#   api.github.com                               The release feed behind the
+#       download list on the About page.
+#   data: / blob:                                The inline SVG used by the
+#       select control, and the CSV/Excel/JSON exports, which are Blobs.
+#
+# style-src needs 'unsafe-inline' because Angular injects component styles into
+# <style> elements at runtime. That is a property of the framework, not a choice.
+
+/*
+  Strict-Transport-Security: max-age=31536000; includeSubDomains
+  Content-Security-Policy: default-src 'self'; base-uri 'self'; object-src 'none'; frame-ancestors 'self'; form-action 'self'; script-src 'self' 'unsafe-inline' https://www.googletagmanager.com https://www.google-analytics.com https://*.google-analytics.com https://gc.zgo.at https://js.hcaptcha.com https://*.hcaptcha.com https://pagead2.googlesyndication.com https://*.googlesyndication.com https://*.googleadservices.com https://adservice.google.com https://*.doubleclick.net https://*.google.com https://*.adtrafficquality.google https://fundingchoicesmessages.google.com https://static.cloudflareinsights.com; style-src 'self' 'unsafe-inline' https://*.hcaptcha.com; img-src 'self' data: blob: https://*.google-analytics.com https://*.googletagmanager.com https://www.googletagmanager.com https://*.hcaptcha.com https://*.googlesyndication.com https://*.doubleclick.net https://*.googleadservices.com https://*.google.com https://*.adtrafficquality.google https://*.gstatic.com; font-src 'self' data:; connect-src 'self' https://api.github.com https://api.web3forms.com https://*.google-analytics.com https://*.analytics.google.com https://*.googletagmanager.com https://www.googletagmanager.com https://*.google.com https://*.goatcounter.com https://*.hcaptcha.com https://*.googlesyndication.com https://*.doubleclick.net https://*.googleadservices.com https://adservice.google.com https://*.adtrafficquality.google https://fundingchoicesmessages.google.com https://cloudflareinsights.com; frame-src 'self' https://*.hcaptcha.com https://www.googletagmanager.com https://googleads.g.doubleclick.net https://tpc.googlesyndication.com https://*.doubleclick.net https://*.google.com https://*.googlesyndication.com https://*.adtrafficquality.google https://fundingchoicesmessages.google.com; worker-src 'self' blob: https://*.hcaptcha.com; manifest-src 'self'; media-src 'self' blob:; upgrade-insecure-requests
+  X-Frame-Options: SAMEORIGIN
+  Permissions-Policy: accelerometer=(), autoplay=(self), camera=(), clipboard-write=(self), display-capture=(), encrypted-media=(), fullscreen=(self), geolocation=(), gyroscope=(), magnetometer=(), microphone=(), midi=(), payment=(), picture-in-picture=(self), screen-wake-lock=(self), serial=(), usb=(), xr-spatial-tracking=()
+  X-Content-Type-Options: nosniff
+  Referrer-Policy: strict-origin-when-cross-origin

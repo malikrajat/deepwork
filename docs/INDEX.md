@@ -10,6 +10,8 @@ Central reference for all guidance files in this repository.
 | [code-signing.md](code-signing.md)                     | Windows installer signatures, and the macOS Gatekeeper dialog |
 | [deployment.md](deployment.md)                         | How the web build is built and published to GitHub Pages at `app.deepwork.rajatmalik.dev`, and the settings that depends on |
 | [memory-footprint.md](memory-footprint.md)             | Where the app's memory goes, and which levers can move it     |
+| [security-headers.md](security-headers.md)             | The response headers the web build publishes, the CSP allowlist, and how to check them |
+| [seo-adsense.md](seo-adsense.md)                       | The crawlable guides, `ads.txt`, publisher verification, the privacy/consent setup, and the steps that remain inside AdSense |
 | [website-prompt.md](website-prompt.md)                 | A ready-to-use prompt for building the product website, with the sections and copy this repo already has |
 
 ## Copilot / AI agent configuration

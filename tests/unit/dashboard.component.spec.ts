@@ -125,3 +125,44 @@ describe('DashboardComponent (the clock card never scrolls)', () => {
     );
   });
 });
+
+/**
+ * The live rail is the only place today's sessions are listed one by one, so it
+ * has to hold the whole day rather than a sample, and the card it lives in has a
+ * fixed height in the hero row. Without its own scroll region the list was cut
+ * off after four rows while the badge counted twenty.
+ */
+describe('DashboardComponent (live activity rail)', () => {
+  const src = readFileSync(
+    resolve(__dirname, '../../src/app/pages/dashboard/dashboard.component.ts'),
+    'utf8',
+  );
+
+  function ruleBody(selector: string): string {
+    const escaped = selector.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    return new RegExp(`${escaped}\\s*\\{([^}]*)\\}`).exec(src)?.[1] ?? '';
+  }
+
+  it('keeps every session of the day, newest first', () => {
+    const sessions = /readonly recentSessions = computed\(\(\) =>([\s\S]*?)\n\s{2}\);/.exec(
+      src,
+    )?.[1];
+    expect(sessions).toBeTruthy();
+    expect(sessions).toContain('sort(');
+    expect(sessions).not.toContain('.slice(0, 4)');
+  });
+
+  it('scrolls the list inside the card instead of growing it', () => {
+    const list = ruleBody('.activity-list');
+
+    expect(list).toContain('overflow-y: auto');
+    expect(list).toContain('min-height: 0');
+    expect(list).toMatch(/max-height:\s*clamp\(/);
+  });
+
+  it('keeps the focus-plan columns on the hero row’s tracks', () => {
+    const tracks = 'minmax(0, 1.9fr) minmax(320px, 1fr)';
+    expect(ruleBody('.main-row')).toContain(tracks);
+    expect(ruleBody('.focus-plan')).toContain(tracks);
+  });
+});

@@ -1,20 +1,103 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!--
-  One URL. The app is a single-page build served from a domain root, and GitHub
-  Pages answers every deep route (/about, /tasks, ...) with the same shell under
-  a 404 status. Listing those routes here would submit URLs a crawler records as
-  not found, so only the address that really is a 200 is listed. The routes are
-  documented in llms.txt for assistants, which do not care about the status.
+  The public URLs of app.deepwork.rajatmalik.dev.
 
-  `lastmod` is the day the app's public copy last changed, not the day the build
-  ran. A date that moves without the content moving tells a crawler something
-  untrue.
+  The application itself is a single-page build. GitHub Pages answers a deep
+  app route (/tasks, /matrix, ...) with the site's 404.html and a 404 status, so
+  listing those routes here would submit URLs a crawler records as not found.
+  Only addresses that really answer 200 are listed.
+
+  The guides and the policy pages are static HTML files under public/, so they
+  are real 200 responses and are listed individually. The application routes are
+  documented for assistants in llms.txt, which does not depend on HTTP status.
+
+  `lastmod` is the day the public copy last changed, not the day the build ran.
 -->
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
   <url>
     <loc>https://app.deepwork.rajatmalik.dev/</loc>
-    <lastmod>2026-10-30</lastmod>
+    <lastmod>2026-11-17</lastmod>
     <changefreq>weekly</changefreq>
     <priority>1.0</priority>
+  </url>
+
+  <url>
+    <loc>https://app.deepwork.rajatmalik.dev/guides/</loc>
+    <lastmod>2026-11-17</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.9</priority>
+  </url>
+  <url>
+    <loc>https://app.deepwork.rajatmalik.dev/guides/pomodoro-technique.html</loc>
+    <lastmod>2026-11-17</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.8</priority>
+  </url>
+  <url>
+    <loc>https://app.deepwork.rajatmalik.dev/guides/time-blocking.html</loc>
+    <lastmod>2026-11-17</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.8</priority>
+  </url>
+  <url>
+    <loc>https://app.deepwork.rajatmalik.dev/guides/eisenhower-matrix.html</loc>
+    <lastmod>2026-11-17</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.8</priority>
+  </url>
+  <url>
+    <loc>https://app.deepwork.rajatmalik.dev/guides/deep-work-routine.html</loc>
+    <lastmod>2026-11-17</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.8</priority>
+  </url>
+  <url>
+    <loc>https://app.deepwork.rajatmalik.dev/guides/habit-streaks.html</loc>
+    <lastmod>2026-11-17</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.8</priority>
+  </url>
+  <url>
+    <loc>https://app.deepwork.rajatmalik.dev/guides/focus-timer-without-account.html</loc>
+    <lastmod>2026-11-17</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.8</priority>
+  </url>
+
+  <url>
+    <loc>https://app.deepwork.rajatmalik.dev/about-deepwork/</loc>
+    <lastmod>2026-11-17</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.6</priority>
+  </url>
+  <url>
+    <loc>https://app.deepwork.rajatmalik.dev/editorial-policy/</loc>
+    <lastmod>2026-11-17</lastmod>
+    <changefreq>yearly</changefreq>
+    <priority>0.4</priority>
+  </url>
+  <url>
+    <loc>https://app.deepwork.rajatmalik.dev/advertising-policy/</loc>
+    <lastmod>2026-11-17</lastmod>
+    <changefreq>yearly</changefreq>
+    <priority>0.4</priority>
+  </url>
+  <url>
+    <loc>https://app.deepwork.rajatmalik.dev/contact-us/</loc>
+    <lastmod>2026-11-17</lastmod>
+    <changefreq>yearly</changefreq>
+    <priority>0.5</priority>
+  </url>
+  <url>
+    <loc>https://app.deepwork.rajatmalik.dev/privacy-policy/</loc>
+    <lastmod>2026-11-17</lastmod>
+    <changefreq>yearly</changefreq>
+    <priority>0.3</priority>
+  </url>
+  <url>
+    <loc>https://app.deepwork.rajatmalik.dev/terms-of-use/</loc>
+    <lastmod>2026-11-17</lastmod>
+    <changefreq>yearly</changefreq>
+    <priority>0.3</priority>
   </url>
 </urlset>

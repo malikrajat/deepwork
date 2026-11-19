@@ -6,10 +6,11 @@ import {
   provideAppInitializer,
   provideBrowserGlobalErrorListeners,
 } from '@angular/core';
-import { provideRouter } from '@angular/router';
+import { TitleStrategy, provideRouter } from '@angular/router';
 
 import { routes } from './app.routes';
 import { AppErrorHandler } from './core/services/app-error-handler';
+import { SeoTitleStrategy } from './core/services/seo-title.strategy';
 import { DbService } from './core/services/db.service';
 import { LogService } from './core/services/log.service';
 import { SettingsService } from './core/services/settings.service';
@@ -29,6 +30,10 @@ export const appConfig: ApplicationConfig = {
     // Anything Angular catches goes to `crash.log` rather than only the console.
     { provide: ErrorHandler, useClass: AppErrorHandler },
     provideRouter(routes),
+    // Keep the document title, description, social tags and canonical URL in
+    // step with the route instead of leaving every screen with the app's one
+    // set of metadata.
+    { provide: TitleStrategy, useClass: SeoTitleStrategy },
     // `provideAppInitializer` replaced the `APP_INITIALIZER` token in Angular 22;
     // the callback runs in an injection context, so `inject()` replaces `deps`.
     provideAppInitializer(async () => {

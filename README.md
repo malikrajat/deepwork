@@ -376,7 +376,7 @@ Tauri does **not** cross-compile: build each platform on that platform, or let C
 
 There is no 32-bit macOS build (Apple removed 32-bit support in macOS 10.15), and no 32-bit Linux build: DeepWork's tray requires `libappindicator`, which Ubuntu does not publish for i386. CI publishes five installers: Windows x64 and x86, Linux x64, macOS arm64 and x64.
 
-The exact file names carry the current version — on a 3.3.0 checkout they read `DeepWork_3.3.0_x64-setup.exe`, `DeepWork_3.3.0_amd64.deb` and `DeepWork_3.3.0_aarch64.dmg` — and artefacts sit under `target/<triple>/release/bundle/`, not directly under `target/release/`.
+The exact file names carry the current version — on a 3.4.0 checkout they read `DeepWork_3.4.0_x64-setup.exe`, `DeepWork_3.4.0_amd64.deb` and `DeepWork_3.4.0_aarch64.dmg` — and artefacts sit under `target/<triple>/release/bundle/`, not directly under `target/release/`.
 
 Two things are true of every build: **the fonts ship inside it**, and **the packaged app has no web inspector** — the `devtools` cargo feature is deliberately absent from [`src-tauri/Cargo.toml`](src-tauri/Cargo.toml). Debug builds get one either way.
 

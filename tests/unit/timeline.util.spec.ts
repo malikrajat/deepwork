@@ -114,8 +114,27 @@ describe('timeline util', () => {
       expect(blocks[0].taskName).toBe('Focus');
     });
 
-    it('leaves breaks off the timeline', () => {
-      expect(buildSessionBlocks([session({ type: 'short-break' })], [])).toHaveLength(0);
+    it('draws a short break as its own colour-coded block', () => {
+      const blocks = buildSessionBlocks(
+        [session({ type: 'short-break', durationActual: 300 })],
+        [],
+      );
+
+      expect(blocks).toHaveLength(1);
+      expect(blocks[0].type).toBe('short-break');
+      expect(blocks[0].taskName).toBe('Short Break');
+      expect(blocks[0].heightPx).toBeCloseTo(5, 5);
+      expect(blocks[0].tooltip).toContain('Short Break');
+      expect(blocks[0].tooltip).toContain('(5m)');
+    });
+
+    it('draws a long break as its own colour-coded block', () => {
+      const blocks = buildSessionBlocks([session({ type: 'long-break', durationActual: 900 })], []);
+
+      expect(blocks).toHaveLength(1);
+      expect(blocks[0].type).toBe('long-break');
+      expect(blocks[0].taskName).toBe('Long Break');
+      expect(blocks[0].heightPx).toBeCloseTo(15, 5);
     });
 
     it('leaves a session with no time recorded off the timeline', () => {
@@ -195,8 +214,18 @@ describe('timeline util', () => {
       expect(buildActiveBlock(runningSession({ elapsedSec: 0 }), [], NOW)).toBeNull();
     });
 
-    it('draws nothing for a break', () => {
-      expect(buildActiveBlock(runningSession({ type: 'long-break' }), [], NOW)).toBeNull();
+    it('draws the break running right now', () => {
+      const block = buildActiveBlock(
+        runningSession({ type: 'long-break', plannedSec: 900 }),
+        [],
+        NOW,
+      );
+
+      expect(block).not.toBeNull();
+      expect(block!.type).toBe('long-break');
+      expect(block!.taskName).toBe('Long Break');
+      expect(block!.heightPx).toBeCloseTo(10, 5);
+      expect(block!.plannedHeightPx).toBeCloseTo(15, 5);
     });
   });
 });

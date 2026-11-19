@@ -29,10 +29,13 @@ describe('LegalComponent', () => {
     const element = fixture.nativeElement as HTMLElement;
 
     expect(element.textContent).toContain('Privacy policy');
-    expect(element.textContent).toContain('DeepWork collects no data');
-    expect(element.textContent).toContain('no telemetry, no analytics, no tracking');
-    expect(element.textContent).toContain('local-first');
-    expect(element.textContent).toContain('Last updated 28 October 2026');
+    expect(element.textContent).toContain('The DeepWork application collects no data about you');
+    expect(element.textContent).toContain('no telemetry on your work');
+    expect(element.textContent).toContain('local database');
+    expect(element.textContent).toContain('Google AdSense');
+    expect(element.textContent).toContain('cookies');
+    expect(element.textContent).toContain('Your rights');
+    expect(element.textContent).toContain('Last updated 17 November 2026');
     expect(element.textContent).toContain(CONTACT_EMAIL);
   });
 
@@ -41,7 +44,8 @@ describe('LegalComponent', () => {
     const element = fixture.nativeElement as HTMLElement;
 
     expect(element.textContent).toContain('Terms & conditions');
-    expect(element.textContent).toContain('No charge and no data collection');
+    expect(element.textContent).toContain('No charge');
+    expect(element.textContent).toContain('Advertising and third-party links');
     expect(element.textContent).toContain('does not charge you or take money from you');
     expect(element.textContent).toContain('entirely at your own risk');
     expect(element.textContent).toContain('will not honor any claim of any kind');

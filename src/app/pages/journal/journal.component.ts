@@ -30,6 +30,8 @@ import {
   sanitizeJournalHtml,
   snippet,
 } from '../../core/utils/journal-content.util';
+import { PageHeaderComponent } from '../../shared/components/page-header/page-header.component';
+import { IconComponent } from '../../shared/components/icon/icon.component';
 
 interface JournalEntry {
   id: string;
@@ -86,6 +88,8 @@ function todayIso(): string {
     VirtualWindowDirective,
     DecimalPipe,
     RmNgEditor,
+    PageHeaderComponent,
+    IconComponent,
   ],
   // Ctrl+S saves the entry from anywhere on the page. On the host rather than
   // on the card, because a keyboard shortcut belongs to the page and the card
@@ -95,11 +99,15 @@ function todayIso(): string {
     '(keydown.meta.s)': 'onManualSave($event)',
   },
   template: `
-    <div class="page-header animate-fade-in">
-      <div>
-        <h1 class="gradient-text page-title">Journal</h1>
-        <p class="page-subtitle">Reflect on your day</p>
-      </div>
+    <app-page-header
+      eyebrow="Reflect"
+      title="Journal"
+      [subtitle]="
+        hasContent()
+          ? wordCount() + ' words today · ' + readingTime() + ' min read'
+          : 'Reflect on your day — one honest paragraph is enough'
+      "
+    >
       <div class="header-stats">
         <div class="stat-pill" appTooltip="Consecutive days (including today) with a journal entry">
           <span class="stat-value">{{ streak() }}</span>
@@ -109,8 +117,12 @@ function todayIso(): string {
           <span class="stat-value">{{ pastEntries().length }}</span>
           <span class="stat-label">entries</span>
         </div>
+        <button class="page-action primary" type="button" (click)="startToday()">
+          <app-icon name="edit" [size]="14" />
+          Write today
+        </button>
       </div>
-    </div>
+    </app-page-header>
 
     @if (stats().entries) {
       <section class="journal-stats animate-fade-in-delay-1" aria-label="Writing numbers">
@@ -1796,6 +1808,29 @@ export class JournalComponent implements OnInit, OnDestroy {
 
   goToToday(): void {
     this.router.navigate(['/journal']);
+  }
+
+  /**
+   * The header's one-tap way into writing: today, in write mode, scrolled to
+   * the editor. When today is already the day on screen, the click still puts
+   * the carets where the action promised instead of doing nothing.
+   */
+  startToday(): void {
+    this.setMode('write');
+    if (!this.isToday()) {
+      this.goToToday();
+      return;
+    }
+    this.editorHost()?.nativeElement.scrollIntoView({
+      behavior: window.matchMedia?.('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth',
+      block: 'start',
+    });
+    queueMicrotask(() => {
+      const editor = this.editorHost()?.nativeElement.querySelector(
+        '[contenteditable="true"]',
+      ) as HTMLElement | null;
+      editor?.focus();
+    });
   }
 
   onSearch(event: Event): void {

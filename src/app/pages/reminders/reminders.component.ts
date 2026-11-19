@@ -12,6 +12,7 @@ import {
   rhythmHint,
   rhythmLabel,
 } from '../../core/utils/reminder.util';
+import { PageHeaderComponent } from '../../shared/components/page-header/page-header.component';
 
 /** The three rhythms, as the form draws them. */
 const RHYTHMS: readonly ReminderRhythm[] = ['gentle', 'steady', 'insistent'];
@@ -27,14 +28,15 @@ const RHYTHMS: readonly ReminderRhythm[] = ['gentle', 'steady', 'insistent'];
  */
 @Component({
   selector: 'app-reminders',
+  imports: [PageHeaderComponent],
   changeDetection: ChangeDetectionStrategy.OnPush,
   host: { '[class.reminder-up]': 'isUp()' },
   template: `
-    <div class="page-header animate-fade-in">
-      <div>
-        <h1 class="gradient-text page-title">Reminders</h1>
-        <p class="page-subtitle">They stand until you answer them</p>
-      </div>
+    <app-page-header
+      eyebrow="Alerting"
+      title="Reminders"
+      subtitle="They stand until you answer them"
+    >
       <div class="header-stats">
         <div class="stat-pill" title="Reminders whose moment has arrived">
           <span class="stat-value">{{ reminders.standing().length }}</span>
@@ -52,7 +54,7 @@ const RHYTHMS: readonly ReminderRhythm[] = ['gentle', 'steady', 'insistent'];
           <span class="stat-label">kept</span>
         </div>
       </div>
-    </div>
+    </app-page-header>
 
     <p class="reading animate-fade-in-delay-1">{{ reading() }}</p>
 
@@ -118,6 +120,21 @@ const RHYTHMS: readonly ReminderRhythm[] = ['gentle', 'steady', 'insistent'];
               (input)="onTime($event)"
             />
           </div>
+        </div>
+
+        <!-- The common answers, one tap each. Most reminders are "in a little
+             while" or "tonight", and typing a date and a time to say that is
+             three controls for one decision. -->
+        <div class="quick-when" role="group" aria-label="Common reminder times">
+          <button type="button" class="quick-chip" (click)="quickSchedule(15)">In 15 min</button>
+          <button type="button" class="quick-chip" (click)="quickSchedule(30)">In 30 min</button>
+          <button type="button" class="quick-chip" (click)="quickSchedule(60)">In 1 hour</button>
+          <button type="button" class="quick-chip" (click)="quickSchedule('tonight')">
+            Tonight · 20:00
+          </button>
+          <button type="button" class="quick-chip" (click)="quickSchedule('tomorrow')">
+            Tomorrow · 09:00
+          </button>
         </div>
 
         <fieldset class="rhythm-set">
@@ -529,6 +546,33 @@ const RHYTHMS: readonly ReminderRhythm[] = ['gentle', 'steady', 'insistent'];
         display: grid;
         grid-template-columns: minmax(0, 1.2fr) minmax(0, 0.8fr);
         gap: 10px;
+      }
+
+      .quick-when {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 6px;
+        margin-top: 9px;
+      }
+
+      .quick-chip {
+        padding: 5px 10px;
+        border-radius: var(--radius-pill);
+        border: 1px dashed var(--glass-border-accent);
+        background: transparent;
+        color: var(--color-text-secondary);
+        font: 600 var(--text-2xs) var(--font-sans);
+        cursor: pointer;
+        transition:
+          background 0.18s ease,
+          color 0.18s ease,
+          border-color 0.18s ease;
+      }
+
+      .quick-chip:hover {
+        border-style: solid;
+        background: var(--glass-bg-active);
+        color: var(--color-text-primary);
       }
 
       .rhythm-set {
@@ -1080,6 +1124,30 @@ export class RemindersComponent {
 
   protected onTime(event: Event): void {
     this.time.set(inputValue(event));
+  }
+
+  /**
+   * Fill date and time from one of the form's common answers.
+   *
+   * A number is minutes from now; `tonight` is 20:00 (moved to tomorrow if that
+   * has already passed), and `tomorrow` is 09:00. The preview under the fields
+   * still says exactly when it will start asking, so a quick chip never becomes
+   * a guess.
+   */
+  protected quickSchedule(when: number | 'tonight' | 'tomorrow'): void {
+    const at = new Date();
+    if (typeof when === 'number') {
+      at.setMinutes(at.getMinutes() + when);
+    } else if (when === 'tonight') {
+      at.setHours(20, 0, 0, 0);
+      if (at.getTime() <= Date.now()) at.setDate(at.getDate() + 1);
+    } else {
+      at.setDate(at.getDate() + 1);
+      at.setHours(9, 0, 0, 0);
+    }
+    this.date.set(localDateKey(at));
+    this.time.set(clockTime(at));
+    this.error.set('');
   }
 
   protected create(): void {

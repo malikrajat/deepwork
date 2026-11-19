@@ -1,7 +1,7 @@
 {
   "name": "DeepWork",
   "short_name": "DeepWork",
-  "description": "Deep work timer, task manager and productivity tracker, with offline AI analysis of your own data",
+  "description": "A free, local-first focus timer, task manager and habit tracker. No account, no cloud, and your data stays on your device.",
   "id": "./",
   "start_url": "./",
   "scope": "./",
