@@ -2571,7 +2571,7 @@ export class CalendarComponent implements OnInit, OnDestroy {
     }));
 
     const columnEnds: number[] = [];
-    for (const node of [...nodes].sort((a, b) => a.start - b.start || a.end - b.end)) {
+    for (const node of nodes.toSorted((a, b) => a.start - b.start || a.end - b.end)) {
       let column = columnEnds.findIndex((end) => end <= node.start);
       if (column === -1) {
         column = columnEnds.length;

@@ -90,7 +90,7 @@ export class ScheduleService {
 
   /** Task ids that currently sit on the timeline, in visual order. */
   readonly scheduledTaskIds = computed(() => {
-    const placements = [...this.schedule().placements].sort((a, b) => a.startMin - b.startMin);
+    const placements = this.schedule().placements.toSorted((a, b) => a.startMin - b.startMin);
     return placements.map((p) => p.taskId);
   });
 
@@ -453,7 +453,7 @@ export class ScheduleService {
   }
 
   private async writePlan(date: string, entries: ScheduleEntry[]): Promise<void> {
-    const sorted = [...entries].sort(
+    const sorted = entries.toSorted(
       (a, b) => a.order - b.order || a.taskId.localeCompare(b.taskId),
     );
     const plans = { ...this.plans() };

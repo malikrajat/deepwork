@@ -148,7 +148,11 @@ describe('DashboardComponent (live activity rail)', () => {
       src,
     )?.[1];
     expect(sessions).toBeTruthy();
-    expect(sessions).toContain('sort(');
+    // A copying sort: `toSorted()` mutates nothing, so the day's sessions stay
+    // in the order the rail reads them from — `[...sessions].sort()` would have
+    // been the older spelling of the same intent.
+    expect(sessions).toMatch(/\.toSorted\(|\.sort\(/);
+    expect(sessions).not.toContain('[...');
     expect(sessions).not.toContain('.slice(0, 4)');
   });
 

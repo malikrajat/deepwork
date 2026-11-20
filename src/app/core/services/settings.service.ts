@@ -29,7 +29,9 @@ export class SettingsService {
   }
 
   applyTheme(theme: ThemePreference): void {
-    document.documentElement.dataset['theme'] = theme;
+    // `system` is spelled `auto` on the root because that is what the
+    // stylesheet's pre-Angular media queries look for.
+    document.documentElement.dataset['theme'] = theme === 'system' ? 'auto' : theme;
     try { localStorage.setItem('deepwork_theme', theme); } catch { /* private/storage-full */ }
   }
 }
