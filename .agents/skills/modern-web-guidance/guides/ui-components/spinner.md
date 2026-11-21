@@ -47,7 +47,7 @@ progress.loading-spinner:indeterminate::slider-fill {
 ```
 
 #### Spinner Ring and Trail
-The spinner uses a `conic-gradient` to create a visual trail.
+The spinner uses a `conic-gradient` to create a visual trail. Forced colors mode removes background gradients, so in `@media (forced-colors: active)`, opt the spinner out with `forced-color-adjust: none` and draw it with system colors, or the spinner disappears.
 
 ```css
 @property --arc-start {
@@ -72,7 +72,7 @@ progress.loading-spinner:indeterminate {
   --_to: calc(90deg + var(--arc-end, 158deg));
   --size: 40px;
   --thickness: 2px;
-  --spinner-color: #3b82f6;
+  --spinner-color: #2563eb;
   --track-color: #e2e5e7;
   --spinner-duration: 1.5s;
   --_used-spinner-duration: var(--spinner-duration);
@@ -100,44 +100,54 @@ progress.loading-spinner:indeterminate {
 
   /* ... fallback for background-clip: border-area ... */
 
+  @media (forced-colors: active) {
+    /* Keeps the gradient, which forced colors mode removes, and draws it in system colors */
+    forced-color-adjust: none;
+    --spinner-color: CanvasText;
+    --track-color: Canvas;
+  }
+
   /* The dash animation is only included if @property is supported */
   animation:
     progress-spin var(--_used-spinner-duration) linear infinite
     var(--progress-dash-animation, );
+}
 
-  @keyframes progress-spin {
-    to {
-      rotate: 1turn;
-    }
+@keyframes progress-spin {
+  to {
+    rotate: 1turn;
   }
+}
 
-  @keyframes progress-dash {
-    from {
-      --arc-start: 0deg;
-      --arc-end: 3deg;
-    }
-    50% {
-      --arc-start: 100deg;
-      --arc-end: 358deg;
-    }
-    to {
-      --arc-start: 360deg;
-      --arc-end: 363deg;
-    }
+@keyframes progress-dash {
+  from {
+    --arc-start: 0deg;
+    --arc-end: 3deg;
+  }
+  50% {
+    --arc-start: 100deg;
+    --arc-end: 358deg;
+  }
+  to {
+    --arc-start: 360deg;
+    --arc-end: 363deg;
   }
 }
 ```
 
 #### Respecting Motion Preferences
 
-Users with motion sensitivities may find fast-spinning elements disorienting. Always respect the `prefers-reduced-motion` media query. Set the internal `--_used-spinner-duration` property to override the user's `--spinner-duration` value.
+Users with motion sensitivities may find fast-spinning elements disorienting. Always respect the `prefers-reduced-motion` media query. Set the internal `--_used-spinner-duration` property to override the user's `--spinner-duration` value, using the same selector as the spinner rule so that the override applies, and drop the dash animation so that only a slow rotation remains.
 
 ```css
 @media (prefers-reduced-motion: reduce) {
-  .loading-spinner {
+  progress.loading-spinner:indeterminate {
     /* Slow down the animation significantly rather than stopping it entirely,
        so the user still knows that the process is active. */
     --_used-spinner-duration: 6s;
+    /* Drops the dash animation, so the arc keeps a fixed length */
+    --progress-dash-animation: ;
+    --arc-end: 158deg;
   }
 }
 ```
@@ -149,8 +159,8 @@ Supported by: Chrome 85 (Aug 2020), Edge 85 (Aug 2020), Firefox 128 (Jul 2024), 
 
 If `@property` is supported, the dash animation is automatically included via the `--progress-dash-animation` property's `initial-value`. In browsers without `@property` support, the property registration is ignored, and the animation falls back to a simple rotation. No JavaScript is required for this fallback.
 
-background-clip: border-area has limited availability.
-Supported by: Chrome 150, Edge 150, and Safari 18.2 (Dec 2024).
+Browser support for background-clip: border-area: Limited availability.
+Supported by: Chrome 150 (Jun 2026), Edge 150 (Jul 2026), and Safari 18.2 (Dec 2024).
 Unsupported in: Firefox.
 
 For browsers that don't yet support `background-clip: border-area`, fall back to a `mask-image` to hollow out the center.

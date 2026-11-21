@@ -973,7 +973,7 @@ export class TasksComponent implements OnInit {
         (t) => t.title.toLowerCase().includes(q) || t.description.toLowerCase().includes(q),
       );
     }
-    return [...tasks].sort((a, b) => this.compareTasks(a, b, this.sortBy()));
+    return tasks.toSorted((a, b) => this.compareTasks(a, b, this.sortBy()));
   });
 
   /** The counts the header and the Focus next button read. */

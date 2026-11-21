@@ -61,18 +61,20 @@ Avoid using the detector on very short phrases or single words, as accuracy drop
 ## Security and Environment
 
 - **Iframes:** Cross-origin iframes require an explicit Permissions Policy to access the API.
+  
   ```html
   <iframe
     src="https://cross-origin.example.com/"
     allow="language-detector"
   ></iframe>
   ```
+
 - **Web Workers:** The API is **not** currently available in Web Workers due to Permission Policy complexities.
 - **Privacy:** No data is sent to Google or third parties during the detection process.
 
 ## Fallback Strategy
 
-Language detector has limited availability.
+Browser support for Language detector: Limited availability.
 Supported by: Chrome 138 (Jun 2025) and Edge 148 (May 2026).
 Unsupported in: Firefox and Safari.
 
@@ -87,5 +89,6 @@ if ('LanguageDetector' in self) {
 ```
 
 If the `LanguageDetector` API is unsupported or availability checks return `'unavailable'`, you must gracefully fall back:
+
 1. **Remote API Fallback**: Redirect the detection request to a server endpoint or a cloud API (such as the Vertex AI Gemini API) to identify the language.
 2. **Graceful Degradation**: Disable language detection elements/buttons and inform the user that client-side detection is currently unsupported in this browser, preventing any unhandled exceptions or crashes.

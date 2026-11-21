@@ -77,7 +77,7 @@ export class TaskService {
   private static withoutRepeats(tasks: Task[], today: string): Task[] {
     // A stable sort, so equally-dated copies keep the day's own order and the
     // first of them is the one kept.
-    const byDate = [...tasks].sort(
+    const byDate = tasks.toSorted(
       (a, b) => Number(TaskService.datedToday(b, today)) - Number(TaskService.datedToday(a, today)),
     );
 
@@ -152,7 +152,7 @@ export class TaskService {
 
   /** Daily sequence: quadrant priority first, then the order the user dragged. */
   private todayOrdered(tasks: Task[]): Task[] {
-    return [...tasks].sort((a, b) => {
+    return tasks.toSorted((a, b) => {
       const qa = TaskService.QUADRANT_PRIORITY[a.quadrant ?? ''] ?? 99;
       const qb = TaskService.QUADRANT_PRIORITY[b.quadrant ?? ''] ?? 99;
       if (qa !== qb) return qa - qb;

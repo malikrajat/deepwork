@@ -46,8 +46,18 @@ export class ThemeService {
     this.effective.set(effective);
 
     const root = document.documentElement;
+    // The palette selectors in styles.css read `data-theme`; keep it in step
+    // with the preference (spelled `auto` for the system default).
+    root.dataset['theme'] = choice === 'system' ? 'auto' : choice;
     root.classList.toggle('theme-light', effective === 'light');
     root.classList.toggle('theme-dark', effective === 'dark');
     root.style.colorScheme = effective;
+
+    // Native widgets (form controls, scrollbars, the canvas behind the app)
+    // paint from `<meta name="color-scheme">`, not from the CSS custom
+    // properties below it. Keeping it on the same resolved value as the
+    // palette means a date picker or scrollbar never disagrees with the page.
+    const meta = document.querySelector('meta[name="color-scheme"]');
+    if (meta instanceof HTMLMetaElement) meta.content = effective;
   }
 }

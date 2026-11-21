@@ -175,7 +175,7 @@ export function sortReminders(reminders: readonly StandingReminder[]): StandingR
     if (reminder.status === 'scheduled') return 1;
     return 2;
   };
-  return [...reminders].sort((a, b) => {
+  return reminders.toSorted((a, b) => {
     const byRank = rank(a) - rank(b);
     if (byRank !== 0) return byRank;
     if (rank(a) === 2) {

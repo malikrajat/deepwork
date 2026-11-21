@@ -765,7 +765,7 @@ function buildInsights(context: {
     );
   }
 
-  const heaviestQuadrant = [...context.quadrants].sort((a, b) => b.total - a.total)[0];
+  const heaviestQuadrant = context.quadrants.toSorted((a, b) => b.total - a.total)[0];
   if (heaviestQuadrant && heaviestQuadrant.total > 0 && heaviestQuadrant.completionPercent < 40) {
     insights.push(
       `${heaviestQuadrant.label} holds ${heaviestQuadrant.total} tasks but only ${heaviestQuadrant.completionPercent}% are done — it is where your backlog lives.`
