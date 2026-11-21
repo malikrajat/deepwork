@@ -5,6 +5,20 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ---
 
+## [3.5.0] – 2026-11-20
+
+### Fixed
+
+- **The Eisenhower Matrix board stays on screen when quadrants are reopened.**
+  The board now takes the height the page header leaves instead of assuming a
+  fixed 80px header, so expanding quadrants one at a time no longer pushes the
+  third quadrant or the folded strips below the clipped page with no scrollbar
+  to reach them.
+- Collapsed quadrants stay compact one-line strips rather than stretching into
+  tall bands when the whole board is folded.
+
+---
+
 ## [3.4.0] – 2026-11-14
 
 ### Added

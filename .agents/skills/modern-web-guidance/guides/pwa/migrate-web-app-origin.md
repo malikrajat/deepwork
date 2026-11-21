@@ -47,7 +47,7 @@ File location: `https://old-app.example.com/.well-known/web-app-origin-associati
 
 ```json
 {
-  "https://new-app.example.com": {
+  "https://new-app.example.com/demo.html": {
     "allow_migration": true
   }
 }
@@ -55,16 +55,14 @@ File location: `https://old-app.example.com/.well-known/web-app-origin-associati
 
 ### 4. Proactively signal the migration (Optional)
 
-To trigger the migration immediately for existing users without waiting for them to visit the new site, update the **old** site's manifest with a `migrate_to` hint.
+To let the browser discover the migration from the old installation, without waiting for users to visit the new site, add a `migrate_to` member to the **old** site's `manifest.json`. Set its `id` to the new app's manifest ID:
 
 ```json
 {
-  "migrate_to": [
-    {
-      "id": "https://new-app.example.com/",
-      "install_url": "https://new-app.example.com/demo.html"
-    }
-  ]
+  "migrate_to": {
+    "id": "https://new-app.example.com/demo.html",
+    "install_url": "https://new-app.example.com/demo.html"
+  }
 }
 ```
 
@@ -87,7 +85,7 @@ By default, a migration is suggested to users. To make the transition mandatory,
 
 ## Fallbacks & browser support
 
-Web app origin migration has limited availability.
+Browser support for Web app origin migration: Limited availability.
 Supported by: Chrome 149 (Jun 2026) and Edge 149 (Jun 2026).
 Unsupported in: Firefox and Safari.
 
