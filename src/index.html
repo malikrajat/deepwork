@@ -82,7 +82,7 @@
             "applicationCategory": "ProductivityApplication",
             "applicationSubCategory": "Pomodoro timer, task manager, habit tracker",
             "operatingSystem": "Windows, macOS, Linux, Web browser",
-            "softwareVersion": "3.4.0",
+            "softwareVersion": "3.5.0",
             "isAccessibleForFree": true,
             "browserRequirements": "Requires JavaScript. Installable as a PWA.",
             "description": "A free, local-first focus timer and task manager. Pomodoro sessions, a task board, an Eisenhower matrix, Time by Task reporting, habits, journalling and standing reminders, stored in the visitor's own browser or in a local SQLite database on the desktop.",
@@ -141,6 +141,10 @@
        `ng serve`) and under a sub-path alike. -->
     <link rel="manifest" href="manifest.webmanifest" />
     <meta name="theme-color" content="#8b5cf6" />
+    <!-- The scheme the native UI (form controls, scrollbars, the canvas behind
+         the app) paints in. Kept in sync with the stored theme by the boot
+         script below and by ThemeService. `light dark` means "follow the OS". -->
+    <meta name="color-scheme" content="light dark" />
     <meta name="mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
@@ -154,7 +158,13 @@
         window.__pwaInstallPrompt = e;
       });
     </script>
-    <!-- Apply saved theme before first paint to avoid flash -->
+    <!-- Apply saved theme before first paint to avoid flash. The same read
+         updates <meta name="color-scheme">, which is what native widgets paint
+         from; CSS alone cannot reach those, and a stale meta leaves a light
+         date picker sitting on a dark page. `system` resolves to the OS
+         preference here, so the native UI matches the palette from the first
+         frame; with JS unavailable the markup's `light dark` stands and the
+         browser follows the OS on its own. -->
     <script>
       try {
         var t = localStorage.getItem('deepwork_theme');
@@ -163,7 +173,19 @@
           var s = JSON.parse(localStorage.getItem('deepwork_settings') || '{}');
           t = s.theme;
         }
-        if (t) document.documentElement.dataset.theme = t;
+        if (t) {
+          // `data-theme` drives the palette; `system` is spelled `auto` there
+          // so the pre-Angular media queries in styles.css match it.
+          document.documentElement.dataset.theme = t === 'system' ? 'auto' : t;
+        }
+        var scheme =
+          t === 'light' || t === 'dark'
+            ? t
+            : window.matchMedia && window.matchMedia('(prefers-color-scheme: light)').matches
+              ? 'light'
+              : 'dark';
+        document.querySelector('meta[name="color-scheme"]').content = scheme;
+        document.documentElement.style.colorScheme = scheme;
       } catch (_) {
         /* storage unavailable — default dark theme applies */
       }

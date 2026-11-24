@@ -82,7 +82,10 @@ html {
 
 ### Issues to be aware of when using accent-color
 
-- When placing visual elements over the accent color (e.g. a checkbox checkmark), Chrome and Safari will automatically select a contrasting color, whereas Safari will modify the accent color, and may not maintain adequate contrast.
+Browser rendering of `accent-color` varies.
+For indicators generally painted over an accent color background, such as checkbox marks and radio-button dots, browsers may apply different treatments:
+- **Chromium** and **Firefox** generally select a contrasting indicator color.
+- **Safari** may instead preserve a white indicator in light mode or a black indicator in dark mode, while modifying the accent color behind it. This adjustment does not always provide sufficient contrast for every supplied color, so test important combinations in Safari, including both light and dark color schemes. Do not assume that Safari will automatically choose whichever indicator color provides the best contrast.
 
 ### Scrollbar colors
 
@@ -91,7 +94,8 @@ You can use `scrollbar-color` together with `light-dark()` to set custom scrollb
 ```css
 :root {
   --color-scrollbar-track: light-dark(#eee, #222);
-  --color-scrollbar-thumb: light-dark(#999, #666);
+  /* Example values: the thumb needs at least 3:1 contrast against the track */
+  --color-scrollbar-thumb: light-dark(#6b6b6b, #8a8a8a);
   scrollbar-color: var(--color-scrollbar-thumb) var(--color-scrollbar-track);
 }
 ```
@@ -99,9 +103,8 @@ You can use `scrollbar-color` together with `light-dark()` to set custom scrollb
 ### Issues to be aware of when using scrollbar-color
 
 - Do NOT animate or transition `scrollbar-color`. A [WebKit bug](https://bugs.webkit.org/show_bug.cgi?id=311752) causes the scrollbar to flicker every time `scrollbar-color` changes.
-- On macOS, `scrollbar-color` (standard) and `::-webkit-scrollbar` (legacy) properties are ignored by default because macOS uses native "overlay" scrollbars. You MUST pair custom colors with `scrollbar-width` (e.g., `thin` or `auto`) to force macOS to render them.
-- Even with `scrollbar-width` applied, macOS overlay scrollbars render the track (gutter) as transparent by default. If the design requires a visible track background color on MacOS, you MUST apply `scrollbar-gutter: stable;` to the scrollable container, but note that it only appears after the user hovers over the scrollbar.
-- Even with `scrollbar-gutter: stable` the track may be transparent on MacOS. The thumb should not depend on the track color to be visible.
+- Any computed `scrollbar-width` other than `auto` (`thin` or `none`) or computed `scrollbar-color` other than `auto` (including an inherited `scrollbar-color`) disables legacy `::-webkit-scrollbar` pseudo-elements on that element.
+- With overlay scrollbars (such as the macOS default), `scrollbar-color` styles the thumb while scrolling, whereas the track may remain transparent. Ensure the thumb color has sufficient contrast against both the track color and the scrollable container's background rather than relying on the track to frame the thumb.
 
 ### Further customization
 
@@ -116,60 +119,31 @@ Most browser UI exposes pseudo-elements to fully customize its appearance, such 
 
 You can use `light-dark()` colors on any of these to apply colors that adapt to the used color scheme.
 
+## 4. Varying images for light and dark mode
+
+For CSS images, `light-dark()` can also be used to provide different image values.
+
+IMPORTANT: Both values in `light-dark()` must be the same type. You cannot combine a color with an image.
+If one of the two must be an image, use `image(<color>)` to wrap the color value.
+
+## JS-based theme detection
+
+Most color scheme branching should be done in CSS, which automatically adapts to changes.
+
+Any JS reading `matchMedia("(prefers-color-scheme: dark)").matches` MUST also handle its `change` event as the system preference can change at any time.
+
 ## OPTIONAL: Implementing a color-scheme toggle
 
-**DO NOT** set `color-scheme: light` or `color-scheme: dark` on the root element by default.
-The default color-scheme MUST be the user's system preference, which happens automatically when setting `color-scheme` to `light dark`.
+If you want to allow users to manually override their system default for this site, you can implement a dark mode toggle.
+Most sites do not need a persistent toggle in the site UI.
+Simply defaulting to the system color scheme is usually enough, optionally with a setting in a separate settings surface.
+See `dark-mode-toggle` (via `npx -y modern-web-guidance@latest retrieve "dark-mode-toggle"`) for best practices around implementing a dark mode toggle (persistent or not).
 
-For website-specific customization, a manual toggle could be provided to allow users to choose between light, dark, or system-default modes.
-
-If a user-facing toggle to override it is desired, it should:
-- Update the `<meta name="color-scheme">` element to reflect the chosen theme (`light dark` for system default, `light` for light, and `dark` for dark).
-- If branching is desired for non-color values, set a class on `<html>` to match the theme preference and use descendant selectors. While `:root:has(> head > meta[name="color-scheme"][content="dark"])` would technically work, it is slower and confers no benefit, since we are already using JS to update the `<meta>` element.
-- Persist user choice in `localStorage`.
-- **IMPORTANT**: The CSS should be written to default to the system preference, with overrides for user-specified color-schemes. That way, if JS fails to execute, the site still defaults to the system color-scheme.
-- The system-level OS theme can change at any time. If you are using JS to read `matchMedia("(prefers-color-scheme: dark)").matches`, you MUST also use `addEventListener("change", fn)` to react to changes. CSS automatically adapts to changes.
-- **IMPORTANT**: To avoid a Flash of Unstyled Content (FOUC) for users who have pinned a different color scheme than their system default, use an inline script (NOT `type=module`, NOT `defer`) to set it when the page loads:
-
-```html
-<meta name="color-scheme" content="light dark">
-<script>
-{
-  const colorScheme = localStorage.getItem("color-scheme");
-  if (colorScheme) {
-    document.querySelector('meta[name="color-scheme"]').content = colorScheme;
-  }
-}
-</script>
-```
-
-### UX considerations
-
-Use a two-state control:
-1. System setting.
-2. The opposite (e.g. light when the system setting is dark, and dark when the system setting is light). Selecting this setting must pin that exact color scheme, not a dynamically computed "opposite of system setting" value. Example scenario:
-    1. The OS is set to light mode.
-    2. The user selects the opposite setting for this website (dark).
-    3. The user changes their system setting to dark.
-    4. The website should remain dark.
-
-**DON'T** expose all three states (system, light, dark). While the rationale is plausible — "Follow system (currently dark)" is a distinct user intent from "Always dark" — it provides suboptimal UX:
-- Users cannot meaningfully express intent for problems they don't currently have. A manual toggle is a temporary comfort adjustment ("it's too bright right now"), not a long-term preference ("make sure this never changes").
-- Two of the three options always produce the same visual result, violating the principle of feedback.
-
-## Component-specific overrides
+## OPTIONAL: Component-specific overrides
 
 You can override the global theme for specific elements by setting `color-scheme` on them.
-This is useful for "dark mode" sections within a light-themed site, such as code blocks or media players.
 
-```css
-pre, code {
-  /* Forces element and its children to use dark themed UI */
-  color-scheme: dark;
-}
-```
-
-For more information about component-specific overrides and their gotchas, see `component-specific-light-dark-theme` (via `npx -y modern-web-guidance@latest retrieve "component-specific-light-dark-theme"`).
+For more information and gotchas, see `component-specific-light-dark-theme` (via `npx -y modern-web-guidance@latest retrieve "component-specific-light-dark-theme"`).
 
 ## Known issues to be aware of
 
@@ -199,11 +173,15 @@ To adapt to the user's preferences in older browsers, use `prefers-color-scheme`
   /* Define brand colors for each mode */
   --color-brand-light: #0056b3;
   --color-brand-dark: #00e5ff;
+  --color-brand-text-light: white;
+  --color-brand-text-dark: #001f24;
   --color-brand: var(--color-brand-light);
+  --color-brand-text: var(--color-brand-text-light);
 
   /* MANDATORY: Fallback for browsers without light-dark support */
   @media (prefers-color-scheme: dark) {
     --color-brand: var(--color-brand-dark);
+    --color-brand-text: var(--color-brand-text-dark);
   }
 
   /* Ignored in older browsers */
@@ -212,6 +190,7 @@ To adapt to the user's preferences in older browsers, use `prefers-color-scheme`
 
 button.primary {
 	background-color: var(--color-brand);
+	color: var(--color-brand-text);
 }
 ```
 
@@ -254,6 +233,76 @@ pre, code {
 }
 ```
 
+### Fallbacks & browser support for light-dark() image values
+
+Baseline status for light-dark() image values: Newly available. It's been Baseline since 2026-09-14.
+Supported by: Chrome 150 (Jun 2026), Edge 150 (Jul 2026), Firefox 150 (Apr 2026), and Safari 27 (Sep 2026).
+
+For browsers that do not support `light-dark()` for images, use `image-set()` as a switch:
+give each option a `type()` from a custom property, and set the inactive one to an unsupported MIME type so the browser discards that option.
+The active option gets an empty value, so it is a plain `image-set()` option with no `type()`.
+
+Define the switch once on `:root`. Every use site then only needs both images inline, like `light-dark()`.
+
+```css
+:root {
+  --light-type: ;
+  --dark-type: type("image/do-not-use");
+
+  /* MANDATORY: Fallback for browsers without light-dark() image support */
+  @media (prefers-color-scheme: dark) {
+    --light-type: type("image/do-not-use");
+    --dark-type: ;
+  }
+}
+
+.hero {
+  background-image: image-set(url(hero-light.png) var(--light-type), url(hero-dark.png) var(--dark-type));
+
+  @supports (background-image: light-dark(url("a"), url("b"))) {
+    background-image: light-dark(url(hero-light.png), url(hero-dark.png));
+  }
+}
+```
+
+- Only the selected image is downloaded.
+- Resolutions still work: `image-set(url(a-1x.png) 1x var(--light-type), url(a-2x.png) 2x var(--light-type), url(b-1x.png) 1x var(--dark-type), url(b-2x.png) 2x var(--dark-type))`.
+- **DO NOT** use `type("")` for the active option. Browsers treat the empty string as unsupported and drop every option.
+- Unlike `light-dark()`, the switch does not follow `color-scheme` set on a subtree. A manual toggle, or any subtree that sets `color-scheme`, MUST also flip `--light-type` and `--dark-type`.
+
+### Alternative: one custom property per image
+
+Simpler when only a handful of images vary, but every image needs its own media query branch, and a manual toggle must flip each one.
+
+```css
+:root {
+  --hero-image: url(hero-light.png);
+
+  @media (prefers-color-scheme: dark) {
+    --hero-image: url(hero-dark.png);
+  }
+
+  @supports (background-image: light-dark(url("a"), url("b"))) {
+    --hero-image: light-dark(url(hero-light.png), url(hero-dark.png));
+  }
+}
+
+.hero {
+  background-image: var(--hero-image);
+}
+```
+
+### Fallbacks & browser support for image()
+
+image() is not natively supported by any major browser yet.
+
+Use a gradient with a single color stop and no positions, e.g. `linear-gradient(blue)`.
+
+Baseline status for the css.types.gradient.linear-gradient.single_color_stop capability: Newly available. It's been Baseline since 2025-04-04.
+Supported by: Chrome 135 (Apr 2025), Edge 135 (Apr 2025), Firefox 136 (Mar 2025), and Safari 18.4 (Mar 2025).
+
+For broader browser support, you can explicitly provide `0 100%` positions for the single color stop, e.g. `linear-gradient(blue 0 100%)`.
+
 ### Fallbacks & browser support for scrollbar-color
 
 Baseline status for scrollbar-color: Newly available. It's been Baseline since 2025-12-12.
@@ -263,15 +312,21 @@ This feature is progressive enhancement and does not always require fallbacks.
 
 If the styling is important and the user's Baseline target is "Baseline Widely Available" or earlier, you SHOULD include the non-standard `::-webkit-scrollbar` pseudo-elements as fallbacks.
 
-Wrap legacy fallbacks in an `@supports not (scrollbar-color: auto)` block to prevent conflicts between standard properties and legacy WebKit selectors in browsers that support both natively.
+Place legacy fallbacks after the base rule inside an `@supports not (scrollbar-color: auto)` block to prevent conflicts between standard properties and legacy WebKit selectors in browsers that support both natively. If you also set `scrollbar-width: thin` on the scrollable container, reset `scrollbar-width: auto` on the same selector inside `@supports not (scrollbar-color: auto)` so browsers that support `scrollbar-width` without `scrollbar-color` do not suppress `::-webkit-scrollbar` styling.
 
 If you are using custom properties to define colors, these will cascade to the legacy WebKit selectors automatically. You do NOT need to duplicate them.
 
 ```css
 /* Legacy fallback for WebKit/Blink browsers */
 @supports not (scrollbar-color: auto) {
+  .scroller {
+    /* Reset scrollbar-width: thin (if set) so it does not disable
+       ::-webkit-scrollbar in browsers without scrollbar-color */
+    scrollbar-width: auto;
+  }
+
   .scroller::-webkit-scrollbar {
-    /* Must define base size in WebKit for custom colors to be visual */
+    /* Must define a base size (e.g., 8px for thin or 12px for default) for custom colors to render in WebKit */
     width: 12px;
     height: 12px;
   }
@@ -288,7 +343,7 @@ If you are using custom properties to define colors, these will cascade to the l
 
 ### Fallbacks & browser support for accent-color
 
-accent-color has limited availability.
+Browser support for accent-color: Limited availability.
 Supported by: Chrome 93 (Aug 2021), Edge 93 (Sep 2021), Firefox 92 (Sep 2021), and Safari 26.2 (Dec 2025).
 
 The `accent-color` property is progressive enhancement.

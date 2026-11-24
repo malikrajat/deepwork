@@ -53,6 +53,50 @@ test.describe('Eisenhower Matrix', () => {
     await expect(descs).toHaveCount(4);
   });
 
+  test('reopening quadrants one at a time keeps every strip reachable', async ({ page }) => {
+    // Fold all four: the board becomes four strips.
+    for (const id of ['urgent-important', 'important', 'urgent', 'neither']) {
+      await page.locator(`.quadrant.${id} .quadrant-header .collapse-btn`).last().click();
+    }
+    await expect(page.locator('.quadrant.is-collapsed')).toHaveCount(4);
+
+    // Then open them one by one, which is how the report reached the broken
+    // board: one open, two open, three open.
+    for (const id of ['urgent-important', 'important', 'urgent']) {
+      await page.locator(`.quadrant.${id} .quadrant-strip .collapse-btn`).click();
+    }
+    await expect(page.locator('.quadrant:not(.is-collapsed)')).toHaveCount(3);
+
+    // The board is clipped by the page shell, so anything past the viewport
+    // cannot be reached by scrolling. Every quadrant, including the fourth
+    // quadrant's strip, has to end on screen.
+    const viewport = page.viewportSize()!;
+    for (const id of ['urgent-important', 'important', 'urgent', 'neither']) {
+      const box = await page.locator(`.quadrant.${id}`).boundingBox();
+      expect(box).not.toBeNull();
+      expect(box!.y).toBeGreaterThanOrEqual(0);
+      expect(box!.y + box!.height).toBeLessThanOrEqual(viewport.height);
+    }
+
+    // And the last strip is still a working expand control, not just visible.
+    await page.locator('.quadrant.neither .quadrant-strip .collapse-btn').click();
+    await expect(page.locator('.quadrant.is-collapsed')).toHaveCount(0);
+  });
+
+  test('the board keeps the full width of a wide window', async ({ page }) => {
+    // The page host is a column flex container so the board can take the height
+    // the header leaves. An auto inline margin on a flex item makes it shrink
+    // to its content, which used to squeeze the board and task list into the
+    // middle of a 1920px window.
+    await page.setViewportSize({ width: 1920, height: 1080 });
+
+    const host = await page.locator('app-matrix').boundingBox();
+    const wrapper = await page.locator('.matrix-wrapper').boundingBox();
+    expect(host).not.toBeNull();
+    expect(wrapper).not.toBeNull();
+    expect(wrapper!.width).toBeGreaterThanOrEqual(host!.width - 2);
+  });
+
   test('tasks created with a quadrant appear in the correct quadrant', async ({ page }) => {
     const taskTitle = `Matrix Q1 ${Date.now()}`;
 

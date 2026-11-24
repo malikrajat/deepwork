@@ -45,7 +45,7 @@ You can apply this pattern to any container (like a "Show More" section or a nav
   transition: inline-size 0.3s ease;
 }
 
-.badge:hover {
+.badge:is(:hover, :focus-visible) {
   /* calc-size(basis, calculation) */
   /* 'size' refers to the evaluated basis (max-content in this case) */
   inline-size: calc-size(max-content, size + 20px);
@@ -84,11 +84,17 @@ You can also animate in the opposite direction—starting from a natural size an
 ```javascript
 // MANDATORY Accessibility Synchronization: Ensure elements collapsed to zero dimensions are removed from the assistive technology tree, and sync aria-expanded states on triggers.
 const alertElement = document.querySelector('.collapsible-alert');
-alertElement.addEventListener('transitionend', (e) => {
-  if (e.propertyName === 'block-size' && alertElement.classList.contains('is-dismissed')) {
-    alertElement.hidden = true;
-  }
-});
+function dismissAlert() {
+  alertElement.classList.add('is-dismissed');
+  // Waits for the transitions the class starts, ignoring any other animations
+  // on the element; under reduced motion there are none
+  const transitions = alertElement.getAnimations().filter((animation) => animation instanceof CSSTransition);
+  Promise.allSettled(transitions.map((transition) => transition.finished)).then(() => {
+    if (alertElement.classList.contains('is-dismissed')) {
+      alertElement.hidden = true;
+    }
+  });
+}
 
 // Example trigger syncer
 const triggerBtn = document.querySelector('.accordion-trigger');
@@ -106,11 +112,11 @@ triggerBtn?.addEventListener('click', () => {
 
 ## Fallback strategies
 
-interpolate-size has limited availability.
+Browser support for interpolate-size: Limited availability.
 Supported by: Chrome 129 (Sep 2024) and Edge 129 (Sep 2024).
 Unsupported in: Firefox and Safari.
 
-calc-size() has limited availability.
+Browser support for calc-size(): Limited availability.
 Supported by: Chrome 129 (Sep 2024) and Edge 129 (Sep 2024).
 Unsupported in: Firefox and Safari.
 

@@ -132,6 +132,14 @@
   --color-danger: #f87171;
   color-scheme: dark;
 
+  /* Scrollbar colours live in one token pair so the standard
+     `scrollbar-color` property and the legacy WebKit fallback cannot drift
+     apart. The 85% thumb clears 3:1 against the near-black page, which the
+     old 30% thumb did not. */
+  --scrollbar-thumb: rgba(139, 92, 246, 0.85);
+  --scrollbar-thumb-hover: #8b5cf6;
+  --scrollbar-track: transparent;
+
   /* â”€â”€â”€ Status colors â”€â”€â”€ */
   --status-todo-color: #9ca3af;
   --status-todo-bg: rgba(107, 114, 128, 0.12);
@@ -392,6 +400,10 @@ html[data-theme='light'] {
   --toast-bg: rgba(255, 255, 255, 0.95);
 
   --clock-track: rgba(15, 23, 42, 0.1);
+
+  --scrollbar-thumb: rgba(124, 58, 237, 0.85);
+  --scrollbar-thumb-hover: #7c3aed;
+  --scrollbar-track: transparent;
 }
 
 /* "System" theme before Angular resolves it (the inline boot script only sets
@@ -627,17 +639,13 @@ svg {
   }
 }
 
-/* Touch devices get a wider scrollbar than the 5px hairline the desktop
-   webview draws: a 5px grab target is not draggable with a finger. Keyed off
-   `pointer: coarse` rather than a width so a touchscreen laptop is included
-   and a narrow desktop window is not. */
+/* Touch devices get a full-width scrollbar rather than the thin hairline the
+   desktop webview draws: a 5px grab target is not draggable with a finger.
+   Keyed off `pointer: coarse` rather than a width so a touchscreen laptop is
+   included and a narrow desktop window is not. */
 @media (pointer: coarse) {
-  ::-webkit-scrollbar {
-    width: 8px;
-    height: 8px;
-  }
-  ::-webkit-scrollbar-thumb {
-    background: rgba(139, 92, 246, 0.45);
+  * {
+    scrollbar-width: auto;
   }
 }
 
@@ -739,19 +747,46 @@ body::after {
   }
 }
 
-/* Scrollbar styling */
-::-webkit-scrollbar {
-  width: 5px;
+/* Scrollbar styling.
+   `scrollbar-color` and `scrollbar-width` are the standard properties;
+   `::-webkit-scrollbar` ships only as a fallback for engines that have the
+   vendor pseudo-elements but not the standard properties (Safari before 26.2),
+   scoped to a feature query instead of being the primary rule. The colour
+   tokens are defined with the palette above so light and dark stay in step. */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: var(--scrollbar-thumb) var(--scrollbar-track);
 }
-::-webkit-scrollbar-track {
-  background: transparent;
-}
-::-webkit-scrollbar-thumb {
-  background: rgba(139, 92, 246, 0.3);
-  border-radius: 10px;
-}
-::-webkit-scrollbar-thumb:hover {
-  background: rgba(139, 92, 246, 0.5);
+
+@supports not (scrollbar-color: auto) {
+  /* A browser that supports `scrollbar-width` but not `scrollbar-color`
+     (Safari 18.2+) would let `thin` suppress the WebKit pseudo-elements, so
+     reset it before drawing them. */
+  * {
+    scrollbar-width: auto;
+  }
+
+  ::-webkit-scrollbar {
+    width: 5px;
+    height: 5px;
+  }
+  ::-webkit-scrollbar-track {
+    background: var(--scrollbar-track);
+  }
+  ::-webkit-scrollbar-thumb {
+    background: var(--scrollbar-thumb);
+    border-radius: 10px;
+  }
+  ::-webkit-scrollbar-thumb:hover {
+    background: var(--scrollbar-thumb-hover);
+  }
+
+  @media (pointer: coarse) {
+    ::-webkit-scrollbar {
+      width: 8px;
+      height: 8px;
+    }
+  }
 }
 
 /* Accent heading text.
@@ -984,18 +1019,16 @@ html[data-theme='light'] input[type='range']::-webkit-slider-thumb {
   }
 }
 
-/* Date/calendar input icon styling */
+/* Date/calendar input icon.
+   The native picker indicator already recolours itself from `color-scheme`
+   (see the `<meta>` in index.html and the theme rules above), so it needs no
+   filter chain approximating the accent colour — only its weight tuned so it
+   sits behind the field's text. */
 input[type='date']::-webkit-calendar-picker-indicator,
 input[type='time']::-webkit-calendar-picker-indicator,
 input[type='datetime-local']::-webkit-calendar-picker-indicator {
-  filter: invert(0.7) sepia(1) saturate(3) hue-rotate(220deg);
+  opacity: 0.65;
   cursor: pointer;
-}
-html[data-theme='light'] input[type='date']::-webkit-calendar-picker-indicator,
-html[data-theme='light'] input[type='time']::-webkit-calendar-picker-indicator,
-html[data-theme='light'] input[type='datetime-local']::-webkit-calendar-picker-indicator {
-  filter: none;
-  opacity: 0.6;
 }
 
 /* ===== Light theme: component surface overrides =====

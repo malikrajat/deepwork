@@ -3022,7 +3022,7 @@ export class DashboardComponent implements OnInit, OnDestroy {
 
   /** Newest first. The card scrolls, so the badge and the list always agree. */
   readonly recentSessions = computed(() =>
-    [...this.todaySessions()].sort(
+    this.todaySessions().toSorted(
       (a, b) => new Date(b.startedAt).getTime() - new Date(a.startedAt).getTime(),
     ),
   );

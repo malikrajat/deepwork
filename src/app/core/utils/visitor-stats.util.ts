@@ -515,7 +515,7 @@ export function rankStats(
 ): VisitorStatRow[] {
   if (!stats?.length) return [];
 
-  const sorted = [...stats].sort((a, b) => b.count - a.count).slice(0, limit);
+  const sorted = stats.toSorted((a, b) => b.count - a.count).slice(0, limit);
   const top = sorted[0]?.count || 1;
 
   return sorted.map((stat) => {

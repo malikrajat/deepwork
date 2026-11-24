@@ -317,6 +317,7 @@ interface MatrixContextMenu {
                     type="button"
                     (click)="toggleQuadrant(q.id)"
                     aria-expanded="true"
+                    [attr.aria-label]="'Collapse ' + q.label"
                     [appTooltip]="'Collapse ' + q.label"
                   >
                     <svg
@@ -809,8 +810,17 @@ interface MatrixContextMenu {
   styles: [
     `
       :host {
-        display: block;
+        /* The page header can be taller than any fixed number guessed here, so
+           the board is a flex item that takes whatever height is left rather
+           than a block measured against the host with a hard-coded subtraction.
+           Without this the wrapper kept a height that assumed an 80px header,
+           which pushed the bottom of the board — the third and fourth quadrants
+           or their strips — under the host's clipped edge with no scrollbar to
+           reach them. */
+        display: flex;
+        flex-direction: column;
         height: 100%;
+        min-height: 0;
         overflow: hidden;
       }
       .page-header {
@@ -944,7 +954,9 @@ interface MatrixContextMenu {
       .matrix-wrapper {
         display: flex;
         gap: 0;
-        height: calc(100% - 80px);
+        /* Fill the space the header leaves instead of assuming it is 80px. */
+        flex: 1 1 auto;
+        min-height: 0;
         align-items: stretch;
       }
       .matrix-wrapper.resizing {
@@ -1770,11 +1782,19 @@ interface MatrixContextMenu {
         .page-header,
         .guide-panel,
         .empty-state {
+          width: 100%;
           max-width: 1720px;
           margin-inline: auto;
         }
 
         .matrix-wrapper {
+          /* The host is a column flex container so the board can take the
+             height the header leaves. In a flex container, margin-inline:auto
+             makes a cross-axis item shrink to its content — which collapsed the
+             whole board into the middle of a wide screen. Width 100% restores
+             the block layout's old width, with max-width still capping it and
+             the auto margins still centring it. */
+          width: 100%;
           max-width: 1720px;
           margin-inline: auto;
         }

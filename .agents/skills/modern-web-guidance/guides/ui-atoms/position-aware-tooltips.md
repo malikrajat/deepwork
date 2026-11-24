@@ -2,7 +2,7 @@
 
 When building tooltips or popovers with CSS Anchor Positioning, the browser can automatically "flip" the element to a fallback position if it would otherwise overflow the viewport. When this happens, you may want to adjust the style of the positioned content, for instance to reposition an arrow that points from the positioned content to the anchor.
 
-**Anchored Container Queries** solve this by allowing you to query the active positioning state of an element and apply styles accordingly.
+**Anchored Container Queries** solve this by allowing you to query the active positioning state of an element and apply styles accordingly. For general anchored dropdown and flyout positioning with viewport collision flipping (without directional arrow restyling), see `viewport-aware-dropdowns` (via `npx -y modern-web-guidance@latest retrieve "viewport-aware-dropdowns"`).
 
 ## The problem
 
@@ -14,7 +14,7 @@ By setting `container-type: anchored` on your positioned element, you turn it in
 
 ### 1. Create the tooltip and trigger
 
-Use the Popover API to create a tooltip. This creates an implicit anchor connection that can be used for positioning.
+Use the Popover API to create a tooltip. Invoking the popover via `popovertarget` automatically establishes an **implicit anchor connection** with the trigger button, so no explicit `anchor-name` or `position-anchor` is required.
 
 ```html
 <button popovertarget="tooltip" id="anchor" aria-describedby="tooltip">anchor</button>
@@ -62,7 +62,7 @@ Like all container queries, `@container` can only style **descendants** of the c
 ```css
 .tooltip-content::before {
   /* Default "down" arrow for the 'top' position */
-  content: "▼";
+  content: "▼" / "";
   position: absolute;
   inset-block-end: 0;
   inset-inline-start: 1rem;
@@ -71,7 +71,7 @@ Like all container queries, `@container` can only style **descendants** of the c
 /* Update to an "up" arrow when the 'flip-block' fallback (bottom) is active */
 @container anchored(fallback: flip-block) {
   .tooltip-content::before {
-    content: "▲";
+    content: "▲" / "";
     inset-block-start: 0;
     inset-block-end: auto;
   }
@@ -95,15 +95,38 @@ If you need to change properties on the container itself (like `margin` or `back
 }
 ```
 
+## 5. Styling the inner container (optional)
+
+If the tooltip text is particularly long, use an inner container in the tooltip to ensure that, when visible, the tooltip will always fit between the trigger control and a side of the viewport. As an example, the following code will adhere to this when flipping the tooltip content on the block axis with `position-try: flip-block`.
+
+```html
+<button popovertarget="tooltip" id="anchor" aria-describedby="tooltip">anchor</button>
+<div id="tooltip" popover role="tooltip">
+  <div class="tooltip-content-inner"></div>
+</div>
+```
+
+```css
+.tooltip-content-inner {
+  max-block-size: calc(50dvb - var(--trigger-height));
+  overflow-block: auto;
+} 
+```
+
 ## Best practices
 
 - **Prefer logical fallbacks**: Use keywords like `flip-block` and `flip-inline` in `position-try-fallbacks` for simpler queries that handle RTL and different writing modes automatically.
 - **Use pseudo-elements for arrows**: Tooltip arrows are purely decorative and are perfect candidates for `::before` or `::after`, which can be styled via anchored container queries without extra DOM.
 
+## Accessibility considerations
+
+Using these tooltips may result in controls being obscured when they receive focus, which would result in a fail against WCAG 2.4.11 Focus Not Obscured (Minimum) (Level AA), as focused items cannot be completely obscured. While there may not be generic guidance to completely mitigate against this issue, consider strategies that adjust the position of the tooltip or its presence.
+
+Keyboard navigation does not close a `popover=auto` tooltip, so ensure that tooltips do not obscure interactive elements as they receive focus via keyboard. If the tooltip is likely to obscure an interactive element when it receives focus, either change the position of the tooltip to prevent focus being obscured, or dismiss the tooltip if it is no longer relevant to the user.
 
 ## Fallback strategies
 
-Anchor position container queries has limited availability.
+Browser support for Anchor position container queries: Limited availability.
 Supported by: Chrome 143 (Dec 2025) and Edge 143 (Dec 2025).
 Unsupported in: Firefox and Safari.
 
@@ -112,7 +135,7 @@ Positioning the arrow based on the applied fallback is a progressive enhancement
 ```css
 @supports (container-type: anchored) {
   .tooltip-content::before {
-    content: "▼";
+    content: "▼" / "";
   }
 }
 ```
@@ -130,29 +153,21 @@ With a bundler or import map:
 
 ```js
 // MANDATORY: Feature detect 'popover' on HTMLElement.prototype.
-if (!("popover" in HTMLElement.prototype)) {
+if (!Object.hasOwn(HTMLElement.prototype, "popover")) {
   import("@oddbird/popover-polyfill");
 }
 ```
 
-Without a bundler, import from a CDN inside a `<script type="module">`:
+If not using a package manager, import from a CDN, e.g. `"https://unpkg.com/@oddbird/popover-polyfill@latest/dist/popover.min.js"`.
 
-```html
-<script type="module">
-  if (!("popover" in HTMLElement.prototype)) {
-    import("https://unpkg.com/@oddbird/popover-polyfill@latest/dist/popover.min.js");
-  }
-</script>
-```
-
-**Styling caveat:** The polyfill cannot define the real `:popover-open` pseudo-class, so it applies a `.\:popover-open` class instead. **MANDATORY:** Combine the two with `:is()` or `:where()`, otherwise browsers that lack `:popover-open` discard the entire rule:
+Caveats when using the polyfill:
+- Do NOT use the `popover` IDL attribute for any code that may run before the polyfill is fully loaded. It will not be mirrored as an attribute, the popover will not be picked up by the polyfill, and the property will be shadowing the accessor the polyfill adds forever. Use `setAttribute()`/`removeAttribute()` instead.
+- **Styling caveat:** The polyfill cannot define the real `:popover-open` pseudo-class, so it applies a `.\:popover-open` class instead. **MANDATORY:** Combine the two with `:is()` or `:where()`, otherwise browsers that lack `:popover-open` discard the entire rule:
 
 ```css
 [popover]:is(:popover-open, .\:popover-open) {
   display: block;
 }
 ```
-
-Alternatively, for a legacy fallback without a polyfill, use `position: fixed` and manually calculate coordinates via `getBoundingClientRect()` or rely on default positioning with `inset: auto` if that's acceptable for the use case.
 
 Browsers without support for the Popover API also do not support anchor positioning, so the tooltip will appear in the center of the screen.

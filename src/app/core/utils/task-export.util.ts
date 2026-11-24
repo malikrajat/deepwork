@@ -411,7 +411,7 @@ export function selectTasksForExport({
 
 /** Oldest first within the range (chronological reading order), then priority. */
 export function sortTasksForExport(tasks: readonly Task[], field: ExportDateField): Task[] {
-  return [...tasks].sort((a, b) => {
+  return tasks.toSorted((a, b) => {
     const dateA = taskDateFor(a, field) ?? '';
     const dateB = taskDateFor(b, field) ?? '';
     if (dateA !== dateB) {

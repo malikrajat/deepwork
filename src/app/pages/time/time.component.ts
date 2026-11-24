@@ -1690,7 +1690,7 @@ export class TimeComponent implements OnInit {
    */
   protected readonly allocation = computed(() => {
     const total = Math.max(1, this.totals().seconds);
-    const sorted = [...this.groups()].sort((a, b) => b.periodSeconds - a.periodSeconds);
+    const sorted = this.groups().toSorted((a, b) => b.periodSeconds - a.periodSeconds);
     const top = sorted.slice(0, 5);
     const topSeconds = top.reduce((sum, group) => sum + group.periodSeconds, 0);
     return {
