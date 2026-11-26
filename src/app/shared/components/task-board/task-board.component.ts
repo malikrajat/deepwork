@@ -624,6 +624,12 @@ interface BoardContextMenu {
       }
       .card-title {
         display: block;
+        /* The title carries the tooltip, so it must be only as wide as its
+           text: stretched across the row, a short title popped the tooltip
+           over the empty space beside it. A long title still clamps and
+           ellipsises against the card's full width. */
+        align-self: flex-start;
+        max-width: 100%;
         min-width: 0;
         font-size: 14px;
         font-weight: 500;

@@ -257,7 +257,11 @@ const ABOUT_SECTION_PATHS = new Set(['/contact', '/privacy', '/terms']);
         );
       }
       .sidebar.collapsed {
-        width: 68px;
+        /* Wide enough for the group words the rail still prints above each
+           section — OVERVIEW, RITUALS — not just for the icons. At 68px the
+           longest of them was wider than the column, which gave the nav list
+           a horizontal scrollbar of its own. */
+        width: 88px;
         padding: var(--space-md) var(--space-sm);
       }
       .sidebar-header {
@@ -322,6 +326,10 @@ const ABOUT_SECTION_PATHS = new Set(['/contact', '/privacy', '/terms']);
            overflows and so never scrolls. */
         min-height: 0;
         overflow-y: auto;
+        /* A vertical scroller computes the other axis to auto as well, which
+           turned the group labels into a sideways scrollbar. The rail is wide
+           enough for them now; keep the x axis quiet regardless. */
+        overflow-x: hidden;
         overscroll-behavior-y: contain;
         -webkit-overflow-scrolling: touch;
       }

@@ -5,6 +5,21 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ---
 
+## [3.6.0] – 2026-11-26
+
+### Fixed
+
+- **Task tooltips appear only over the task title.** A title no longer stretches
+  across its card or row, so hovering the empty space, padding or action buttons
+  beside a short title no longer opens it. The title text itself still shows the
+  full tooltip on the Tasks and Today boards, the Eisenhower Matrix, Calendar,
+  the Dashboard's current focus and Analytics' recent sessions.
+- **The collapsed navigation no longer scrolls sideways.** The rail is wider —
+  88px instead of 68px — so the group labels (Overview, Plan, Review, Rituals,
+  App) fit without truncation, and the nav list's horizontal scrollbar is gone.
+
+---
+
 ## [3.5.0] – 2026-11-20
 
 ### Fixed

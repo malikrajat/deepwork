@@ -102,8 +102,15 @@ const targets = [
   },
   {
     // The structured data a search engine or an answer engine reads, which is
-    // outside every build system's version.
+    // outside every build system's version. The standalone About page carries
+    // its own copy of it.
     file: 'src/index.html',
+    read: (src) => [src.match(/"softwareVersion": "([^"]+)"/)[1]],
+    write: (src, from, to) =>
+      src.replace(`"softwareVersion": "${from}"`, `"softwareVersion": "${to}"`),
+  },
+  {
+    file: 'public/about-deepwork/index.html',
     read: (src) => [src.match(/"softwareVersion": "([^"]+)"/)[1]],
     write: (src, from, to) =>
       src.replace(`"softwareVersion": "${from}"`, `"softwareVersion": "${to}"`),
@@ -120,6 +127,7 @@ const targets = [
     write: (src, from, to) => src.replace(`Version: \`v${from}\``, `Version: \`v${to}\``),
   },
   doc('README.md'),
+  doc('README - Copy.md'),
   doc('SETUP.md'),
   doc('docs/code-signing.md'),
 ];

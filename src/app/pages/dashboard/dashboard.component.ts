@@ -1899,6 +1899,10 @@ interface DashboardCommand {
       }
       .task-copy h2 {
         display: -webkit-box;
+        /* The title carries the tooltip, so it must be only as wide as its
+           text rather than filling the copy column. */
+        width: fit-content;
+        max-width: 100%;
         -webkit-line-clamp: 2;
         -webkit-box-orient: vertical;
         overflow: hidden;

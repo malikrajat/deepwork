@@ -351,7 +351,6 @@ interface MatrixContextMenu {
                       [cdkDragData]="task"
                       tabindex="0"
                       [attr.aria-label]="cardLabel(task)"
-                      [appTooltip]="cardTooltip(task)"
                       (keydown)="onCardKeydown(task, $event)"
                       (contextmenu)="openContextMenu(task, $event)"
                     >
@@ -378,7 +377,9 @@ interface MatrixContextMenu {
                         }
                       </div>
                       <div class="card-body">
-                        <span class="card-title">{{ task.title }}</span>
+                        <span class="card-title" [appTooltip]="cardTooltip(task)">{{
+                          task.title
+                        }}</span>
                         @if (task.deadline) {
                           <span class="card-deadline">Due {{ formatDeadline(task.deadline) }}</span>
                         }
@@ -595,7 +596,6 @@ interface MatrixContextMenu {
                   [cdkDragData]="task"
                   tabindex="0"
                   [attr.aria-label]="cardLabel(task)"
-                  [appTooltip]="cardTooltip(task)"
                   (keydown)="onCardKeydown(task, $event)"
                   (contextmenu)="openContextMenu(task, $event)"
                 >
@@ -622,7 +622,9 @@ interface MatrixContextMenu {
                     }
                   </div>
                   <div class="card-body">
-                    <span class="card-title">{{ task.title }}</span>
+                    <span class="card-title" [appTooltip]="cardTooltip(task)">{{
+                      task.title
+                    }}</span>
                     @if (task.deadline) {
                       <span class="card-deadline">Due {{ formatDeadline(task.deadline) }}</span>
                     }
@@ -1262,6 +1264,12 @@ interface MatrixContextMenu {
       }
       /* Titles wrap onto two lines so they stay readable in a narrow list. */
       .card-title {
+        /* The title carries the tooltip, so it must be only as wide as its
+           text: stretched across the card, a short title popped the tooltip
+           over the empty space beside it. Long titles still clamp at the
+           card's full width. */
+        align-self: flex-start;
+        max-width: 100%;
         font-size: 13px;
         color: var(--color-text-primary);
         line-height: 1.25;

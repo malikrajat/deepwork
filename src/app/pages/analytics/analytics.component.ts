@@ -844,6 +844,10 @@ import { PageHeaderComponent } from '../../shared/components/page-header/page-he
         min-width: 0;
       }
       .session-task {
+        /* The title is the tooltip's target, so it stays only as wide as its
+           text instead of stretching across the session row. */
+        align-self: flex-start;
+        max-width: 100%;
         font-size: 13px;
         font-weight: 500;
         overflow: hidden;

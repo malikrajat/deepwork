@@ -1217,6 +1217,10 @@ function persistCollapsedGroups(value: Record<string, boolean>): void {
       }
       .rail-task {
         display: block;
+        /* The title is the tooltip's target; let it shrink-wrap its text so
+           hovering the empty space to its right does nothing. */
+        width: fit-content;
+        max-width: 100%;
         font-size: 13px;
         font-weight: 600;
         color: var(--color-text-primary);
@@ -1453,7 +1457,11 @@ function persistCollapsedGroups(value: Record<string, boolean>): void {
         font-size: 12px;
         font-weight: 600;
         color: var(--color-text-primary);
-        flex: 1;
+        /* Not flex: 1 — the title is the tooltip's target, so it stays as wide
+           as its text. The auto margin keeps the focus button at the far end
+           of the row instead. */
+        flex: 0 1 auto;
+        margin-right: auto;
         min-width: 0;
         overflow: hidden;
         text-overflow: ellipsis;
@@ -1809,7 +1817,9 @@ function persistCollapsedGroups(value: Record<string, boolean>): void {
         color: var(--color-text-primary);
       }
       .cand-title {
-        flex: 1;
+        /* Shrink-wrapped for the tooltip; space-between still pushes the
+           quadrant label to the right edge of the candidate row. */
+        flex: 0 1 auto;
         min-width: 0;
         overflow: hidden;
         text-overflow: ellipsis;
